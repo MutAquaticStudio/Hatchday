@@ -1,6 +1,6 @@
-# Thú ảo đồng hành
+# Hatchday
 
-Game nuôi thú ảo 3D phong cách anime trên web, cho người đi làm thế hệ 8x, 9x. Tên game là tên tạm.
+Game nuôi thú ảo 3D phong cách anime trên web, cho người đi làm thế hệ 8x, 9x. Hatchday là tên tạm.
 
 ## Chạy thử
 

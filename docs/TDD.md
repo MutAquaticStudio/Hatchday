@@ -1,4 +1,4 @@
-# TDD — Thú ảo đồng hành (giai đoạn 1: MVP chơi một mình)
+# TDD — Hatchday (giai đoạn 1: MVP chơi một mình)
 
 Cập nhật: 31/10/2026. Tài liệu thiết kế game (GDD) nằm ở Claude Docs, tài liệu này mô tả cách xây dựng.
 

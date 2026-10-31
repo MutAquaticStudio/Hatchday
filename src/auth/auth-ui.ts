@@ -9,7 +9,7 @@ const emailOk = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v);
 
 /* Giới hạn phía máy: 5 lần sai trong 15 phút thì tạm khoá 15 phút.
    Đây là lớp trải nghiệm; lớp bảo vệ thật là rate limit + CAPTCHA của Supabase Auth. */
-const FAIL_KEY = 'thu-ao-login-fails';
+const FAIL_KEY = 'hatchday-login-fails';
 function fails(): number[] { try { return (JSON.parse(localStorage.getItem(FAIL_KEY) || '[]') as number[]).filter(t => Date.now() - t < 15 * 60_000); } catch { return []; } }
 function addFail() { try { localStorage.setItem(FAIL_KEY, JSON.stringify([...fails(), Date.now()])); } catch { /* bỏ qua */ } }
 function clearFails() { try { localStorage.removeItem(FAIL_KEY); } catch { /* bỏ qua */ } }
@@ -28,7 +28,7 @@ export function mountAuth(root: HTMLElement, view: AuthView, onSignedIn: () => v
   const cfg = isConfigured ? '' : '<p class="notice bad">Chưa cấu hình Supabase. Tạo file <code>.env</code> theo <code>.env.example</code> rồi chạy lại.</p>';
   const back = '<button type="button" class="link back" data-go="gate">← Quay lại</button>';
   const views: Record<AuthView, string> = {
-    gate: `${device}<h1>Thú ảo đồng hành</h1><p class="sub">Một người bạn nhỏ đang chờ bạn.</p>${cfg}
+    gate: `${device}<h1>Hatchday</h1><p class="sub">Một người bạn nhỏ đang chờ bạn.</p>${cfg}
       <div class="stack"><button class="btn" data-go="login">Đăng nhập</button><button class="btn ghost" data-go="register">Tạo tài khoản</button>
       <div class="or">hoặc</div><p class="err" id="form-err" role="alert"></p><button class="btn ghost google" id="google">${GOOGLE_ICON}Đăng nhập bằng Google</button></div>`,
     login: `${back}<h1>Đăng nhập</h1>${info ? `<p class="notice">${esc(info)}</p>` : ''}<form novalidate>
@@ -97,7 +97,7 @@ export function mountAuth(root: HTMLElement, view: AuthView, onSignedIn: () => v
         const { error } = await supabase.auth.signInWithPassword({ email, password: pw });
         if (error) { if (error.code === 'invalid_credentials') addFail(); throw error; }
         clearFails();
-        try { localStorage.setItem('thu-ao-remember', $('remember')!.checked ? '1' : '0'); sessionStorage.setItem('thu-ao-alive', '1'); } catch { /* bỏ qua */ }
+        try { localStorage.setItem('hatchday-remember', $('remember')!.checked ? '1' : '0'); sessionStorage.setItem('hatchday-alive', '1'); } catch { /* bỏ qua */ }
         onSignedIn();
       } else if (view === 'register') {
         busy(true, 'Đang tạo…');

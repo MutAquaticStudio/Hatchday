@@ -11,8 +11,8 @@ let started = false;
 /** "Ghi nhớ tôi" tắt: phiên trình duyệt mới thì đăng xuất. */
 async function enforceRemember(): Promise<void> {
   try {
-    if (localStorage.getItem('thu-ao-remember') === '0' && !sessionStorage.getItem('thu-ao-alive')) await supabase.auth.signOut();
-    sessionStorage.setItem('thu-ao-alive', '1');
+    if (localStorage.getItem('hatchday-remember') === '0' && !sessionStorage.getItem('hatchday-alive')) await supabase.auth.signOut();
+    sessionStorage.setItem('hatchday-alive', '1');
   } catch { /* bỏ qua */ }
 }
 

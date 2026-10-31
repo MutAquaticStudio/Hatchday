@@ -1,5 +1,5 @@
 -- =====================================================================
--- Thú ảo đồng hành — schema khởi tạo (giai đoạn 1: MVP chơi một mình)
+-- Hatchday — schema khởi tạo (giai đoạn 1: MVP chơi một mình)
 -- Nguyên tắc: server là nguồn sự thật cho chỉ số, thời gian và phần thưởng.
 -- Client chỉ ĐỌC bảng qua RLS và GHI qua các hàm RPC đã kiểm tra.
 -- =====================================================================

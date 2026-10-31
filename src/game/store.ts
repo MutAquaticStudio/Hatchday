@@ -59,7 +59,7 @@ export async function refreshDays(): Promise<void> {
 
 /** Lưu tạm trên máy để mở lại nhanh; không phải bản chính. */
 export function save(): void {
-  try { localStorage.setItem('thu-ao-cache', JSON.stringify({ name: S.name, palette: S.palette })); } catch { /* bỏ qua */ }
+  try { localStorage.setItem('hatchday-cache', JSON.stringify({ name: S.name, palette: S.palette })); } catch { /* bỏ qua */ }
 }
 
 let memTimer = 0;
