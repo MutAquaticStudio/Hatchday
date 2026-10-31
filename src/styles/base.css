@@ -1,0 +1,13 @@
+/* Token dùng chung cho màn hình tài khoản và tạo thú (game có game.css riêng) */
+:root{
+  --ink:#4a2140; --ink-soft:#7a5a78; --candy:#fff7fb; --candy-edge:#f3c4d9; --accent:#ff6fa8; --accent-deep:#e04b8b;
+  --lcd:#cfe3a8; --lcd-ink:#2f4a24; --lcd-edge:#5b4a6e; --bad:#d6336c;
+  --f-display:"Baloo 2","Nunito",system-ui,sans-serif; --f-body:"Nunito",system-ui,sans-serif;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html,body,#root{height:100%}
+body{margin:0;color:var(--ink);font-family:var(--f-body);background:#ffe6f0}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible,a:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+[hidden]{display:none!important}

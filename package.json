@@ -1,0 +1,26 @@
+{
+  "name": "thu-ao",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Game nuôi thú ảo 3D phong cách anime trên web",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:db": "vitest run supabase/tests"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "2.117.3",
+    "three": "0.186.1"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.3.16",
+    "@types/three": "0.186.0",
+    "typescript": "6.0.3",
+    "vite": "8.3.4",
+    "vitest": "5.0.4"
+  }
+}

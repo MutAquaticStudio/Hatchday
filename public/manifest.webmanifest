@@ -1,0 +1,10 @@
+{
+  "name": "Thú ảo đồng hành",
+  "short_name": "Thú ảo",
+  "lang": "vi",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffe6f0",
+  "theme_color": "#ff9ec4",
+  "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}
