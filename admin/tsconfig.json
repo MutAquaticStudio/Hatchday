@@ -1,5 +1,5 @@
 {
   "extends": "../tsconfig.json",
   "compilerOptions": { "noEmit": true, "types": ["vite/client"] },
-  "include": ["src", "../src/lib/supabase.ts", "../src/vite-env.d.ts"]
+  "include": ["src", "../src/lib/supabase.ts", "../src/lib/captcha.ts", "../src/vite-env.d.ts"]
 }

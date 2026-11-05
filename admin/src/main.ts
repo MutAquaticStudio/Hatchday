@@ -1,6 +1,7 @@
 /** Trang quản trị Hatchday: đăng nhập, xác thực hai bước (TOTP), các màn hình theo vai trò. */
 import { isDemo, rpc, sb, viMsg } from './api';
 import { can, type Action, type Role } from './rbac';
+import { mountCaptcha } from '../../src/lib/captcha';
 
 const root = document.getElementById('root')!;
 const esc = (v: unknown) => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
@@ -17,10 +18,13 @@ const guard = async (fn: () => Promise<unknown>, ok: string) => { try { await fn
 function loginView(msg = '') {
   root.innerHTML = `<div class="login card"><h2>Hatchday — Quản trị</h2>${msg ? `<div class="msg err">${esc(msg)}</div>` : ''}
     <label for="em">Email</label><input id="em" type="email" autocomplete="username"><label for="pw">Mật khẩu</label><input id="pw" type="password" autocomplete="current-password">
-    <p><button class="p" id="go">Đăng nhập</button></p><p class="small">${isDemo ? 'Chế độ chạy thử (chưa cấu hình Supabase): dùng ?role=owner|ops|support|moderator|analyst.' : 'Chỉ tài khoản đã được cấp vai trò mới vào được.'}</p></div>`;
+    <div id="captcha"></div><p><button class="p" id="go">Đăng nhập</button></p><p class="small">${isDemo ? 'Chế độ chạy thử (chưa cấu hình Supabase): dùng ?role=owner|ops|support|moderator|analyst.' : 'Chỉ tài khoản đã được cấp vai trò mới vào được.'}</p></div>`;
+  const captcha = mountCaptcha(document.getElementById('captcha'));
   $('go').onclick = async () => {
     if (isDemo) return start();
-    const { error } = await sb!.auth.signInWithPassword({ email: val('em'), password: val('pw') });
+    let captchaToken: string | undefined;
+    try { captchaToken = await captcha.token(); } catch { return loginView('Chưa xác minh được bạn là người thật. Tải lại trang và thử lại.'); }
+    const { error } = await sb!.auth.signInWithPassword({ email: val('em'), password: val('pw'), options: { captchaToken } });
     if (error) return loginView('Email hoặc mật khẩu chưa đúng.');
     await mfaStep();
   };
