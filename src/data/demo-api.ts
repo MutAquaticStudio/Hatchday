@@ -8,7 +8,8 @@ import { BALANCED_BONUS, isBalanced } from '../game/nutrition';
 import { buyable, COIN, comfortLevel, comfortScore, dayNumber, QUEST_BONUS, QUEST_POOL, questsForDay, rotationForDay, isWeekend, weekStart, WEEKLY_POOL, weeklyForDay } from '../game/layout';
 import type { ActionResult, DayLogRow, Economy, MemoryRow, Outfit, PetAction, PetRow, QuestBoard, QuestRow, SeenRow } from './types';
 import { applyDrift, isBlank, normalize, rollPersonality } from '../game/personality';
-import { formFromCare, pickSpecies, stageForAge, REGIONS, GROW_MEMORY } from '../game/species';
+import { blendPersonality, HEIR_FAV_INHERIT, pickHeirSpecies } from '../game/lineage';
+import { formFromCare, pickSpecies, SPECIES_BY_ID, stageForAge, REGIONS, GROW_MEMORY } from '../game/species';
 
 const KEY = 'hatchday-demo';
 interface DB {
@@ -17,6 +18,8 @@ interface DB {
   quests: string[]; collections: string[]; life?: number; seen?: SeenRow[];
   /** Ngày đã nhận suất ăn, tuần:idx đã nhận nhiệm vụ tuần, đã bù kho thức ăn cho bản lưu cũ. */
   ration?: string[]; weekly?: string[]; foodStock?: boolean;
+  /** Gia phả: các bé đã ra đi (cũ trước) và ký ức của họ. Ở bản thử, nhật ký ngày và nhiệm vụ tuần tính lại từ đầu cho bé đời sau. */
+  family?: PetRow[]; oldMem?: Record<string, MemoryRow[]>;
 }
 
 function load(): DB {
@@ -38,8 +41,16 @@ function load(): DB {
 /** Lớn lên theo tuổi (cùng luật với private.grow_pet). */
 function grow(db: DB) {
   const p = db.pet; if (!p) return;
-  const days = (Date.now() - Date.parse(p.born_at)) / 86400000;
-  const st = stageForAge(days, db.life || 45);
+  const days = (Date.now() - Date.parse(p.born_at)) / 86400000, life = db.life || 45;
+  if (p.stage === 'departed') return;
+  const st = stageForAge(days, life);
+  if (days >= life) {
+    // hết tuổi thọ: chia tay (giống nhánh chia tay của private.grow_pet)
+    if (!p.form) { const sum = { fed: 0, ball: 0, pet: 0, talk: 0, bath: 0 }; for (const d of Object.values(db.days)) { sum.fed += d.fed; sum.ball += d.ball; sum.pet += d.pet; sum.talk += d.talk; sum.bath += d.bath; } p.form = formFromCare(sum); }
+    p.stage = 'departed'; p.departed_at = new Date(Date.parse(p.born_at) + life * 86400000).toISOString(); p.lived_days = life;
+    first(db, 'depart', 'milestone', `Mình đã sống bên bạn ${life} ngày. Cảm ơn bạn đã thương mình, mình sẽ nhớ mãi.`);
+    return;
+  }
   if (st === p.stage) return;
   p.stage = st;
   if ((st === 'adult' || st === 'elder') && !p.form) {
@@ -77,6 +88,11 @@ function first(db: DB, key: string, kind: string, body: string): boolean {
 export async function getMyPet(): Promise<PetRow | null> {
   const db = load(); decay(db); grow(db);
   if (db.pet && isBlank(db.pet.personality)) db.pet.personality = rollPersonality(); // giống phần chuyển dữ liệu trong migration cá tính
+  if (db.pet?.stage === 'departed') {
+    // như server: trả về bé vừa ra đi đúng một lần, rồi cất vào gia phả
+    const gone = db.pet; (db.family ||= []).push(gone); (db.oldMem ||= {})[gone.id] = db.mem;
+    db.pet = null; db.mem = []; db.firsts = []; db.days = {}; store(db); return gone;
+  }
   store(db); return db.pet;
 }
 export async function listSpeciesSeen(): Promise<SeenRow[]> { return load().seen || []; }
@@ -90,6 +106,7 @@ export async function demoAge(days: number): Promise<PetRow | null> {
 export async function createPet(name: string, family: string, egg: number): Promise<PetRow> {
   const db = load();
   if (db.pet) throw new Error('pet_exists');
+  if (db.family?.length) throw new Error('heir_required');
   const ids = FOODS.map(f => f.id).sort(() => Math.random() - 0.5);
   const now = new Date().toISOString();
   if (!(egg >= 0 && egg < REGIONS.length)) throw new Error('invalid_egg');
@@ -110,6 +127,32 @@ export async function createPet(name: string, family: string, egg: number): Prom
   store(db);
   return db.pet;
 }
+
+/** Đón thú đời sau (giống public.hatch_heir). */
+export async function hatchHeir(name: string, egg: number): Promise<PetRow> {
+  const db = load();
+  if (db.pet) throw new Error('pet_exists');
+  const par = db.family?.[db.family.length - 1]; if (!par) throw new Error('no_parent');
+  name = name.trim(); if (name.length < 1 || name.length > 16) throw new Error('invalid_name');
+  if (!(egg >= 0 && egg < REGIONS.length)) throw new Error('invalid_egg');
+  const sp = pickHeirSpecies(par.species, egg, Math.random(), Math.random()), spec = SPECIES_BY_ID[sp], now = new Date().toISOString();
+  const pl = par.genes.likes?.[0];
+  const tags = ['mem', 'sach', 'cay', 'choi', 'sang', 'retro'].filter(t => t !== pl).sort(() => Math.random() - 0.5);
+  const likes = pl ? [pl, tags[0]] : [tags[0], tags[1]], dislike = pl ? tags[1] : tags[2];
+  const foods = FOODS.map(f => f.id).sort(() => Math.random() - 0.5);
+  const fav = db.fav && Math.random() < HEIR_FAV_INHERIT ? db.fav : foods[0];
+  db.fav = fav; db.dis = foods.find(x => x !== fav)!; db.life = 30 + Math.floor(Math.random() * 31);
+  db.pet = { id: 'demo-' + (par.generation + 1), owner_id: 'demo', name, family_name: par.family_name, generation: par.generation + 1, stage: 'baby', species: sp, form: null, parent_id: par.id,
+    genes: { region: egg, ear: par.genes.ear, scale: Math.round((0.96 + Math.random() * 0.08) * 1000) / 1000, hue: Math.round(((par.genes.hue || 0) * 0.5 + (Math.random() * 2 - 1) * 0.5) * 100) / 100, likes, dislike },
+    personality: blendPersonality(normalize(par.personality), rollPersonality()), no: 72, vui: 74, nl: 82, sach: 85, asleep: false, stats_at: now, bond_xp: 0, born_at: now,
+    outfit: {}, outfit_presets: [{}, {}, {}], comfort_level: comfortLevel(comfortScore(db.layouts[db.active] || DEFAULT_LAYOUT)) };
+  db.seen ||= []; if (!db.seen.some(x => x.species_id === sp)) db.seen.push({ species_id: sp, first_at: now, forms: [] });
+  for (const f of FOODS) db.owned[f.id] = Math.max(db.owned[f.id] || 0, FOOD_STOCK.start);
+  first(db, 'meet', 'meet', `Mình là một bé ${spec.name}, đời thứ ${db.pet.generation} của ${par.family_name}. Mình nghe kể về ${par.name} nhiều lắm.`);
+  store(db); return db.pet;
+}
+/** Cả gia phả, cũ trước (bé đã đi và bé hiện tại). */
+export async function listFamily(): Promise<PetRow[]> { const db = load(); return [...(db.family || []), ...(db.pet && db.pet.stage !== 'departed' ? [db.pet] : [])]; }
 
 export async function renamePet(name: string) { const db = load(); if (db.pet) db.pet.name = name; store(db); }
 
@@ -153,7 +196,7 @@ export async function addTalkMemory(text: string) {
   const db = load(); const t = text.trim().slice(0, 120); if (t.length < 4) return;
   db.mem.unshift({ id: db.nextId++, kind: 'talk', body: `Bạn kể: “${t}”`, created_at: new Date().toISOString() }); store(db);
 }
-export async function listMemories(): Promise<MemoryRow[]> { return load().mem.slice(0, 60); }
+export async function listMemories(petId?: string): Promise<MemoryRow[]> { const db = load(); return (petId && db.oldMem?.[petId] ? db.oldMem[petId] : db.mem).slice(0, 60); }
 export async function deleteMemory(id: number) { const db = load(); db.mem = db.mem.filter(m => m.id !== id); store(db); }
 export async function listDayLogs(): Promise<DayLogRow[]> { return Object.values(load().days).sort((a, b) => b.day.localeCompare(a.day)).slice(0, 30); }
 export function resetDemo() { try { localStorage.removeItem(KEY); } catch { /* bỏ qua */ } }

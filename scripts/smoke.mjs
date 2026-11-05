@@ -113,5 +113,22 @@ ok('mở Chỉ số thì hiện lời chúc và nút Đã hiểu',(await p.textC
 await p.click('[data-tour="finish"]');await p.waitForTimeout(300);
 ok('xong hướng dẫn: thẻ biến mất và nhớ đã xem',(await p.$('.tour'))===null&&(await p.evaluate(()=>localStorage.getItem('hatchday-tour')))==='1');
 await p.click('#btn-stats');
+// vòng đời: tua tuổi cho bé hết tuổi thọ, mở lại game → trang tưởng niệm → đón trứng đời sau → gia phả 2 đời
+const prev=await demo();
+await p.evaluate(()=>{const d=JSON.parse(localStorage.getItem('hatchday-demo'));d.life=40;d.pet.born_at=new Date(Date.now()-41*86400000).toISOString();localStorage.setItem('hatchday-demo',JSON.stringify(d));});
+await p.goto(`http://localhost:${PORT}/?dev`);await p.waitForTimeout(800);await p.click('#demo');await p.waitForTimeout(1200);
+ok('bé hết tuổi thọ: hiện trang tưởng niệm',await p.isVisible('.memorial')&&(await p.textContent('.memorial h1')).includes('đã ra đi'),(await p.textContent('.memorial h1').catch(()=>'')));
+ok('trang tưởng niệm nói số ngày đã sống và có ký ức',(await p.textContent('.memo-days')).includes('40')&&(await p.$$('.memo-list .memo')).length>=1);
+await p.click('#memo-next');await p.waitForTimeout(400);
+ok('trứng đời sau giữ dòng họ, có miền của bé đã đi',(await p.textContent('.card')).includes(prev.pet.family_name)&&(await p.$$('.egg-pick .kin')).length===1&&(await p.$('#family'))===null);
+await p.fill('#pet-name','Con Bánh');await p.click('button[type=submit]');await p.waitForTimeout(7500);
+const heir=(await demo()).pet;
+ok('đời 2: đúng dòng họ, đời 2, trỏ về bé trước, đang sống',heir.generation===2&&heir.family_name===prev.pet.family_name&&heir.parent_id===prev.pet.id&&heir.stage==='baby',JSON.stringify({g:heir.generation,f:heir.family_name}));
+ok('thừa hưởng tai và cá tính nằm gần bé trước',heir.genes.ear===prev.pet.genes.ear&&Object.entries(heir.personality).every(([k,v])=>Number.isInteger(v)&&Math.abs(v-prev.pet.personality[k])<=75));
+await p.click('#a-house');await p.click('.tile[data-go="family"]');await p.waitForTimeout(1500);
+ok('gia phả hiện 2 đời, bé cũ đã ra đi',(await p.$$('.gen')).length===2&&(await p.$$('.gen.gone')).length===1&&(await p.$$('.gen.alive')).length===1);
+await p.click('.gen.gone');await p.waitForTimeout(800);
+ok('bấm vào bé đã đi: xem trang tưởng niệm',(await p.textContent('#family')).includes('Đã sống 40 ngày')&&(await p.textContent('#family')).includes('Những điều bé nhớ'));
+await p.click('.hsheet:not([hidden]) [data-close]');
 console.log(out.join('\n'));console.log('errors:',JSON.stringify(errs));
 await b.close();srv.close();process.exitCode=(out.some(l=>l.startsWith('FAIL'))||errs.length)?1:0;})().catch(e=>{console.error(e);srv.close();process.exit(1);});

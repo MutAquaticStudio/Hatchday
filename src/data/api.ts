@@ -28,6 +28,14 @@ export async function getMyPet(): Promise<PetRow | null> {
 export const createPet = async (name: string, family: string, egg: number) =>
   isDemo ? demo.createPet(name, family, egg) : unwrap(await supabase.rpc('create_pet', { p_name: name, p_family: family, p_egg: egg })) as PetRow;
 
+/** Đón quả trứng đời sau của bé đã đi (giữ dòng họ, đời + 1, thừa hưởng cá tính và gen). */
+export const hatchHeir = async (name: string, egg: number) =>
+  isDemo ? demo.hatchHeir(name, egg) : unwrap(await supabase.rpc('hatch_heir', { p_name: name, p_egg: egg })) as PetRow;
+
+/** Cả gia phả: mọi bé của người chơi từ đời 1 tới nay, cũ trước. */
+export const listFamily = async (): Promise<PetRow[]> =>
+  isDemo ? demo.listFamily() : unwrap(await supabase.from('pets').select('id, parent_id, name, family_name, generation, stage, species, form, genes, personality, born_at, departed_at, lived_days').order('generation')) as PetRow[];
+
 export const renamePet = async (name: string) => { if (isDemo) return demo.renamePet(name); unwrap(await supabase.rpc('rename_pet', { p_name: name })); };
 
 export const petAction = async (action: PetAction, item?: string, count = 1) =>
@@ -36,7 +44,7 @@ export const petAction = async (action: PetAction, item?: string, count = 1) =>
 export const addTalkMemory = async (text: string) => { if (isDemo) return demo.addTalkMemory(text); unwrap(await supabase.rpc('add_talk_memory', { p_text: text })); };
 
 export const listMemories = async (petId: string) =>
-  isDemo ? demo.listMemories() : unwrap(await supabase.from('memories').select('id, kind, body, created_at').eq('pet_id', petId).order('created_at', { ascending: false }).limit(60)) as MemoryRow[];
+  isDemo ? demo.listMemories(petId) : unwrap(await supabase.from('memories').select('id, kind, body, created_at').eq('pet_id', petId).order('created_at', { ascending: false }).limit(60)) as MemoryRow[];
 
 export const deleteMemory = async (id: number) => { if (isDemo) return demo.deleteMemory(id); unwrap(await supabase.from('memories').delete().eq('id', id)); };
 

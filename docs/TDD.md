@@ -111,9 +111,10 @@ Khoá 15 phút sau 5 lần sai hiện chỉ có ở phía máy (trải nghiệm)
 | `rename_pet(name)` | | | `invalid_name` |
 | `pet_action(action, item?, count?)` | `feed`, `pet`, `bath_scrub`, `bath_rinse`, `play_ball`, `play_spin`, `talk`, `sleep`, `wake` (`feed` trừ 1 phần trong kho) | `{ pet, refused, fav, new_memory, earned, coins, stock, balanced }` | `unknown_action`, `unknown_item`, `not_owned`, `rate_limited`, `no_pet` |
 | `add_talk_memory(text)` | 4–120 ký tự, tối đa 20/ngày | | `no_pet` |
-| `get_my_pet()` (cập nhật) | | áp giảm chỉ số rồi `grow_pet`: đổi giai đoạn theo tuổi, chốt dáng khi trưởng thành, ghi ký ức | |
+| `get_my_pet()` (cập nhật) | | áp giảm chỉ số rồi `grow_pet`: đổi giai đoạn theo tuổi, chốt dáng khi trưởng thành, ghi ký ức; hết tuổi thọ thì chia tay (trả bé `departed` một lần rồi null) | |
 | `create_pet(name, family, egg)` (cập nhật) | trứng = miền 0–4 | bốc loài theo độ hiếm trên server, ghi Sổ loài | `invalid_egg` |
 | `get_economy()` | | xu, xu hôm nay, 6 món tiệm hôm nay, cuối tuần?, đã nhận suất ăn chưa | |
+| `hatch_heir(name, egg)` | đón thú đời sau của bé đã đi, giữ dòng họ, đời + 1 | thú mới (thừa hưởng cá tính, tai, nửa sắc độ, sở thích, 50% món tủ) | `pet_exists`, `no_parent`, `invalid_name`, `invalid_egg` |
 | `buy_food(item, qty)` | qty 1–10, kho tối đa 30 phần mỗi món | `{ coins, qty }` | `unknown_item`, `invalid_qty`, `stock_full`, `not_enough_coins` |
 | `claim_ration()` | 3 Cơm nắm miễn phí, mỗi ngày một lần | `{ item, qty }` | `already_claimed` |
 | `buy_item(item)` | | `{ coins, owned }` | `not_for_sale`, `already_owned`, `not_enough_coins` |

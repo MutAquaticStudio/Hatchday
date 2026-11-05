@@ -50,17 +50,17 @@ Mỗi tính năng nên nằm trong **file riêng của nó**, `game.js` chỉ n�
 | Nhà: trang trí, cửa hàng, tủ đồ, nhiệm vụ, Sổ loài | `src/game/home.js` |
 | Dựng thú, đồ mặc | `pet3d.js`, `fit.js`, `decor3d.js` |
 | Cá tính: bốc, dịch theo cách chăm, hành vi rảnh, câu nói | `src/game/personality.ts` |
-| Luật thuần (có bản SQL song song) | `rules.ts`, `layout.ts`, `species.ts`, `catalog.ts`, `personality.ts`, `nutrition.ts` |
+| Luật thuần (có bản SQL song song) | `rules.ts`, `layout.ts`, `species.ts`, `catalog.ts`, `personality.ts`, `nutrition.ts`, `lineage.ts` |
 | Trạng thái và gọi server | `store.ts`, `data/api.ts`, `data/demo-api.ts`, `data/types.ts` |
 
 ## Quy tắc dễ làm hỏng nhất
 
-**1. Luật ở hai nơi.** Phần lớn luật chơi có bản TypeScript (client) và bản SQL (server). Sửa một nơi phải sửa nơi kia; test `rpc.test.ts`, `decor.test.ts`, `species.test.ts`, `personality.test.ts`, `food.test.ts` so khớp hai bên. Chế độ Chơi thử (`demo-api.ts`) cũng phải mô phỏng đúng RPC mới.
+**1. Luật ở hai nơi.** Phần lớn luật chơi có bản TypeScript (client) và bản SQL (server). Sửa một nơi phải sửa nơi kia; test `rpc.test.ts`, `decor.test.ts`, `species.test.ts`, `personality.test.ts`, `food.test.ts`, `lifecycle.test.ts` so khớp hai bên. Chế độ Chơi thử (`demo-api.ts`) cũng phải mô phỏng đúng RPC mới.
 
 **2. Migration.**
 - Không sửa migration đã có. Thêm file mới `supabase/migrations/YYYYMMDDHHMMSS_ten.sql`, giờ lớn hơn mọi file đang có.
 - Hàm SQL được viết lại **nguyên cả hàm** bằng `create or replace`. Nếu hai nhánh cùng viết lại một hàm, migration chạy sau sẽ **âm thầm ghi đè** phần sửa của nhánh kia, git không báo xung đột. Vì vậy:
-  - Mỗi hàm chỉ **một người sửa tại một thời điểm**. Hàm hay bị đụng: `pet_action`, `create_pet`, `get_my_pet`, `decay_pet`.
+  - Mỗi hàm chỉ **một người sửa tại một thời điểm**. Hàm hay bị đụng: `pet_action`, `create_pet`, `get_my_pet`, `decay_pet`, `grow_pet`.
   - Trước khi viết lại hàm, đọc bản **mới nhất trên `main`** (không phải bản trong migration cũ), rồi bắt đầu từ đó.
   - Ghi hàm nào bị viết lại vào phần mô tả PR.
 - Danh mục vật phẩm và loài: sửa `catalog.ts` / `species.ts`, chạy `node --experimental-strip-types scripts/gen-seed.ts` lấy SQL, dán vào migration mới.

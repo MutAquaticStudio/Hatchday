@@ -8,6 +8,7 @@ import { disposePet } from './pet3d.js';
 import { makeFitter } from './fit.js';
 import { sfx } from './audio.js';
 import { FORMS, RARITIES, REGIONS, SPECIES, SPECIES_BY_ID, STAGES } from './species';
+import { describe as describePersona, normalize as normalizePersona } from './personality';
 import { viError } from '../lib/errors';
 
 const esc = v => String(v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -103,7 +104,7 @@ export function initHome(ctx) {
     if (!el) { el = document.createElement('section'); el.id = id; el.className = 'sheet hsheet ' + cls; el.hidden = true; el.setAttribute('aria-label', id); app.appendChild(el); }
     return el;
   }
-  const sheets = ['house', 'shop', 'wardrobe', 'quests', 'dex'];
+  const sheets = ['house', 'shop', 'wardrobe', 'quests', 'dex', 'family'];
   function closeAll(except) { sheets.forEach(s => { if (s !== except && $(s)) $(s).hidden = true; }); ctx.setZoom(0); $('a-house').setAttribute('aria-pressed', 'false'); }
   function open(id) { ctx.closeGameSheets(); closeAll(id); const el = sheet(id); el.hidden = false; $('a-house').setAttribute('aria-pressed', String(id !== 'none')); el.querySelector('button, input')?.focus({ preventScroll: true }); return el; }
   const head = (title, sub = '') => `<header class="hs-head"><div><h2>${title}</h2>${sub ? `<p>${sub}</p>` : ''}</div><button type="button" class="hs-close" data-close aria-label="Đóng">✕</button></header>`;
@@ -118,12 +119,13 @@ export function initHome(ctx) {
       <button type="button" class="tile" data-go="shop"><b>Cửa hàng</b><span>Thức ăn, đồ trang trí, trang phục</span></button>
       <button type="button" class="tile" data-go="wardrobe"><b>Tủ đồ</b><span>Trang phục cho bé</span></button>
       <button type="button" class="tile${questReady() ? ' ready' : ''}" data-go="quests"><b>Nhiệm vụ</b><span>${S.quests.filter(q => q.claimed).length}/${S.quests.length} hôm nay · ${S.weekly.filter(q => q.claimed).length}/${S.weekly.length} tuần này</span></button>
+      <button type="button" class="tile" data-go="family"><b>Gia phả</b><span>${S.lineage.length > 1 ? `${S.lineage.length} đời của ${esc(S.family)}` : `Đời ${S.generation} của ${esc(S.family)}`}</span></button>
       <button type="button" class="tile" data-go="dex"><b>Sổ loài</b><span>Đã gặp ${S.seen.length}/${SPECIES.length} loài</span></button></div>`;
   }
   $('a-house').addEventListener('click', () => { ctx.hideHint(); const hs = $('house'); if (hs && !hs.hidden) { closeAll(); return; } openHouse(); });
   app.addEventListener('click', e => {
     const b = e.target.closest('.tile'); if (!b) return;
-    ({ decor: () => enterEdit(), shop: () => openShop('market'), wardrobe: openWardrobe, quests: openQuests, dex: () => openDex() })[b.dataset.go]();
+    ({ decor: () => enterEdit(), shop: () => openShop('market'), wardrobe: openWardrobe, quests: openQuests, dex: () => openDex(), family: openFamily })[b.dataset.go]();
   });
 
   /* ---------- Ảnh thu nhỏ 3D ---------- */
@@ -168,6 +170,45 @@ export function initHome(ctx) {
     requestAnimationFrame(step);
   }
   const card = (it, body) => `<article class="card-item r-${it.rarity}"><img data-thumb="${it.id}" alt="" width="80" height="80"><div class="ci-name">${esc(it.name)}</div>${body}</article>`;
+
+  /* ---------- Gia phả: cây theo đời, bấm vào một bé để xem trang tưởng niệm ---------- */
+  let famSel = ''; const famMem = {};
+  function openFamily() {
+    famSel = ''; open('family'); renderFamily();
+    store.refreshFamily().then(() => { if (!$('family').hidden) renderFamily(); }).catch(() => {});
+  }
+  const famThumb = p => `pet:${p.species}:${p.stage === 'departed' ? 'elder' : p.stage}:${p.form || ''}:`;
+  const dateVi = iso => new Date(iso).toLocaleDateString('vi-VN');
+  function renderFamily(el = $('family')) {
+    const list = S.lineage.length ? S.lineage : [];
+    const p = list.find(x => x.id === famSel);
+    if (p) {
+      const sp = SPECIES_BY_ID[p.species], rar = sp ? RARITIES[sp.rarity] : null, gone = p.stage === 'departed', mem = famMem[p.id];
+      el.innerHTML = head(esc(p.name), `Đời ${p.generation} · ${esc(p.family_name)}`) + `<div class="hs-body">
+        <div class="memo-card"><img data-thumb="${famThumb(p)}" alt="" width="96" height="96">
+          <div><b>${sp ? esc(sp.name) : ''}</b>${rar ? ` <span class="rar" style="--rc:${rar.color}">${rar.name}</span>` : ''}
+          <p>${p.form && FORMS[p.form] ? `Dáng ${esc(FORMS[p.form].name)} · ` : ''}${gone ? `Đã sống ${p.lived_days} ngày` : 'Đang ở bên bạn'}</p>
+          <p>Sinh ngày ${dateVi(p.born_at)}${gone && p.departed_at ? ` · ra đi ngày ${dateVi(p.departed_at)}` : ''}</p></div></div>
+        <p class="hs-note">${esc(describePersona(normalizePersona(p.personality)))}</p>
+        <h3 class="qh">${gone ? 'Những điều bé nhớ' : 'Ký ức gần đây'}</h3>
+        <ul class="memo-ul">${mem ? (mem.filter(r => r.kind !== 'talk').slice(0, 6).map(r => `<li>“${esc(r.body)}”</li>`).join('') || '<li>Chưa có ký ức nào.</li>') : '<li>Đang nhớ lại…</li>'}</ul>
+        <button type="button" class="btn-sm ghost" data-fam-back>Quay lại gia phả</button></div>`;
+      fillThumbs(el);
+      if (!mem) store.familyMemories(p.id).then(rows => { famMem[p.id] = rows; if (famSel === p.id && !$('family').hidden) renderFamily(); }).catch(() => { famMem[p.id] = []; });
+      return;
+    }
+    el.innerHTML = head('Gia phả', `${esc(S.family)} · ${list.length || 1} đời`) + `<div class="hs-body"><div class="tree">${list.map(x => {
+      const sp = SPECIES_BY_ID[x.species], gone = x.stage === 'departed';
+      return `<button type="button" class="gen ${gone ? 'gone' : 'alive'}" data-fam="${x.id}"><img data-thumb="${famThumb(x)}" alt="" width="64" height="64">
+        <div><span class="gen-n">Đời ${x.generation}</span><b>${esc(x.name)}</b><small>${sp ? esc(sp.name) : ''}${x.form && FORMS[x.form] ? ' · ' + esc(FORMS[x.form].name) : ''}</small>
+        <small>${gone ? `Sống ${x.lived_days} ngày, đã ra đi` : 'Đang ở bên bạn'}</small></div></button>`;
+    }).join('')}</div><p class="hs-note">Bé nào cũng sống từ 30 đến 60 ngày. Khi bé ra đi, bạn đón một quả trứng đời sau mang tên dòng họ và thừa hưởng một phần cá tính.</p></div>`;
+    fillThumbs(el);
+  }
+  app.addEventListener('click', e => {
+    const f = e.target.closest('[data-fam]'); if (f) { famSel = f.dataset.fam; renderFamily(); return; }
+    if (e.target.closest('[data-fam-back]')) { famSel = ''; renderFamily(); }
+  });
 
   /* ---------- Sổ loài ---------- */
   let dexRegion = -1, dexSel = '';

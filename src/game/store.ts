@@ -26,6 +26,8 @@ export interface PetState {
   outfit: Outfit; presets: Outfit[]; likes: string[]; dislike: string; quests: QuestRow[]; collections: string[];
   personality: Personality;
   weekly: QuestRow[]; questBonus: QuestBoard['bonus']; rationDay: string; groupLog: DayGroups[];
+  /** Gia phả: mọi bé từ đời 1 tới nay, cũ trước. */
+  lineage: PetRow[];
 }
 
 export const S: PetState = {
@@ -34,7 +36,7 @@ export const S: PetState = {
   coins: 0, earnedToday: 0, rotation: [], weekend: false, owned: {}, layouts: [null, null, null], activeLayout: 0, comfort: 1,
   outfit: {}, presets: [{}, {}, {}], likes: [], dislike: '', quests: [], collections: [],
   personality: normalize(null),
-  weekly: [], questBonus: { reward: 0, ready: false, claimed: false }, rationDay: '', groupLog: [],
+  weekly: [], questBonus: { reward: 0, ready: false, claimed: false }, rationDay: '', groupLog: [], lineage: [],
 };
 /** Bố cục đang dùng (luôn có giá trị). */
 export const activeLayout = (): Layout => S.layouts[S.activeLayout] || S.layouts[0] || DEFAULT_LAYOUT;
@@ -47,7 +49,12 @@ const errListeners = new Set<(e: unknown) => void>();
 /** Báo cho giao diện khi không lưu được lên server (để hiện thông báo nhẹ). */
 export const onSyncError = (fn: (e: unknown) => void) => { errListeners.add(fn); return () => errListeners.delete(fn); };
 
+const departListeners = new Set<(p: PetRow) => void>();
+/** Báo khi bé hết tuổi thọ và ra đi (server trả về bé đó đúng một lần). */
+export const onDepart = (fn: (p: PetRow) => void) => { departListeners.add(fn); return () => departListeners.delete(fn); };
+
 function applyRow(p: PetRow) {
+  if (p.stage === 'departed') { departListeners.forEach(fn => fn(p)); return; }
   const prevPid = S.id;
   S.id = p.id; S.name = p.name; S.family = p.family_name; S.palette = p.genes?.palette ?? 0;
   S.no = p.no; S.vui = p.vui; S.nl = p.nl; S.sach = p.sach; S.asleep = p.asleep; S.t = Date.now();
@@ -79,6 +86,9 @@ const growListeners = new Set<(from: Stage, to: Stage) => void>();
 /** Báo khi thú lớn sang giai đoạn mới (để chạy cảnh tiến hoá). */
 export const onGrow = (fn: (from: Stage, to: Stage) => void) => { growListeners.add(fn); return () => growListeners.delete(fn); };
 export async function refreshSeen(): Promise<void> { S.seen = await api.listSpeciesSeen(); emit(); }
+export async function refreshFamily(): Promise<void> { S.lineage = await api.listFamily(); emit(); }
+/** Ký ức của một bé trong gia phả (để xem trang tưởng niệm). */
+export const familyMemories = (petId: string) => api.listMemories(petId);
 /** Chỉ có ở chế độ Chơi thử: tua nhanh tuổi của thú để xem tiến hoá. */
 export async function demoAge(days: number): Promise<void> { const p = await api.demoAge(days); if (p) { applyRow(p); emit(); } }
 
@@ -86,7 +96,7 @@ export async function hydrate(): Promise<void> {
   const p = await api.getMyPet();
   if (!p) throw new Error('no_pet');
   applyRow(p);
-  await Promise.all([refreshMemories(), refreshDays(), refreshEconomy(), refreshOwned(), refreshLayouts(), refreshQuests(), refreshSeen()]);
+  await Promise.all([refreshMemories(), refreshDays(), refreshEconomy(), refreshOwned(), refreshLayouts(), refreshQuests(), refreshSeen(), refreshFamily()]);
   hydrated = true;
 }
 

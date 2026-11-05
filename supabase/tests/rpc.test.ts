@@ -61,6 +61,7 @@ describe('hành động', () => {
     expect((await act('feed', fav)).new_memory).toBe(false);
   });
   it('no từ 90 trở lên thì từ chối ăn', async () => {
+    await db.exec("update entitlements set qty = 5 where item_id = 'carot'"); // món tủ ngẫu nhiên có thể đã dùng hết kho
     await db.exec('update pets set no = 95, stats_at = now()');
     expect((await act('feed', 'carot')).refused).toBe('full');
   });

@@ -25,6 +25,9 @@ const RPC: Record<string, string> = {
   not_owned: 'Bạn chưa có món này (hoặc đã hết phần).',
   stock_full: 'Kho món này đã đầy (tối đa 30 phần).',
   invalid_qty: 'Số lượng chưa hợp lệ.',
+  heir_required: 'Gia đình bạn đã có bé đời trước. Hãy đón quả trứng đời sau nhé.',
+  no_parent: 'Chưa có bé nào ra đi để đón thú đời sau.',
+  invalid_egg: 'Quả trứng này chưa hợp lệ.',
   invalid_layout: 'Bố cục chưa hợp lệ.',
 };
 
