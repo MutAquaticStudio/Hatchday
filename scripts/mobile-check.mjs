@@ -131,8 +131,8 @@ const out = []; const ok = (n, c, x = '') => { out.push((c ? 'OK  ' : 'FAIL') + 
   ok('nút trong sổ sức khoẻ đủ cao để chạm (≥ 36px)', smallBtns.length === 0, JSON.stringify(smallBtns));
   await tap('#clinic .sick-card [data-buy-med]'); await p.waitForTimeout(600);
   ok('chạm mua thuốc hạ sốt: có 1 liều', (await demo()).owned['thuoc-sot'] === 1);
-  await tap('#clinic [data-use-med="thuoc-sot"]'); await p.waitForTimeout(700);
-  ok('chạm cho uống: bé khỏi bệnh', !(await demo()).pet.illness && await p.isHidden('#sick-chip'));
+  await tap('#clinic [data-use-med="thuoc-sot"]');
+  ok('chạm cho uống: bé khỏi bệnh', await until(async () => !(await demo()).pet.illness && await p.isHidden('#sick-chip'), 6000));
   await tap('.hsheet:not([hidden]) [data-close]'); await p.waitForTimeout(300);
 
   // ---- chào mừng quay lại và gắn bó trên điện thoại ----

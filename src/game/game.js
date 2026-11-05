@@ -893,7 +893,7 @@ applyPeriod(); applySleep(); renderStats(); updateNeeds();
 if (S.asleep) goTo('bedroom', true);
 dayRec();
 const growth = initGrowth({ evoGlow, reduce, buildLook, cancelMotion: () => { action = null; wander = null; anim = null; }, say, setTemp, spawn, impulse, addTrauma, toast, popText, buzz, getHome: () => home });
-onSync(() => { gardenFx.sync(); renderStats(); applySleep(); if (!$('diary').hidden) renderDiary(); if (!growth.isEvolving()) buildLook(); if (!$('stats').hidden) growth.renderSpecies(); });
+onSync(() => { gardenFx.sync(); renderStats(); applySleep(); updateHealth(performance.now()); if (!$('diary').hidden) renderDiary(); if (!growth.isEvolving()) buildLook(); if (!$('stats').hidden) growth.renderSpecies(); });
 startPeriodicSync();
 if (new URLSearchParams(location.search).has('dev')) { document.querySelector('.review').hidden = false; const f = $('fast'); if (f) f.closest('label').hidden = false; }
 const DEV = new URLSearchParams(location.search).has('dev'), devhud = $('devhud');

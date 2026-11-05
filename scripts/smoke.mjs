@@ -185,7 +185,7 @@ await p.click('#clinic [data-use-med="tra-gung"]');await p.waitForTimeout(600);
 dm=await demo();
 ok('cho uống Trà gừng: khỏi bệnh, hết liều, +3 gắn bó',!dm.pet.illness&&!dm.owned['tra-gung']&&dm.pet.bond_xp>=3,JSON.stringify({i:dm.pet.illness,q:dm.owned['tra-gung'],b:dm.pet.bond_xp}));
 await p.click('.hsheet:not([hidden]) [data-close]');await p.waitForTimeout(300);
-ok('khỏi bệnh: chip ẩn',!(await p.isVisible('#sick-chip')));
+ok('khỏi bệnh: chip ẩn',await until(async()=>!(await p.isVisible('#sick-chip')),6000));
 await setDemo("d.pet.no=70;d.pet.illness='cang-co';d.pet.sick_since=new Date(Date.now()-3600000).toISOString();d.pet.recover_at=new Date(Date.now()+3600000).toISOString();d.pet.critical_since=null;d.plays=[];");
 await reload();
 await p.click('#a-play');await p.waitForTimeout(1500);
