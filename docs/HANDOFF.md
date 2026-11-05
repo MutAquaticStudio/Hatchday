@@ -19,6 +19,7 @@ Bản chơi thử (chế độ demo, dữ liệu lưu trong trình duyệt): htt
 | Đồ mặc ôm theo mọi dáng, không lẹm | Xong, có script kiểm tra tự động |
 | Âm thanh: 12 tiếng hiệu ứng, nhạc nền tự sinh theo phòng/đêm/lúc ngủ, nút Tiếng/Nhạc/Âm lượng | Xong (Web Audio, không cần file âm thanh) |
 | Cá tính 5 trục: bốc lúc sinh, dịch theo cách chăm, đổi hành vi rảnh, lời chào, câu nói; hiện trong bảng Chỉ số | Xong |
+| Hướng dẫn lần đầu chơi (5 bước ~30 giây, bỏ qua được, xem lại trong Chỉ số) | Xong (`tour.js`, chỉ phía giao diện) |
 | Quầy trả phí | Đã ẩn (`PAID_SHOP_ENABLED = false` trong `src/game/catalog.ts`) |
 | Chạy trên Supabase thật | Chưa. Mọi thứ mới thử ở chế độ demo hoặc PGlite |
 
@@ -61,6 +62,7 @@ src/game/game.js          cảnh 3D, vòng lặp, camera, khu vực (~820 dòng,
 src/game/face.js          mặt và biểu cảm
 src/game/food.js          khay thức ăn theo kho + cho ăn + biểu tượng 12 món (số liệu từng món ở catalog.ts: FOODS)
 src/game/chat.js          trò chuyện (bản mẫu)
+src/game/tour.js          hướng dẫn lần đầu chơi (5 bước, chờ người chơi làm thật)
 src/game/diary.js         nhật ký, ký ức, bộ đếm hành động trong ngày
 src/game/growth.js        cảnh tiến hoá + thẻ loài
 src/game/audio.js         sfx()/music() tổng hợp bằng Web Audio; cài đặt trong bảng Chỉ số
@@ -88,8 +90,7 @@ supabase/migrations/      5 migration; supabase/tests/ test RPC
 4. Sức khoẻ: bệnh và cách chữa (hiện chỉ có biểu cảm ốm khi bẩn).
 5. Đồ chơi theo bảng trong GDD (mới có ném bóng, xoay vòng).
 6. Màn chào mừng quay lại sau khi vắng lâu.
-7. Hướng dẫn lần đầu chơi khoảng 30 giây.
-8. Đồng hành giờ làm việc: nhắc giải lao, uống nước, chào sáng và tối.
+7. Đồng hành giờ làm việc: nhắc giải lao, uống nước, chào sáng và tối.
 
 **Đã hẹn để sau**
 9. Tích hợp AI: trò chuyện có trí nhớ, nhật ký do AI viết mỗi đêm (Edge Function `chat` và tác vụ theo lịch, xem TDD mục 11).

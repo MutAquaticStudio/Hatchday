@@ -94,6 +94,24 @@ await p.click('#btn-stats');await p.click('#snd-music');await p.waitForTimeout(2
 const pd=await demo();ok('cá tính hiện trong bảng Chỉ số',(await p.textContent('#persona-desc')).startsWith('Bé')&&(await p.$$('#persona-axes .axis')).length===5,JSON.stringify(pd.pet.personality));
 ok('cá tính dịch theo cách chăm',Object.values(pd.pet.personality).some(v=>!Number.isInteger(v)));
 ok('tắt nhạc',(await au()).mood===''&&(await p.getAttribute('#snd-music','aria-pressed'))==='false'&&JSON.parse(await p.evaluate(()=>localStorage.getItem('hatchday-audio'))).music===false);
-await p.click('#snd-music');await p.click('#btn-stats');
+await p.click('#snd-music');
+// hướng dẫn lần đầu chơi: xem lại từ bảng Chỉ số, làm đủ 5 bước thật
+await p.click('#btn-tour');await p.waitForTimeout(600);
+const tourStep=async()=>(await p.textContent('.tour .tour-step').catch(()=>''))||'';
+ok('hướng dẫn bước 1/5',(await tourStep()).includes('1/5'),await tourStep());
+const bx=await (await p.$('canvas')).boundingBox();
+await p.mouse.move(bx.x+bx.width/2,bx.y+bx.height*0.5);await p.mouse.down();for(let i=0;i<10;i++){await p.mouse.move(bx.x+bx.width/2+(i%2?30:-30),bx.y+bx.height*0.5);await p.waitForTimeout(60);}await p.mouse.up();await p.waitForTimeout(800);
+ok('vuốt ve xong thì sang bước 2/5',(await tourStep()).includes('2/5'),await tourStep());
+await p.click('#a-eat');await p.waitForTimeout(1200);
+ok('bấm Ăn thì sang bước 3/5',(await tourStep()).includes('3/5'),await tourStep());
+await p.click('#tray .food[data-id="carot"]');await p.waitForTimeout(3200);
+ok('cho ăn xong thì sang bước 4/5',(await tourStep()).includes('4/5'),await tourStep());
+await p.click('#a-house');await p.waitForTimeout(800);
+ok('mở Nhà thì sang bước 5/5',(await tourStep()).includes('5/5'),await tourStep());
+await p.click('.hsheet:not([hidden]) [data-close]');await p.click('#btn-stats');await p.waitForTimeout(800);
+ok('mở Chỉ số thì hiện lời chúc và nút Đã hiểu',(await p.textContent('.tour p')).startsWith('Hay lắm')&&await p.isVisible('[data-tour="finish"]'));
+await p.click('[data-tour="finish"]');await p.waitForTimeout(300);
+ok('xong hướng dẫn: thẻ biến mất và nhớ đã xem',(await p.$('.tour'))===null&&(await p.evaluate(()=>localStorage.getItem('hatchday-tour')))==='1');
+await p.click('#btn-stats');
 console.log(out.join('\n'));console.log('errors:',JSON.stringify(errs));
 await b.close();srv.close();process.exitCode=(out.some(l=>l.startsWith('FAIL'))||errs.length)?1:0;})().catch(e=>{console.error(e);srv.close();process.exit(1);});

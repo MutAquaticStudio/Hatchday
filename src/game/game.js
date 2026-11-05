@@ -11,6 +11,7 @@ import { $, clamp } from './dom.js';
 import { initFood } from './food.js';
 import { initChat } from './chat.js';
 import { initGrowth } from './growth.js';
+import { initTour } from './tour.js';
 import { sfx, music, initAudio } from './audio.js';
 import { STAGES } from './species';
 import { AXES, TRAITS, describe as describePersona, greeting, idleGapFactor, idleWeights, petLine, pickWeighted, walkSpeedFactor } from './personality';
@@ -833,6 +834,7 @@ function tick(now, dt) {
 /* Vòng lặp theo skill threejs-scene-setup: setAnimationLoop + Timer, dt kẹp trong [0, 0.1] */
 const timer = new THREE.Timer(); timer.connect(document);
 renderer.setAnimationLoop(() => { timer.update(); tick(performance.now(), Math.min(Math.max(timer.getDelta(), 0), 0.1)); });
+initTour({ isBusy: () => growth.isEvolving() });
 setTimeout(() => { say(greeting(S.personality, S.name), 3200); if (!S.asleep && S.personality.social > -30) startAction('wave'); }, 700);
 setTimeout(hideHint, 9000);
 addEventListener('pagehide', save);
