@@ -419,3 +419,19 @@ body.editing .top,body.editing .scene-tag,body.editing .bottom,body.editing #hin
 .ill-fam summary{font-weight:800;font-size:14px;cursor:pointer;min-height:28px}
 .ill{border-top:1.5px dashed var(--candy-edge);margin-top:8px;padding-top:8px;font-size:13px}.ill b{font-size:14px}.ill p{margin:3px 0;font-weight:600}.ill em{font-style:normal;font-weight:800;color:var(--ink-soft)}
 @media (max-width:480px){.meds{grid-template-columns:1fr}.sick-chip{font-size:12px;padding:3px 10px;max-width:calc(100% - 120px)}}
+
+/* ---- Gắn bó ---- */
+.bond{background:#fff;border:2px solid var(--candy-edge);border-radius:16px;padding:10px 14px;margin:8px 0 12px}
+.bond-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:14px}.bond-head span{font-size:12px;font-weight:800;color:var(--ink-soft);font-variant-numeric:tabular-nums}
+.bond .bar-track i{background:linear-gradient(90deg,#ff9ec4,#ff5c9a)}
+.bond-gifts{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 2px}
+.bond .note{margin:6px 0 0;font-size:12px}
+
+/* ---- Chào mừng quay lại ---- */
+.welcome{position:absolute;inset:0;z-index:30;display:grid;place-items:center;padding:16px;background:rgba(42,16,48,.45);backdrop-filter:blur(2px)}
+.welcome-card{width:min(420px,100%);background:#fff;border:3px solid var(--candy-edge);border-radius:22px;padding:18px 20px;box-shadow:0 8px 0 var(--candy-edge);animation:wpop .35s cubic-bezier(.34,1.56,.64,1)}
+@keyframes wpop{from{transform:scale(.88);opacity:0}}
+.welcome-card h2{margin:0 0 6px;font-family:var(--f-display);font-size:22px}.welcome-card p{margin:4px 0;font-size:14px;font-weight:700}
+.w-drops{margin:8px 0;padding-left:20px;font-size:14px;font-weight:700}.w-note{color:var(--ink-soft)}.w-warn{color:#b02a4c;background:#fff0f3;border-radius:12px;padding:6px 10px}
+.welcome-act{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;margin-top:12px}
+@media (prefers-reduced-motion:reduce){.welcome-card{animation:none}}

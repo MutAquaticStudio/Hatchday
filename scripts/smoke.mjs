@@ -205,6 +205,35 @@ await reload();
 ok('sắp ốm: chip cảnh báo "Sắp ốm: độ sạch"',await p.isVisible('#sick-chip')&&(await p.textContent('#sick-chip')).includes('Sắp ốm: độ sạch'),await p.textContent('#sick-chip').catch(()=>''));
 await setDemo("d.pet.sach=70;d.pet.critical_since=null;");
 await reload();
+// gắn bó: cấp theo điểm, nhận quà xu mỗi cấp một lần
+await setDemo("d.coins=1000;d.pet.bond_xp=300;d.bond=[];");
+await reload();
+await p.click('#btn-stats');await p.waitForTimeout(500);
+ok('Chỉ số: gắn bó cấp 5 "Tin cậy", 4 phần quà chưa nhận',(await p.textContent('#bond')).includes('Cấp 5 · Tin cậy')&&(await p.$$('#bond [data-bond]')).length===4,(await p.textContent('#bond')).slice(0,60));
+await p.click('#bond [data-bond="3"]');await p.waitForTimeout(500);
+dm=await demo();
+ok('nhận quà cấp 3: +80 xu, còn 3 phần quà',dm.coins===1080&&dm.bond.includes(3)&&(await p.$$('#bond [data-bond]')).length===3,JSON.stringify({c:dm.coins,b:dm.bond}));
+await p.click('#btn-stats');await p.waitForTimeout(300);
+// chào mừng quay lại và đồng hành giờ làm việc
+await p.evaluate(()=>localStorage.setItem('hatchday-tour','1'));
+await p.goto(`http://localhost:${PORT}/?dev`);await p.waitForTimeout(800); // trang đăng nhập, chưa chạy game nên chưa ghi mốc "lần cuối thấy bé"
+await p.evaluate(()=>{const d=JSON.parse(localStorage.getItem('hatchday-demo'));localStorage.setItem('hatchday-seen',JSON.stringify({t:Date.now()-5*3600000,no:90,vui:80,sach:90,nl:80}));d.pet.no=20;d.pet.vui=75;d.pet.sach=90;d.pet.nl=80;d.pet.stats_at=new Date().toISOString();d.pet.illness=null;d.pet.critical_since=null;localStorage.setItem('hatchday-demo',JSON.stringify(d));});
+await p.click('#demo');await p.waitForTimeout(3000);
+ok('vắng 5 giờ: hiện thẻ chào mừng quay lại',await p.isVisible('.welcome')&&(await p.textContent('.welcome')).includes('Bạn vắng 5 giờ'),(await p.textContent('.welcome').catch(()=>'')).slice(0,80));
+ok('thẻ nói chỉ số tụt (Độ no từ 90 xuống 20) và có nút Cho ăn',(await p.textContent('.welcome')).includes('Độ no tụt từ 90 xuống 20')&&await p.isVisible('.welcome [data-w="eat"]'));
+await p.click('.welcome [data-w="close"]');await p.waitForTimeout(300);
+ok('chào bé xong: thẻ đóng',!(await p.isVisible('.welcome').catch(()=>false)));
+await reload();await p.waitForTimeout(800);
+ok('mở lại ngay: không hiện thẻ nữa (vừa mới thấy bé)',!(await p.$('.welcome')));
+await p.evaluate(()=>window.__remind('break'));await p.waitForTimeout(400);
+ok('nhắc giải lao: bé nói lời nhắc',/vươn vai|Nghỉ tay|Mắt bạn/.test(await p.textContent('#bubble')),await p.textContent('#bubble'));
+await p.evaluate(()=>window.__remind('water'));await p.waitForTimeout(400);
+ok('nhắc uống nước: bé nói lời nhắc',/nước/.test(await p.textContent('#bubble')),await p.textContent('#bubble'));
+await p.click('#btn-stats');await p.waitForTimeout(400);
+ok('Chỉ số có 3 nút Đồng hành (Giải lao, Uống nước, Chào sáng/tối) đang bật',(await p.$$('[data-cp][aria-pressed="true"]')).length===3);
+await p.click('[data-cp="water"]');
+ok('tắt nhắc uống nước: lưu vào máy',JSON.parse(await p.evaluate(()=>localStorage.getItem('hatchday-companion'))).water===false);
+await p.click('[data-cp="water"]');await p.click('#btn-stats');await p.waitForTimeout(300);
 // vòng đời: tua tuổi cho bé hết tuổi thọ, mở lại game → trang tưởng niệm → đón trứng đời sau → gia phả 2 đời
 const prev=await demo();
 await p.evaluate(()=>{const d=JSON.parse(localStorage.getItem('hatchday-demo'));d.life=40;d.pet.born_at=new Date(Date.now()-41*86400000).toISOString();localStorage.setItem('hatchday-demo',JSON.stringify(d));});

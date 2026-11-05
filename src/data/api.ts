@@ -119,3 +119,8 @@ export const getHealth = async (): Promise<PetRow | null> => {
 export const buyMedicine = (id: string, qty: number) => (isDemo ? demo.buyMedicine(id, qty) : rpc<{ coins: number; qty: number }>('buy_medicine', { p_item: id, p_qty: qty }));
 export const useMedicine = (id: string) => (isDemo ? demo.useMedicine(id) : rpc<CureResult>('use_medicine', { p_item: id }));
 export const visitClinic = () => (isDemo ? demo.visitClinic() : rpc<CureResult>('visit_clinic'));
+
+/* ---------- Gắn bó ---------- */
+export const getBondClaims = async (): Promise<number[]> =>
+  isDemo ? demo.getBondClaims() : (unwrap(await supabase.from('bond_claims').select('level')) as { level: number }[]).map(r => r.level);
+export const claimBond = (level: number) => (isDemo ? demo.claimBond(level) : rpc<{ coins: number; reward: number }>('claim_bond_reward', { p_level: level }));

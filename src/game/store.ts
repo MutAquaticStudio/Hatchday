@@ -10,6 +10,7 @@ import type { CareSums, Form, Stage } from './species';
 import { emptyDay, localDay, writeDiary, type DayLog } from './rules';
 import { DEFAULT_LAYOUT, type Layout } from './catalog';
 import { comfortLevel, comfortScore } from './layout';
+import { bondLevel } from './bond';
 import { normalize, topTraits, type Personality } from './personality';
 import { recentGroups, type DayGroups } from './nutrition';
 import type { FoodGroup } from './catalog';
@@ -34,6 +35,8 @@ export interface PetState {
   farm: FarmItem[];
   /** Sức khoẻ: bệnh đang mắc (null = khoẻ) và các mốc thời gian (ISO) kèm theo. */
   illness: string | null; sickSince: string | null; criticalSince: string | null; recoverAt: string | null;
+  /** Gắn bó: điểm hiện tại và các cấp đã nhận quà. */
+  bondXp: number; bondClaims: number[];
 }
 
 export const S: PetState = {
@@ -45,6 +48,7 @@ export const S: PetState = {
   weekly: [], questBonus: { reward: 0, ready: false, claimed: false }, rationDay: '', groupLog: [], lineage: [],
   fridge: 0, garden: null, tastes: { fav: null, dis: null, tried: 0, total: 0 }, farm: [],
   illness: null, sickSince: null, criticalSince: null, recoverAt: null,
+  bondXp: 0, bondClaims: [],
 };
 /** Bố cục đang dùng (luôn có giá trị). */
 export const activeLayout = (): Layout => S.layouts[S.activeLayout] || S.layouts[0] || DEFAULT_LAYOUT;
@@ -71,6 +75,8 @@ function applyRow(p: PetRow) {
   if (p.comfort_level) S.comfort = p.comfort_level;
   S.likes = p.genes?.likes || ['mem', 'cay']; S.dislike = p.genes?.dislike || 'retro';
   S.personality = normalize(p.personality);
+  const prevBond = S.bondXp; S.bondXp = p.bond_xp ?? 0;
+  if (hydrated && prevPid === p.id && bondLevel(S.bondXp) > bondLevel(prevBond)) bondListeners.forEach(fn => fn(bondLevel(S.bondXp)));
   const prevIllness = S.illness;
   S.illness = p.illness ?? null; S.sickSince = p.sick_since ?? null; S.criticalSince = p.critical_since ?? null; S.recoverAt = p.recover_at ?? null;
   if (hydrated && prevPid === p.id && prevIllness !== S.illness) illnessListeners.forEach(fn => fn(S.illness, prevIllness));
@@ -89,6 +95,9 @@ function applyRow(p: PetRow) {
   }
 }
 let hydrated = false;
+const bondListeners = new Set<(level: number) => void>();
+/** Báo khi gắn bó lên cấp mới. */
+export const onBondLevel = (fn: (level: number) => void) => { bondListeners.add(fn); return () => bondListeners.delete(fn); };
 const illnessListeners = new Set<(now: string | null, was: string | null) => void>();
 /** Báo khi bé mắc bệnh (now = mã bệnh) hoặc khỏi bệnh (now = null). */
 export const onIllness = (fn: (now: string | null, was: string | null) => void) => { illnessListeners.add(fn); return () => illnessListeners.delete(fn); };
@@ -125,7 +134,7 @@ export async function hydrate(): Promise<void> {
   if (!p) throw new Error('no_pet');
   applyRow(p);
   if (p.stage !== 'departed') { const h = await api.getHealth(); if (h) applyRow(h); }
-  await Promise.all([refreshMemories(), refreshDays(), refreshEconomy(), refreshOwned(), refreshLayouts(), refreshQuests(), refreshSeen(), refreshFamily(), refreshTastes(), refreshGarden(), refreshFarm()]);
+  await Promise.all([refreshMemories(), refreshDays(), refreshEconomy(), refreshOwned(), refreshLayouts(), refreshQuests(), refreshSeen(), refreshFamily(), refreshTastes(), refreshGarden(), refreshFarm(), refreshBond()]);
   hydrated = true;
 }
 
@@ -179,6 +188,11 @@ export async function claimWeeklyQuest(i: number): Promise<{ reward: number } | 
 /** Mua thức ăn (qty phần). Trả về lỗi nếu thất bại, null nếu thành công. */
 export async function buyFood(id: string, qty: number): Promise<unknown> {
   try { const r = await api.buyFood(id, qty); S.coins = r.coins; S.owned = { ...S.owned, [id]: r.qty }; emit(); return null; } catch (e) { return e; }
+}
+export async function refreshBond(): Promise<void> { S.bondClaims = await api.getBondClaims(); emit(); }
+/** Nhận quà gắn bó của một cấp. */
+export async function claimBond(level: number): Promise<{ reward: number } | { error: unknown }> {
+  try { const r = await api.claimBond(level); S.coins = r.coins; S.bondClaims = [...S.bondClaims, level]; scheduleMemRefresh(); emit(); return { reward: r.reward }; } catch (error) { return { error }; }
 }
 /** Đồng bộ sức khoẻ ngay (xét bệnh bỏ bê và hồi phục). */
 export async function refreshHealth(): Promise<void> { const h = await api.getHealth(); if (h && h.stage !== 'departed') { applyRow(h); emit(); } }

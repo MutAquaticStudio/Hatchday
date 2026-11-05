@@ -135,6 +135,21 @@ const out = []; const ok = (n, c, x = '') => { out.push((c ? 'OK  ' : 'FAIL') + 
   ok('chạm cho uống: bé khỏi bệnh', !(await demo()).pet.illness && await p.isHidden('#sick-chip'));
   await tap('.hsheet:not([hidden]) [data-close]'); await p.waitForTimeout(300);
 
+  // ---- chào mừng quay lại và gắn bó trên điện thoại ----
+  await p.goto(`http://localhost:${PORT}/?dev`); await p.waitForTimeout(800); // trang đăng nhập: chưa ghi mốc "lần cuối thấy bé"
+  await p.evaluate(() => { localStorage.setItem('hatchday-seen', JSON.stringify({ t: Date.now() - 6 * 3600000, no: 90, vui: 80, sach: 90, nl: 80 })); const d = JSON.parse(localStorage.getItem('hatchday-demo')); d.pet.no = 15; d.pet.sach = 30; d.pet.illness = null; d.pet.bond_xp = 100; d.bond = []; d.pet.stats_at = new Date().toISOString(); localStorage.setItem('hatchday-demo', JSON.stringify(d)); });
+  await tap('#demo'); await p.waitForTimeout(3000);
+  const wc = await p.evaluate(() => { const c = document.querySelector('.welcome-card')?.getBoundingClientRect(); return c ? { inScreen: c.left >= 0 && c.right <= innerWidth && c.top >= 0 && c.bottom <= innerHeight, minBtn: Math.min(...[...document.querySelectorAll('.welcome [data-w]')].map(b => Math.round(b.getBoundingClientRect().height))) } : null; });
+  ok('thẻ chào mừng quay lại: nằm trọn trong màn hình, nút đủ cao để chạm (≥ 36px)', !!wc && wc.inScreen && wc.minBtn >= 36, JSON.stringify(wc));
+  ok('thẻ gợi ý Cho ăn và Tắm khi bé đói và bẩn', await p.isVisible('.welcome [data-w="eat"]') && await p.isVisible('.welcome [data-w="bath"]'));
+  await tap('.welcome [data-w="close"]'); await p.waitForTimeout(300);
+  await tap('#btn-stats'); await p.waitForTimeout(500);
+  const bondBtn = await p.evaluate(() => { const b = document.querySelector('#bond [data-bond]'); return b ? Math.round(b.getBoundingClientRect().height) : 0; });
+  ok('Gắn bó cấp 3: có quà để nhận, nút đủ cao để chạm', bondBtn >= 36, `h=${bondBtn}`);
+  const cpBtn = await p.$$eval('[data-cp]', els => els.map(e => Math.round(e.getBoundingClientRect().height)));
+  ok('nút Đồng hành giờ làm việc đủ cao để chạm (≥ 36px)', cpBtn.length === 3 && cpBtn.every(h => h >= 36), JSON.stringify(cpBtn));
+  await tap('#btn-stats'); await p.waitForTimeout(300);
+
   console.log(out.join('\n')); console.log('errors:', JSON.stringify(errs));
   await b.close(); srv.close(); process.exitCode = (out.some(l => l.startsWith('FAIL')) || errs.length) ? 1 : 0;
 })().catch(e => { console.log(out.join('\n')); console.error(e); srv.close(); process.exit(1); });

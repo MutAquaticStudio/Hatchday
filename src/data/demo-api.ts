@@ -9,6 +9,7 @@ import { buyable, COIN, comfortLevel, comfortScore, dayNumber, QUEST_BONUS, QUES
 import type { ActionResult, CureResult, DayLogRow, Economy, FarmItem, Garden, MemoryRow, Outfit, PetAction, PetRow, QuestBoard, QuestRow, SeenRow, Tastes } from './types';
 import { applyDrift, isBlank, normalize, rollPersonality } from '../game/personality';
 import { blendPersonality, HEIR_FAV_INHERIT, pickHeirSpecies } from '../game/lineage';
+import { BOND, bondLevel } from '../game/bond';
 import { clinicPrice, healthStep, HEALTH, ILLNESS_BY_ID, isNightHour, isSevere, MEDICINE_BY_ID, type HealthCtx } from '../game/health';
 import { formFromCare, pickSpecies, SPECIES_BY_ID, stageForAge, REGIONS, GROW_MEMORY } from '../game/species';
 
@@ -25,6 +26,8 @@ interface DB {
   /** Mức nâng cấp của từng mảnh đất (0–2), mảnh đầu có sẵn. */
   /** Lúc chơi đồ chơi gần đây (ms), để tính căng cơ và cảm lạnh. */
   plays?: number[];
+  /** Các cấp gắn bó bé hiện tại đã nhận quà. */
+  bond?: number[];
   parcels?: number[]; farm?: FarmItem[]; fridge?: number; spoilDay?: string; garden?: Record<string, { crop: string; planted_at: string; waters?: number; watered_at?: string }>;
 }
 
@@ -144,6 +147,7 @@ export async function createPet(name: string, family: string, egg: number): Prom
   db.pet = { id: 'demo', owner_id: 'demo', name, family_name: family, generation: 1, stage: 'baby', species: sp.id, form: null,
     genes: { region: egg, ear: Math.floor(Math.random() * 4), scale: Math.round((0.96 + Math.random() * 0.08) * 1000) / 1000, hue: Math.round((Math.random() * 2 - 1) * 100) / 100 },
     personality: rollPersonality(), no: 72, vui: 74, nl: 82, sach: 85, asleep: false, stats_at: now, bond_xp: 0, born_at: now };
+  db.bond = [];
   db.fav = ids[0]; db.dis = ids[1]; db.life = 30 + Math.floor(Math.random() * 31);
   db.seen ||= []; if (!db.seen.some(x => x.species_id === sp.id)) db.seen.push({ species_id: sp.id, first_at: now, forms: [] });
   const tags = ['mem', 'sach', 'cay', 'choi', 'sang', 'retro'].sort(() => Math.random() - 0.5);
@@ -171,7 +175,7 @@ export async function hatchHeir(name: string, egg: number): Promise<PetRow> {
   const likes = pl ? [pl, tags[0]] : [tags[0], tags[1]], dislike = pl ? tags[1] : tags[2];
   const foods = FOODS.map(f => f.id).sort(() => Math.random() - 0.5);
   const fav = db.fav && Math.random() < HEIR_FAV_INHERIT ? db.fav : foods[0];
-  db.fav = fav; db.dis = foods.find(x => x !== fav)!; db.life = 30 + Math.floor(Math.random() * 31);
+  db.fav = fav; db.dis = foods.find(x => x !== fav)!; db.life = 30 + Math.floor(Math.random() * 31); db.bond = [];
   db.pet = { id: 'demo-' + (par.generation + 1), owner_id: 'demo', name, family_name: par.family_name, generation: par.generation + 1, stage: 'baby', species: sp, form: null, parent_id: par.id,
     genes: { region: egg, ear: par.genes.ear, scale: Math.round((0.96 + Math.random() * 0.08) * 1000) / 1000, hue: Math.round(((par.genes.hue || 0) * 0.5 + (Math.random() * 2 - 1) * 0.5) * 100) / 100, likes, dislike },
     personality: blendPersonality(normalize(par.personality), rollPersonality()), no: 72, vui: 74, nl: 82, sach: 85, asleep: false, stats_at: now, bond_xp: 0, born_at: now,
@@ -223,6 +227,7 @@ export async function petAction(action: PetAction, item?: string, count = 1): Pr
     const blk = p.illness ? ILLNESS_BY_ID[p.illness]?.block || [] : [];
     if ((play && blk.includes('play')) || ((action === 'bath_scrub' || action === 'bath_rinse') && blk.includes('bath'))) throw new Error('sick_blocked');
     if (play) db.plays = [...(db.plays || []).filter(t => Date.now() - t < 2 * 3600000), Date.now()];
+    p.bond_xp += 1; // giống pet_action
     p.personality = applyDrift(normalize(p.personality), action); // giống trigger trên action_log
     tick(db, play ? 'play' : action === 'feed' ? 'feed' : undefined, sweetMeal);
   }
@@ -469,4 +474,17 @@ export async function visitClinic(): Promise<CureResult> {
   if (il.heal.kind === 'stat') p[il.heal.stat] = Math.max(p[il.heal.stat], HEALTH.clinicRestore);
   cure(db, HEALTH.cureBond); store(db);
   return { pet: { ...p }, coins: db.coins };
+}
+
+
+/* ---------- Gắn bó (mô phỏng RPC) ---------- */
+export async function getBondClaims(): Promise<number[]> { return load().bond || []; }
+export async function claimBond(level: number) {
+  const db = load(); if (!db.pet) throw new Error('no_pet');
+  if (!(level >= 2 && level <= 10)) throw new Error('invalid_level');
+  if (bondLevel(db.pet.bond_xp) < level) throw new Error('bond_too_low');
+  if ((db.bond || []).includes(level)) throw new Error('already_claimed');
+  (db.bond ||= []).push(level); const reward = BOND.rewards[level - 1]; earn(db, reward, false);
+  first(db, 'bond-' + level, 'milestone', `Chúng mình thân nhau hơn rồi, đã đạt cấp gắn bó ${level}.`); store(db);
+  return { coins: db.coins, reward };
 }

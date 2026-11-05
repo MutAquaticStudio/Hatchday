@@ -99,6 +99,7 @@ Khoá 15 phút sau 5 lần sai hiện chỉ có ở phía máy (trải nghiệm)
 | `garden_plots` (vườn rau), `recipes`, `crops` (tham chiếu, ai cũng đọc) | Cây đang trồng (kèm số lần tưới) / công thức nấu / cây trồng được | đọc của mình / đọc |
 | `garden_parcels` | Mảnh đất của người chơi: mảnh 0–2, cấp 0–2 (3/6/9 ô) | đọc của mình |
 | `farm_layouts` | Bố cục trang trí nông trại (jsonb, tối đa 60 món) | đọc của mình |
+| `bond_claims` | Cấp Gắn bó (2–10) đã nhận quà của từng bé | đọc của mình |
 | `illnesses` | 8 bệnh: nhóm, hệ số giảm chỉ số (`decay`), việc bị chặn (`block`), cách khỏi (`heal_kind`, `heal_stat`, `heal_hours`), thuốc | đọc |
 | `pets.illness`, `sick_since`, `critical_since`, `recover_at` | Bệnh đang mắc; lúc ốm; lúc chỉ số bắt đầu nguy kịch; lúc sẽ tự khỏi (rỗng = chưa có tiến triển phục hồi) | chỉ đọc |
 | `quest_claims`, `weekly_claims`, `ration_claims`, `collection_claims` | Đã nhận thưởng nhiệm vụ ngày (idx 5 = thưởng cả ngày) / nhiệm vụ tuần / suất ăn / bộ sưu tập | đọc của mình |
@@ -124,6 +125,7 @@ Khoá 15 phút sau 5 lần sai hiện chỉ có ở phía máy (trải nghiệm)
 | `get_garden()` / `plant_crop(plot, crop)` / `harvest_crop(plot)` | ô toàn cục 0–26 (= mảnh × 9 + ô), cây chín sau 4–10 giờ, thu 3 phần | `{ now, parcels[], plots[] }` kèm giờ server / `{ coins }` / `{ item, qty, got }` | `invalid_plot`, `plot_locked`, `unknown_crop`, `plot_busy`, `plot_empty`, `not_ready`, `stock_full`, `not_enough_coins` |
 | `water_crop(plot)` | mỗi lần rút 10% thời gian chín, tối đa 3 lần, cách nhau 30 phút | `{ plot, waters, ready_at }` | `plot_empty`, `already_ready`, `max_watered`, `too_soon` |
 | `upgrade_parcel(parcel)` / `buy_parcel()` | nâng 3→6 ô giá 300 xu, 6→9 ô giá 600 xu; mua mảnh mới khi mảnh cuối đủ 9 ô: 1.000 xu (mảnh 2), 2.000 xu (mảnh 3) | `{ coins, parcel, level?, size? }` | `plot_locked`, `max_land`, `max_parcels`, `parcel_not_full`, `not_enough_coins` |
+| `claim_bond_reward(level)` | cấp 2–10; đủ điểm Gắn bó; mỗi cấp một lần mỗi bé | `{ coins, reward }` (không tính vào trần xu chăm sóc) | `invalid_level`, `no_pet`, `bond_too_low`, `already_claimed` |
 | `get_health()` | | thú sau khi áp giảm chỉ số, xét bệnh bỏ bê và hồi phục (có `illness`, `critical_since`, `recover_at`) | `not_authenticated` |
 | `buy_medicine(item, qty)` | qty 1–10, kho tối đa 10 liều mỗi loại | `{ coins, qty }` | `unknown_item`, `invalid_qty`, `stock_full`, `not_enough_coins` |
 | `use_medicine(item)` | đúng thuốc của bệnh; bệnh nặng thì không dùng được | `{ pet, qty }`, cộng 3 gắn bó | `unknown_item`, `no_pet`, `not_sick`, `wrong_medicine`, `needs_clinic`, `not_owned` |
@@ -232,3 +234,9 @@ Cột Ảnh hưởng: "×1,5" nghĩa là chỉ số đó tụt nhanh gấp 1,5 l
 - Bệnh nặng: không có tiến triển phục hồi (`recover_at` rỗng) suốt 24 giờ; mọi hệ số nhân thêm 1,25 và chỉ phòng khám chữa được.
 - Thuốc 40–70 xu một liều (kho tối đa 10). Phòng khám 150 xu, bệnh nặng 250 xu.
 - Chữa khỏi được +3 gắn bó (`bond_xp`).
+
+## 7c. Gắn bó
+
+Mốc điểm cấp 1–10: 0, 25, 80, 170, 300, 480, 720, 1020, 1400, 1900. Quà xu từ cấp 2: 50, 80, 120, 160, 220, 300, 400, 520, 700.
+Danh hiệu: Mới quen, Quen thuộc, Thân thiết, Gắn bó, Tin cậy, Bạn tốt, Tri âm, Tri kỷ, Khó tách rời, Một lòng.
+Điểm cộng: +1 mỗi hành động chăm sóc thành công (`pet_action`), +3 khi chữa khỏi bệnh. Luật ở `src/game/bond.ts` và `20261122000000_bond.sql`.

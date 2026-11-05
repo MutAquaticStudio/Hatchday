@@ -1,10 +1,12 @@
 // Lớp hiển thị & tương tác 3D (chuyển từ bản mẫu). Sẽ tách nhỏ và chuyển sang TypeScript dần.
 import * as THREE from 'three';
 import { S, save, act, actBatched, addTalkMemory, renamePet, onSync, onSyncError, onTraitShift, startPeriodicSync,
-  buy, saveLayout, equip, savePreset, claimQuest, claimQuestBonus, claimWeeklyQuest, claimCollection, buyFood, claimRation, nutritionNow, refreshFamily, familyMemories, refreshGarden, plantCrop, waterCrop, harvestCrop, upgradeParcel, buyParcel, saveFarm, cook, upgradeFridge, serverNow, onSpoil, refreshQuests, activeLayout, previewComfort, onIllness, healthNow, buyMedicine, useMedicine, visitClinic, refreshHealth } from './store';
+  buy, saveLayout, equip, savePreset, claimQuest, claimQuestBonus, claimWeeklyQuest, claimCollection, buyFood, claimRation, nutritionNow, refreshFamily, familyMemories, refreshGarden, plantCrop, waterCrop, harvestCrop, upgradeParcel, buyParcel, saveFarm, cook, upgradeFridge, serverNow, onSpoil, refreshQuests, activeLayout, previewComfort, onIllness, healthNow, buyMedicine, useMedicine, visitClinic, refreshHealth, onBondLevel, claimBond } from './store';
+import { BOND, bondProgress, unclaimedLevels } from './bond';
 import { HEALTH, ILLNESS_BY_ID, isSevere, minutesToSick, STAT_NOUN } from './health';
 import { blockedNow, minutesVi } from './clinic.js';
 import { initHome } from './home.js';
+import { viError } from '../lib/errors';
 import { decayStats, localDay } from './rules';
 import { makePetBuilder, disposePet } from './pet3d.js';
 import { makeFace } from './face.js';
@@ -14,6 +16,7 @@ import { initFood } from './food.js';
 import { initChat } from './chat.js';
 import { initGrowth } from './growth.js';
 import { initTour } from './tour.js';
+import { initCompanion } from './companion.js';
 import { initFarewell } from './farewell.js';
 import { groundTextures, initGarden3d } from './garden3d.js';
 import { makeDecor } from './decor3d.js';
@@ -565,7 +568,20 @@ $('chips').addEventListener('click', e => {
 const STAT = [['no', 'No', '#ffb35c'], ['vui', 'Vui', '#ff6fa8'], ['nl', 'Năng lượng', '#8f7cff'], ['sach', 'Sạch sẽ', '#4fc3f7']];
 $('bars').innerHTML = STAT.map(([k, l, c]) => `<div class="stat"><span>${l}</span><div class="track"><div class="fill" id="f-${k}" style="background:${c}"></div></div><span class="lvl" id="l-${k}"></span></div>`).join('');
 const lvl = v => v >= 75 ? 'Đầy' : v >= 45 ? 'Ổn' : v >= 25 ? 'Hơi thấp' : 'Thấp';
-function renderStats() { STAT.forEach(([k]) => { $('f-' + k).style.width = S[k] + '%'; $('l-' + k).textContent = lvl(S[k]); }); renderPersona(); renderTastes(); }
+function renderBond() {
+  const b = bondProgress(S.bondXp), un = unclaimedLevels(S.bondXp, S.bondClaims);
+  $('bond').innerHTML = `<div class="bond-head"><b>Gắn bó · Cấp ${b.level} · ${b.title}</b><span>${b.max ? 'Cấp cao nhất' : `${b.into}/${b.need} điểm`}</span></div><div class="bar-track"><i style="width:${b.pct}%"></i></div>`
+    + (un.length ? `<div class="bond-gifts">${un.map(l => `<button type="button" class="btn-sm" data-bond="${l}">Nhận quà cấp ${l} · +${BOND.rewards[l - 1]} xu</button>`).join('')}</div>` : '')
+    + '<p class="note">Chăm bé đều đặn (cho ăn, tắm, chơi, nói chuyện, chữa bệnh) thì gắn bó lên cấp. Từ cấp 2, mỗi cấp có một phần quà xu.</p>';
+}
+$('bond').addEventListener('click', async e => {
+  const b = e.target.closest('[data-bond]'); if (!b) return; b.disabled = true;
+  const r = await claimBond(+b.dataset.bond);
+  if ('error' in r) toast(viError(r.error)); else { sfx('coin'); buzz(12); popText(`+${r.reward} xu`, '#a8742e'); spawn('heart', 3); spawn('sparkle', 3); }
+  renderBond();
+});
+onBondLevel(l => { sfx('wake'); spawn('heart', 4); spawn('sparkle', 3); setTemp('love', 1800); say(`Mình với bạn thân nhau hơn rồi nè!`, 3000); toast(`Gắn bó cấp ${l}: ${BOND.titles[l - 1]}. Mở Chỉ số để nhận quà ${BOND.rewards[l - 1]} xu.`); });
+function renderStats() { STAT.forEach(([k]) => { $('f-' + k).style.width = S[k] + '%'; $('l-' + k).textContent = lvl(S[k]); }); renderBond(); renderPersona(); renderTastes(); }
 /* Cá tính: mỗi trục là một thanh hai đầu, chấm nằm lệch về nét mạnh hơn */
 $('persona-axes').innerHTML = AXES.map(a => `<div class="axis" role="img" id="ax-${a}"><span>${TRAITS[a].lo}</span><div class="axis-track"><i id="axd-${a}"></i></div><span>${TRAITS[a].hi}</span></div>`).join('');
 function renderTastes() { $('tastes').textContent = 'Khẩu vị: ' + tastesLine(S.tastes); }
@@ -960,6 +976,7 @@ function tick(now, dt) {
 const timer = new THREE.Timer(); timer.connect(document);
 renderer.setAnimationLoop(() => { timer.update(); tick(performance.now(), Math.min(Math.max(timer.getDelta(), 0), 0.1)); });
 initTour({ isBusy: () => growth.isEvolving() });
+initCompanion({ say, startAction, spawn, sfx, goTo, openClinic: () => home && home.openClinic(), isBusy: () => growth.isEvolving() || editing || !!anim, dev: DEV });
 initFarewell();
 /* Chỉ ở ?dev: cho script kiểm tra biết thú đang ở đâu trên màn hình (thú đi lang thang nên không nằm cố định giữa màn hình) */
 if (DEV) window.__plotXY = i => gardenFx.screenOf(i);

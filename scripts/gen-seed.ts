@@ -24,3 +24,7 @@ console.log(`-- FARM ITEMS\ninsert into public.items (id, kind, name, layer, slo
 import { ILLNESSES, MEDICINES } from '../src/game/health.ts';
 console.log(`-- MEDICINES\ninsert into public.items (id, kind, name, effects, price_coins, source, rarity) values\n${MEDICINES.map(m => `  (${q(m.id)}, 'medicine', ${q(m.name)}, '${JSON.stringify({ cures: m.cures })}', ${m.price}, 'market', 'thuong')`).join(',\n')}\non conflict (id) do update set name = excluded.name, effects = excluded.effects, price_coins = excluded.price_coins;`);
 console.log(`-- ILLNESSES\ninsert into public.illnesses (id, name, family, decay, block, heal_kind, heal_stat, heal_hours, medicine) values\n${ILLNESSES.map(i => `  (${q(i.id)}, ${q(i.name)}, ${q(i.family)}, '${JSON.stringify(i.decay)}', ${arr(i.block)}, ${q(i.heal.kind)}, ${q(i.heal.kind === 'stat' ? i.heal.stat : null)}, ${q(i.heal.kind === 'balanced' ? null : i.heal.hours)}, ${q(i.medicine)})`).join(',\n')}\non conflict (id) do update set name = excluded.name, family = excluded.family, decay = excluded.decay, block = excluded.block, heal_kind = excluded.heal_kind, heal_stat = excluded.heal_stat, heal_hours = excluded.heal_hours, medicine = excluded.medicine;`);
+
+// Gắn bó (src/game/bond.ts) — dán vào migration 20261122000000_bond.sql
+import { BOND } from '../src/game/bond.ts';
+console.log(`-- BOND: mốc cấp 2..10 và quà\n-- levels ${JSON.stringify(BOND.levels)}\n-- rewards ${JSON.stringify(BOND.rewards)}`);
