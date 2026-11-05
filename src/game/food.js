@@ -98,12 +98,15 @@ export function initFood(c) {
     hideHint();
     if (S.asleep) { say('Suỵt… mình đang ngủ mà.', 2400); return; }
     if ((S.owned[f.id] || 0) < 1) { say(`Hết ${f.name} rồi. Mua thêm ở cửa hàng nhé!`, 2800); return; }
+    const sweet = f.group === 'ngot' || f.group2 === 'ngot';
+    if (sweet && c.sweetsBlocked()) { setTemp('sulky', 1600); say('Răng mình đang đau, mình không ăn đồ ngọt được đâu…', 3000); return; }
     if (S.no >= 90) { setTemp('sulky', 1600); c.shake(); say('Mình no căng rồi mà~', 2400); return; }
     S.no = clamp(S.no + f.no); S.vui = clamp(S.vui + f.vui); S.sach = clamp(S.sach - 2);
     S.owned = { ...S.owned, [f.id]: S.owned[f.id] - 1 }; // dùng một phần; số thật do server trả về
     popText(`+${f.no} No`, '#f08a24');
     count('fed'); dayRec().foods.push(f.name); dayRec().groups.push(f.group); if (f.group2) dayRec().groups.push(f.group2);
     setTemp('chew', 1500); impulse(-1.5); sfx('feed');
+    if (sweet && dayRec().groups.filter(g => g === "ngot").length === c.sweetsLimit - 1) c.toast(`Hôm nay bé đã ăn ${c.sweetsLimit - 1} món ngọt. Thêm một món ngọt nữa là bé bị sâu răng đó!`);
     const req = act('feed', f.id);
     setTimeout(async () => {
       const r = await req;

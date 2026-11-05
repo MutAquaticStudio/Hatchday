@@ -1,6 +1,6 @@
 import { supabase, isConfigured } from '../lib/supabase';
 import * as demo from './demo-api';
-import type { ActionResult, DayLogRow, Economy, FarmItem, Garden, MemoryRow, Outfit, PetAction, PetRow, QuestBoard, SeenRow, Tastes } from './types';
+import type { ActionResult, CureResult, DayLogRow, Economy, FarmItem, Garden, MemoryRow, Outfit, PetAction, PetRow, QuestBoard, SeenRow, Tastes } from './types';
 import type { Layout } from '../game/catalog';
 
 /** Chưa cấu hình Supabase thì chạy chế độ Chơi thử (dữ liệu trong trình duyệt). */
@@ -108,3 +108,14 @@ export const listSpeciesSeen = async () =>
   isDemo ? demo.listSpeciesSeen() : unwrap(await supabase.from('species_seen').select('species_id, first_at, forms').order('first_at')) as SeenRow[];
 /** Chỉ chế độ Chơi thử: lùi ngày sinh để xem thú lớn lên. Bản thật không có (tuổi do server tính). */
 export const demoAge = async (days: number) => (isDemo ? demo.demoAge(days) : null);
+
+/* ---------- Sức khoẻ ---------- */
+/** Áp giảm chỉ số, xét bệnh bỏ bê và hồi phục. Gọi lúc mở game và mỗi phút. */
+export const getHealth = async (): Promise<PetRow | null> => {
+  if (isDemo) return demo.getHealth();
+  const row = unwrap(await supabase.rpc('get_health')) as PetRow | null;
+  return row && row.id ? row : null;
+};
+export const buyMedicine = (id: string, qty: number) => (isDemo ? demo.buyMedicine(id, qty) : rpc<{ coins: number; qty: number }>('buy_medicine', { p_item: id, p_qty: qty }));
+export const useMedicine = (id: string) => (isDemo ? demo.useMedicine(id) : rpc<CureResult>('use_medicine', { p_item: id }));
+export const visitClinic = () => (isDemo ? demo.visitClinic() : rpc<CureResult>('visit_clinic'));

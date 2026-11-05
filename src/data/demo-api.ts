@@ -6,9 +6,10 @@ import { clamp, decayStats, localDay } from '../game/rules';
 import { BY_ID, CROPS, readyAtMs, WATER, DEFAULT_LAYOUT, EDIBLES, FOOD_BY_ID, FOOD_STOCK, FOODS, FRIDGE, GARDEN_LAND, GARDEN_PLOTS, PARCEL, ITEMS, RECIPES, spoilLoss, STARTER_ITEMS, type Layout } from '../game/catalog';
 import { BALANCED_BONUS, isBalanced } from '../game/nutrition';
 import { buyable, COIN, comfortLevel, comfortScore, dayNumber, QUEST_BONUS, QUEST_POOL, questsForDay, rotationForDay, isWeekend, weekStart, WEEKLY_POOL, weeklyForDay } from '../game/layout';
-import type { ActionResult, DayLogRow, Economy, FarmItem, Garden, MemoryRow, Outfit, PetAction, PetRow, QuestBoard, QuestRow, SeenRow, Tastes } from './types';
+import type { ActionResult, CureResult, DayLogRow, Economy, FarmItem, Garden, MemoryRow, Outfit, PetAction, PetRow, QuestBoard, QuestRow, SeenRow, Tastes } from './types';
 import { applyDrift, isBlank, normalize, rollPersonality } from '../game/personality';
 import { blendPersonality, HEIR_FAV_INHERIT, pickHeirSpecies } from '../game/lineage';
+import { clinicPrice, healthStep, HEALTH, ILLNESS_BY_ID, isNightHour, isSevere, MEDICINE_BY_ID, type HealthCtx } from '../game/health';
 import { formFromCare, pickSpecies, SPECIES_BY_ID, stageForAge, REGIONS, GROW_MEMORY } from '../game/species';
 
 const KEY = 'hatchday-demo';
@@ -22,6 +23,8 @@ interface DB {
   family?: PetRow[]; oldMem?: Record<string, MemoryRow[]>;
   /** Tủ lạnh (cấp 0–2), ngày đã tính thức ăn hỏng lần cuối, vườn rau (ô → cây và giờ gieo). */
   /** Mức nâng cấp của từng mảnh đất (0–2), mảnh đầu có sẵn. */
+  /** Lúc chơi đồ chơi gần đây (ms), để tính căng cơ và cảm lạnh. */
+  plays?: number[];
   parcels?: number[]; farm?: FarmItem[]; fridge?: number; spoilDay?: string; garden?: Record<string, { crop: string; planted_at: string; waters?: number; watered_at?: string }>;
 }
 
@@ -76,7 +79,31 @@ function store(db: DB) { try { localStorage.setItem(KEY, JSON.stringify(db)); } 
 function decay(db: DB) {
   if (!db.pet) return;
   const mins = (Date.now() - Date.parse(db.pet.stats_at)) / 60000;
-  Object.assign(db.pet, decayStats(db.pet, mins, db.pet.comfort_level ?? 1), { stats_at: new Date().toISOString() });
+  const d = decayStats({ ...db.pet, severe: isSevere(db.pet, Date.now()) }, mins, db.pet.comfort_level ?? 1);
+  Object.assign(db.pet, { no: d.no, vui: d.vui, nl: d.nl, sach: d.sach, stats_at: new Date().toISOString() });
+}
+/** Số liệu cho healthStep: ăn trong 3 ngày, số lần chơi gần đây (giống các truy vấn trong private.health_step). */
+function healthCtx(db: DB, action?: 'feed' | 'play', lastMealSweet = false): HealthCtx {
+  const d = localDay(), n = dayNumber(d), now = Date.now();
+  const logs = Object.values(db.days).filter(x => dayNumber(x.day) >= n - 2 && dayNumber(x.day) <= n);
+  const plays = (db.plays || []).filter(t => now - t < 2 * 3600000);
+  return {
+    action, lastMealSweet, sweetsToday: (db.days[d]?.fgroups || []).filter(g => g === 'ngot').length,
+    meals3d: logs.reduce((a, x) => a + x.fed, 0), healthyGroups3d: new Set(logs.flatMap(x => x.fgroups || []).filter(g => g !== 'ngot')).size,
+    plays1h: plays.filter(t => now - t < 3600000).length, nightPlays2h: plays.filter(t => isNightHour(new Date(t).getHours())).length,
+  };
+}
+/** Một bước đánh giá sức khoẻ (giống private.health_step). */
+function tick(db: DB, action?: 'feed' | 'play', lastMealSweet = false) {
+  const p = db.pet; if (!p || p.stage === 'departed') return;
+  const r = healthStep(p, healthCtx(db, action, lastMealSweet), Date.now());
+  p.illness = r.illness; p.sick_since = r.sick_since; p.critical_since = r.critical_since; p.recover_at = r.recover_at;
+  if (r.event === 'fell-sick' && r.illness) first(db, 'sick-' + r.illness, 'milestone', `Lần đầu mình bị ${ILLNESS_BY_ID[r.illness].name.toLowerCase()}. Mình khó chịu lắm.`);
+  if (r.event === 'recovered') first(db, 'cured', 'milestone', 'Mình khỏi bệnh rồi. Cảm ơn bạn đã chăm mình nhé.');
+}
+function cure(db: DB, bond: number) {
+  const p = db.pet!; p.illness = null; p.sick_since = null; p.recover_at = null; p.critical_since = null; p.bond_xp += bond;
+  first(db, 'cured', 'milestone', 'Mình khỏi bệnh rồi. Cảm ơn bạn đã chăm mình nhé.');
 }
 function day(db: DB): DayLogRow {
   const d = localDay();
@@ -163,6 +190,8 @@ export async function petAction(action: PetAction, item?: string, count = 1): Pr
   const db = load(); if (!db.pet) throw new Error('no_pet');
   decay(db);
   const p = db.pet, d = day(db), n = Math.max(1, Math.min(count, 20));
+  const play = action === 'play_ball' || action === 'play_spin';
+  let sweetMeal = false;
   let refused: ActionResult['refused'] = null, fav = false, disliked = false, newMem = false, balanced = false, stock: number | null = null;
   if (p.asleep && action !== 'wake' && action !== 'pet') refused = 'asleep';
   else if (action === 'feed') {
@@ -174,7 +203,7 @@ export async function petAction(action: PetAction, item?: string, count = 1): Pr
       d.fed++; d.foods.push(f.name); (d.fgroups ||= []).push(f.group); if (f.group2) d.fgroups.push(f.group2);
       balanced = isBalanced(Object.values(db.days).map(x => ({ d: x.day, groups: x.fgroups || [] })), localDay());
       p.no = clamp(p.no + f.no); p.vui = clamp(p.vui + f.vui + (fav ? 10 : 0) - (item === db.dis ? 6 : 0) + (balanced ? BALANCED_BONUS : 0)); p.sach = clamp(p.sach - 2);
-      stock = --db.owned[f.id];
+      stock = --db.owned[f.id]; sweetMeal = f.group === 'ngot' || f.group2 === 'ngot';
       newMem = first(db, 'food-' + item, 'food', fav ? `Lần đầu ăn ${f.name}, hoá ra là món tủ của mình!` : disliked ? `Lần đầu ăn ${f.name}, mình không ưa món này lắm.` : `Lần đầu được ăn ${f.name}.`);
     }
   } else if (action === 'pet') { p.vui = clamp(p.vui + 1.6 * n); d.pet += n; }
@@ -189,7 +218,14 @@ export async function petAction(action: PetAction, item?: string, count = 1): Pr
   } else if (action === 'talk') { p.vui = clamp(p.vui + 2); d.talk++; }
   else if (action === 'sleep') { p.asleep = true; d.sleep++; }
   else if (action === 'wake') p.asleep = false;
-  if (!refused) p.personality = applyDrift(normalize(p.personality), action); // giống trigger trên action_log
+  if (!refused) {
+    // giống trigger action_log_health: chặn việc bé ốm không làm được, rồi xét bệnh do hành động
+    const blk = p.illness ? ILLNESS_BY_ID[p.illness]?.block || [] : [];
+    if ((play && blk.includes('play')) || ((action === 'bath_scrub' || action === 'bath_rinse') && blk.includes('bath'))) throw new Error('sick_blocked');
+    if (play) db.plays = [...(db.plays || []).filter(t => Date.now() - t < 2 * 3600000), Date.now()];
+    p.personality = applyDrift(normalize(p.personality), action); // giống trigger trên action_log
+    tick(db, play ? 'play' : action === 'feed' ? 'feed' : undefined, sweetMeal);
+  }
   const earned = !refused && ['feed', 'bath_rinse', 'play_ball', 'play_spin', 'talk', 'sleep'].includes(action) ? earn(db, COIN.careReward, true) : 0;
   store(db);
   return { pet: { ...p }, refused, fav, new_memory: newMem, earned, coins: db.coins, stock, balanced, dislike: disliked };
@@ -398,3 +434,39 @@ export async function claimCollection(t: string) {
   store(db); return { coins: db.coins };
 }
 export async function listCollectionClaims() { return load().collections; }
+
+
+/* ---------- Sức khoẻ: bệnh, thuốc, phòng khám (mô phỏng RPC) ---------- */
+export async function getHealth(): Promise<PetRow | null> {
+  const db = load(); if (!db.pet || db.pet.stage === 'departed') return db.pet;
+  decay(db); tick(db); store(db); return db.pet;
+}
+export async function buyMedicine(id: string, qty: number) {
+  const db = load(), m = MEDICINE_BY_ID[id]; if (!m) throw new Error('unknown_item');
+  if (!(qty >= 1 && qty <= 10)) throw new Error('invalid_qty');
+  const cur = db.owned[id] || 0; if (cur + qty > HEALTH.medicineMax) throw new Error('stock_full');
+  if (db.coins < m.price * qty) throw new Error('not_enough_coins');
+  db.coins -= m.price * qty; db.owned[id] = cur + qty; store(db); return { coins: db.coins, qty: db.owned[id] };
+}
+export async function useMedicine(id: string): Promise<CureResult> {
+  const db = load(), m = MEDICINE_BY_ID[id]; if (!m) throw new Error('unknown_item');
+  if (!db.pet) throw new Error('no_pet');
+  decay(db); tick(db); const p = db.pet;
+  if (!p.illness) throw new Error('not_sick');
+  if (m.cures !== p.illness) throw new Error('wrong_medicine');
+  if (isSevere(p, Date.now())) throw new Error('needs_clinic');
+  if (!(db.owned[id] >= 1)) throw new Error('not_owned');
+  db.owned[id]--; cure(db, HEALTH.cureBond); store(db);
+  return { pet: { ...p }, qty: db.owned[id] };
+}
+export async function visitClinic(): Promise<CureResult> {
+  const db = load(); if (!db.pet) throw new Error('no_pet');
+  decay(db); tick(db); const p = db.pet;
+  if (!p.illness) throw new Error('not_sick');
+  const il = ILLNESS_BY_ID[p.illness], cost = clinicPrice(isSevere(p, Date.now()));
+  if (db.coins < cost) throw new Error('not_enough_coins');
+  db.coins -= cost;
+  if (il.heal.kind === 'stat') p[il.heal.stat] = Math.max(p[il.heal.stat], HEALTH.clinicRestore);
+  cure(db, HEALTH.cureBond); store(db);
+  return { pet: { ...p }, coins: db.coins };
+}

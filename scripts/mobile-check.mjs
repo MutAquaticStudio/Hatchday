@@ -118,6 +118,23 @@ const out = []; const ok = (n, c, x = '') => { out.push((c ? 'OK  ' : 'FAIL') + 
   if (await p.isVisible('#e-confirm')) { await tap('#e-discard'); await p.waitForTimeout(600); } // còn thay đổi chưa lưu thì bỏ
   await p.waitForTimeout(1500);
 
+  // ---- sức khoẻ trên điện thoại: chip trạng thái, sổ sức khoẻ, mua thuốc và cho uống bằng cú chạm ----
+  await p.evaluate(() => { const d = JSON.parse(localStorage.getItem('hatchday-demo')); d.coins = 1000; d.pet.no = 70; d.pet.illness = 'sot-met'; d.pet.sick_since = new Date(Date.now() - 3600000).toISOString(); d.pet.recover_at = null; d.pet.critical_since = null; d.pet.stats_at = new Date().toISOString(); localStorage.setItem('hatchday-demo', JSON.stringify(d)); });
+  await p.goto(`http://localhost:${PORT}/?dev`); await p.waitForTimeout(800); await tap('#demo'); await p.waitForTimeout(3000);
+  const chip = await p.evaluate(() => { const c = document.getElementById('sick-chip').getBoundingClientRect(), t = document.getElementById('scene-tag').getBoundingClientRect(); return { shown: !document.getElementById('sick-chip').hidden, inScreen: c.left >= 0 && c.right <= innerWidth, noOverlap: c.left >= t.right - 0.5 || c.top >= t.bottom - 0.5 || c.bottom <= t.top + 0.5, h: Math.round(c.height) }; });
+  ok('chip bệnh trên điện thoại: hiện, nằm trong màn hình, không đè nhãn khu vực', chip.shown && chip.inScreen && chip.noOverlap, JSON.stringify(chip));
+  await tap('#sick-chip'); await p.waitForTimeout(700);
+  ok('chạm chip bệnh: mở sổ sức khoẻ', await p.isVisible('#clinic') && (await p.textContent('#clinic')).includes('sốt mệt'));
+  const over = await p.evaluate(() => { const el = document.getElementById('clinic'); return { scrollW: el.scrollWidth, clientW: el.clientWidth, right: Math.round(el.getBoundingClientRect().right), vw: innerWidth }; });
+  ok('sổ sức khoẻ không tràn ngang', over.scrollW <= over.clientW + 1 && over.right <= over.vw, JSON.stringify(over));
+  const smallBtns = await p.$$eval('#clinic button:not([data-close])', els => els.filter(e => e.offsetParent && !e.disabled).map(e => Math.round(e.getBoundingClientRect().height)).filter(h => h < 36));
+  ok('nút trong sổ sức khoẻ đủ cao để chạm (≥ 36px)', smallBtns.length === 0, JSON.stringify(smallBtns));
+  await tap('#clinic .sick-card [data-buy-med]'); await p.waitForTimeout(600);
+  ok('chạm mua thuốc hạ sốt: có 1 liều', (await demo()).owned['thuoc-sot'] === 1);
+  await tap('#clinic [data-use-med="thuoc-sot"]'); await p.waitForTimeout(700);
+  ok('chạm cho uống: bé khỏi bệnh', !(await demo()).pet.illness && await p.isHidden('#sick-chip'));
+  await tap('.hsheet:not([hidden]) [data-close]'); await p.waitForTimeout(300);
+
   console.log(out.join('\n')); console.log('errors:', JSON.stringify(errs));
   await b.close(); srv.close(); process.exitCode = (out.some(l => l.startsWith('FAIL')) || errs.length) ? 1 : 0;
 })().catch(e => { console.log(out.join('\n')); console.error(e); srv.close(); process.exit(1); });

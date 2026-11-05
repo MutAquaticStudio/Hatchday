@@ -26,7 +26,7 @@ beforeAll(async () => {
 
 describe('đồng bộ với client', () => {
   it('danh mục trong SQL khớp catalog.ts', async () => {
-    const rows = await q("select id, kind, name, layer, slot, w, d, comfort, theme, tags, price_coins, source, rarity from items where kind not in ('food', 'dish') order by id");
+    const rows = await q("select id, kind, name, layer, slot, w, d, comfort, theme, tags, price_coins, source, rarity from items where kind not in ('food', 'dish', 'medicine') order by id");
     const want = ITEMS.map(i => ({ id: i.id, kind: i.kind, name: i.name, layer: i.layer ?? null, slot: i.slot ?? null, w: i.w ?? null, d: i.d ?? null,
       comfort: i.comfort ?? 0, theme: i.theme ?? null, tags: i.tags ?? [], price_coins: i.price, source: i.source, rarity: i.rarity }))
       .sort((a, b) => (a.id < b.id ? -1 : 1));

@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { applyDrift, AXES, DRIFT, normalize, type Personality } from '../../src/game/personality';
 import type { PetAction } from '../../src/data/types';
+import { noonTz } from './util';
 
 const U = '66666666-6666-6666-6666-666666666666';
 const V = '77777777-7777-7777-7777-777777777777';
@@ -24,6 +25,7 @@ beforeAll(async () => {
   await db.exec(`insert into auth.users values ('${U}', 'p@x.vn'), ('${V}', 'q@x.vn')`);
   await as(U);
   await q("select * from create_pet('Mochi', 'Nhà Mây', 2)");
+  await db.exec(`update profiles set timezone = '${noonTz()}' where id = '${U}'`); // chơi lúc khuya sẽ bị cảm lạnh, nên cho giờ địa phương là trưa
 }, 60_000);
 
 describe('bốc cá tính lúc sinh', () => {

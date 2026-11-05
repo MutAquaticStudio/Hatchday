@@ -19,10 +19,14 @@ export interface PetRow {
   outfit?: Outfit;
   outfit_presets?: Outfit[];
   comfort_level?: number;
+  /** Sức khoẻ: bệnh đang mắc (null = khoẻ), mốc bắt đầu bị bỏ bê, mốc tự khỏi nếu được nghỉ ngơi. */
+  illness?: string | null; sick_since?: string | null; critical_since?: string | null; recover_at?: string | null;
 }
 
 export type Outfit = Partial<Record<'head' | 'face' | 'neck' | 'back', string>>;
 export interface Economy { coins: number; earned_today: number; day: string; rotation: string[]; weekend: boolean; ration_claimed: boolean; fridge_level: number; spoiled: Record<string, number> }
+/** Kết quả chữa bệnh: bé sau khi chữa, số lượng thuốc còn lại (nếu dùng thuốc), xu còn lại (nếu ra phòng khám). */
+export interface CureResult { pet: PetRow; qty?: number; coins?: number }
 export interface QuestRow { idx: number; quest: number; progress: number; target: number; reward: number; claimed: boolean }
 /** Bảng nhiệm vụ: 5 nhiệm vụ ngày, thưởng làm hết cả ngày, 3 nhiệm vụ tuần. */
 export interface QuestBoard { day: string; quests: QuestRow[]; week: string; weekly: QuestRow[]; bonus: { reward: number; ready: boolean; claimed: boolean } }

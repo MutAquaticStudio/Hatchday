@@ -390,3 +390,32 @@ body.editing .top,body.editing .scene-tag,body.editing .bottom,body.editing #hin
 /* Trang trí nông trại: ẩn thanh hành động và thanh chọn mảnh đất trong lúc chỉnh sửa */
 .farm-editing .bottom,.farm-editing .parcel-bar,.farm-editing .scene-tag,.farm-editing .hint{display:none}
 .farm-ui{z-index:27}
+
+/* ---- Sức khoẻ: chip trạng thái ốm, thẻ bệnh, tủ thuốc, sổ bệnh ---- */
+.sick-chip{position:absolute;top:calc(env(safe-area-inset-top,0px) + 66px);right:max(16px,env(safe-area-inset-right,0px));z-index:8;max-width:calc(100% - 140px);
+  border:2.5px solid #d94a6b;background:#fff0f3;color:#b02a4c;font-weight:800;font-size:13px;border-radius:999px;padding:4px 12px;box-shadow:0 3px 0 #d94a6b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sick-chip[hidden]{display:none}
+.sick-chip.warn{border-color:#e9a13b;background:#fff7e6;color:#8a5a12;box-shadow:0 3px 0 #e9a13b}
+.sick-chip.severe{background:#d94a6b;color:#fff;animation:sickpulse 1.6s ease-in-out infinite}
+@keyframes sickpulse{50%{transform:scale(1.05)}}
+.farm-editing .sick-chip,body.editing .sick-chip{display:none!important}
+.sick-card{background:#fff;border:2.5px solid var(--candy-edge);border-radius:18px;padding:12px 14px;margin-bottom:12px}
+.sick-card.ok{border-color:#bfe8cf;background:linear-gradient(#f4fcf7,#fff)}
+.sick-card:not(.ok){border-color:#f1a3b5;background:linear-gradient(#fff5f7,#fff)}
+.sick-card.severe{border-color:#d94a6b}
+.sick-head{display:flex;flex-wrap:wrap;align-items:center;gap:8px}.sick-head b{font-family:var(--f-display);font-size:17px}
+.sick-head .fam{font-size:11px;font-weight:800;color:var(--ink-soft);background:#f6dce8;border-radius:999px;padding:2px 9px}
+.sick-head .sev{font-size:11px;font-weight:800;color:#fff;background:#d94a6b;border-radius:999px;padding:2px 9px}
+.sick-card .sign{margin:6px 0;font-size:13px;font-weight:700;color:var(--ink-soft)}
+.sick-card .risk{margin:6px 0 0;font-size:13px;font-weight:800;color:#8a5a12;background:#fff7e6;border-radius:12px;padding:6px 10px}
+.sick-card .eff{margin:4px 0 6px;padding-left:18px;font-size:13px;font-weight:700}
+.sick-card .heal{margin:4px 0 10px;font-size:13px;font-weight:800}
+.cure-row{display:flex;flex-wrap:wrap;gap:8px}
+.meds{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.med{display:flex;align-items:center;justify-content:space-between;gap:8px;background:#fff;border:2px solid var(--candy-edge);border-radius:14px;padding:8px 10px}
+.med.now{border-color:#d94a6b;background:#fff5f7}
+.med b{display:block;font-size:13px}.med span{display:block;font-size:11px;font-weight:700;color:var(--ink-soft)}
+.ill-fam{background:#fff;border:2px solid var(--candy-edge);border-radius:14px;padding:8px 12px;margin-bottom:8px}
+.ill-fam summary{font-weight:800;font-size:14px;cursor:pointer;min-height:28px}
+.ill{border-top:1.5px dashed var(--candy-edge);margin-top:8px;padding-top:8px;font-size:13px}.ill b{font-size:14px}.ill p{margin:3px 0;font-weight:600}.ill em{font-style:normal;font-weight:800;color:var(--ink-soft)}
+@media (max-width:480px){.meds{grid-template-columns:1fr}.sick-chip{font-size:12px;padding:3px 10px;max-width:calc(100% - 120px)}}

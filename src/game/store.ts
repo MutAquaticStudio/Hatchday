@@ -32,6 +32,8 @@ export interface PetState {
   fridge: number; garden: Garden | null; tastes: Tastes;
   /** Đồ trang trí nông trại đã đặt. */
   farm: FarmItem[];
+  /** Sức khoẻ: bệnh đang mắc (null = khoẻ) và các mốc thời gian (ISO) kèm theo. */
+  illness: string | null; sickSince: string | null; criticalSince: string | null; recoverAt: string | null;
 }
 
 export const S: PetState = {
@@ -42,6 +44,7 @@ export const S: PetState = {
   personality: normalize(null),
   weekly: [], questBonus: { reward: 0, ready: false, claimed: false }, rationDay: '', groupLog: [], lineage: [],
   fridge: 0, garden: null, tastes: { fav: null, dis: null, tried: 0, total: 0 }, farm: [],
+  illness: null, sickSince: null, criticalSince: null, recoverAt: null,
 };
 /** Bố cục đang dùng (luôn có giá trị). */
 export const activeLayout = (): Layout => S.layouts[S.activeLayout] || S.layouts[0] || DEFAULT_LAYOUT;
@@ -68,6 +71,9 @@ function applyRow(p: PetRow) {
   if (p.comfort_level) S.comfort = p.comfort_level;
   S.likes = p.genes?.likes || ['mem', 'cay']; S.dislike = p.genes?.dislike || 'retro';
   S.personality = normalize(p.personality);
+  const prevIllness = S.illness;
+  S.illness = p.illness ?? null; S.sickSince = p.sick_since ?? null; S.criticalSince = p.critical_since ?? null; S.recoverAt = p.recover_at ?? null;
+  if (hydrated && prevPid === p.id && prevIllness !== S.illness) illnessListeners.forEach(fn => fn(S.illness, prevIllness));
   const trait = topTraits(S.personality, 1)[0];
   // Chỉ báo khi nét mới vượt nét đã báo ít nhất 3 điểm, để hai trục sát nhau không báo qua báo lại.
   if (!hydrated || prevPid !== p.id) shownTrait = trait ?? null;
@@ -83,6 +89,9 @@ function applyRow(p: PetRow) {
   }
 }
 let hydrated = false;
+const illnessListeners = new Set<(now: string | null, was: string | null) => void>();
+/** Báo khi bé mắc bệnh (now = mã bệnh) hoặc khỏi bệnh (now = null). */
+export const onIllness = (fn: (now: string | null, was: string | null) => void) => { illnessListeners.add(fn); return () => illnessListeners.delete(fn); };
 let shownTrait: ReturnType<typeof topTraits>[number] | null = null;
 const traitListeners = new Set<(name: string) => void>();
 /** Báo khi nét cá tính nổi bật nhất của thú đổi sang nét khác (do cách chăm). */
@@ -115,6 +124,7 @@ export async function hydrate(): Promise<void> {
   const p = await api.getMyPet();
   if (!p) throw new Error('no_pet');
   applyRow(p);
+  if (p.stage !== 'departed') { const h = await api.getHealth(); if (h) applyRow(h); }
   await Promise.all([refreshMemories(), refreshDays(), refreshEconomy(), refreshOwned(), refreshLayouts(), refreshQuests(), refreshSeen(), refreshFamily(), refreshTastes(), refreshGarden(), refreshFarm()]);
   hydrated = true;
 }
@@ -169,6 +179,20 @@ export async function claimWeeklyQuest(i: number): Promise<{ reward: number } | 
 /** Mua thức ăn (qty phần). Trả về lỗi nếu thất bại, null nếu thành công. */
 export async function buyFood(id: string, qty: number): Promise<unknown> {
   try { const r = await api.buyFood(id, qty); S.coins = r.coins; S.owned = { ...S.owned, [id]: r.qty }; emit(); return null; } catch (e) { return e; }
+}
+/** Đồng bộ sức khoẻ ngay (xét bệnh bỏ bê và hồi phục). */
+export async function refreshHealth(): Promise<void> { const h = await api.getHealth(); if (h && h.stage !== 'departed') { applyRow(h); emit(); } }
+/** Mua thuốc (qty liều). Trả về lỗi nếu thất bại, null nếu thành công. */
+export async function buyMedicine(id: string, qty: number): Promise<unknown> {
+  try { const r = await api.buyMedicine(id, qty); S.coins = r.coins; S.owned = { ...S.owned, [id]: r.qty }; emit(); return null; } catch (e) { return e; }
+}
+/** Cho bé uống thuốc. */
+export async function useMedicine(id: string): Promise<unknown> {
+  try { const r = await api.useMedicine(id); S.owned = { ...S.owned, [id]: r.qty ?? 0 }; applyRow(r.pet); scheduleMemRefresh(); emit(); return null; } catch (e) { return e; }
+}
+/** Đưa bé ra phòng khám. */
+export async function visitClinic(): Promise<unknown> {
+  try { const r = await api.visitClinic(); if (typeof r.coins === 'number') S.coins = r.coins; applyRow(r.pet); scheduleMemRefresh(); emit(); return null; } catch (e) { return e; }
 }
 /** Mua tủ lạnh lớn hơn. */
 export async function upgradeFridge(): Promise<unknown> {
@@ -254,6 +278,7 @@ export async function act(action: PetAction, item?: string, count = 1): Promise<
     return r;
   } catch (e) {
     console.warn('pet_action thất bại', action, e);
+    if (String((e as Error)?.message ?? e).includes('sick_blocked')) { refreshHealth().catch(() => {}); return null; } // bé đang ốm, client chưa biết kịp
     errListeners.forEach(fn => fn(e));
     return null;
   }
@@ -293,8 +318,12 @@ export function renamePet(name: string): void {
 /** Đồng bộ lại định kỳ để chỉ số không lệch khỏi server. */
 export function startPeriodicSync(ms = 60_000): () => void {
   const id = window.setInterval(async () => {
-    try { const p = await api.getMyPet(); if (p) { applyRow(p); emit(); } await refreshEconomy(); await refreshOwned(); } catch { /* thử lại lần sau */ }
+    try { const p = await api.getMyPet(); if (p) { applyRow(p); if (p.stage !== 'departed') { const h = await api.getHealth(); if (h) applyRow(h); } emit(); } await refreshEconomy(); await refreshOwned(); } catch { /* thử lại lần sau */ }
   }, ms);
   addEventListener('pagehide', () => { flushBatch(); });
   return () => clearInterval(id);
 }
+
+/** Trạng thái sức khoẻ hiện tại cho các hàm trong health.ts. */
+export const healthNow = (): import('./health').HealthState => ({ no: S.no, sach: S.sach, vui: S.vui, nl: S.nl, asleep: S.asleep,
+  illness: S.illness, sick_since: S.sickSince, critical_since: S.criticalSince, recover_at: S.recoverAt });

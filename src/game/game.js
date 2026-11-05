@@ -1,7 +1,9 @@
 // Lớp hiển thị & tương tác 3D (chuyển từ bản mẫu). Sẽ tách nhỏ và chuyển sang TypeScript dần.
 import * as THREE from 'three';
 import { S, save, act, actBatched, addTalkMemory, renamePet, onSync, onSyncError, onTraitShift, startPeriodicSync,
-  buy, saveLayout, equip, savePreset, claimQuest, claimQuestBonus, claimWeeklyQuest, claimCollection, buyFood, claimRation, nutritionNow, refreshFamily, familyMemories, refreshGarden, plantCrop, waterCrop, harvestCrop, upgradeParcel, buyParcel, saveFarm, cook, upgradeFridge, serverNow, onSpoil, refreshQuests, activeLayout, previewComfort } from './store';
+  buy, saveLayout, equip, savePreset, claimQuest, claimQuestBonus, claimWeeklyQuest, claimCollection, buyFood, claimRation, nutritionNow, refreshFamily, familyMemories, refreshGarden, plantCrop, waterCrop, harvestCrop, upgradeParcel, buyParcel, saveFarm, cook, upgradeFridge, serverNow, onSpoil, refreshQuests, activeLayout, previewComfort, onIllness, healthNow, buyMedicine, useMedicine, visitClinic, refreshHealth } from './store';
+import { HEALTH, ILLNESS_BY_ID, isSevere, minutesToSick, STAT_LABEL } from './health';
+import { blockedNow, minutesVi } from './clinic.js';
 import { initHome } from './home.js';
 import { decayStats, localDay } from './rules';
 import { makePetBuilder, disposePet } from './pet3d.js';
@@ -26,7 +28,10 @@ const camOverride = { pos: null, look: null };
 const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 /* ---------------- trạng thái: dữ liệu nằm ở store (đồng bộ server) ---------------- */
-function decay(s, mins) { Object.assign(s, decayStats(s, mins, S.comfort || 1)); s.t = Date.now(); }
+function decay(s, mins) {
+  const d = decayStats({ ...s, severe: !!s.illness && isSevere(healthNow(), Date.now()) }, mins, S.comfort || 1);
+  s.no = d.no; s.vui = d.vui; s.nl = d.nl; s.sach = d.sach; s.t = Date.now();
+}
 
 /* ---------------- renderer ---------------- */
 const canvas = $('c');
@@ -303,8 +308,16 @@ function rinse() {
   startAction('shake'); setTemp('love', 2000); say('Thơm phức rồi nè!', 2200); save(); renderStats();
   setTimeout(() => { if (area === 'bath') goTo('home'); }, 2600);
 }
+/** Bé đang ốm nên chưa làm được việc này? Nếu vậy nói một câu và trả về true. */
+function sickBlocks(what) {
+  if (!blockedNow(S).includes(what)) return false;
+  const il = ILLNESS_BY_ID[S.illness];
+  setTemp('sick', 1800); say(what === 'play' ? `Mình đang ${il.name.toLowerCase()}, chưa chơi được đâu… Cho mình uống thuốc hoặc nghỉ ngơi nha.` : `Mình đang ${il.name.toLowerCase()}, tắm nước bây giờ lạnh lắm…`, 3200);
+  return true;
+}
 function throwBall() {
   if (fetchBall) return;
+  if (sickBlocks('play')) return;
   cancelCtrl();
   if (S.nl < 15) { setTemp('sleepy', 1800); say('Mình mệt quá, cho mình nghỉ chút đã…', 2600); return; }
   const tx = (Math.random() * 2 - 1) * 3.2, tz = -1.6 + Math.random() * 2.4;
@@ -312,6 +325,7 @@ function throwBall() {
   setTemp('excited', 900); sfx('play');
 }
 function spinPlay() {
+  if (sickBlocks('play')) return;
   if (S.nl < 15) { setTemp('sleepy', 1800); say('Mình mệt quá, cho mình nghỉ chút đã…', 2600); return; }
   sfx('play'); act('play_spin'); popText('+6 Vui'); S.vui = clamp(S.vui + 6); S.nl = clamp(S.nl - 4); S.no = clamp(S.no - 2);
   anim = { type: 'spin', t: 0, dur: 1.1 }; setTemp('excited', 1600); spawn('note', 2); spawn('sparkle', 2);
@@ -443,7 +457,7 @@ function applyPeriod() {
 let override = null, temp = null;
 function derived() {
   if (S.asleep) return 'sleep';
-  if (S.sach < 20) return 'sick';
+  if (S.illness || S.sach < 20) return 'sick';
   if (S.no < 30 && S.vui < 40) return 'sulky';
   if (S.no < 30) return 'hungry';
   if (S.nl < 22) return 'sleepy';
@@ -524,8 +538,8 @@ function toggleSheet(which) {
 }
 $('a-eat').onclick = () => { hideHint(); toggleSheet(null); if (S.asleep) { say('Suỵt… mình đang ngủ mà.', 2200); return; } goTo('kitchen'); };
 $('a-talk').onclick = () => toggleSheet('talk');
-$('a-bath').onclick = () => { hideHint(); toggleSheet(null); if (S.asleep) { say('Để sáng mai tắm nha…', 2200); return; } goTo('bath'); };
-$('a-play').onclick = () => { hideHint(); toggleSheet(null); if (S.asleep) { say('Zzz… mai chơi tiếp nha…', 2200); return; } goTo('garden'); };
+$('a-bath').onclick = () => { hideHint(); toggleSheet(null); if (S.asleep) { say('Để sáng mai tắm nha…', 2200); return; } if (sickBlocks('bath')) return; goTo('bath'); };
+$('a-play').onclick = () => { hideHint(); toggleSheet(null); if (S.asleep) { say('Zzz… mai chơi tiếp nha…', 2200); return; } if (S.illness && blockedNow(S).includes('play')) { toast(`${S.name} đang ốm nên chưa chơi đồ chơi được. Ra vườn vẫn đi dạo, trồng rau được nhé.`); } goTo('garden'); };
 $('a-sleep').onclick = () => { hideHint(); toggleSheet(null); S.asleep ? wake() : goSleep(); };
 function goSleep() { sfx('sleep'); count('sleep'); act('sleep'); S.asleep = true; applySleep(); goTo('bedroom'); setTimeout(() => say(`Chúc ${S.name} ngủ ngon… Zzz`, 2600), reduce ? 0 : 700); save(); }
 function wake() { sfx('wake'); act('wake'); S.asleep = false; applySleep(); goTo('home'); setTimeout(() => { say('Chào buổi sáng! Mình ngủ ngon lắm.', 2600); startAction('stretch'); spawn('sparkle', 2); }, reduce ? 0 : 700); save(); }
@@ -569,7 +583,7 @@ $('pet-name').value = S.name;
 $('pet-name').addEventListener('input', e => { const v = e.target.value.trim().slice(0, 16); if (v) renamePet(v); });
 
 initDiary();
-const food = initFood({ petRoot, camera, canvas, reduce, hitPet, hideHint, say, setTemp, popText, impulse, spawn, renderStats, shake: () => { shake = 1; }, openShop: () => home && home.openShop('food') });
+const food = initFood({ sweetsBlocked: () => blockedNow(S).includes('sweets'), sweetsLimit: HEALTH.sweetsLimit, toast: m => toast(m), petRoot, camera, canvas, reduce, hitPet, hideHint, say, setTemp, popText, impulse, spawn, renderStats, shake: () => { shake = 1; }, openShop: () => home && home.openShop('food') });
 initChat({ reduce, hideHint, say, setTemp, spawn });
 /* Vườn rau 3D: luống đất, cây lớn dần, hoạt ảnh gieo, tưới, hái (garden3d.js) */
 const farmDecor = makeDecor({ THREE, toon, add, canvasTex, grad }); // mô hình đồ trang trí nông trại (dùng chung kiểu dựng với đồ trong phòng)
@@ -651,10 +665,10 @@ function animStep(dt, t, now, key) {
     const kx = (keys.has('right') ? 1 : 0) - (keys.has('left') ? 1 : 0), kz = (keys.has('down') ? 1 : 0) - (keys.has('up') ? 1 : 0);
     if (kx || kz) {
       cancelCtrl(); wander = null; action = null; keyMoving = true;
-      const l = Math.hypot(kx, kz), sp = 2.6 * walkSpeedFactor(S.personality) * dt;
+      const l = Math.hypot(kx, kz), sp = 2.6 * walkSpeedFactor(S.personality) * (S.illness ? 0.6 : 1) * dt;
       petOff.x = clampGardenOff(petOff.x + kx / l * sp, 'x'); petOff.z = clampGardenOff(petOff.z + kz / l * sp, 'z'); moveYaw = Math.atan2(kx, kz);
     } else if (ctrl) {
-      const dx = ctrl.x - petOff.x, dz = ctrl.z - petOff.z, d = Math.hypot(dx, dz), step = 2.6 * walkSpeedFactor(S.personality) * dt;
+      const dx = ctrl.x - petOff.x, dz = ctrl.z - petOff.z, d = Math.hypot(dx, dz), step = 2.6 * walkSpeedFactor(S.personality) * (S.illness ? 0.6 : 1) * dt;
       if (d > 0.06) { petOff.x += dx / d * Math.min(step, d); petOff.z += dz / d * Math.min(step, d); moveYaw = Math.atan2(dx, dz); }
       else { const then = ctrl.then; ctrl = null; moveYaw = null; if (then) then(true); }
     }
@@ -662,7 +676,7 @@ function animStep(dt, t, now, key) {
   if (wander) {
     if (busy(now)) wander = null;
     else {
-      const dx = wander.x - petOff.x, dz = wander.z - petOff.z, d = Math.hypot(dx, dz), step = 1.2 * walkSpeedFactor(S.personality) * dt;
+      const dx = wander.x - petOff.x, dz = wander.z - petOff.z, d = Math.hypot(dx, dz), step = 1.2 * walkSpeedFactor(S.personality) * (S.illness ? 0.6 : 1) * dt;
       if (d > 0.04) { petOff.x += dx / d * Math.min(step, d); petOff.z += dz / d * Math.min(step, d); moveYaw = Math.atan2(dx, dz); }
       else { const then = wander.then; wander = null; moveYaw = null; if (then) then(); }
     }
@@ -747,7 +761,31 @@ onSyncError(() => { const n = performance.now(); if (n - toastAt > 15000) { toas
 document.querySelector('.bar').addEventListener('click', e => { if (e.target.closest('.act')) buzz(8); });
 
 /* Chấm gợi ý nhu cầu trên nút (không đếm số, không màu đỏ) */
+let warnAt = 0, sickFxAt = 0;
+const sickChip = $('sick-chip');
+sickChip.addEventListener('click', () => { hideHint(); if (home) home.openClinic(); });
+/** Chip "Đang ốm / Sắp ốm" ở góc trên, cảnh báo sớm khi bé sắp ốm, và thi thoảng bé than ốm. */
+function updateHealth(now) {
+  const hs = healthNow(), wall = Date.now(), risk = minutesToSick(hs, wall);
+  if (S.illness) {
+    const il = ILLNESS_BY_ID[S.illness], sev = isSevere(hs, wall);
+    sickChip.hidden = false; sickChip.className = 'sick-chip' + (sev ? ' severe' : ''); sickChip.textContent = `Đang ${il.name.toLowerCase()}${sev ? ' (nặng)' : ''}`;
+    if (now > sickFxAt && !S.asleep && !editing && area !== 'bath') { sickFxAt = now + 25000 + Math.random() * 15000; spawn('sweat', 2); if (area === 'home') say(il.sign, 3000); }
+  } else if (risk && risk.left <= 20) {
+    sickChip.hidden = false; sickChip.className = 'sick-chip warn'; sickChip.textContent = `Sắp ốm: ${STAT_LABEL[risk.stat]} · ${minutesVi(risk.left)}`;
+    if (now > warnAt) { warnAt = now + 5 * 60000; toast(`${S.name} sắp ốm: ${STAT_LABEL[risk.stat]} gần 0, còn khoảng ${minutesVi(risk.left)}. Chăm bé ngay nhé!`); if (area === 'home') say('Mình khó chịu quá… chăm mình đi mà…', 3200); }
+  } else sickChip.hidden = true;
+}
+onIllness((now, was) => {
+  if (now) {
+    const il = ILLNESS_BY_ID[now]; sfx('sleep'); buzz(30); spawn('sweat', 4); setTemp('sick', 2400); impulse(-1.2);
+    toast(`${S.name} bị ${il.name.toLowerCase()}. Mở Nhà → Sức khoẻ để chữa.`); say(il.sign, 3600);
+  } else if (was) {
+    sfx('wake'); spawn('sparkle', 5); spawn('heart', 2); setTemp('love', 1600); say('Mình khỏi ốm rồi! Cảm ơn bạn đã chăm mình.', 3200); toast(`${S.name} đã khỏi bệnh.`);
+  }
+});
 function updateNeeds() {
+  updateHealth(performance.now());
   const need = { 'a-eat': S.no < 40, 'a-bath': S.sach < 40, 'a-play': S.vui < 40 && S.nl >= 20, 'a-sleep': S.nl < 25 && !S.asleep };
   Object.entries(need).forEach(([id, on]) => $(id).classList.toggle('need', on && !S.asleep || (id === 'a-sleep' && on)));
 }
@@ -823,7 +861,7 @@ initAudio();
 home = initHome({
   THREE, scene, camera, canvas, renderer, room, toon, add, canvasTex, grad, $, reduce,
   homeFloor, homeWalls: [homeWall, homeWall2], pivot, petBase, petBuilder, getPetParts: () => petParts,
-  store: { S, buy, saveLayout, equip, savePreset, claimQuest, claimQuestBonus, claimWeeklyQuest, claimCollection, buyFood, claimRation, nutritionNow, refreshFamily, familyMemories, refreshGarden, plantCrop, harvestCrop, cook, upgradeFridge, serverNow, refreshQuests, activeLayout, previewComfort, onSync, today: () => localDay() },
+  store: { S, healthNow, buyMedicine, useMedicine, visitClinic, refreshHealth, buy, saveLayout, equip, savePreset, claimQuest, claimQuestBonus, claimWeeklyQuest, claimCollection, buyFood, claimRation, nutritionNow, refreshFamily, familyMemories, refreshGarden, plantCrop, harvestCrop, cook, upgradeFridge, serverNow, refreshQuests, activeLayout, previewComfort, onSync, today: () => localDay() },
   say, setTemp, spawn, popText, impulse, startAction, addTrauma, buzz, toast, hideHint, applyShadows, ndcFrom,
   getArea: () => area, goTo, isIdle: () => !busy(performance.now()), isNight: () => period === 'dem',
   setZoom: z => { zoomExtra = z; },
@@ -854,7 +892,7 @@ function tick(now, dt) {
   if (now > clockAt) { clockAt = now + 1000; const d = new Date(); $('clock').textContent = d.toTimeString().slice(0, 5); applyPeriod(); updateNeeds(); }
   const key = current(now), e = EXPR[key];
   if (key !== lastKey) { if (lastKey) impulse(-1.3); lastKey = key; }
-  $('lcdmsg').textContent = `${S.name} ${e.msg}`;
+  $('lcdmsg').textContent = S.illness && key === 'sick' ? `${S.name} bị ${ILLNESS_BY_ID[S.illness].name.toLowerCase()}` : `${S.name} ${e.msg}`;
   /* chớp mắt */
   if (now > blinkAt) { blinkUntil = now + 130; blinkAt = now + 2200 + Math.random() * 3000; }
   const gx = moveYaw !== null ? 0 : Math.round(clamp(pointerNdc.x * 1.6 - yaw * 0.8, -1, 1) * 3) * 4, gy = Math.round(clamp(-pointerNdc.y * 1.6, -1, 1) * 2) * 4;

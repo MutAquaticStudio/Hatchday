@@ -44,6 +44,10 @@ const RPC: Record<string, string> = {
   no_parent: 'Chưa có bé nào ra đi để đón thú đời sau.',
   invalid_egg: 'Quả trứng này chưa hợp lệ.',
   invalid_layout: 'Bố cục chưa hợp lệ.',
+  not_sick: 'Bé đang khoẻ, không cần chữa.',
+  wrong_medicine: 'Thuốc này không chữa được bệnh của bé. Xem Sổ bệnh để biết thuốc nào đúng nhé.',
+  needs_clinic: 'Bệnh đã nặng, thuốc không đủ. Hãy đưa bé ra phòng khám.',
+  sick_blocked: 'Bé đang ốm nên chưa làm việc này được.',
 };
 
 export function viError(err: unknown): string {
