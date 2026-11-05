@@ -28,7 +28,7 @@ describe('xem ảnh chụp', () => {
     const v = await rpc('get_visit', await code(B));
     expect(v.profile.name).toBe('Bình'); expect(v.room).toBeNull === undefined;
     expect(Object.keys(v).sort()).toEqual(['farm', 'parcels', 'plots', 'profile', 'room', 'today']);
-    expect(JSON.stringify(v)).not.toMatch(/"coins"|"no"|"sach"|"qty"/);
+    expect(JSON.stringify(v)).not.toMatch(/"(coins|no|sach|qty)":/); // khoá thôi: gen "dislike" có thể có giá trị "sach"
     expect(v.plots).toHaveLength(4); expect(v.plots[0].can_help).toBe(true);
   });
   it('người lạ, người bị chặn, chính mình thì không xem được', async () => {
