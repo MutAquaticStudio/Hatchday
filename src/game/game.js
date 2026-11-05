@@ -11,7 +11,7 @@ import { $, clamp } from './dom.js';
 import { initFood } from './food.js';
 import { initChat } from './chat.js';
 import { initGrowth } from './growth.js';
-import { sfx } from './audio.js';
+import { sfx, music, initAudio } from './audio.js';
 import { STAGES } from './species';
 let home = null, editing = false;
 const camOverride = { pos: null, look: null };
@@ -250,6 +250,7 @@ function goTo(name, instant) {
     bubbleEl.hidden = true; anim = null;
     resize(); applyAreaLights(); onEnter(name);
     document.getElementById('scene-tag').textContent = AREA_NAME[name];
+    updateMusic();
   };
   if (instant || reduce) { swap(); return; }
   going = true;
@@ -413,7 +414,7 @@ const SKY = {
 let period = '';
 function periodNow() { const h = new Date().getHours(); return h >= 5 && h < 10 ? 'sang' : h >= 10 && h < 16 ? 'trua' : h >= 16 && h < 19 ? 'chieu' : 'dem'; }
 function applyPeriod() {
-  const p = periodNow(); if (p === period) return; period = p;
+  const p = periodNow(); if (p === period) return; period = p; updateMusic();
   const [a, b, body] = SKY[p];
   $('sky').style.background = `linear-gradient(${a}, ${b})`;
   const g = winCanvas.getContext('2d'), gr = g.createLinearGradient(0, 0, 0, 192);
@@ -509,7 +510,9 @@ $('ctx').addEventListener('click', e => {
   const b = e.target.closest('.ctx-btn'); if (!b) return; hideHint();
   ({ home: () => goTo('home'), rinse, ball: throwBall, spin: spinPlay, wake })[b.dataset.k]();
 });
-function applySleep() { $('dim').classList.toggle('on', S.asleep); $('sleep-label').textContent = S.asleep ? 'Thức dậy' : 'Ngủ'; $('a-sleep').setAttribute('aria-pressed', String(S.asleep)); }
+/* Nhạc nền: lúc ngủ > ban đêm > theo khu vực */
+function updateMusic() { music(S.asleep ? 'sleep' : period === 'dem' ? 'night' : area); }
+function applySleep() { updateMusic(); $('dim').classList.toggle('on', S.asleep); $('sleep-label').textContent = S.asleep ? 'Thức dậy' : 'Ngủ'; $('a-sleep').setAttribute('aria-pressed', String(S.asleep)); }
 
 /* ---------------- duyệt biểu cảm ---------------- */
 const chipKeys = [['auto', 'Tự động'], ...['vui', 'excited', 'hungry', 'sleepy', 'sleep', 'sick', 'sulky', 'sad', 'love'].map(k => [k, EXPR[k].label])];
@@ -718,6 +721,7 @@ new ResizeObserver(resize).observe(canvas); resize();
 
 /* ---------------- vòng lặp ---------------- */
 setupShadows(); applyQuality(); lookBooted = true;
+initAudio();
 /* Nhà của bé: bố cục phòng, trang trí, cửa hàng, tủ đồ, nhiệm vụ */
 home = initHome({
   THREE, scene, camera, canvas, renderer, room, toon, add, canvasTex, grad, $, reduce,

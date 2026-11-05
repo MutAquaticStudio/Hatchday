@@ -49,7 +49,7 @@ src/
   game/chat.js         Trò chuyện (bản mẫu, sau này nối AI)
   game/diary.js        Nhật ký ngày, Ký ức, bộ đếm hành động
   game/growth.js       Cảnh tiến hoá, thẻ loài
-  game/audio.js        sfx()/music(): chỗ trống để làm âm thanh (game đã gọi sẵn)
+  game/audio.js        sfx()/music(): âm thanh tổng hợp bằng Web Audio
   game/dom.js          $, esc, clamp dùng chung
   game/home.js         Nhà: chế độ trang trí, cửa hàng, tủ đồ, nhiệm vụ, phản ứng của thú
   game/decor3d.js      Dựng mô hình toon cho đồ trang trí + trang phục (thủ tục, không cần file 3D)

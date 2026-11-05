@@ -15,6 +15,7 @@ Bản chơi thử (chế độ demo, dữ liệu lưu trong trình duyệt): htt
 | Trang trí phòng, tủ đồ, cửa hàng bằng xu, nhiệm vụ ngày, sổ sưu tập | Xong |
 | 50 loài, 5 miền × 4 độ hiếm, lớn lên theo tuổi, 4 dáng trưởng thành, Sổ loài | Xong |
 | Đồ mặc ôm theo mọi dáng, không lẹm | Xong, có script kiểm tra tự động |
+| Âm thanh: 12 tiếng hiệu ứng, nhạc nền tự sinh theo phòng/đêm/lúc ngủ, nút Tiếng/Nhạc/Âm lượng | Xong (Web Audio, không cần file âm thanh) |
 | Quầy trả phí | Đã ẩn (`PAID_SHOP_ENABLED = false` trong `src/game/catalog.ts`) |
 | Chạy trên Supabase thật | Chưa. Mọi thứ mới thử ở chế độ demo hoặc PGlite |
 
@@ -33,6 +34,7 @@ node scripts/fit-check.mjs  # sau build: thử 3.900 tổ hợp loài × dáng �
 - `?fitcheck` chỉ để script kiểm tra đồ mặc dùng (mở `window.__fitCheck`, `window.__thumb`).
 - Chế độ Chơi thử có nút **Tua 1 ngày** trong bảng Chỉ số để xem lớn lên và tiến hoá.
 - Playwright dùng swiftshader nên FPS đo trong headless không có ý nghĩa.
+- `?dev` cũng mở `window.__sfx('tên')` và `window.__audio()` để thử âm thanh. Âm thanh mới chỉ đo bằng máy, chưa ai nghe trên loa thật; muốn chỉnh tiếng thì sửa bảng `VOICES` trong `audio.js`.
 
 ## Kiến trúc ngắn
 
@@ -56,7 +58,7 @@ src/game/food.js          thức ăn + khay + cho ăn
 src/game/chat.js          trò chuyện (bản mẫu)
 src/game/diary.js         nhật ký, ký ức, bộ đếm hành động trong ngày
 src/game/growth.js        cảnh tiến hoá + thẻ loài
-src/game/audio.js         sfx()/music() còn trống; game đã gọi sfx('pet'|'feed'|'bath'|…) ở ~14 chỗ
+src/game/audio.js         sfx()/music() tổng hợp bằng Web Audio; cài đặt trong bảng Chỉ số
 supabase/migrations/      3 migration; supabase/tests/ test RPC
 ```
 
@@ -71,23 +73,22 @@ supabase/migrations/      3 migration; supabase/tests/ test RPC
 **Ưu tiên cao**
 1. **Vòng đời và gia phả.** Hiện bé dừng ở tuổi Xế chiều, không bao giờ mất. Cần: chia tay khi hết tuổi thọ, trang tưởng niệm, trứng đời sau mang tên dòng họ và thừa hưởng một phần gen, cây gia phả. (`pets.stage = 'departed'` và `generation` đã có trong schema.)
 2. **Thức ăn.** Mới có 4 món, ăn miễn phí không giới hạn. GDD có nhóm dinh dưỡng cân bằng 3 ngày, khẩu vị, trồng trọt, nấu ăn, bảo quản, khoảng 12 món mẫu.
-3. **Âm thanh.** Game đã gọi sẵn `sfx('tên')` ở các chỗ đáng có tiếng; chỉ cần làm `src/game/audio.js` (phát tiếng, nhạc nền, nút bật/tắt và âm lượng trong Cài đặt). Không phải sửa game.js.
-4. **Cá tính 5 trục.** Cột `pets.personality` đã có nhưng chưa dùng.
+3. **Cá tính 5 trục.** Cột `pets.personality` đã có nhưng chưa dùng.
 
 **Ưu tiên vừa**
-5. Cấp Gắn bó (1–10) và mở thêm không gian (hiện chỉ có phòng khách trang trí được).
-6. Sức khoẻ: bệnh và cách chữa (hiện chỉ có biểu cảm ốm khi bẩn).
-7. Đồ chơi theo bảng trong GDD (mới có ném bóng, xoay vòng).
-8. Màn chào mừng quay lại sau khi vắng lâu.
-9. Hướng dẫn lần đầu chơi khoảng 30 giây.
-10. Đồng hành giờ làm việc: nhắc giải lao, uống nước, chào sáng và tối.
+4. Cấp Gắn bó (1–10) và mở thêm không gian (hiện chỉ có phòng khách trang trí được).
+5. Sức khoẻ: bệnh và cách chữa (hiện chỉ có biểu cảm ốm khi bẩn).
+6. Đồ chơi theo bảng trong GDD (mới có ném bóng, xoay vòng).
+7. Màn chào mừng quay lại sau khi vắng lâu.
+8. Hướng dẫn lần đầu chơi khoảng 30 giây.
+9. Đồng hành giờ làm việc: nhắc giải lao, uống nước, chào sáng và tối.
 
 **Đã hẹn để sau**
-11. Tích hợp AI: trò chuyện có trí nhớ, nhật ký do AI viết mỗi đêm (Edge Function `chat` và tác vụ theo lịch, xem TDD mục 11).
-12. Xã hội: thăm nhà bạn bè, khu vực chung, an toàn cộng đồng.
-13. Sự kiện theo mùa, bộ đồ Lễ hội.
-14. Thông báo đẩy, service worker (đã có `manifest.webmanifest`).
-15. Bán cosmetic thật: cổng thanh toán, Edge Function xác minh giao dịch, rồi bật `PAID_SHOP_ENABLED`.
+10. Tích hợp AI: trò chuyện có trí nhớ, nhật ký do AI viết mỗi đêm (Edge Function `chat` và tác vụ theo lịch, xem TDD mục 11).
+11. Xã hội: thăm nhà bạn bè, khu vực chung, an toàn cộng đồng.
+12. Sự kiện theo mùa, bộ đồ Lễ hội.
+13. Thông báo đẩy, service worker (đã có `manifest.webmanifest`).
+14. Bán cosmetic thật: cổng thanh toán, Edge Function xác minh giao dịch, rồi bật `PAID_SHOP_ENABLED`.
 
 **Đưa lên chạy thật (chưa ai làm)**
 - Tạo dự án Supabase (region Singapore), `npx supabase link`, `npx supabase db push` (3 migration), điền `.env` theo `.env.example`.

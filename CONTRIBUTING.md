@@ -46,7 +46,7 @@ Mỗi tính năng nên nằm trong **file riêng của nó**, `game.js` chỉ n�
 | Trò chuyện | `src/game/chat.js` |
 | Nhật ký, ký ức, đếm hành động trong ngày | `src/game/diary.js` |
 | Lớn lên, cảnh tiến hoá, thẻ loài | `src/game/growth.js` |
-| Âm thanh | `src/game/audio.js` (gọi `sfx('tên')`; chỉ cần làm file này) |
+| Âm thanh | `src/game/audio.js` (`sfx('tên')`, `music('cảnh')`) |
 | Nhà: trang trí, cửa hàng, tủ đồ, nhiệm vụ, Sổ loài | `src/game/home.js` |
 | Dựng thú, đồ mặc | `pet3d.js`, `fit.js`, `decor3d.js` |
 | Luật thuần (có bản SQL song song) | `rules.ts`, `layout.ts`, `species.ts`, `catalog.ts` |

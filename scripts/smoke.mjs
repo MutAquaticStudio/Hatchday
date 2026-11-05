@@ -1,5 +1,5 @@
 // Kiểm tra khói trên trình duyệt thật (chế độ Chơi thử): vuốt ve, cho ăn, trò chuyện, nhật ký, lớn lên, tắm, chơi, ngủ,
-// Sổ loài, cửa hàng. Chạy sau `npm run build`: node scripts/smoke.mjs   (cần Playwright + Chromium). Thoát mã 1 nếu có lỗi.
+// Sổ loài, cửa hàng, âm thanh. Chạy sau `npm run build`: node scripts/smoke.mjs   (cần Playwright + Chromium). Thoát mã 1 nếu có lỗi.
 import { createRequire } from 'node:module';
 import http from 'node:http';
 import { existsSync, readFileSync, statSync } from 'node:fs';
@@ -62,12 +62,19 @@ const bb=await p.$('.ctx-btn[data-k="ball"]');if(bb){await bb.click();for(let i=
 const hb=await p.$('.ctx-btn[data-k="home"]');if(hb){await hb.click();await p.waitForTimeout(2500);}
 // ngủ / dậy
 await p.click('#a-sleep');await p.waitForTimeout(3000);ok('ngủ',(await demo()).pet.asleep===true);
+const au=()=>p.evaluate(()=>window.__audio());
+ok('âm thanh chạy, nhạc ru ngủ',(await au()).ctx==='running'&&(await au()).mood==='sleep',JSON.stringify(await au()));
 await p.click('#a-sleep');await p.waitForTimeout(3000);ok('dậy',(await demo()).pet.asleep===false);
 // nhà: cửa hàng + sổ loài
 await p.click('#a-house');await p.click('.tile[data-go="dex"]');await p.waitForTimeout(2500);ok('sổ loài mở',await p.isVisible('#dex'));
 await p.click('.hsheet:not([hidden]) [data-close]');await p.waitForTimeout(300);
 await p.click('#a-house');await p.click('.tile[data-go="shop"]');await p.waitForTimeout(800);
 const tabs=await p.$$eval('#shop .tabs-row button',x=>x.map(y=>y.textContent));ok('4 tab cửa hàng',tabs.length===4,JSON.stringify(tabs));
-await p.click('.hsheet:not([hidden]) [data-close]');
+await p.click('.hsheet:not([hidden]) [data-close]');await p.waitForTimeout(300);
+// âm thanh: nhạc theo buổi, nút tắt nhạc lưu lại
+ok('nhạc ban ngày/đêm',['day','night'].includes((await au()).mood),JSON.stringify(await au()));
+await p.click('#btn-stats');await p.click('#snd-music');await p.waitForTimeout(200);
+ok('tắt nhạc',(await au()).mood===''&&(await p.getAttribute('#snd-music','aria-pressed'))==='false'&&JSON.parse(await p.evaluate(()=>localStorage.getItem('hatchday-audio'))).music===false);
+await p.click('#snd-music');await p.click('#btn-stats');
 console.log(out.join('\n'));console.log('errors:',JSON.stringify(errs));
 await b.close();srv.close();process.exitCode=(out.some(l=>l.startsWith('FAIL'))||errs.length)?1:0;})().catch(e=>{console.error(e);srv.close();process.exit(1);});
