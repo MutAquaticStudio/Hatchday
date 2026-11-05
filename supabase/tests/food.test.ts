@@ -36,7 +36,7 @@ beforeAll(async () => {
 describe('đồng bộ với client', () => {
   it('thức ăn trong SQL khớp catalog.ts (tên, hiệu ứng, nhóm, giá)', async () => {
     const rows = await q("select id, name, effects, price_coins, source, rarity from items where kind = 'food' order by id");
-    const want = FOODS.map(f => ({ id: f.id, name: f.name, effects: { no: f.no, vui: f.vui, group: f.group }, price_coins: f.price, source: 'market', rarity: 'thuong' }))
+    const want = FOODS.map(f => ({ id: f.id, name: f.name, effects: { no: f.no, vui: f.vui, group: f.group, fresh: f.fresh }, price_coins: f.price, source: 'market', rarity: 'thuong' }))
       .sort((a, b) => (a.id < b.id ? -1 : 1));
     expect(rows).toEqual(want);
   });

@@ -100,7 +100,10 @@ await p.click('#btn-tour');await p.waitForTimeout(600);
 const tourStep=async()=>(await p.textContent('.tour .tour-step').catch(()=>''))||'';
 ok('hướng dẫn bước 1/5',(await tourStep()).includes('1/5'),await tourStep());
 const bx=await (await p.$('canvas')).boundingBox();
-await p.mouse.move(bx.x+bx.width/2,bx.y+bx.height*0.5);await p.mouse.down();for(let i=0;i<10;i++){await p.mouse.move(bx.x+bx.width/2+(i%2?30:-30),bx.y+bx.height*0.5);await p.waitForTimeout(60);}await p.mouse.up();await p.waitForTimeout(800);
+// thú đi lang thang nên nhắm cú vuốt vào đúng chỗ thú đang đứng (hàm __petXY chỉ có khi ?dev)
+for(let t=0;t<4&&!(await tourStep()).includes('2/5');t++){
+  const pp=await p.evaluate(()=>window.__petXY());
+  await p.mouse.move(pp.x,pp.y);await p.mouse.down();for(let i=0;i<10;i++){await p.mouse.move(pp.x+(i%2?25:-25),pp.y);await p.waitForTimeout(60);}await p.mouse.up();await p.waitForTimeout(700);}
 ok('vuốt ve xong thì sang bước 2/5',(await tourStep()).includes('2/5'),await tourStep());
 await p.click('#a-eat');await p.waitForTimeout(1200);
 ok('bấm Ăn thì sang bước 3/5',(await tourStep()).includes('3/5'),await tourStep());
@@ -113,6 +116,39 @@ ok('mở Chỉ số thì hiện lời chúc và nút Đã hiểu',(await p.textC
 await p.click('[data-tour="finish"]');await p.waitForTimeout(300);
 ok('xong hướng dẫn: thẻ biến mất và nhớ đã xem',(await p.$('.tour'))===null&&(await p.evaluate(()=>localStorage.getItem('hatchday-tour')))==='1');
 await p.click('#btn-stats');
+// thức ăn nâng cao: khẩu vị, nấu ăn, vườn rau, tủ lạnh, thức ăn hỏng
+await p.evaluate(()=>{const d=JSON.parse(localStorage.getItem('hatchday-demo'));d.coins=1000;localStorage.setItem('hatchday-demo',JSON.stringify(d));});
+await p.goto(`http://localhost:${PORT}/?dev`);await p.waitForTimeout(800);await p.click('#demo');await p.waitForTimeout(2500);
+await p.click('#btn-stats');await p.waitForTimeout(300);
+ok('Chỉ số có dòng Khẩu vị (đã thử một vài món)',/Khẩu vị: .*đã thử [1-9]\d*\/12 món/.test(await p.textContent('#tastes')),await p.textContent('#tastes'));
+await p.click('#btn-stats');
+await p.click('#a-house');await p.click('.tile[data-go="cooking"]');await p.waitForTimeout(500);
+ok('Nấu ăn: 6 công thức',(await p.$$('#cooking .recipes li')).length===6);
+dm=await demo();const st0=dm.owned['sinh-to']||0;
+await p.click('[data-cook="sinh-to"]');await p.waitForTimeout(400);dm=await demo();
+ok('nấu Sinh tố chuối: được 1 món, mất 1 chuối và 1 sữa chua',dm.owned['sinh-to']===st0+1,'sinh-to='+dm.owned['sinh-to']);
+await p.click('.hsheet:not([hidden]) [data-close]');
+await p.click('#a-house');await p.click('.tile[data-go="garden"]');await p.waitForTimeout(600);
+ok('Vườn rau: 4 ô đất trống',(await p.$$('#plots .plot')).length===4&&(await p.$$('#plots [data-plant]')).length===16);
+dm=await demo();const cA=dm.coins,carA=dm.owned.carot;
+await p.click('[data-plant="0:carot"]');await p.waitForTimeout(500);dm=await demo();
+ok('gieo Cà rốt: trừ 5 xu, ô 1 đang lớn',dm.coins===cA-5&&dm.garden['0'].crop==='carot'&&(await p.textContent('#plots')).includes('còn'),'coins='+dm.coins);
+await p.evaluate(()=>{const d=JSON.parse(localStorage.getItem('hatchday-demo'));d.garden['0'].planted_at=new Date(Date.now()-5*3600000).toISOString();localStorage.setItem('hatchday-demo',JSON.stringify(d));});
+await p.click('.hsheet:not([hidden]) [data-close]');await p.click('#a-house');await p.click('.tile[data-go="garden"]');await p.waitForTimeout(700);
+await p.click('[data-harvest="0"]');await p.waitForTimeout(500);dm=await demo();
+ok('đủ 5 giờ: thu hoạch được 3 Cà rốt, ô trống lại',dm.owned.carot===carA+3&&!dm.garden['0'],'carot='+dm.owned.carot);
+await p.click('.hsheet:not([hidden]) [data-close]');
+await p.click('#a-house');await p.click('.tile[data-go="shop"]');await p.waitForTimeout(400);await p.click('[data-shop-tab="food"]');await p.waitForTimeout(300);
+ok('thẻ tủ lạnh và khẩu vị hiện trong cửa hàng',(await p.textContent('#shop')).includes('Tủ lạnh cấp 1')&&(await p.textContent('#shop')).includes('Khẩu vị của bé'));
+dm=await demo();const cB=dm.coins;
+await p.click('[data-fridge]');await p.waitForTimeout(400);dm=await demo();
+ok('mua tủ lạnh cấp 2: trừ 200 xu',dm.fridge===1&&dm.coins===cB-200,'coins='+dm.coins);
+await p.click('.hsheet:not([hidden]) [data-close]');
+await p.evaluate(()=>{const d=JSON.parse(localStorage.getItem('hatchday-demo'));const t=new Date(Date.now()-86400000),pd=n=>String(n).padStart(2,'0');d.owned.carot=12;d.owned.comnam=12;d.spoilDay=`${t.getFullYear()}-${pd(t.getMonth()+1)}-${pd(t.getDate())}`;localStorage.setItem('hatchday-demo',JSON.stringify(d));});
+await p.goto(`http://localhost:${PORT}/?dev`);await p.waitForTimeout(800);await p.click('#demo');await p.waitForTimeout(2500);
+dm=await demo();
+ok('qua 1 ngày: Cà rốt (tươi) hỏng 2 phần còn 10, Cơm nắm (khô) không hỏng',dm.owned.carot===10&&dm.owned.comnam===12,'carot='+dm.owned.carot+' comnam='+dm.owned.comnam);
+ok('có thông báo thức ăn bị hỏng',(await p.textContent('#toast').catch(()=>''))?.includes('hỏng'),await p.textContent('#toast').catch(()=>''));
 // vòng đời: tua tuổi cho bé hết tuổi thọ, mở lại game → trang tưởng niệm → đón trứng đời sau → gia phả 2 đời
 const prev=await demo();
 await p.evaluate(()=>{const d=JSON.parse(localStorage.getItem('hatchday-demo'));d.life=40;d.pet.born_at=new Date(Date.now()-41*86400000).toISOString();localStorage.setItem('hatchday-demo',JSON.stringify(d));});
@@ -131,4 +167,4 @@ await p.click('.gen.gone');await p.waitForTimeout(800);
 ok('bấm vào bé đã đi: xem trang tưởng niệm',(await p.textContent('#family')).includes('Đã sống 40 ngày')&&(await p.textContent('#family')).includes('Những điều bé nhớ'));
 await p.click('.hsheet:not([hidden]) [data-close]');
 console.log(out.join('\n'));console.log('errors:',JSON.stringify(errs));
-await b.close();srv.close();process.exitCode=(out.some(l=>l.startsWith('FAIL'))||errs.length)?1:0;})().catch(e=>{console.error(e);srv.close();process.exit(1);});
+await b.close();srv.close();process.exitCode=(out.some(l=>l.startsWith('FAIL'))||errs.length)?1:0;})().catch(e=>{console.log(out.join('\n'));console.error(e);srv.close();process.exit(1);});

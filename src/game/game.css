@@ -156,6 +156,21 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline
 .tour-hl{position:relative;z-index:27;animation:tour-pulse 1.4s ease-in-out infinite;border-radius:16px}
 @keyframes tour-pulse{0%,100%{box-shadow:0 0 0 3px var(--accent),0 0 0 8px rgba(255,111,168,.35)}50%{box-shadow:0 0 0 3px var(--accent),0 0 0 14px rgba(255,111,168,0)}}
 @media (prefers-reduced-motion:reduce){.tour,.tour-hl{animation:none}.tour-hl{box-shadow:0 0 0 3px var(--accent),0 0 0 8px rgba(255,111,168,.35)}}
+/* Vườn rau, nấu ăn */
+.plot .crops{display:grid;grid-template-columns:1fr 1fr;gap:6px;width:100%}
+.crop-btn{display:flex;flex-direction:column;align-items:center;gap:0;border:2px solid var(--candy-edge);background:#fff8fb;border-radius:12px;padding:4px 2px;font-size:12px;font-weight:800;color:var(--ink)}
+.crop-btn svg{width:30px;height:30px}.crop-btn small{font-size:10.5px;color:var(--ink-soft)}
+.crop-btn:disabled{opacity:.45}
+.plot.ready{border-color:#5fbf86;box-shadow:0 0 0 3px #e3f7ea}
+.plot .bar-track{width:100%}
+.recipes{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.recipes li{background:#fff;border:2px solid var(--candy-edge);border-radius:16px;padding:10px 12px}
+.rc-ing{display:flex;align-items:center;justify-content:center;gap:6px;flex-wrap:wrap}
+.rc-ing>span{display:flex;flex-direction:column;align-items:center;min-width:64px}
+.rc-ing svg{width:38px;height:38px}.rc-ing small{font-size:11px;font-weight:700;color:var(--ink-soft)}.rc-ing small.lack{color:#d0526b}
+.rc-ing i{font-style:normal;font-weight:800;color:var(--ink-soft)}
+.rc-ing .dish b{font-size:12.5px}
+.rc-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:6px}
 /* Chia tay và gia phả */
 .farewell{position:absolute;inset:0;z-index:60;display:grid;place-items:center;padding:24px;background:rgba(40,16,48,.74);animation:fw-in .8s ease both}
 @keyframes fw-in{from{opacity:0}to{opacity:1}}

@@ -96,6 +96,7 @@ Khoá 15 phút sau 5 lần sai hiện chỉ có ở phía máy (trải nghiệm)
 | `species` | 50 loài: tên, miền, độ hiếm, trọng số | đọc |
 | `species_seen` | Sổ loài: loài đã từng nuôi, các dáng đã đạt | đọc của mình |
 | `room_layouts` | 3 ô bố cục phòng (jsonb), `profiles.active_layout` chọn ô đang dùng | đọc của mình |
+| `garden_plots` (vườn rau), `recipes`, `crops` (tham chiếu, ai cũng đọc) | Cây đang trồng / công thức nấu / cây trồng được | đọc của mình / đọc |
 | `quest_claims`, `weekly_claims`, `ration_claims`, `collection_claims` | Đã nhận thưởng nhiệm vụ ngày (idx 5 = thưởng cả ngày) / nhiệm vụ tuần / suất ăn / bộ sưu tập | đọc của mình |
 | `memories` | Ký ức, `first_key` để "lần đầu" chỉ ghi một lần | đọc, xoá của mình |
 | `day_logs` | Bộ đếm theo ngày → nhật ký | đọc |
@@ -115,6 +116,10 @@ Khoá 15 phút sau 5 lần sai hiện chỉ có ở phía máy (trải nghiệm)
 | `create_pet(name, family, egg)` (cập nhật) | trứng = miền 0–4 | bốc loài theo độ hiếm trên server, ghi Sổ loài | `invalid_egg` |
 | `get_economy()` | | xu, xu hôm nay, 6 món tiệm hôm nay, cuối tuần?, đã nhận suất ăn chưa | |
 | `hatch_heir(name, egg)` | đón thú đời sau của bé đã đi, giữ dòng họ, đời + 1 | thú mới (thừa hưởng cá tính, tai, nửa sắc độ, sở thích, 50% món tủ) | `pet_exists`, `no_parent`, `invalid_name`, `invalid_egg` |
+| `upgrade_fridge()` | tủ lạnh cấp 1 giá 200 xu, cấp 2 giá 500 xu | `{ coins, fridge_level }` | `max_level`, `not_enough_coins` |
+| `get_garden()` / `plant_crop(plot, crop)` / `harvest_crop(plot)` | 4 ô, cây chín sau 4–10 giờ, thu 3 phần | trạng thái các ô kèm giờ server / `{ coins }` / `{ item, qty, got }` | `invalid_plot`, `unknown_crop`, `plot_busy`, `plot_empty`, `not_ready`, `stock_full`, `not_enough_coins` |
+| `cook(recipe, qty)` | qty 1–5, mỗi lần dùng 1 phần mỗi nguyên liệu | `{ dish, qty }` | `unknown_recipe`, `invalid_qty`, `missing_ingredient`, `stock_full` |
+| `get_tastes()` | | `{ fav, dis, tried, total }`, món tủ/ghét chỉ lộ sau khi bé đã ăn thử | `no_pet` |
 | `buy_food(item, qty)` | qty 1–10, kho tối đa 30 phần mỗi món | `{ coins, qty }` | `unknown_item`, `invalid_qty`, `stock_full`, `not_enough_coins` |
 | `claim_ration()` | 3 Cơm nắm miễn phí, mỗi ngày một lần | `{ item, qty }` | `already_claimed` |
 | `buy_item(item)` | | `{ coins, owned }` | `not_for_sale`, `already_owned`, `not_enough_coins` |

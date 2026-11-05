@@ -5,7 +5,7 @@
  * - Vuốt ve và kỳ cọ được gộp theo lô 2 giây để không gửi quá nhiều yêu cầu.
  */
 import * as api from '../data/api';
-import type { ActionResult, Outfit, PetAction, PetRow, QuestBoard, QuestRow, SeenRow } from '../data/types';
+import type { ActionResult, Garden, Outfit, PetAction, PetRow, QuestBoard, QuestRow, SeenRow, Tastes } from '../data/types';
 import type { CareSums, Form, Stage } from './species';
 import { emptyDay, localDay, writeDiary, type DayLog } from './rules';
 import { DEFAULT_LAYOUT, type Layout } from './catalog';
@@ -28,6 +28,8 @@ export interface PetState {
   weekly: QuestRow[]; questBonus: QuestBoard['bonus']; rationDay: string; groupLog: DayGroups[];
   /** Gia phả: mọi bé từ đời 1 tới nay, cũ trước. */
   lineage: PetRow[];
+  /** Tủ lạnh (cấp 0–2), vườn rau, khẩu vị bé đã lộ ra. */
+  fridge: number; garden: Garden | null; tastes: Tastes;
 }
 
 export const S: PetState = {
@@ -37,6 +39,7 @@ export const S: PetState = {
   outfit: {}, presets: [{}, {}, {}], likes: [], dislike: '', quests: [], collections: [],
   personality: normalize(null),
   weekly: [], questBonus: { reward: 0, ready: false, claimed: false }, rationDay: '', groupLog: [], lineage: [],
+  fridge: 0, garden: null, tastes: { fav: null, dis: null, tried: 0, total: 0 },
 };
 /** Bố cục đang dùng (luôn có giá trị). */
 export const activeLayout = (): Layout => S.layouts[S.activeLayout] || S.layouts[0] || DEFAULT_LAYOUT;
@@ -85,6 +88,15 @@ export const onTraitShift = (fn: (name: string) => void) => { traitListeners.add
 const growListeners = new Set<(from: Stage, to: Stage) => void>();
 /** Báo khi thú lớn sang giai đoạn mới (để chạy cảnh tiến hoá). */
 export const onGrow = (fn: (from: Stage, to: Stage) => void) => { growListeners.add(fn); return () => growListeners.delete(fn); };
+const spoilListeners = new Set<(lost: Record<string, number>) => void>();
+let pendingSpoil: Record<string, number> | null = null;
+/** Báo khi có thức ăn tươi bị hỏng (kể cả lần hỏng xảy ra trước khi giao diện sẵn sàng). */
+export const onSpoil = (fn: (lost: Record<string, number>) => void) => { spoilListeners.add(fn); if (pendingSpoil) { const p = pendingSpoil; pendingSpoil = null; fn(p); } return () => spoilListeners.delete(fn); };
+export async function refreshTastes(): Promise<void> { S.tastes = await api.getTastes(); emit(); }
+let gardenSkew = 0;
+/** Giờ server (để đếm ngược vườn rau không phụ thuộc đồng hồ máy). */
+export const serverNow = () => Date.now() + gardenSkew;
+export async function refreshGarden(): Promise<void> { const g = await api.getGarden(); gardenSkew = Date.parse(g.now) - Date.now(); S.garden = g; emit(); }
 export async function refreshSeen(): Promise<void> { S.seen = await api.listSpeciesSeen(); emit(); }
 export async function refreshFamily(): Promise<void> { S.lineage = await api.listFamily(); emit(); }
 /** Ký ức của một bé trong gia phả (để xem trang tưởng niệm). */
@@ -96,13 +108,15 @@ export async function hydrate(): Promise<void> {
   const p = await api.getMyPet();
   if (!p) throw new Error('no_pet');
   applyRow(p);
-  await Promise.all([refreshMemories(), refreshDays(), refreshEconomy(), refreshOwned(), refreshLayouts(), refreshQuests(), refreshSeen(), refreshFamily()]);
+  await Promise.all([refreshMemories(), refreshDays(), refreshEconomy(), refreshOwned(), refreshLayouts(), refreshQuests(), refreshSeen(), refreshFamily(), refreshTastes(), refreshGarden()]);
   hydrated = true;
 }
 
 export async function refreshEconomy(): Promise<void> {
   const e = await api.getEconomy();
-  S.coins = e.coins; S.earnedToday = e.earned_today; S.rotation = e.rotation; S.weekend = e.weekend; S.rationDay = e.ration_claimed ? e.day : ''; emit();
+  S.coins = e.coins; S.earnedToday = e.earned_today; S.rotation = e.rotation; S.weekend = e.weekend; S.rationDay = e.ration_claimed ? e.day : ''; S.fridge = e.fridge_level || 0;
+  if (e.spoiled && Object.keys(e.spoiled).length) { if (spoilListeners.size) spoilListeners.forEach(fn => fn(e.spoiled)); else pendingSpoil = e.spoiled; }
+  emit();
 }
 export async function refreshOwned(): Promise<void> {
   S.owned = await api.listOwned();
@@ -148,6 +162,19 @@ export async function claimWeeklyQuest(i: number): Promise<{ reward: number } | 
 /** Mua thức ăn (qty phần). Trả về lỗi nếu thất bại, null nếu thành công. */
 export async function buyFood(id: string, qty: number): Promise<unknown> {
   try { const r = await api.buyFood(id, qty); S.coins = r.coins; S.owned = { ...S.owned, [id]: r.qty }; emit(); return null; } catch (e) { return e; }
+}
+/** Mua tủ lạnh lớn hơn. */
+export async function upgradeFridge(): Promise<unknown> {
+  try { const r = await api.upgradeFridge(); S.coins = r.coins; S.fridge = r.fridge_level; emit(); return null; } catch (e) { return e; }
+}
+export async function plantCrop(plot: number, crop: string): Promise<unknown> {
+  try { const r = await api.plantCrop(plot, crop); S.coins = r.coins; await refreshGarden(); return null; } catch (e) { return e; }
+}
+export async function harvestCrop(plot: number): Promise<{ item: string; got: number } | { error: unknown }> {
+  try { const r = await api.harvestCrop(plot); S.owned = { ...S.owned, [r.item]: r.qty }; await refreshGarden(); return r; } catch (error) { return { error }; }
+}
+export async function cook(recipe: string, qty = 1): Promise<{ dish: string; qty: number } | { error: unknown }> {
+  try { const r = await api.cook(recipe, qty); await refreshOwned(); return r; } catch (error) { return { error }; }
 }
 /** Nhận suất ăn miễn phí của ngày. */
 export async function claimRation(): Promise<unknown> {
@@ -200,6 +227,7 @@ export async function act(action: PetAction, item?: string, count = 1): Promise<
     const r = await api.petAction(action, item, count);
     applyRow(r.pet);
     if (action === 'feed' && item && typeof r.stock === 'number') S.owned = { ...S.owned, [item]: r.stock };
+    if (action === 'feed') refreshTastes().catch(() => {});
     if (typeof r.coins === 'number') S.coins = r.coins;
     if (r.earned) S.earnedToday += r.earned;
     if (r.new_memory) scheduleMemRefresh();
@@ -247,7 +275,7 @@ export function renamePet(name: string): void {
 /** Đồng bộ lại định kỳ để chỉ số không lệch khỏi server. */
 export function startPeriodicSync(ms = 60_000): () => void {
   const id = window.setInterval(async () => {
-    try { const p = await api.getMyPet(); if (p) { applyRow(p); emit(); } await refreshOwned(); } catch { /* thử lại lần sau */ }
+    try { const p = await api.getMyPet(); if (p) { applyRow(p); emit(); } await refreshEconomy(); await refreshOwned(); } catch { /* thử lại lần sau */ }
   }, ms);
   addEventListener('pagehide', () => { flushBatch(); });
   return () => clearInterval(id);

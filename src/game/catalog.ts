@@ -113,9 +113,12 @@ export const FOOD_GROUPS: Record<FoodGroup, { name: string; healthy: boolean }> 
   tinhbot: { name: 'Tinh bột', healthy: true }, rau: { name: 'Rau củ', healthy: true }, dam: { name: 'Đạm', healthy: true },
   traicay: { name: 'Trái cây', healthy: true }, ngot: { name: 'Đồ ngọt', healthy: false },
 };
-export interface Food { id: string; name: string; group: FoodGroup; no: number; vui: number; price: number; line: string }
-const F = (id: string, name: string, group: FoodGroup, no: number, vui: number, price: number, line: string): Food => ({ id, name, group, no, vui, price, line });
-export const FOODS: Food[] = [
+/** `kind` 'food': mua ở cửa hàng hoặc thu hoạch. 'dish': món nấu, không bán. `fresh`: thức ăn tươi, để lâu trong kho sẽ hỏng (xem FRIDGE). */
+export interface Food { id: string; name: string; kind: 'food' | 'dish'; group: FoodGroup; group2?: FoodGroup; no: number; vui: number; price: number | null; fresh: boolean; line: string }
+const FRESH_GROUPS: FoodGroup[] = ['rau', 'traicay', 'dam'];
+const F = (id: string, name: string, group: FoodGroup, no: number, vui: number, price: number, line: string): Food & { price: number } =>
+  ({ id, name, kind: 'food', group, no, vui, price, fresh: FRESH_GROUPS.includes(group), line });
+export const FOODS: (Food & { price: number })[] = [
   F('comnam', 'Cơm nắm', 'tinhbot', 25, 3, 15, 'No bụng ghê, cảm ơn nha!'),
   F('bap-nuong', 'Bắp nướng', 'tinhbot', 22, 7, 22, 'Thơm lừng mùi bơ!'),
   F('banh-mi', 'Bánh mì', 'tinhbot', 28, 6, 32, 'Giòn tan, ngon ghê!'),
@@ -129,7 +132,48 @@ export const FOODS: Food[] = [
   F('kem', 'Kem que', 'ngot', 5, 15, 22, 'Mát lạnh luôn!'),
   F('che', 'Chè đậu', 'ngot', 15, 12, 28, 'Ngọt lịm tim!'),
 ];
-export const FOOD_BY_ID: Record<string, Food> = Object.fromEntries(FOODS.map(f => [f.id, f]));
+
+/* ---------- Món nấu (kind 'dish') ----------
+ * Nấu từ hai nguyên liệu trong kho (mỗi thứ một phần). Mỗi món thuộc hai nhóm dinh dưỡng, nên dễ đạt "ăn cân bằng". */
+const Dish = (id: string, name: string, group: FoodGroup, group2: FoodGroup, no: number, vui: number, line: string): Food =>
+  ({ id, name, kind: 'dish', group, group2, no, vui, price: null, fresh: true, line });
+export const DISHES: Food[] = [
+  Dish('chao-trung', 'Cháo trứng', 'tinhbot', 'dam', 40, 10, 'Nóng hổi, béo ngậy!'),
+  Dish('com-rau', 'Cơm rau', 'tinhbot', 'rau', 38, 8, 'Ăn xong khoẻ re!'),
+  Dish('banh-mi-trung', 'Bánh mì trứng', 'tinhbot', 'dam', 45, 14, 'Thơm nức mũi luôn!'),
+  Dish('sinh-to', 'Sinh tố chuối', 'traicay', 'dam', 24, 22, 'Mịn mịn, ngọt thanh!'),
+  Dish('salad', 'Salad trái cây', 'rau', 'traicay', 22, 18, 'Tươi rói, giòn tan!'),
+  Dish('che-trai-cay', 'Chè trái cây', 'ngot', 'traicay', 26, 28, 'Mát lịm, ngon hết sảy!'),
+];
+export interface Recipe { id: string; dish: string; a: string; b: string }
+export const RECIPES: Recipe[] = [
+  { id: 'chao-trung', dish: 'chao-trung', a: 'comnam', b: 'trung-op' },
+  { id: 'com-rau', dish: 'com-rau', a: 'comnam', b: 'canh-rau' },
+  { id: 'banh-mi-trung', dish: 'banh-mi-trung', a: 'banh-mi', b: 'trung-op' },
+  { id: 'sinh-to', dish: 'sinh-to', a: 'chuoi', b: 'sua-chua' },
+  { id: 'salad', dish: 'salad', a: 'carot', b: 'dua-hau' },
+  { id: 'che-trai-cay', dish: 'che-trai-cay', a: 'che', b: 'dua-hau' },
+];
+/** Mọi thứ bé ăn được: thức ăn mua + món nấu. */
+export const EDIBLES: Food[] = [...FOODS, ...DISHES];
+export const FOOD_BY_ID: Record<string, Food> = Object.fromEntries(EDIBLES.map(f => [f.id, f]));
+
+/* ---------- Vườn rau: gieo hạt, đợi thật vài giờ, thu hoạch được 3 phần ---------- */
+export interface Crop { id: string; hours: number; seed: number; yield: number }
+export const CROPS: Crop[] = [
+  { id: 'carot', hours: 4, seed: 5, yield: 3 },
+  { id: 'bap-nuong', hours: 6, seed: 6, yield: 3 },
+  { id: 'chuoi', hours: 8, seed: 8, yield: 3 },
+  { id: 'dua-hau', hours: 10, seed: 10, yield: 3 },
+];
+export const GARDEN_PLOTS = 4;
+
+/* ---------- Tủ lạnh và thức ăn hỏng ----------
+ * Thức ăn tươi (fresh) mỗi ngày hỏng một phần số dư trên mức giữ được. Mua tủ lạnh lớn hơn để giữ được nhiều hơn.
+ * Thức ăn khô (tinh bột, đồ ngọt) không bao giờ hỏng. */
+export const FRIDGE = [{ keep: 3, price: 0 }, { keep: 6, price: 200 }, { keep: 10, price: 500 }] as const;
+/** Số phần hỏng sau một ngày: 1/4 phần vượt mức giữ, làm tròn lên. Giống private.spoil_loss(). */
+export const spoilLoss = (qty: number, keep: number) => (qty > keep ? Math.ceil((qty - keep) / 4) : 0);
 export const FOOD_STOCK = {
   start: 2,            // mỗi món bé mới được tặng 2 phần để thử và tìm món tủ
   max: 30,             // giữ tối đa 30 phần mỗi món

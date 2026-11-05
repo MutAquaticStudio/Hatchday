@@ -22,7 +22,7 @@ export interface PetRow {
 }
 
 export type Outfit = Partial<Record<'head' | 'face' | 'neck' | 'back', string>>;
-export interface Economy { coins: number; earned_today: number; day: string; rotation: string[]; weekend: boolean; ration_claimed: boolean }
+export interface Economy { coins: number; earned_today: number; day: string; rotation: string[]; weekend: boolean; ration_claimed: boolean; fridge_level: number; spoiled: Record<string, number> }
 export interface QuestRow { idx: number; quest: number; progress: number; target: number; reward: number; claimed: boolean }
 /** Bảng nhiệm vụ: 5 nhiệm vụ ngày, thưởng làm hết cả ngày, 3 nhiệm vụ tuần. */
 export interface QuestBoard { day: string; quests: QuestRow[]; week: string; weekly: QuestRow[]; bonus: { reward: number; ready: boolean; claimed: boolean } }
@@ -33,6 +33,12 @@ export interface DayLogRow { day: string; fed: number; foods: string[]; fgroups:
 
 export type PetAction = 'feed' | 'pet' | 'bath_scrub' | 'bath_rinse' | 'play_ball' | 'play_spin' | 'talk' | 'sleep' | 'wake';
 
-export interface ActionResult { pet: PetRow; refused: null | 'asleep' | 'full' | 'tired'; fav: boolean; new_memory: boolean; earned?: number; coins?: number; stock?: number | null; balanced?: boolean }
+export interface ActionResult { pet: PetRow; refused: null | 'asleep' | 'full' | 'tired'; fav: boolean; new_memory: boolean; earned?: number; coins?: number; stock?: number | null; balanced?: boolean; dislike?: boolean }
+
+export interface GardenPlot { plot: number; crop: string; planted_at: string; ready_at: string; ready: boolean }
+/** `now` là giờ server, để tính giờ còn lại mà không tin đồng hồ máy. */
+export interface Garden { now: string; plots: GardenPlot[] }
+/** Khẩu vị bé đã lộ ra: món tủ / món ghét chỉ biết sau khi bé được ăn thử món đó. */
+export interface Tastes { fav: string | null; dis: string | null; tried: number; total: number }
 
 export interface SeenRow { species_id: string; first_at: string; forms: string[] }

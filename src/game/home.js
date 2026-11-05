@@ -1,6 +1,6 @@
 // Nhà của bé: bố cục phòng, chế độ trang trí, cửa hàng, tủ đồ, nhiệm vụ ngày (theo GDD).
-import { BY_ID, DEFAULT_LAYOUT, FOOD_BY_ID, FOOD_GROUPS, FOOD_STOCK, FOODS, GRID, ITEMS, PAID_SHOP_ENABLED, PET_ZONE, RARITY, SET_LINES, SLOTS, TAGS, THEMES, WINDOW_CELLS } from './catalog';
-import { BALANCED_BONUS, BALANCED_GROUPS } from './nutrition';
+import { BY_ID, CROPS, DEFAULT_LAYOUT, FOOD_BY_ID, FOOD_GROUPS, FOOD_STOCK, FOODS, FRIDGE, GARDEN_PLOTS, GRID, ITEMS, PAID_SHOP_ENABLED, PET_ZONE, RARITY, RECIPES, SET_LINES, SLOTS, TAGS, THEMES, WINDOW_CELLS } from './catalog';
+import { BALANCED_BONUS, BALANCED_GROUPS, tastesLine } from './nutrition';
 import { FOOD_SVG } from './food.js';
 import { activeSets, buyable, canPlace, cellsOf, comfortLevel, comfortScore, footprint, placedCount, QUEST_BONUS, QUEST_POOL, WEEKLY_POOL } from './layout';
 import { makeDecor } from './decor3d.js';
@@ -104,7 +104,7 @@ export function initHome(ctx) {
     if (!el) { el = document.createElement('section'); el.id = id; el.className = 'sheet hsheet ' + cls; el.hidden = true; el.setAttribute('aria-label', id); app.appendChild(el); }
     return el;
   }
-  const sheets = ['house', 'shop', 'wardrobe', 'quests', 'dex', 'family'];
+  const sheets = ['house', 'shop', 'wardrobe', 'quests', 'dex', 'family', 'plots', 'cooking'];
   function closeAll(except) { sheets.forEach(s => { if (s !== except && $(s)) $(s).hidden = true; }); ctx.setZoom(0); $('a-house').setAttribute('aria-pressed', 'false'); }
   function open(id) { ctx.closeGameSheets(); closeAll(id); const el = sheet(id); el.hidden = false; $('a-house').setAttribute('aria-pressed', String(id !== 'none')); el.querySelector('button, input')?.focus({ preventScroll: true }); return el; }
   const head = (title, sub = '') => `<header class="hs-head"><div><h2>${title}</h2>${sub ? `<p>${sub}</p>` : ''}</div><button type="button" class="hs-close" data-close aria-label="Đóng">✕</button></header>`;
@@ -119,13 +119,15 @@ export function initHome(ctx) {
       <button type="button" class="tile" data-go="shop"><b>Cửa hàng</b><span>Thức ăn, đồ trang trí, trang phục</span></button>
       <button type="button" class="tile" data-go="wardrobe"><b>Tủ đồ</b><span>Trang phục cho bé</span></button>
       <button type="button" class="tile${questReady() ? ' ready' : ''}" data-go="quests"><b>Nhiệm vụ</b><span>${S.quests.filter(q => q.claimed).length}/${S.quests.length} hôm nay · ${S.weekly.filter(q => q.claimed).length}/${S.weekly.length} tuần này</span></button>
+      <button type="button" class="tile${S.garden?.plots.some(p => p.ready) ? ' ready' : ''}" data-go="garden"><b>Vườn rau</b><span>${S.garden ? `${S.garden.plots.length}/${GARDEN_PLOTS} ô đang trồng` : 'Gieo hạt, thu hoạch'}</span></button>
+      <button type="button" class="tile" data-go="cooking"><b>Nấu ăn</b><span>${RECIPES.length} công thức</span></button>
       <button type="button" class="tile" data-go="family"><b>Gia phả</b><span>${S.lineage.length > 1 ? `${S.lineage.length} đời của ${esc(S.family)}` : `Đời ${S.generation} của ${esc(S.family)}`}</span></button>
       <button type="button" class="tile" data-go="dex"><b>Sổ loài</b><span>Đã gặp ${S.seen.length}/${SPECIES.length} loài</span></button></div>`;
   }
   $('a-house').addEventListener('click', () => { ctx.hideHint(); const hs = $('house'); if (hs && !hs.hidden) { closeAll(); return; } openHouse(); });
   app.addEventListener('click', e => {
     const b = e.target.closest('.tile'); if (!b) return;
-    ({ decor: () => enterEdit(), shop: () => openShop('market'), wardrobe: openWardrobe, quests: openQuests, dex: () => openDex(), family: openFamily })[b.dataset.go]();
+    ({ decor: () => enterEdit(), shop: () => openShop('market'), wardrobe: openWardrobe, quests: openQuests, dex: () => openDex(), family: openFamily, garden: openGarden, cooking: openCooking })[b.dataset.go]();
   });
 
   /* ---------- Ảnh thu nhỏ 3D ---------- */
@@ -170,6 +172,59 @@ export function initHome(ctx) {
     requestAnimationFrame(step);
   }
   const card = (it, body) => `<article class="card-item r-${it.rarity}"><img data-thumb="${it.id}" alt="" width="80" height="80"><div class="ci-name">${esc(it.name)}</div>${body}</article>`;
+
+  /* ---------- Vườn rau: 4 ô, gieo hạt rồi đợi vài giờ thật ---------- */
+  let gardenTimer = 0;
+  function openGarden() {
+    open('plots'); renderGarden();
+    store.refreshGarden().then(() => { if (!$('plots').hidden) renderGarden(); }).catch(() => {});
+    clearInterval(gardenTimer);
+    gardenTimer = setInterval(() => { if ($('plots').hidden) clearInterval(gardenTimer); else renderGarden(); }, 20000);
+  }
+  function leftText(ms) { const m = Math.max(1, Math.ceil(ms / 60000)), h = Math.floor(m / 60); return h ? `còn ${h} giờ${m % 60 ? ' ' + (m % 60) + ' phút' : ''}` : `còn ${m} phút`; }
+  function renderGarden(el = $('plots')) {
+    const now = store.serverNow(), by = Object.fromEntries((S.garden?.plots || []).map(p => [p.plot, p]));
+    el.innerHTML = head('Vườn rau', `${COIN_SVG}<b class="coin-inline">${S.coins.toLocaleString('vi-VN')}</b> xu · gieo hạt, đợi cây chín rồi thu hoạch ${CROPS[0].yield} phần`) + `<div class="hs-body"><div class="grid-items">${Array.from({ length: GARDEN_PLOTS }, (_, i) => {
+      const p = by[i];
+      if (!p) return `<article class="card-item plot"><div class="ci-name">Ô ${i + 1}</div><div class="ci-meta">Đất trống, chọn cây để gieo</div><div class="crops">${CROPS.map(c => `<button type="button" class="crop-btn" data-plant="${i}:${c.id}" ${S.coins >= c.seed ? '' : 'disabled'}>${FOOD_SVG[c.id]}<span>${esc(FOOD_BY_ID[c.id].name)}</span><small>${c.seed} xu · ${c.hours} giờ</small></button>`).join('')}</div></article>`;
+      const c = CROPS.find(x => x.id === p.crop), total = c.hours * 3600000, ready = Date.parse(p.ready_at), done = now >= ready;
+      return `<article class="card-item plot${done ? ' ready' : ''}"><div class="food-ic">${FOOD_SVG[p.crop]}</div><div class="ci-name">${esc(FOOD_BY_ID[p.crop].name)}</div>
+        ${done ? `<div class="ci-meta">Chín rồi!</div><div class="ci-act"><button type="button" class="btn-sm" data-harvest="${i}">Thu hoạch +${c.yield}</button></div>`
+          : `<div class="bar-track"><i style="width:${Math.max(4, Math.min(100, (1 - (ready - now) / total) * 100))}%"></i></div><div class="ci-meta">${leftText(ready - now)}</div>`}</article>`;
+    }).join('')}</div><p class="hs-note">Cây trồng xong cho nhiều phần hơn giá hạt giống, nhưng phải đợi giờ thật. Nhớ thu hoạch trước khi kho đầy.</p></div>`;
+  }
+  app.addEventListener('click', async e => {
+    const pl = e.target.closest('[data-plant]');
+    if (pl) {
+      const [i, crop] = pl.dataset.plant.split(':'); pl.disabled = true;
+      const err = await store.plantCrop(+i, crop);
+      if (err) ctx.toast(viError(err)); else { sfx('place'); ctx.buzz(10); ctx.toast(`Đã gieo ${FOOD_BY_ID[crop].name}.`); }
+      renderGarden(); return;
+    }
+    const hv = e.target.closest('[data-harvest]');
+    if (hv) {
+      hv.disabled = true; const res = await store.harvestCrop(+hv.dataset.harvest);
+      if ('error' in res) ctx.toast(viError(res.error)); else { sfx('coin'); ctx.buzz(12); ctx.toast(`Thu hoạch ${res.got} ${FOOD_BY_ID[res.item].name}.`); ctx.startAction('hop'); }
+      renderGarden();
+    }
+  });
+
+  /* ---------- Nấu ăn: hai nguyên liệu thành một món ngon hơn, thuộc hai nhóm dinh dưỡng ---------- */
+  function openCooking() { open('cooking'); renderCooking(); }
+  function renderCooking(el = $('cooking')) {
+    el.innerHTML = head('Nấu ăn', 'Mỗi lần nấu dùng một phần của mỗi nguyên liệu') + `<div class="hs-body"><ul class="recipes">${RECIPES.map(r => {
+      const A = FOOD_BY_ID[r.a], B = FOOD_BY_ID[r.b], dish = FOOD_BY_ID[r.dish], ha = S.owned[r.a] || 0, hb = S.owned[r.b] || 0, hd = S.owned[r.dish] || 0;
+      const ok = ha >= 1 && hb >= 1 && hd < FOOD_STOCK.max;
+      return `<li><div class="rc-ing"><span>${FOOD_SVG[r.a]}<small class="${ha ? '' : 'lack'}">${esc(A.name)} ×${ha}</small></span><i>+</i><span>${FOOD_SVG[r.b]}<small class="${hb ? '' : 'lack'}">${esc(B.name)} ×${hb}</small></span><i>→</i><span class="dish">${FOOD_SVG[r.dish]}<b>${esc(dish.name)}</b><small>có ${hd}</small></span></div>
+        <div class="rc-foot"><span class="ci-meta">+${dish.no} No · +${dish.vui} Vui · ${FOOD_GROUPS[dish.group].name} + ${FOOD_GROUPS[dish.group2].name} · tươi</span><button type="button" class="btn-sm" data-cook="${r.id}" ${ok ? '' : 'disabled'}>Nấu</button></div></li>`;
+    }).join('')}</ul><p class="hs-note">Món nấu ngon hơn và tính cho hai nhóm dinh dưỡng, dễ ăn cân bằng. Món nấu là thức ăn tươi nên để lâu sẽ hỏng.</p></div>`;
+  }
+  app.addEventListener('click', async e => {
+    const b = e.target.closest('[data-cook]'); if (!b) return;
+    b.disabled = true; const res = await store.cook(b.dataset.cook);
+    if ('error' in res) ctx.toast(viError(res.error)); else { sfx('place'); ctx.buzz(12); ctx.toast(`Đã nấu ${FOOD_BY_ID[res.dish].name}.`); ctx.startAction('dance'); }
+    renderCooking();
+  });
 
   /* ---------- Gia phả: cây theo đời, bấm vào một bé để xem trang tưởng niệm ---------- */
   let famSel = ''; const famMem = {};
@@ -250,13 +305,15 @@ export function initHome(ctx) {
     const claimed = S.rationDay === store.today(), ration = FOOD_BY_ID[FOOD_STOCK.rationId], got = new Set(store.nutritionNow());
     const healthy = Object.entries(FOOD_GROUPS).filter(([, g]) => g.healthy);
     return `<div class="ration"><div><b>Suất ăn hôm nay</b><span>Miễn phí ${FOOD_STOCK.ration} ${esc(ration.name)}, mỗi ngày nhận một lần</span></div>${claimed ? '<span class="pill-ok">Đã nhận</span>' : '<button type="button" class="btn-sm" data-ration>Nhận</button>'}</div>
+      <div class="ration fridge"><div><b>Tủ lạnh cấp ${S.fridge + 1}</b><span>Giữ tươi tối đa ${FRIDGE[S.fridge].keep} phần mỗi món tươi (rau, trái cây, đạm, món nấu). Phần dư mỗi ngày hỏng 1/4. Tinh bột và đồ ngọt không hỏng.</span></div>${FRIDGE[S.fridge + 1] ? `<button type="button" class="btn-sm" data-fridge ${S.coins >= FRIDGE[S.fridge + 1].price ? '' : 'disabled'}>${COIN_SVG}${FRIDGE[S.fridge + 1].price}</button>` : '<span class="pill-ok">Cấp cao nhất</span>'}</div>
+      <div class="nutri"><b>Khẩu vị của bé</b><span>${esc(tastesLine(S.tastes))}. Cho bé ăn thử nhiều món để biết bé thích gì.</span></div>
       <div class="nutri"><b>Ăn cân bằng</b><span>Trong 3 ngày, cho bé ăn đủ ${BALANCED_GROUPS} nhóm: mỗi bữa bé vui thêm +${BALANCED_BONUS}.</span>
         <div class="chips-row">${healthy.map(([k, g]) => `<span class="gchip${got.has(k) ? ' on' : ''}">${got.has(k) ? '✓ ' : ''}${g.name}</span>`).join('')}</div></div>
       <div class="grid-items">${FOODS.map(f => {
         const have = S.owned[f.id] || 0, one = f.price, five = f.price * 5;
         const can = n => S.coins >= f.price * n && have + n <= FOOD_STOCK.max;
         return `<article class="card-item"><div class="food-ic">${FOOD_SVG[f.id]}</div><div class="ci-name">${esc(f.name)}</div>
-          <div class="ci-meta">${FOOD_GROUPS[f.group].name} · +${f.no} No · +${f.vui} Vui</div><div class="ci-meta">Đang có ${have}/${FOOD_STOCK.max}</div>
+          <div class="ci-meta">${FOOD_GROUPS[f.group].name}${f.fresh ? ' · tươi' : ''} · +${f.no} No · +${f.vui} Vui</div><div class="ci-meta">Đang có ${have}/${FOOD_STOCK.max}</div>
           <div class="ci-act"><button type="button" class="btn-sm buy" data-buyfood="${f.id}" data-qty="1" ${can(1) ? '' : 'disabled'}>${COIN_SVG}${one}</button>
           <button type="button" class="btn-sm ghost" data-buyfood="${f.id}" data-qty="5" ${can(5) ? '' : 'disabled'}>×5 · ${five}</button></div></article>`;
       }).join('')}</div>`;
@@ -316,6 +373,12 @@ export function initHome(ctx) {
       const f = FOOD_BY_ID[bf.dataset.buyfood], n = +bf.dataset.qty; bf.disabled = true;
       const err = await store.buyFood(f.id, n);
       if (err) ctx.toast(viError(err)); else { sfx('buy'); ctx.buzz(10); ctx.toast(`Đã mua ${n} ${f.name}.`); ctx.popText('-' + f.price * n + ' xu', '#a8742e'); }
+      renderShop(); return;
+    }
+    const fr = e.target.closest('[data-fridge]');
+    if (fr) {
+      fr.disabled = true; const err = await store.upgradeFridge();
+      if (err) ctx.toast(viError(err)); else { sfx('buy'); ctx.buzz(12); ctx.toast(`Đã mua tủ lạnh cấp ${S.fridge + 1}.`); }
       renderShop(); return;
     }
     const rt = e.target.closest('[data-ration]');

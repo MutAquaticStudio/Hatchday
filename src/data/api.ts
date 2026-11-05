@@ -1,6 +1,6 @@
 import { supabase, isConfigured } from '../lib/supabase';
 import * as demo from './demo-api';
-import type { ActionResult, DayLogRow, Economy, MemoryRow, Outfit, PetAction, PetRow, QuestBoard, SeenRow } from './types';
+import type { ActionResult, DayLogRow, Economy, Garden, MemoryRow, Outfit, PetAction, PetRow, QuestBoard, SeenRow, Tastes } from './types';
 import type { Layout } from '../game/catalog';
 
 /** Chưa cấu hình Supabase thì chạy chế độ Chơi thử (dữ liệu trong trình duyệt). */
@@ -84,6 +84,12 @@ export const claimWeeklyQuest = (i: number) => (isDemo ? demo.claimWeeklyQuest(i
 
 /* ---------- Thức ăn ---------- */
 export const buyFood = (id: string, qty: number) => (isDemo ? demo.buyFood(id, qty) : rpc<{ coins: number; qty: number }>('buy_food', { p_item: id, p_qty: qty }));
+export const upgradeFridge = () => (isDemo ? demo.upgradeFridge() : rpc<{ coins: number; fridge_level: number }>('upgrade_fridge'));
+export const getGarden = () => (isDemo ? demo.getGarden() : rpc<Garden>('get_garden'));
+export const plantCrop = (plot: number, crop: string) => (isDemo ? demo.plantCrop(plot, crop) : rpc<{ coins: number }>('plant_crop', { p_plot: plot, p_crop: crop }));
+export const harvestCrop = (plot: number) => (isDemo ? demo.harvestCrop(plot) : rpc<{ item: string; qty: number; got: number }>('harvest_crop', { p_plot: plot }));
+export const cook = (recipe: string, qty = 1) => (isDemo ? demo.cook(recipe, qty) : rpc<{ dish: string; qty: number }>('cook', { p_recipe: recipe, p_qty: qty }));
+export const getTastes = () => (isDemo ? demo.getTastes() : rpc<Tastes>('get_tastes'));
 export const claimRation = () => (isDemo ? demo.claimRation() : rpc<{ item: string; qty: number }>('claim_ration'));
 export const claimCollection = (t: string) => (isDemo ? demo.claimCollection(t) : rpc<{ coins: number }>('claim_collection', { p_theme: t }));
 export async function listCollectionClaims(): Promise<string[]> {

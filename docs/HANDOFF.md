@@ -21,6 +21,7 @@ Bản chơi thử (chế độ demo, dữ liệu lưu trong trình duyệt): htt
 | Cá tính 5 trục: bốc lúc sinh, dịch theo cách chăm, đổi hành vi rảnh, lời chào, câu nói; hiện trong bảng Chỉ số | Xong |
 | Hướng dẫn lần đầu chơi (5 bước ~30 giây, bỏ qua được, xem lại trong Chỉ số) | Xong (`tour.js`, chỉ phía giao diện) |
 | Vòng đời và gia phả: bé sống 30–60 ngày rồi ra đi, trang tưởng niệm, trứng đời sau thừa hưởng họ, cá tính, tai, sở thích, món tủ; cây gia phả | Xong |
+| Thức ăn nâng cao: khẩu vị riêng (món tủ/món ghét lộ dần), vườn rau 4 ô (đợi giờ thật), nấu ăn 6 món từ 2 nguyên liệu, tủ lạnh 3 cấp và thức ăn tươi bị hỏng | Xong |
 | Quầy trả phí | Đã ẩn (`PAID_SHOP_ENABLED = false` trong `src/game/catalog.ts`) |
 | Chạy trên Supabase thật | Chưa. Mọi thứ mới thử ở chế độ demo hoặc PGlite |
 
@@ -29,13 +30,13 @@ Bản chơi thử (chế độ demo, dữ liệu lưu trong trình duyệt): htt
 ```bash
 npm install                 # có .npmrc legacy-peer-deps=true (lỗi arborist)
 npm run dev                 # không có .env thì tự vào chế độ Chơi thử
-npm test                    # 138 test: luật chơi + toàn bộ RPC trên Postgres thật (PGlite)
+npm test                    # 163 test: luật chơi + toàn bộ RPC trên Postgres thật (PGlite)
 npm run build               # typecheck + build
 node scripts/smoke.mjs      # sau build: chạy thật trên trình duyệt (ăn, nói chuyện, tắm, ngủ, lớn lên…)
 node scripts/fit-check.mjs  # sau build: thử 3.900 tổ hợp loài × dáng × đồ mặc, phải ra 0 lẹm
 ```
 
-- `?dev` trên URL: bảng duyệt biểu cảm, tua nhanh thời gian.
+- `?dev` trên URL: bảng duyệt biểu cảm, tua nhanh thời gian, và `window.__petXY()` (vị trí thú trên màn hình, để script kiểm tra nhắm cú vuốt).
 - `?fitcheck` chỉ để script kiểm tra đồ mặc dùng (mở `window.__fitCheck`, `window.__thumb`).
 - Chế độ Chơi thử có nút **Tua 1 ngày** trong bảng Chỉ số để xem lớn lên và tiến hoá.
 - Playwright dùng swiftshader nên FPS đo trong headless không có ý nghĩa.
@@ -69,7 +70,7 @@ src/game/tour.js          hướng dẫn lần đầu chơi (5 bước, chờ ng
 src/game/diary.js         nhật ký, ký ức, bộ đếm hành động trong ngày
 src/game/growth.js        cảnh tiến hoá + thẻ loài
 src/game/audio.js         sfx()/music() tổng hợp bằng Web Audio; cài đặt trong bảng Chỉ số
-supabase/migrations/      6 migration; supabase/tests/ test RPC
+supabase/migrations/      7 migration; supabase/tests/ test RPC
 ```
 
 **Quy tắc quan trọng khi sửa:**
@@ -79,6 +80,7 @@ supabase/migrations/      6 migration; supabase/tests/ test RPC
 - Tuổi thọ thú (30–60 ngày) và món tủ chỉ server biết (`pet_secrets`), không đưa xuống client.
 - Cá tính chạy bằng trigger, không nằm trong `create_pet`/`pet_action`: thú mới có cá tính toàn 0 thì được bốc ngẫu nhiên; mỗi dòng `action_log` dịch cá tính theo `private.personality_drift`. Thêm hành động mới thì thêm độ dịch ở cả `DRIFT` (personality.ts) và hàm SQL đó. Làm vòng đời: truyền sẵn cá tính thừa hưởng khi insert thú đời sau, trigger sẽ giữ nguyên.
 - Vòng đời chạy trong `private.grow_pet` (hết tuổi thọ thì `stage = 'departed'`, ghi `departed_at`, `lived_days`; `get_my_pet` trả về bé vừa đi đúng một lần rồi trả null). Đón thú đời sau bằng `hatch_heir`, không dùng `create_pet` (trigger `heir_required` chặn). Gia phả đọc thẳng từ bảng `pets` (RLS), nối nhau qua `parent_id`. Muốn đổi cách thừa hưởng: sửa `lineage.ts` và `20261115000000_lifecycle.sql` cùng lúc, `lifecycle.test.ts` so khớp. Ở bản thử, nhật ký ngày và nhiệm vụ tuần tính lại từ đầu cho bé đời sau.
+- Thức ăn nâng cao chạy bằng `DISHES`/`RECIPES`/`CROPS`/`FRIDGE`/`spoilLoss` (catalog.ts) và migration `20261116000000_food_advanced.sql`. Món nấu là `items.kind = 'dish'` (không bán, không làm món tủ/món ghét của bé). Thức ăn tươi (`effects.fresh`) mỗi ngày hỏng 1/4 phần vượt mức tủ lạnh giữ được; việc tính hỏng làm lười ở `get_economy` (client gọi lúc mở game và mỗi 60 giây), tối đa 7 ngày dồn. Vườn rau tính giờ bằng giờ server (`get_garden` trả `now`). Khẩu vị đọc qua `get_tastes`, món tủ/món ghét chỉ lộ sau khi bé đã được ăn thử món đó. Thêm món nấu: sửa `DISHES`/`RECIPES`, thêm biểu tượng trong `food.js`, chạy `gen-seed.ts` và dán vào migration mới.
 - Thức ăn và nhiệm vụ chạy bằng `FOODS`/`FOOD_STOCK` (catalog.ts), `QUEST_POOL`/`WEEKLY_POOL` (layout.ts) và migration `20261114000000_food_economy.sql`. Món ăn là hàng tồn kho trong `entitlements` (qty); `buy_item` không bán thức ăn, dùng `buy_food`. Kho bé mới được tặng bằng trigger, `create_pet` không bị viết lại. Muốn thêm món: sửa `FOODS`, thêm biểu tượng trong `food.js` (FOOD_SVG), chạy `gen-seed.ts`, dán vào migration mới.
 - Giá và thưởng (xu) là con số mình tự cân, chưa chơi thử dài ngày: bé đói khoảng 54 điểm No mỗi giờ thức, một bữa 15–32 xu; thu nhập tối đa mỗi ngày khoảng 240–270 xu (chăm sóc 50 + 5 nhiệm vụ 140–170 + thưởng cả ngày 50), mỗi tuần thêm khoảng 300 xu từ nhiệm vụ tuần. Cần chỉnh khi có người chơi thật.
 - Thiết kế 5 trục cá tính (tên nét, độ dịch) chưa đối chiếu với GDD. Cần xem lại cho khớp.
@@ -86,24 +88,21 @@ supabase/migrations/      6 migration; supabase/tests/ test RPC
 ## Việc chưa làm, theo thứ tự đề xuất
 
 **Ưu tiên cao**
-1. **Thức ăn, phần nâng cao.** Đã có 12 món, kho, mua bằng xu, ăn cân bằng. Còn lại theo GDD: khẩu vị riêng từng bé, trồng trọt, nấu ăn, bảo quản (thức ăn hỏng).
-
-**Ưu tiên vừa**
-2. Cấp Gắn bó (1–10) và mở thêm không gian (hiện chỉ có phòng khách trang trí được).
-3. Sức khoẻ: bệnh và cách chữa (hiện chỉ có biểu cảm ốm khi bẩn).
-4. Đồ chơi theo bảng trong GDD (mới có ném bóng, xoay vòng).
-5. Màn chào mừng quay lại sau khi vắng lâu.
-6. Đồng hành giờ làm việc: nhắc giải lao, uống nước, chào sáng và tối.
+1. Cấp Gắn bó (1–10) và mở thêm không gian (hiện chỉ có phòng khách trang trí được).
+2. Sức khoẻ: bệnh và cách chữa (hiện chỉ có biểu cảm ốm khi bẩn).
+3. Đồ chơi theo bảng trong GDD (mới có ném bóng, xoay vòng).
+4. Màn chào mừng quay lại sau khi vắng lâu.
+5. Đồng hành giờ làm việc: nhắc giải lao, uống nước, chào sáng và tối.
 
 **Đã hẹn để sau**
-7. Tích hợp AI: trò chuyện có trí nhớ, nhật ký do AI viết mỗi đêm (Edge Function `chat` và tác vụ theo lịch, xem TDD mục 11).
-8. Xã hội: thăm nhà bạn bè, khu vực chung, an toàn cộng đồng.
-9. Sự kiện theo mùa, bộ đồ Lễ hội.
-10. Thông báo đẩy, service worker (đã có `manifest.webmanifest`).
-11. Bán cosmetic thật: cổng thanh toán, Edge Function xác minh giao dịch, rồi bật `PAID_SHOP_ENABLED`.
+6. Tích hợp AI: trò chuyện có trí nhớ, nhật ký do AI viết mỗi đêm (Edge Function `chat` và tác vụ theo lịch, xem TDD mục 11).
+7. Xã hội: thăm nhà bạn bè, khu vực chung, an toàn cộng đồng.
+8. Sự kiện theo mùa, bộ đồ Lễ hội.
+9. Thông báo đẩy, service worker (đã có `manifest.webmanifest`).
+10. Bán cosmetic thật: cổng thanh toán, Edge Function xác minh giao dịch, rồi bật `PAID_SHOP_ENABLED`.
 
 **Đưa lên chạy thật (chưa ai làm)**
-- Tạo dự án Supabase (region Singapore), `npx supabase link`, `npx supabase db push` (6 migration), điền `.env` theo `.env.example`.
+- Tạo dự án Supabase (region Singapore), `npx supabase link`, `npx supabase db push` (7 migration), điền `.env` theo `.env.example`.
 - Dashboard Authentication: Site URL và Redirect URLs, mật khẩu tối thiểu 8, rate limit, CAPTCHA, bật Google, viết lại mẫu email tiếng Việt (chi tiết TDD mục 4).
 - Host tĩnh thư mục `dist/` (Vercel, Netlify hoặc Cloudflare Pages).
 - Thú tạo trước migration loài sẽ được gán loài tự động theo quả trứng cũ.

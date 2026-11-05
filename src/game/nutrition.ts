@@ -3,7 +3,8 @@
  * khác nhau trở lên (Tinh bột, Rau củ, Đạm, Trái cây; Đồ ngọt không tính). Khi đó mỗi bữa ăn được cộng thêm
  * BALANCED_BONUS điểm Vui. Phần tính trong SQL: public.pet_action (nhánh 'feed').
  */
-import { FOOD_GROUPS, type FoodGroup } from './catalog';
+import { FOOD_BY_ID, FOOD_GROUPS, type FoodGroup } from './catalog';
+import type { Tastes } from '../data/types';
 import { dayNumber } from './layout';
 
 export const BALANCED_DAYS = 3;
@@ -23,3 +24,9 @@ export function recentGroups(logs: readonly DayGroups[], today: string): FoodGro
   return (Object.keys(FOOD_GROUPS) as FoodGroup[]).filter(g => seen.has(g));
 }
 export const isBalanced = (logs: readonly DayGroups[], today: string) => recentGroups(logs, today).length >= BALANCED_GROUPS;
+
+/** Một dòng tả khẩu vị bé đã lộ ra, ví dụ "Thích Kem que · không ưa Chè đậu · đã thử 2/12 món". */
+export function tastesLine(t: Tastes): string {
+  const name = (id: string) => FOOD_BY_ID[id]?.name ?? id;
+  return `${t.fav ? 'Thích ' + name(t.fav) : 'Chưa tìm ra món tủ'} · ${t.dis ? 'không ưa ' + name(t.dis) : 'chưa biết món ghét'} · đã thử ${t.tried}/${t.total} món`;
+}

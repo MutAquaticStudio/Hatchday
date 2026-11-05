@@ -1,7 +1,7 @@
 // Lớp hiển thị & tương tác 3D (chuyển từ bản mẫu). Sẽ tách nhỏ và chuyển sang TypeScript dần.
 import * as THREE from 'three';
 import { S, save, act, actBatched, addTalkMemory, renamePet, onSync, onSyncError, onTraitShift, startPeriodicSync,
-  buy, saveLayout, equip, savePreset, claimQuest, claimQuestBonus, claimWeeklyQuest, claimCollection, buyFood, claimRation, nutritionNow, refreshFamily, familyMemories, refreshQuests, activeLayout, previewComfort } from './store';
+  buy, saveLayout, equip, savePreset, claimQuest, claimQuestBonus, claimWeeklyQuest, claimCollection, buyFood, claimRation, nutritionNow, refreshFamily, familyMemories, refreshGarden, plantCrop, harvestCrop, cook, upgradeFridge, serverNow, onSpoil, refreshQuests, activeLayout, previewComfort } from './store';
 import { initHome } from './home.js';
 import { decayStats, localDay } from './rules';
 import { makePetBuilder, disposePet } from './pet3d.js';
@@ -13,6 +13,8 @@ import { initChat } from './chat.js';
 import { initGrowth } from './growth.js';
 import { initTour } from './tour.js';
 import { initFarewell } from './farewell.js';
+import { FOOD_BY_ID } from './catalog';
+import { tastesLine } from './nutrition';
 import { sfx, music, initAudio } from './audio.js';
 import { STAGES } from './species';
 import { AXES, TRAITS, describe as describePersona, greeting, idleGapFactor, idleWeights, petLine, pickWeighted, walkSpeedFactor } from './personality';
@@ -531,9 +533,10 @@ $('chips').addEventListener('click', e => {
 const STAT = [['no', 'No', '#ffb35c'], ['vui', 'Vui', '#ff6fa8'], ['nl', 'Năng lượng', '#8f7cff'], ['sach', 'Sạch sẽ', '#4fc3f7']];
 $('bars').innerHTML = STAT.map(([k, l, c]) => `<div class="stat"><span>${l}</span><div class="track"><div class="fill" id="f-${k}" style="background:${c}"></div></div><span class="lvl" id="l-${k}"></span></div>`).join('');
 const lvl = v => v >= 75 ? 'Đầy' : v >= 45 ? 'Ổn' : v >= 25 ? 'Hơi thấp' : 'Thấp';
-function renderStats() { STAT.forEach(([k]) => { $('f-' + k).style.width = S[k] + '%'; $('l-' + k).textContent = lvl(S[k]); }); renderPersona(); }
+function renderStats() { STAT.forEach(([k]) => { $('f-' + k).style.width = S[k] + '%'; $('l-' + k).textContent = lvl(S[k]); }); renderPersona(); renderTastes(); }
 /* Cá tính: mỗi trục là một thanh hai đầu, chấm nằm lệch về nét mạnh hơn */
 $('persona-axes').innerHTML = AXES.map(a => `<div class="axis" role="img" id="ax-${a}"><span>${TRAITS[a].lo}</span><div class="axis-track"><i id="axd-${a}"></i></div><span>${TRAITS[a].hi}</span></div>`).join('');
+function renderTastes() { $('tastes').textContent = 'Khẩu vị: ' + tastesLine(S.tastes); }
 function renderPersona() {
   $('persona-desc').textContent = describePersona(S.personality);
   AXES.forEach(a => {
@@ -658,6 +661,7 @@ const toastEl = $('toast'); let toastTimer = 0, toastAt = 0;
 function toast(msg) { toastEl.textContent = msg; toastEl.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => { toastEl.hidden = true; }, 3200); }
 addEventListener('offline', () => toast('Mất kết nối mạng. Bé vẫn ở đây, mình sẽ lưu lại khi có mạng.'));
 addEventListener('online', () => toast('Đã có mạng trở lại.'));
+onSpoil(lost => toast(`Thức ăn tươi bị hỏng: ${Object.entries(lost).map(([id, n]) => `${n} ${FOOD_BY_ID[id]?.name || id}`).join(', ')}. Mua tủ lạnh lớn hơn để giữ được lâu.`));
 onSyncError(() => { const n = performance.now(); if (n - toastAt > 15000) { toastAt = n; toast('Chưa lưu được lên máy chủ. Bạn kiểm tra mạng nhé.'); } });
 document.querySelector('.bar').addEventListener('click', e => { if (e.target.closest('.act')) buzz(8); });
 
@@ -738,7 +742,7 @@ initAudio();
 home = initHome({
   THREE, scene, camera, canvas, renderer, room, toon, add, canvasTex, grad, $, reduce,
   homeFloor, homeWalls: [homeWall, homeWall2], pivot, petBase, petBuilder, getPetParts: () => petParts,
-  store: { S, buy, saveLayout, equip, savePreset, claimQuest, claimQuestBonus, claimWeeklyQuest, claimCollection, buyFood, claimRation, nutritionNow, refreshFamily, familyMemories, refreshQuests, activeLayout, previewComfort, onSync, today: () => localDay() },
+  store: { S, buy, saveLayout, equip, savePreset, claimQuest, claimQuestBonus, claimWeeklyQuest, claimCollection, buyFood, claimRation, nutritionNow, refreshFamily, familyMemories, refreshGarden, plantCrop, harvestCrop, cook, upgradeFridge, serverNow, refreshQuests, activeLayout, previewComfort, onSync, today: () => localDay() },
   say, setTemp, spawn, popText, impulse, startAction, addTrauma, buzz, toast, hideHint, applyShadows, ndcFrom,
   getArea: () => area, goTo, isIdle: () => !busy(performance.now()), isNight: () => period === 'dem',
   setZoom: z => { zoomExtra = z; },
@@ -837,6 +841,8 @@ const timer = new THREE.Timer(); timer.connect(document);
 renderer.setAnimationLoop(() => { timer.update(); tick(performance.now(), Math.min(Math.max(timer.getDelta(), 0), 0.1)); });
 initTour({ isBusy: () => growth.isEvolving() });
 initFarewell();
+/* Chỉ ở ?dev: cho script kiểm tra biết thú đang ở đâu trên màn hình (thú đi lang thang nên không nằm cố định giữa màn hình) */
+if (DEV) window.__petXY = () => { const v = new THREE.Vector3(); petRoot.localToWorld(v.set(0, 0.9, 0)); v.project(camera); const r = canvas.getBoundingClientRect(); return { x: r.left + (v.x + 1) / 2 * r.width, y: r.top + (1 - v.y) / 2 * r.height }; };
 setTimeout(() => { say(greeting(S.personality, S.name), 3200); if (!S.asleep && S.personality.social > -30) startAction('wave'); }, 700);
 setTimeout(hideHint, 9000);
 addEventListener('pagehide', save);

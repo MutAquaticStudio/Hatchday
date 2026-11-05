@@ -11,7 +11,7 @@ describe('danh mục thức ăn', () => {
   });
   it('giá hợp lý: rẻ hơn mọi món trang trí, và suất ăn miễn phí là món rẻ nhất để no bụng', () => {
     for (const f of FOODS) { expect(f.price).toBeGreaterThan(0); expect(f.price).toBeLessThanOrEqual(40); expect(f.no + f.vui).toBeGreaterThan(0); }
-    const perNo = (id: string) => FOOD_BY_ID[id].price / FOOD_BY_ID[id].no;
+    const perNo = (id: string) => FOOD_BY_ID[id].price! / FOOD_BY_ID[id].no;
     expect(FOOD_BY_ID[FOOD_STOCK.rationId]).toBeDefined();
     expect(perNo(FOOD_STOCK.rationId)).toBe(Math.min(...FOODS.map(f => f.price / f.no)));
   });

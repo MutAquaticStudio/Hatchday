@@ -20,14 +20,14 @@ export const TOUR_STEPS = [
 
 /** `c`: { isBusy } nếu cần hoãn (ví dụ đang xem cảnh khác). Trả về { start } để mở lại hướng dẫn. */
 export function initTour(c = {}) {
-  let card = null, step = -1, base = 0, timer = 0, hl = null;
+  let card = null, step = -1, base = 0, timer = 0, hl = null, pressed = false;
   const clearHl = () => { hl?.classList.remove('tour-hl'); hl = null; };
   function stop(done) {
     clearInterval(timer); timer = 0; clearHl(); card?.remove(); card = null; step = -1;
     if (done) write(true);
   }
   function show(i) {
-    step = i; const s = TOUR_STEPS[i]; base = s.base ? s.base() : 0; clearHl();
+    step = i; pressed = false; const s = TOUR_STEPS[i]; base = s.base ? s.base() : 0; clearHl();
     if (s.target) { hl = $(s.target); hl?.classList.add('tour-hl'); }
     if (!card) { card = document.createElement('div'); card.className = 'tour'; card.setAttribute('role', 'status'); card.setAttribute('aria-live', 'polite'); $('app').appendChild(card); }
     card.innerHTML = `<div class="tour-step">Hướng dẫn ${i + 1}/${TOUR_STEPS.length}</div><p>${s.text}</p>
@@ -36,13 +36,16 @@ export function initTour(c = {}) {
   function tick() {
     if (step < 0) return;
     const s = TOUR_STEPS[step];
-    if (!s.last && s.done(base)) { if (step + 1 < TOUR_STEPS.length) show(step + 1); }
-    else if (s.last && s.done(base) && !card.dataset.ready) { card.dataset.ready = '1'; card.querySelector('p').textContent = 'Hay lắm! Chỉ số bé hiện ở đây. Chúc bạn và bé vui nhé.'; clearHl(); }
+    const ok = s.done(base) || pressed; // bấm đúng nút là tính xong, kể cả khi bảng đã đóng lại trước lần kiểm tra kế tiếp
+    if (!s.last && ok) { if (step + 1 < TOUR_STEPS.length) show(step + 1); }
+    else if (s.last && ok && !card.dataset.ready) { card.dataset.ready = '1'; card.querySelector('p').textContent = 'Hay lắm! Chỉ số bé hiện ở đây. Chúc bạn và bé vui nhé.'; clearHl(); }
   }
   $('app').addEventListener('click', e => {
-    const b = e.target.closest('[data-tour]'); if (!b) return;
-    stop(true);
-  });
+    const b = e.target.closest('[data-tour]');
+    if (b) { stop(true); return; }
+    const t = step >= 0 && TOUR_STEPS[step].target;
+    if (t && t !== 'tray' && e.target.closest('#' + t)) pressed = true;
+  }, true);
   function start() {
     stop(false); show(0); timer = setInterval(tick, 350);
   }

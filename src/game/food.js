@@ -2,7 +2,7 @@
 // Mỗi lần ăn dùng hết một phần trong kho; mua thêm ở tab "Thức ăn" của cửa hàng. feed() cập nhật chỉ số tại chỗ rồi gửi act('feed') lên server.
 import * as THREE from 'three';
 import { S, act, save, onSync, refreshOwned } from './store';
-import { FOOD_BY_ID, FOOD_GROUPS, FOODS } from './catalog';
+import { EDIBLES, FOOD_BY_ID, FOOD_GROUPS } from './catalog';
 import { BALANCED_BONUS } from './nutrition';
 import { $, clamp } from './dom.js';
 import { count, dayRec } from './diary.js';
@@ -22,6 +22,12 @@ export const FOOD_SVG = {
   'ca-vien': `<svg viewBox="0 0 40 40"><path d="M6 35L34 7" stroke="#e8b47a" stroke-width="3" stroke-linecap="round"/><circle cx="12" cy="29" r="5.5" fill="#f3d6a6" ${ST}/><circle cx="20" cy="21" r="5.5" fill="#f3d6a6" ${ST}/><circle cx="28" cy="13" r="5.5" fill="#f3d6a6" ${ST}/></svg>`,
   'sua-chua': `<svg viewBox="0 0 40 40"><path d="M10 14h20l-3 21H13z" fill="#fff" ${ST}/><path d="M9 14h22v-3H9z" fill="#ff9ec4" ${ST}/><path d="M20 29c-4-3-5-5-3-7 1.5-1.5 3-.8 3 .6 0-1.4 1.5-2.1 3-.6 2 2 1 4-3 7z" fill="#ff9ec4" stroke="#4a2140" stroke-width="1.6" stroke-linejoin="round"/></svg>`,
   'bap-nuong': `<svg viewBox="0 0 40 40"><path d="M13 6c4-2 10 0 12 5l2 17c-1 5-12 7-15 2z" fill="#ffd95a" ${ST}/><path d="M16 11l8 21M20 9l5 22M14 18l10 3M15 25l9 3" stroke="#e0a82a" stroke-width="1.6" fill="none"/><path d="M12 30c-5-1-7-7-6-12 3 3 6 7 10 9zM27 30c5-1 7-7 6-12-3 3-6 7-10 9z" fill="#7edb72" ${ST}/></svg>`,
+  'chao-trung': `<svg viewBox="0 0 40 40"><path d="M6 18h28a14 14 0 0 1-28 0z" fill="#fff3d6" ${ST}/><circle cx="20" cy="17" r="6" fill="#ffb02e" stroke="#4a2140" stroke-width="2"/><path d="M12 10c0-2 2-2 2-4M26 10c0-2 2-2 2-4" fill="none" stroke="#ff8fb8" stroke-width="2.2" stroke-linecap="round"/></svg>`,
+  'com-rau': `<svg viewBox="0 0 40 40"><path d="M6 20h28a14 14 0 0 1-28 0z" fill="#fff" ${ST}/><path d="M10 20c1-8 8-10 10-10s9 2 10 10z" fill="#f7f3ee" ${ST}/><path d="M24 14c3-2 6 0 6 3-3 1-6 0-6-3z" fill="#7edb72" ${ST}/></svg>`,
+  'banh-mi-trung': `<svg viewBox="0 0 40 40"><path d="M5 24c-2-6 2-11 8-12l14-5c5-1 9 3 7 8l-6 13c-3 5-10 6-15 2z" fill="#e8b25a" ${ST}/><path d="M12 19c3-3 10-3 14 0-1 5-12 6-14 0z" fill="#fff" ${ST}/><circle cx="19" cy="20" r="2.6" fill="#ffb02e"/></svg>`,
+  'sinh-to': `<svg viewBox="0 0 40 40"><path d="M10 10h20l-3 24H13z" fill="#fff3a8" ${ST}/><path d="M11 18h18" stroke="#ffd95a" stroke-width="3"/><path d="M22 4l-3 20" stroke="#ff9ec4" stroke-width="2.8" stroke-linecap="round"/></svg>`,
+  salad: `<svg viewBox="0 0 40 40"><path d="M6 18h28a14 14 0 0 1-28 0z" fill="#fff" ${ST}/><path d="M9 18c2-5 6-6 8-4 2-4 8-4 10 0 2-1 4 1 4 4z" fill="#7edb72" ${ST}/><circle cx="16" cy="16" r="2.4" fill="#ff6f7d"/><circle cx="25" cy="15" r="2.4" fill="#ff9a3c"/></svg>`,
+  'che-trai-cay': `<svg viewBox="0 0 40 40"><path d="M9 14h22l-3 20H12z" fill="#ffe1ee" ${ST}/><path d="M10 20h20" stroke="#4a2140" stroke-width="1.6"/><circle cx="16" cy="26" r="2.6" fill="#ff6f7d"/><circle cx="23" cy="28" r="2.6" fill="#7edb72"/><circle cx="21" cy="22" r="2.2" fill="#ffd95a"/><path d="M27 6l-4 13" stroke="#ff9ec4" stroke-width="2.6" stroke-linecap="round"/></svg>`,
   'banh-mi': `<svg viewBox="0 0 40 40"><path d="M6 25c-3-5 0-10 6-12l14-7c5-2 10 3 8 8l-7 14c-3 5-9 7-14 3z" fill="#e8b25a" ${ST}/><path d="M14 17l5 5M20 12l5 5M26 9l3 3" stroke="#fff3c4" stroke-width="2.4" stroke-linecap="round"/></svg>`,
 };
 
@@ -37,9 +43,9 @@ export function initFood(c) {
   /* Khay chỉ hiện món còn trong kho, kèm số phần; nút cuối mở cửa hàng để mua thêm */
   function renderTray() {
     if (drag) return; // đang kéo thì đừng dựng lại nút
-    const have = FOODS.filter(f => (S.owned[f.id] || 0) > 0);
+    const have = EDIBLES.filter(f => (S.owned[f.id] || 0) > 0);
     tray.innerHTML = `<span class="tray-hint">${have.length ? 'Kéo món ăn vào thú, hoặc chạm' : 'Hết thức ăn rồi. Mua thêm nhé!'}</span>` +
-      have.map(f => `<button class="food" type="button" data-id="${f.id}" title="${f.name} · +${f.no} No, +${f.vui} Vui · ${FOOD_GROUPS[f.group].name}">${FOOD_SVG[f.id]}${f.name}<small>×${S.owned[f.id]} · +${f.no}</small></button>`).join('') +
+      have.map(f => `<button class="food" type="button" data-id="${f.id}" title="${f.name} · +${f.no} No, +${f.vui} Vui · ${FOOD_GROUPS[f.group].name}${f.group2 ? ' + ' + FOOD_GROUPS[f.group2].name : ''}">${FOOD_SVG[f.id]}${f.name}<small>×${S.owned[f.id]} · +${f.no}</small></button>`).join('') +
       '<button class="food more" type="button" data-more title="Mua thêm thức ăn"><svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="14" fill="#ffd36e" stroke="#a8742e" stroke-width="2.2"/><path d="M20 12v16M12 20h16" stroke="#a8742e" stroke-width="3" stroke-linecap="round"/></svg>Mua thêm<small>cửa hàng</small></button>';
   }
   renderTray(); onSync(renderTray);
@@ -86,7 +92,7 @@ export function initFood(c) {
     S.no = clamp(S.no + f.no); S.vui = clamp(S.vui + f.vui); S.sach = clamp(S.sach - 2);
     S.owned = { ...S.owned, [f.id]: S.owned[f.id] - 1 }; // dùng một phần; số thật do server trả về
     popText(`+${f.no} No`, '#f08a24');
-    count('fed'); dayRec().foods.push(f.name); dayRec().groups.push(f.group);
+    count('fed'); dayRec().foods.push(f.name); dayRec().groups.push(f.group); if (f.group2) dayRec().groups.push(f.group2);
     setTemp('chew', 1500); impulse(-1.5); sfx('feed');
     const req = act('feed', f.id);
     setTimeout(async () => {
@@ -94,6 +100,7 @@ export function initFood(c) {
       if (!r || r.refused) refreshOwned().catch(() => {}); // lấy lại số phần thật từ server
       if (!r) { /* mất mạng: giữ bản dự đoán trên máy */ }
       else if (r.refused === 'full') { setTemp('sulky', 1400); say('Mình no căng rồi mà~', 2400); }
+      else if (r.dislike) { setTemp('sulky', 1500); say('Hừm… món này mình không thích lắm.', 2800); }
       else if (r && r.fav) { setTemp('love', 1800); spawn('heart', 4, 1); spawn('sparkle', 2); say(S.favFound ? 'Món tủ của mình nè!!' : 'Ơ… đây là món tủ của mình! Sao bạn biết hay vậy?', 3400); S.favFound = true; }
       else { spawn('sparkle'); say(f.line, 2600); }
       if (r && r.balanced) setTimeout(() => { popText(`Ăn cân bằng +${BALANCED_BONUS} Vui`, '#3f9a63'); spawn('sparkle', 2); }, 600);

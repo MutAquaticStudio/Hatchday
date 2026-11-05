@@ -42,7 +42,7 @@ Mỗi tính năng nên nằm trong **file riêng của nó**, `game.js` chỉ n�
 | --- | --- |
 | Cảnh 3D, vòng lặp, camera, khu vực | `src/game/game.js` |
 | Mặt và biểu cảm | `src/game/face.js` |
-| Cho ăn, khay thức ăn | `src/game/food.js` (số liệu món ở `catalog.ts`, ăn cân bằng ở `nutrition.ts`) |
+| Cho ăn, khay thức ăn | `src/game/food.js` (số liệu món, món nấu, cây trồng, tủ lạnh ở `catalog.ts`; ăn cân bằng và khẩu vị ở `nutrition.ts`) |
 | Trò chuyện | `src/game/chat.js` |
 | Nhật ký, ký ức, đếm hành động trong ngày | `src/game/diary.js` |
 | Lớn lên, cảnh tiến hoá, thẻ loài | `src/game/growth.js` |
@@ -55,7 +55,7 @@ Mỗi tính năng nên nằm trong **file riêng của nó**, `game.js` chỉ n�
 
 ## Quy tắc dễ làm hỏng nhất
 
-**1. Luật ở hai nơi.** Phần lớn luật chơi có bản TypeScript (client) và bản SQL (server). Sửa một nơi phải sửa nơi kia; test `rpc.test.ts`, `decor.test.ts`, `species.test.ts`, `personality.test.ts`, `food.test.ts`, `lifecycle.test.ts` so khớp hai bên. Chế độ Chơi thử (`demo-api.ts`) cũng phải mô phỏng đúng RPC mới.
+**1. Luật ở hai nơi.** Phần lớn luật chơi có bản TypeScript (client) và bản SQL (server). Sửa một nơi phải sửa nơi kia; test `rpc.test.ts`, `decor.test.ts`, `species.test.ts`, `personality.test.ts`, `food.test.ts`, `advanced-food.test.ts`, `lifecycle.test.ts` so khớp hai bên. Chế độ Chơi thử (`demo-api.ts`) cũng phải mô phỏng đúng RPC mới.
 
 **2. Migration.**
 - Không sửa migration đã có. Thêm file mới `supabase/migrations/YYYYMMDDHHMMSS_ten.sql`, giờ lớn hơn mọi file đang có.

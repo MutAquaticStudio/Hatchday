@@ -3,10 +3,10 @@
  * Mô phỏng đúng luật của các RPC trong supabase/migrations (để xem trước, không dùng cho bản chính thức).
  */
 import { clamp, decayStats, localDay } from '../game/rules';
-import { BY_ID, DEFAULT_LAYOUT, FOOD_BY_ID, FOOD_STOCK, FOODS, ITEMS, STARTER_ITEMS, type Layout } from '../game/catalog';
+import { BY_ID, CROPS, DEFAULT_LAYOUT, EDIBLES, FOOD_BY_ID, FOOD_STOCK, FOODS, FRIDGE, GARDEN_PLOTS, ITEMS, RECIPES, spoilLoss, STARTER_ITEMS, type Layout } from '../game/catalog';
 import { BALANCED_BONUS, isBalanced } from '../game/nutrition';
 import { buyable, COIN, comfortLevel, comfortScore, dayNumber, QUEST_BONUS, QUEST_POOL, questsForDay, rotationForDay, isWeekend, weekStart, WEEKLY_POOL, weeklyForDay } from '../game/layout';
-import type { ActionResult, DayLogRow, Economy, MemoryRow, Outfit, PetAction, PetRow, QuestBoard, QuestRow, SeenRow } from './types';
+import type { ActionResult, DayLogRow, Economy, Garden, MemoryRow, Outfit, PetAction, PetRow, QuestBoard, QuestRow, SeenRow, Tastes } from './types';
 import { applyDrift, isBlank, normalize, rollPersonality } from '../game/personality';
 import { blendPersonality, HEIR_FAV_INHERIT, pickHeirSpecies } from '../game/lineage';
 import { formFromCare, pickSpecies, SPECIES_BY_ID, stageForAge, REGIONS, GROW_MEMORY } from '../game/species';
@@ -20,6 +20,8 @@ interface DB {
   ration?: string[]; weekly?: string[]; foodStock?: boolean;
   /** Gia phả: các bé đã ra đi (cũ trước) và ký ức của họ. Ở bản thử, nhật ký ngày và nhiệm vụ tuần tính lại từ đầu cho bé đời sau. */
   family?: PetRow[]; oldMem?: Record<string, MemoryRow[]>;
+  /** Tủ lạnh (cấp 0–2), ngày đã tính thức ăn hỏng lần cuối, vườn rau (ô → cây và giờ gieo). */
+  fridge?: number; spoilDay?: string; garden?: Record<string, { crop: string; planted_at: string }>;
 }
 
 function load(): DB {
@@ -160,19 +162,19 @@ export async function petAction(action: PetAction, item?: string, count = 1): Pr
   const db = load(); if (!db.pet) throw new Error('no_pet');
   decay(db);
   const p = db.pet, d = day(db), n = Math.max(1, Math.min(count, 20));
-  let refused: ActionResult['refused'] = null, fav = false, newMem = false, balanced = false, stock: number | null = null;
+  let refused: ActionResult['refused'] = null, fav = false, disliked = false, newMem = false, balanced = false, stock: number | null = null;
   if (p.asleep && action !== 'wake' && action !== 'pet') refused = 'asleep';
   else if (action === 'feed') {
     const f = FOOD_BY_ID[item || '']; if (!f) throw new Error('unknown_item');
     if (!(db.owned[f.id] >= 1)) throw new Error('not_owned');
     if (p.no >= 90) refused = 'full';
     else {
-      fav = item === db.fav;
-      d.fed++; d.foods.push(f.name); (d.fgroups ||= []).push(f.group);
+      fav = item === db.fav; disliked = item === db.dis;
+      d.fed++; d.foods.push(f.name); (d.fgroups ||= []).push(f.group); if (f.group2) d.fgroups.push(f.group2);
       balanced = isBalanced(Object.values(db.days).map(x => ({ d: x.day, groups: x.fgroups || [] })), localDay());
       p.no = clamp(p.no + f.no); p.vui = clamp(p.vui + f.vui + (fav ? 10 : 0) - (item === db.dis ? 6 : 0) + (balanced ? BALANCED_BONUS : 0)); p.sach = clamp(p.sach - 2);
       stock = --db.owned[f.id];
-      newMem = first(db, 'food-' + item, 'food', fav ? `Lần đầu ăn ${f.name}, hoá ra là món tủ của mình!` : `Lần đầu được ăn ${f.name}.`);
+      newMem = first(db, 'food-' + item, 'food', fav ? `Lần đầu ăn ${f.name}, hoá ra là món tủ của mình!` : disliked ? `Lần đầu ăn ${f.name}, mình không ưa món này lắm.` : `Lần đầu được ăn ${f.name}.`);
     }
   } else if (action === 'pet') { p.vui = clamp(p.vui + 1.6 * n); d.pet += n; }
   else if (action === 'bath_scrub') p.sach = clamp(p.sach + 3 * n);
@@ -189,7 +191,7 @@ export async function petAction(action: PetAction, item?: string, count = 1): Pr
   if (!refused) p.personality = applyDrift(normalize(p.personality), action); // giống trigger trên action_log
   const earned = !refused && ['feed', 'bath_rinse', 'play_ball', 'play_spin', 'talk', 'sleep'].includes(action) ? earn(db, COIN.careReward, true) : 0;
   store(db);
-  return { pet: { ...p }, refused, fav, new_memory: newMem, earned, coins: db.coins, stock, balanced };
+  return { pet: { ...p }, refused, fav, new_memory: newMem, earned, coins: db.coins, stock, balanced, dislike: disliked };
 }
 
 export async function addTalkMemory(text: string) {
@@ -202,9 +204,23 @@ export async function listDayLogs(): Promise<DayLogRow[]> { return Object.values
 export function resetDemo() { try { localStorage.removeItem(KEY); } catch { /* bỏ qua */ } }
 
 /* ---------- Trang trí, trang phục, xu, nhiệm vụ (mô phỏng RPC) ---------- */
+/** Thức ăn tươi hỏng dần (giống private.apply_spoilage). Trả về { món: số phần hỏng } của lần này. */
+function applySpoilage(db: DB): Record<string, number> {
+  const d = localDay(), lost: Record<string, number> = {};
+  if (!db.spoilDay) { db.spoilDay = d; return lost; }
+  const gap = Math.min(Math.max(dayNumber(d) - dayNumber(db.spoilDay), 0), 7);
+  if (dayNumber(d) > dayNumber(db.spoilDay)) db.spoilDay = d;
+  const keep = FRIDGE[db.fridge || 0].keep;
+  for (let i = 0; i < gap; i++) for (const f of EDIBLES) {
+    if (!f.fresh) continue;
+    const have = db.owned[f.id] || 0, l = spoilLoss(have, keep);
+    if (l) { db.owned[f.id] = have - l; lost[f.id] = (lost[f.id] || 0) + l; }
+  }
+  return lost;
+}
 export async function getEconomy(): Promise<Economy> {
-  const db = load(), d = localDay();
-  return { coins: db.coins, earned_today: db.earnedDay === d ? db.earnedToday : 0, day: d, rotation: rotationForDay(d), weekend: isWeekend(d), ration_claimed: !!db.ration?.includes(d) };
+  const db = load(), d = localDay(), spoiled = applySpoilage(db); store(db);
+  return { fridge_level: db.fridge || 0, spoiled, coins: db.coins, earned_today: db.earnedDay === d ? db.earnedToday : 0, day: d, rotation: rotationForDay(d), weekend: isWeekend(d), ration_claimed: !!db.ration?.includes(d) };
 }
 export async function buyItem(id: string): Promise<{ coins: number; qty: number }> {
   const db = load(), it = BY_ID[id];
@@ -270,9 +286,54 @@ export async function claimWeeklyQuest(i: number) {
   (db.weekly ||= []).push(k); earn(db, q.reward, false); store(db); return { coins: db.coins, reward: q.reward };
 }
 
+/* ---------- Thức ăn nâng cao: tủ lạnh, vườn rau, nấu ăn, khẩu vị ---------- */
+export async function upgradeFridge() {
+  const db = load(), lvl = db.fridge || 0; if (lvl >= 2) throw new Error('max_level');
+  const cost = FRIDGE[lvl + 1].price; if (db.coins < cost) throw new Error('not_enough_coins');
+  db.coins -= cost; db.fridge = lvl + 1; store(db); return { coins: db.coins, fridge_level: db.fridge };
+}
+export async function getGarden(): Promise<Garden> {
+  const db = load(), now = Date.now();
+  const plots = Object.entries(db.garden || {}).map(([k, g]) => {
+    const ready = Date.parse(g.planted_at) + CROPS.find(c => c.id === g.crop)!.hours * 3600000;
+    return { plot: +k, crop: g.crop, planted_at: g.planted_at, ready_at: new Date(ready).toISOString(), ready: now >= ready };
+  }).sort((a, b) => a.plot - b.plot);
+  return { now: new Date(now).toISOString(), plots };
+}
+export async function plantCrop(plot: number, crop: string) {
+  const db = load(); if (!(plot >= 0 && plot < GARDEN_PLOTS)) throw new Error('invalid_plot');
+  const c = CROPS.find(x => x.id === crop); if (!c) throw new Error('unknown_crop');
+  if (db.garden?.[plot]) throw new Error('plot_busy');
+  if (db.coins < c.seed) throw new Error('not_enough_coins');
+  db.coins -= c.seed; (db.garden ||= {})[plot] = { crop, planted_at: new Date().toISOString() }; store(db); return { coins: db.coins };
+}
+export async function harvestCrop(plot: number) {
+  const db = load(), g = db.garden?.[plot]; if (!g) throw new Error('plot_empty');
+  const c = CROPS.find(x => x.id === g.crop)!;
+  if (Date.now() < Date.parse(g.planted_at) + c.hours * 3600000) throw new Error('not_ready');
+  applySpoilage(db);
+  const got = Math.min(c.yield, FOOD_STOCK.max - (db.owned[c.id] || 0)); if (got <= 0) throw new Error('stock_full');
+  db.owned[c.id] = (db.owned[c.id] || 0) + got; delete db.garden![plot]; store(db);
+  return { item: c.id, qty: db.owned[c.id], got };
+}
+export async function cook(recipe: string, qty = 1) {
+  const db = load(), r = RECIPES.find(x => x.id === recipe); if (!r) throw new Error('unknown_recipe');
+  if (!(qty >= 1 && qty <= 5)) throw new Error('invalid_qty');
+  applySpoilage(db);
+  if ((db.owned[r.a] || 0) < qty || (db.owned[r.b] || 0) < qty) throw new Error('missing_ingredient');
+  if ((db.owned[r.dish] || 0) + qty > FOOD_STOCK.max) throw new Error('stock_full');
+  db.owned[r.a] -= qty; db.owned[r.b] -= qty; db.owned[r.dish] = (db.owned[r.dish] || 0) + qty; store(db);
+  return { dish: r.dish, qty: db.owned[r.dish] };
+}
+/** Món tủ và món ghét chỉ lộ ra sau khi bé được ăn thử món đó (giống public.get_tastes). */
+export async function getTastes(): Promise<Tastes> {
+  const db = load(), tried = (id: string) => db.firsts.includes('food-' + id);
+  return { fav: db.fav && tried(db.fav) ? db.fav : null, dis: db.dis && tried(db.dis) ? db.dis : null, tried: FOODS.filter(f => tried(f.id)).length, total: FOODS.length };
+}
+
 /* ---------- Thức ăn ---------- */
 export async function buyFood(id: string, qty: number) {
-  const db = load(), f = FOOD_BY_ID[id]; if (!f) throw new Error('unknown_item');
+  const db = load(), f = FOOD_BY_ID[id]; if (!f || f.kind !== 'food' || f.price == null) throw new Error('unknown_item');
   if (!(qty >= 1 && qty <= FOOD_STOCK.packMax)) throw new Error('invalid_qty');
   if ((db.owned[id] || 0) + qty > FOOD_STOCK.max) throw new Error('stock_full');
   if (db.coins < f.price * qty) throw new Error('not_enough_coins');
