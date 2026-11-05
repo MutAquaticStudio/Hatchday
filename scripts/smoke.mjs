@@ -123,7 +123,7 @@ await p.click('#btn-stats');await p.waitForTimeout(300);
 ok('Chỉ số có dòng Khẩu vị (đã thử một vài món)',/Khẩu vị: .*đã thử [1-9]\d*\/12 món/.test(await p.textContent('#tastes')),await p.textContent('#tastes'));
 await p.click('#btn-stats');
 await p.click('#a-house');await p.click('.tile[data-go="cooking"]');await p.waitForTimeout(500);
-ok('Nấu ăn: 6 công thức',(await p.$$('#cooking .recipes li')).length===6);
+ok('Nấu ăn: 16 công thức',(await p.$$('#cooking .recipes li')).length===16);
 dm=await demo();const st0=dm.owned['sinh-to']||0;
 await p.click('[data-cook="sinh-to"]');await p.waitForTimeout(400);dm=await demo();
 ok('nấu Sinh tố chuối: được 1 món, mất 1 chuối và 1 sữa chua',dm.owned['sinh-to']===st0+1,'sinh-to='+dm.owned['sinh-to']);

@@ -144,6 +144,16 @@ export const DISHES: Food[] = [
   Dish('sinh-to', 'Sinh tố chuối', 'traicay', 'dam', 24, 22, 'Mịn mịn, ngọt thanh!'),
   Dish('salad', 'Salad trái cây', 'rau', 'traicay', 22, 18, 'Tươi rói, giòn tan!'),
   Dish('che-trai-cay', 'Chè trái cây', 'ngot', 'traicay', 26, 28, 'Mát lịm, ngon hết sảy!'),
+  Dish('com-chien-rau', 'Cơm chiên rau củ', 'tinhbot', 'rau', 36, 9, 'Thơm lừng, hạt cơm tơi xốp!'),
+  Dish('banh-mi-ca-vien', 'Bánh mì cá viên', 'tinhbot', 'dam', 40, 20, 'Nóng giòn, nhai sướng răng!'),
+  Dish('bap-xao-trung', 'Bắp xào trứng', 'tinhbot', 'dam', 38, 12, 'Ngọt bùi, béo thơm!'),
+  Dish('canh-trung', 'Canh trứng rau', 'rau', 'dam', 30, 8, 'Ấm bụng, dễ ăn ghê!'),
+  Dish('sua-chua-dua', 'Sữa chua dưa hấu', 'dam', 'traicay', 24, 22, 'Mát chua ngọt, đã quá!'),
+  Dish('kem-chuoi', 'Kem chuối', 'ngot', 'traicay', 18, 30, 'Lạnh tê răng mà mê!'),
+  Dish('che-bap', 'Chè bắp', 'ngot', 'tinhbot', 32, 22, 'Dẻo thơm, ngọt dịu!'),
+  Dish('banh-flan', 'Bánh flan', 'dam', 'ngot', 20, 26, 'Mềm mịn, tan trong miệng!'),
+  Dish('ca-vien-rau', 'Cá viên xào rau', 'dam', 'rau', 30, 16, 'Giòn giòn, đủ vị!'),
+  Dish('chuoi-nuong', 'Chuối nướng', 'traicay', 'tinhbot', 30, 18, 'Thơm khói, ngọt lịm!'),
 ];
 export interface Recipe { id: string; dish: string; a: string; b: string }
 export const RECIPES: Recipe[] = [
@@ -153,6 +163,16 @@ export const RECIPES: Recipe[] = [
   { id: 'sinh-to', dish: 'sinh-to', a: 'chuoi', b: 'sua-chua' },
   { id: 'salad', dish: 'salad', a: 'carot', b: 'dua-hau' },
   { id: 'che-trai-cay', dish: 'che-trai-cay', a: 'che', b: 'dua-hau' },
+  { id: 'com-chien-rau', dish: 'com-chien-rau', a: 'comnam', b: 'carot' },
+  { id: 'banh-mi-ca-vien', dish: 'banh-mi-ca-vien', a: 'banh-mi', b: 'ca-vien' },
+  { id: 'bap-xao-trung', dish: 'bap-xao-trung', a: 'bap-nuong', b: 'trung-op' },
+  { id: 'canh-trung', dish: 'canh-trung', a: 'canh-rau', b: 'trung-op' },
+  { id: 'sua-chua-dua', dish: 'sua-chua-dua', a: 'sua-chua', b: 'dua-hau' },
+  { id: 'kem-chuoi', dish: 'kem-chuoi', a: 'kem', b: 'chuoi' },
+  { id: 'che-bap', dish: 'che-bap', a: 'che', b: 'bap-nuong' },
+  { id: 'banh-flan', dish: 'banh-flan', a: 'trung-op', b: 'sua-chua' },
+  { id: 'ca-vien-rau', dish: 'ca-vien-rau', a: 'ca-vien', b: 'canh-rau' },
+  { id: 'chuoi-nuong', dish: 'chuoi-nuong', a: 'chuoi', b: 'bap-nuong' },
 ];
 /** Mọi thứ bé ăn được: thức ăn mua + món nấu. */
 export const EDIBLES: Food[] = [...FOODS, ...DISHES];

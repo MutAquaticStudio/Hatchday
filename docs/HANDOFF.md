@@ -21,7 +21,7 @@ Bản chơi thử (chế độ demo, dữ liệu lưu trong trình duyệt): htt
 | Cá tính 5 trục: bốc lúc sinh, dịch theo cách chăm, đổi hành vi rảnh, lời chào, câu nói; hiện trong bảng Chỉ số | Xong |
 | Hướng dẫn lần đầu chơi (5 bước ~30 giây, bỏ qua được, xem lại trong Chỉ số) | Xong (`tour.js`, chỉ phía giao diện) |
 | Vòng đời và gia phả: bé sống 30–60 ngày rồi ra đi, trang tưởng niệm, trứng đời sau thừa hưởng họ, cá tính, tai, sở thích, món tủ; cây gia phả | Xong |
-| Thức ăn nâng cao: khẩu vị riêng (món tủ/món ghét lộ dần), vườn rau 4 ô (đợi giờ thật), nấu ăn 6 món từ 2 nguyên liệu, tủ lạnh 3 cấp và thức ăn tươi bị hỏng | Xong |
+| Thức ăn nâng cao: khẩu vị riêng (món tủ/món ghét lộ dần), vườn rau 4 ô (đợi giờ thật), nấu ăn 16 món từ 2 nguyên liệu, tủ lạnh 3 cấp và thức ăn tươi bị hỏng | Xong |
 | Quầy trả phí | Đã ẩn (`PAID_SHOP_ENABLED = false` trong `src/game/catalog.ts`) |
 | Chạy trên Supabase thật | Chưa. Mọi thứ mới thử ở chế độ demo hoặc PGlite |
 
@@ -30,7 +30,7 @@ Bản chơi thử (chế độ demo, dữ liệu lưu trong trình duyệt): htt
 ```bash
 npm install                 # có .npmrc legacy-peer-deps=true (lỗi arborist)
 npm run dev                 # không có .env thì tự vào chế độ Chơi thử
-npm test                    # 163 test: luật chơi + toàn bộ RPC trên Postgres thật (PGlite)
+npm test                    # 165 test: luật chơi + toàn bộ RPC trên Postgres thật (PGlite)
 npm run build               # typecheck + build
 node scripts/smoke.mjs      # sau build: chạy thật trên trình duyệt (ăn, nói chuyện, tắm, ngủ, lớn lên…)
 node scripts/fit-check.mjs  # sau build: thử 3.900 tổ hợp loài × dáng × đồ mặc, phải ra 0 lẹm
@@ -70,7 +70,7 @@ src/game/tour.js          hướng dẫn lần đầu chơi (5 bước, chờ ng
 src/game/diary.js         nhật ký, ký ức, bộ đếm hành động trong ngày
 src/game/growth.js        cảnh tiến hoá + thẻ loài
 src/game/audio.js         sfx()/music() tổng hợp bằng Web Audio; cài đặt trong bảng Chỉ số
-supabase/migrations/      7 migration; supabase/tests/ test RPC
+supabase/migrations/      8 migration; supabase/tests/ test RPC
 ```
 
 **Quy tắc quan trọng khi sửa:**
@@ -102,7 +102,7 @@ supabase/migrations/      7 migration; supabase/tests/ test RPC
 10. Bán cosmetic thật: cổng thanh toán, Edge Function xác minh giao dịch, rồi bật `PAID_SHOP_ENABLED`.
 
 **Đưa lên chạy thật (chưa ai làm)**
-- Tạo dự án Supabase (region Singapore), `npx supabase link`, `npx supabase db push` (7 migration), điền `.env` theo `.env.example`.
+- Tạo dự án Supabase (region Singapore), `npx supabase link`, `npx supabase db push` (8 migration), điền `.env` theo `.env.example`.
 - Dashboard Authentication: Site URL và Redirect URLs, mật khẩu tối thiểu 8, rate limit, CAPTCHA, bật Google, viết lại mẫu email tiếng Việt (chi tiết TDD mục 4).
 - Host tĩnh thư mục `dist/` (Vercel, Netlify hoặc Cloudflare Pages).
 - Thú tạo trước migration loài sẽ được gán loài tự động theo quả trứng cũ.

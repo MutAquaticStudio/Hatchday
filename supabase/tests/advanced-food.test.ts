@@ -47,6 +47,24 @@ describe('đồng bộ với client', () => {
     expect(new Set(RECIPES.map(r => r.dish)).size).toBe(DISHES.length);
     for (const c of CROPS) expect(base.has(c.id)).toBe(true);
   });
+  it('16 công thức: không trùng cặp nguyên liệu, mỗi nguyên liệu dùng ít nhất một lần, mỗi món thuộc hai nhóm khác nhau', () => {
+    expect(RECIPES).toHaveLength(16);
+    expect(DISHES).toHaveLength(16);
+    const pairs = RECIPES.map(r => [r.a, r.b].sort().join('+'));
+    expect(new Set(pairs).size).toBe(RECIPES.length);
+    for (const r of RECIPES) expect(r.a).not.toBe(r.b);
+    const used = new Set(RECIPES.flatMap(r => [r.a, r.b]));
+    for (const f of FOODS) expect(used.has(f.id)).toBe(true);
+    expect(new Set(DISHES.map(d => d.name)).size).toBe(DISHES.length);
+    for (const d of DISHES) { expect(d.group2).toBeDefined(); expect(d.group2).not.toBe(d.group); expect(d.no + d.vui).toBeGreaterThan(20); }
+  });
+  it('món nấu đáng nấu: no + vui không kém tổng hai nguyên liệu quá nhiều, và có nhóm lành mạnh', () => {
+    for (const r of RECIPES) {
+      const a = FOOD_BY_ID[r.a], b = FOOD_BY_ID[r.b], d = FOOD_BY_ID[r.dish];
+      expect(d.no + d.vui).toBeGreaterThanOrEqual((a.no + a.vui + b.no + b.vui) * 0.55); // gọn một bữa thay vì hai
+      expect(d.group !== 'ngot' || d.group2 !== 'ngot').toBe(true);
+    }
+  });
   it('số phần hỏng mỗi ngày giống spoilLoss()', async () => {
     for (const keep of FRIDGE.map(f => f.keep)) for (let n = 0; n <= 40; n++) expect(await one('select private.spoil_loss($1, $2)', [n, keep])).toBe(spoilLoss(n, keep));
   });

@@ -212,7 +212,10 @@ export function initHome(ctx) {
   /* ---------- Nấu ăn: hai nguyên liệu thành một món ngon hơn, thuộc hai nhóm dinh dưỡng ---------- */
   function openCooking() { open('cooking'); renderCooking(); }
   function renderCooking(el = $('cooking')) {
-    el.innerHTML = head('Nấu ăn', 'Mỗi lần nấu dùng một phần của mỗi nguyên liệu') + `<div class="hs-body"><ul class="recipes">${RECIPES.map(r => {
+    // món nấu được ngay lên đầu, giữ nguyên thứ tự công thức trong mỗi nhóm
+    const can = r => (S.owned[r.a] || 0) >= 1 && (S.owned[r.b] || 0) >= 1 && (S.owned[r.dish] || 0) < FOOD_STOCK.max;
+    const list = [...RECIPES.filter(can), ...RECIPES.filter(r => !can(r))], ready = list.filter(can).length;
+    el.innerHTML = head('Nấu ăn', `${ready ? `Nấu được ${ready}/${RECIPES.length} món. ` : ''}Mỗi lần nấu dùng một phần của mỗi nguyên liệu`) + `<div class="hs-body"><ul class="recipes">${list.map(r => {
       const A = FOOD_BY_ID[r.a], B = FOOD_BY_ID[r.b], dish = FOOD_BY_ID[r.dish], ha = S.owned[r.a] || 0, hb = S.owned[r.b] || 0, hd = S.owned[r.dish] || 0;
       const ok = ha >= 1 && hb >= 1 && hd < FOOD_STOCK.max;
       return `<li><div class="rc-ing"><span>${FOOD_SVG[r.a]}<small class="${ha ? '' : 'lack'}">${esc(A.name)} ×${ha}</small></span><i>+</i><span>${FOOD_SVG[r.b]}<small class="${hb ? '' : 'lack'}">${esc(B.name)} ×${hb}</small></span><i>→</i><span class="dish">${FOOD_SVG[r.dish]}<b>${esc(dish.name)}</b><small>có ${hd}</small></span></div>
