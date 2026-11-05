@@ -5,7 +5,8 @@
  * - Vuốt ve và kỳ cọ được gộp theo lô 2 giây để không gửi quá nhiều yêu cầu.
  */
 import * as api from '../data/api';
-import type { ActionResult, Outfit, PetAction, PetRow, QuestRow } from '../data/types';
+import type { ActionResult, Outfit, PetAction, PetRow, QuestRow, SeenRow } from '../data/types';
+import type { CareSums, Form, Stage } from './species';
 import { emptyDay, localDay, writeDiary, type DayLog } from './rules';
 import { DEFAULT_LAYOUT, type Layout } from './catalog';
 import { comfortLevel, comfortScore } from './layout';
@@ -14,6 +15,7 @@ export interface Memory { id?: number; t: number; type: string; text: string }
 
 export interface PetState {
   id: string; name: string; family: string; palette: number;
+  species: string; stage: Stage; form: Form | null; genes: PetRow['genes'] | null; bornAt: number; generation: number; seen: SeenRow[]; care: CareSums;
   no: number; vui: number; nl: number; sach: number; asleep: boolean; t: number;
   favFound: boolean; mem: Memory[]; day: DayLog | null; diary: Record<string, string>; firsts: Record<string, number>;
   coins: number; earnedToday: number; rotation: string[]; weekend: boolean;
@@ -22,7 +24,7 @@ export interface PetState {
 }
 
 export const S: PetState = {
-  id: '', name: 'Bé', family: '', palette: 0, no: 70, vui: 70, nl: 80, sach: 80, asleep: false, t: Date.now(),
+  id: '', name: 'Bé', family: '', palette: 0, species: 'mam-xanh', stage: 'baby', form: null, genes: null, bornAt: Date.now(), generation: 1, seen: [], care: { fed: 0, ball: 0, pet: 0, talk: 0, bath: 0 }, no: 70, vui: 70, nl: 80, sach: 80, asleep: false, t: Date.now(),
   favFound: false, mem: [], day: null, diary: {}, firsts: {},
   coins: 0, earnedToday: 0, rotation: [], weekend: false, owned: {}, layouts: [null, null, null], activeLayout: 0, comfort: 1,
   outfit: {}, presets: [{}, {}, {}], likes: [], dislike: '', quests: [], collections: [],
@@ -45,13 +47,28 @@ function applyRow(p: PetRow) {
   if (p.outfit_presets) S.presets = p.outfit_presets;
   if (p.comfort_level) S.comfort = p.comfort_level;
   S.likes = p.genes?.likes || ['mem', 'cay']; S.dislike = p.genes?.dislike || 'retro';
+  const prev = { stage: S.stage, form: S.form, id: S.id };
+  S.species = p.species || 'mam-xanh'; S.form = p.form ?? null; S.genes = p.genes; S.generation = p.generation || 1;
+  S.stage = (['baby', 'child', 'teen', 'adult', 'elder'].includes(p.stage) ? p.stage : 'baby') as Stage;
+  S.bornAt = Date.parse(p.born_at) || Date.now();
+  if (hydrated && prev.id === S.id && (prev.stage !== S.stage || prev.form !== S.form)) {
+    growListeners.forEach(fn => fn(prev.stage, S.stage)); refreshSeen().catch(() => {}); scheduleMemRefresh();
+  }
 }
+let hydrated = false;
+const growListeners = new Set<(from: Stage, to: Stage) => void>();
+/** Báo khi thú lớn sang giai đoạn mới (để chạy cảnh tiến hoá). */
+export const onGrow = (fn: (from: Stage, to: Stage) => void) => { growListeners.add(fn); return () => growListeners.delete(fn); };
+export async function refreshSeen(): Promise<void> { S.seen = await api.listSpeciesSeen(); emit(); }
+/** Chỉ có ở chế độ Chơi thử: tua nhanh tuổi của thú để xem tiến hoá. */
+export async function demoAge(days: number): Promise<void> { const p = await api.demoAge(days); if (p) { applyRow(p); emit(); } }
 
 export async function hydrate(): Promise<void> {
   const p = await api.getMyPet();
   if (!p) throw new Error('no_pet');
   applyRow(p);
-  await Promise.all([refreshMemories(), refreshDays(), refreshEconomy(), refreshOwned(), refreshLayouts(), refreshQuests()]);
+  await Promise.all([refreshMemories(), refreshDays(), refreshEconomy(), refreshOwned(), refreshLayouts(), refreshQuests(), refreshSeen()]);
+  hydrated = true;
 }
 
 export async function refreshEconomy(): Promise<void> {
@@ -107,8 +124,9 @@ export async function refreshMemories(): Promise<void> {
 export async function refreshDays(): Promise<void> {
   const rows = await api.listDayLogs(S.id);
   const today = localDay();
-  S.diary = {};
+  S.diary = {}; S.care = { fed: 0, ball: 0, pet: 0, talk: 0, bath: 0 };
   for (const r of rows) {
+    S.care.fed += r.fed; S.care.ball += r.ball; S.care.pet += r.pet; S.care.talk += r.talk; S.care.bath += r.bath;
     const log: DayLog = { d: r.day, fed: r.fed, foods: r.foods, bath: r.bath, ball: r.ball, pet: r.pet, talk: r.talk, sleep: r.sleep };
     if (r.day === today) S.day = log; else S.diary[r.day] = writeDiary(log);
   }
@@ -118,7 +136,7 @@ export async function refreshDays(): Promise<void> {
 
 /** Lưu tạm trên máy để mở lại nhanh; không phải bản chính. */
 export function save(): void {
-  try { localStorage.setItem('hatchday-cache', JSON.stringify({ name: S.name, palette: S.palette })); } catch { /* bỏ qua */ }
+  try { localStorage.setItem('hatchday-cache', JSON.stringify({ name: S.name, species: S.species })); } catch { /* bỏ qua */ }
 }
 
 let memTimer = 0, questTimer = 0;

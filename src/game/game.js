@@ -1,9 +1,13 @@
 // Lớp hiển thị & tương tác 3D (chuyển từ bản mẫu). Sẽ tách nhỏ và chuyển sang TypeScript dần.
 import * as THREE from 'three';
+import { onGrow, demoAge } from './store';
 import { S, save, act, actBatched, addTalkMemory, deleteMemory as delMem, renamePet, onSync, onSyncError, startPeriodicSync,
   buy, saveLayout, equip, savePreset, claimQuest, claimCollection, refreshQuests, activeLayout, previewComfort } from './store';
 import { initHome } from './home.js';
-import { decayStats, writeDiary as writeDiaryRule, PALETTES, localDay } from './rules';
+import { decayStats, writeDiary as writeDiaryRule, localDay } from './rules';
+import { makePetBuilder, disposePet } from './pet3d.js';
+import { STAGES, STAGE_ORDER, FORMS, RARITIES, REGIONS, SPECIES_BY_ID, formFromCare } from './species';
+import { isDemo } from '../data/api';
 let home = null, editing = false;
 const camOverride = { pos: null, look: null };
 
@@ -34,13 +38,13 @@ const grad = new THREE.DataTexture(new Uint8Array([105, 180, 255]), 3, 1, THREE.
 grad.minFilter = grad.magFilter = THREE.NearestFilter; grad.needsUpdate = true;
 const toon = (color, map) => new THREE.MeshToonMaterial({ color, gradientMap: grad, map: map || null });
 /* Viền sáng anime (rim light) cho thú: chèn vào shader toon, sau opaque_fragment */
-const rimColor = { value: new THREE.Color('#fff4e8') }, rimStrength = { value: 0.5 };
+const rimColor = { value: new THREE.Color('#fff4e8') }, rimStrength = { value: 0.5 }, evoGlow = { value: 0 };
 function petToon(color) {
   const m = toon(color);
   m.onBeforeCompile = sh => {
-    sh.uniforms.rimColor = rimColor; sh.uniforms.rimStrength = rimStrength;
-    sh.fragmentShader = 'uniform vec3 rimColor;\nuniform float rimStrength;\n' + sh.fragmentShader.replace('#include <opaque_fragment>',
-      '#include <opaque_fragment>\n  float rimF = 1.0 - clamp(dot(normalize(normal), normalize(vViewPosition)), 0.0, 1.0);\n  gl_FragColor.rgb += rimColor * smoothstep(0.6, 0.7, rimF) * rimStrength;');
+    sh.uniforms.rimColor = rimColor; sh.uniforms.rimStrength = rimStrength; sh.uniforms.evoGlow = evoGlow;
+    sh.fragmentShader = 'uniform vec3 rimColor;\nuniform float rimStrength;\nuniform float evoGlow;\n' + sh.fragmentShader.replace('#include <opaque_fragment>',
+      '#include <opaque_fragment>\n  float rimF = 1.0 - clamp(dot(normalize(normal), normalize(vViewPosition)), 0.0, 1.0);\n  gl_FragColor.rgb += rimColor * smoothstep(0.6, 0.7, rimF) * rimStrength;\n  gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(1.0, 0.98, 0.94), evoGlow);');
   };
   m.customProgramCacheKey = () => 'pet-rim';
   return m;
@@ -332,27 +336,27 @@ function updateArea(dt, t) {
 }
 
 /* ---------------- con thú ---------------- */
-const PAL = PALETTES[S.palette] || PALETTES[0];
-const PET_INK = PAL.ink, BODY = PAL.body, DEEP = PAL.deep;
+/* Thú dựng theo loài + giai đoạn + dáng (pet3d.js). `grow` co giãn theo tuổi, `pivot` để nhún nhảy, `petLook` chứa thân thú (dựng lại khi lớn). */
+const petBuilder = makePetBuilder({ THREE, add, toon, petToon, grad });
 const petRoot = new THREE.Group(); petRoot.position.set(0, 0, 0.35); scene.add(petRoot);
-const pivot = new THREE.Group(); petRoot.add(pivot);
-const body = add(pivot, new THREE.SphereGeometry(1, 56, 40), petToon(BODY), 0, 0.98, 0, PET_INK, 0.035);
-body.scale.set(1.06, 0.95, 1);
-/* tai */
-const ears = [-1, 1].map(s => {
-  const eg = new THREE.Group(); eg.position.set(s * 0.5, 1.5, -0.03); eg.rotation.z = -s * 0.38; eg.userData.s = s; pivot.add(eg);
-  const ear = add(eg, new THREE.SphereGeometry(0.34, 24, 18), petToon(BODY), 0, 0.3, -0.02, PET_INK, 0.03); ear.scale.set(0.62, 1.25, 0.52);
-  const inner = add(eg, new THREE.SphereGeometry(0.2, 18, 14), toon(PAL.inner), 0, 0.28, 0.11, null); inner.scale.set(0.55, 1.05, 0.3);
-  return eg;
-});
-/* mầm lá trên đầu */
-const sprout = new THREE.Group(); sprout.position.set(0.05, 1.86, 0); pivot.add(sprout);
-add(sprout, new THREE.CylinderGeometry(0.03, 0.04, 0.32, 8), toon('#5cbf6a'), 0, 0.14, 0, '#2f7a3d', 0.015);
-[-1, 1].forEach(s => { const lf = add(sprout, new THREE.SphereGeometry(0.16, 16, 12), toon('#7edb72'), s * 0.15, 0.3, 0, '#2f7a3d', 0.02); lf.scale.set(1.25, 0.45, 0.7); lf.rotation.z = s * 0.45; });
-/* tay, chân, đuôi */
-const arms = [-1, 1].map(s => { const a = add(pivot, new THREE.SphereGeometry(0.2, 18, 14), petToon(BODY), s * 0.98, 0.78, 0.22, PET_INK); a.scale.set(0.8, 1, 0.8); return a; });
-const feet = [-1, 1].map(s => { const f = add(pivot, new THREE.SphereGeometry(0.27, 20, 14), petToon(DEEP), s * 0.42, 0.1, 0.38, PET_INK); f.scale.set(1, 0.5, 1.2); return f; });
-const tail = add(pivot, new THREE.SphereGeometry(0.22, 18, 14), petToon(DEEP), 0, 0.5, -0.98, PET_INK);
+const grow = new THREE.Group(); petRoot.add(grow);
+const pivot = new THREE.Group(); grow.add(pivot);
+const petLook = new THREE.Group(); pivot.add(petLook);
+let body, ears, sprout, tail, arms, feet, petParts = null, lookKey = '', faceMesh = null, lookBooted = false;
+const currentLook = () => ({ species: S.species, stage: S.stage, form: S.form, genes: S.genes });
+function buildLook() {
+  const L = currentLook(), k = JSON.stringify(L); if (k === lookKey) return false; lookKey = k;
+  if (faceMesh) faceMesh.removeFromParent();
+  disposePet(petLook);
+  petParts = petBuilder.build(petLook, L);
+  ({ body, ears, top: sprout, tail, arms, feet } = petParts);
+  if (typeof face !== 'undefined') body.add(face); faceMesh = face;
+  grow.scale.setScalar((STAGES[L.stage]?.scale || 1) * (L.genes?.scale || 1));
+  if (lookBooted) applyShadows(petLook);
+  home?.refreshOutfit();
+  return true;
+}
+buildLook();
 
 /* bóng tròn dưới chân */
 const shadowTex = canvasTex(128, 128, (g) => { const r = g.createRadialGradient(64, 64, 4, 64, 64, 62); r.addColorStop(0, 'rgba(90,40,90,.38)'); r.addColorStop(1, 'rgba(90,40,90,0)'); g.fillStyle = r; g.fillRect(0, 0, 128, 128); });
@@ -720,7 +724,7 @@ const STAT = [['no', 'No', '#ffb35c'], ['vui', 'Vui', '#ff6fa8'], ['nl', 'Năng 
 $('bars').innerHTML = STAT.map(([k, l, c]) => `<div class="stat"><span>${l}</span><div class="track"><div class="fill" id="f-${k}" style="background:${c}"></div></div><span class="lvl" id="l-${k}"></span></div>`).join('');
 const lvl = v => v >= 75 ? 'Đầy' : v >= 45 ? 'Ổn' : v >= 25 ? 'Hơi thấp' : 'Thấp';
 function renderStats() { STAT.forEach(([k]) => { $('f-' + k).style.width = S[k] + '%'; $('l-' + k).textContent = lvl(S[k]); }); }
-$('btn-stats').onclick = () => { const s = $('stats'); s.hidden = !s.hidden; $('btn-stats').setAttribute('aria-expanded', String(!s.hidden)); renderStats(); if (!s.hidden) { $('diary').hidden = true; $('btn-diary').setAttribute('aria-expanded', 'false'); } };
+$('btn-stats').onclick = () => { const s = $('stats'); s.hidden = !s.hidden; $('btn-stats').setAttribute('aria-expanded', String(!s.hidden)); renderStats(); if (!s.hidden) renderSpecies(); if (!s.hidden) { $('diary').hidden = true; $('btn-diary').setAttribute('aria-expanded', 'false'); } };
 $('pet-name').value = S.name;
 $('pet-name').addEventListener('input', e => { const v = e.target.value.trim().slice(0, 16); if (v) renamePet(v); });
 
@@ -762,7 +766,7 @@ $('btn-diary').onclick = () => { const s = $('diary'); s.hidden = !s.hidden; $('
 let idleAt = performance.now() + 6000, wander = null, action = null, walking = false, walkPh = 0, chompAt = 0, puffAt = 0, earTwAt = performance.now() + 3000;
 const earKick = [0, 0], lastOff = new THREE.Vector3(), mouthW = new THREE.Vector3();
 const ACT_DUR = { yawn: 1.8, look: 2.4, dance: 2.0, hop: 1.0, stretch: 1.6, shake: 1.3, wave: 1.6 };
-function busy(now) { return editing || S.asleep || area !== 'home' || anim || fetchBall || override || (temp && now < temp.until) || (down && down.hit) || drag; }
+function busy(now) { return !!evo || editing || S.asleep || area !== 'home' || anim || fetchBall || override || (temp && now < temp.until) || (down && down.hit) || drag; }
 function startAction(type) { action = { type, t: 0, fxAt: 0 }; }
 function idleThink(now) {
   if (now < idleAt) return;
@@ -941,11 +945,11 @@ function resize() {
 new ResizeObserver(resize).observe(canvas); resize();
 
 /* ---------------- vòng lặp ---------------- */
-setupShadows(); applyQuality();
+setupShadows(); applyQuality(); lookBooted = true;
 /* Nhà của bé: bố cục phòng, trang trí, cửa hàng, tủ đồ, nhiệm vụ */
 home = initHome({
   THREE, scene, camera, canvas, renderer, room, toon, add, canvasTex, grad, $, reduce,
-  homeFloor, homeWalls: [homeWall, homeWall2], pivot, petBase,
+  homeFloor, homeWalls: [homeWall, homeWall2], pivot, petBase, petBuilder, getPetParts: () => petParts,
   store: { S, buy, saveLayout, equip, savePreset, claimQuest, claimCollection, refreshQuests, activeLayout, previewComfort, onSync, today: () => localDay() },
   say, setTemp, spawn, popText, impulse, startAction, addTrauma, buzz, toast, hideHint, applyShadows, ndcFrom,
   getArea: () => area, goTo, isIdle: () => !busy(performance.now()), isNight: () => period === 'dem',
@@ -961,7 +965,53 @@ home = initHome({
 applyPeriod(); applySleep(); renderStats(); updateNeeds();
 if (S.asleep) goTo('bedroom', true);
 dayRec();
-onSync(() => { renderStats(); applySleep(); if (!$('diary').hidden) renderDiary(); });
+onSync(() => { renderStats(); applySleep(); if (!$('diary').hidden) renderDiary(); if (!evo) buildLook(); if (!$('stats').hidden) renderSpecies(); });
+/* ---------------- lớn lên: cảnh tiến hoá ---------------- */
+let evo = null;
+onGrow((from, to) => {
+  if (STAGE_ORDER.indexOf(to) <= STAGE_ORDER.indexOf(from) && from !== 'elder') { buildLook(); return; }
+  if (reduce) { buildLook(); growToast(to); return; }
+  evo = { t: 0, swapped: false, to }; action = null; wander = null; anim = null;
+  say(to === 'elder' ? 'Ơ… mình thấy hơi khác…' : 'Ơ ơ… người mình nóng ran nè!', 1500); buzz?.(30);
+});
+function growToast(to) {
+  const sp = SPECIES_BY_ID[S.species];
+  const msg = to === 'adult' || (to === 'elder' && S.form) ? `${S.name} đã ${STAGES[to].name.toLowerCase()} · dáng ${FORMS[S.form || 'thuong'].name}!` : `${S.name} đã lớn thành ${STAGES[to].name}!`;
+  toast(msg); popText(STAGES[to].name, '#ff8a3d');
+  say(to === 'child' ? `Mình là ${sp?.name || 'bé'} Nhí nè! Vỏ trứng rơi mất rồi.` : to === 'teen' ? 'Mình cao lên rồi đó, thấy không?' : to === 'adult' ? `Ta-da! Mình trưởng thành rồi. Cảm ơn bạn đã chăm mình!` : 'Mình già rồi, nhưng vẫn thương bạn lắm.', 3600);
+}
+function evoStep(dt) {
+  if (!evo) return 0;
+  evo.t += dt; const T = evo.t;
+  evoGlow.value = T < 1.7 ? Math.min(1, T / 1.4) * (0.75 + Math.sin(T * 18) * 0.12 * (T / 1.7)) : Math.max(0, 1 - (T - 1.7) / 0.9);
+  if (T > 0.2 && Math.random() < dt * 8) spawn('sparkle', 1, 1.1);
+  if (!evo.swapped && T >= 1.7) {
+    evo.swapped = true; buildLook(); impulse(-3.2); addTrauma(0.3); spawn('sparkle', 10, 1.4); spawn('heart', 3);
+    const f = document.createElement('div'); f.className = 'evo-flash'; $('wipe').parentElement.appendChild(f); setTimeout(() => f.remove(), 900);
+  }
+  if (T >= 2.7) { evoGlow.value = 0; const to = evo.to; evo = null; setTemp('excited', 1600); growToast(to); return 0; }
+  const u = Math.min(T / 1.7, 1);
+  return T < 1.7 ? u * u * Math.PI * 6 : 0;
+}
+
+/* ---------------- thẻ loài trong bảng Chỉ số ---------------- */
+function renderSpecies() {
+  const el = $('species-card'); if (!el) return;
+  const sp = SPECIES_BY_ID[S.species] || SPECIES_BY_ID['mam-xanh'], rar = RARITIES[sp.rarity];
+  const days = Math.max(0, (Date.now() - S.bornAt) / 86400000), st = S.stage;
+  const next = { baby: 'child', child: 'teen', teen: 'adult' }[st];
+  const left = next ? Math.max(0, STAGES[next].from - days) : 0;
+  const leftTxt = left >= 1 ? `${Math.ceil(left)} ngày` : `${Math.max(1, Math.ceil(left * 24))} giờ`;
+  const lean = FORMS[formFromCare(S.care)];
+  el.innerHTML = `<div class="sp-head"><b>${esc(sp.name)}</b><span class="rar" style="--rc:${rar.color}">${rar.name}</span></div>
+    <p class="sp-sub">${REGIONS[sp.region].name} · ${esc(S.family)} · đời ${S.generation}</p>
+    <p class="sp-stage"><b>${STAGES[st].name}</b> · ${Math.floor(days)} ngày tuổi${S.form ? ` · dáng <b>${FORMS[S.form].name}</b>` : ''}</p>
+    ${next ? `<p class="sp-next">Còn ${leftTxt} nữa lên <b>${STAGES[next].name}</b>${st === 'teen' ? `. Bé đang nghiêng về dáng <b>${lean.name}</b> vì ${lean.hint}.` : '.'}</p>` : st === 'elder' ? '<p class="sp-next">Bé đang ở tuổi xế chiều. Hãy dành thật nhiều thời gian bên bé nhé.</p>' : ''}
+    <p class="sp-blurb">${esc(sp.blurb)}</p>
+    <div class="sp-actions"><button type="button" class="pill" id="btn-dex">Sổ loài</button>${isDemo ? '<button type="button" class="pill ghost-pill" id="btn-age">Tua 1 ngày (bản thử)</button>' : ''}</div>`;
+  $('btn-dex').onclick = () => { $('btn-stats').click(); home?.openDex(); };
+  const ab = $('btn-age'); if (ab) ab.onclick = async () => { ab.disabled = true; await demoAge(1); ab.disabled = false; renderSpecies(); };
+}
 startPeriodicSync();
 if (new URLSearchParams(location.search).has('dev')) { document.querySelector('.review').hidden = false; const f = $('fast'); if (f) f.closest('label').hidden = false; }
 const DEV = new URLSearchParams(location.search).has('dev'), devhud = $('devhud');
@@ -998,6 +1048,7 @@ function tick(now, dt) {
     if (p >= 1) anim = null;
   }
   const ex = animStep(dt, t, now, key); hop += ex.hop; roll += ex.roll; spinY += ex.yaw;
+  if (evo) { spinY += evoStep(dt); hop += evo && evo.t < 1.7 ? Math.min(evo.t / 1.7, 1) * 0.5 : 0; }
   pivot.scale.y *= 1 + ex.stretch; pivot.scale.x *= 1 - ex.stretch * 0.4; pivot.scale.z *= 1 - ex.stretch * 0.4;
   if (shake > 0) { shake = Math.max(0, shake - dt * 1.6); roll += Math.sin(t * 30) * 0.12 * shake; }
   if (!reduce && key === 'sleepy') roll += Math.sin(t * 1.4) * 0.06;
@@ -1030,6 +1081,7 @@ function tick(now, dt) {
     a.needsUpdate = true; beamMat.opacity = 0.38 + Math.sin(t * 0.7) * 0.07;
   }
   if (home) home.update(dt, t);
+  petBuilder.animate(petParts, t, reduce);
   updateCamera(dt, t);
   if (!bubbleEl.hidden) { if (now > bubbleUntil) bubbleEl.hidden = true; else placeBubble(); }
   renderer.render(scene, camera);

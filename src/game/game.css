@@ -238,3 +238,31 @@ body.editing .top,body.editing .scene-tag,body.editing .bottom,body.editing #hin
 .inv-item:active{transform:scale(.92)}
 @media (max-width:480px){.grid-items{grid-template-columns:repeat(2,minmax(0,1fr))}.hsheet{bottom:calc(env(safe-area-inset-bottom,0px) + 96px)}.edit-title{flex-basis:100%}.item-bar .btn-sm{padding:6px 10px}}
 @media (prefers-reduced-motion:reduce){.tile,.inv-item{transition:none}}
+
+/* loài & lớn lên */
+.species-card{display:flex;flex-direction:column;gap:4px;background:#fff;border:2px solid var(--candy-edge);border-radius:16px;padding:10px 12px}
+.species-card p{margin:0;font-size:13px;line-height:1.4;color:var(--ink-soft);font-weight:700}
+.species-card .sp-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.species-card .sp-head b{font-family:var(--f-display);font-size:18px;line-height:1.1;color:var(--ink)}
+.species-card .sp-stage{color:var(--ink)}
+.species-card .sp-blurb{font-style:italic;font-weight:600}
+.species-card .sp-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
+.species-card .pill{padding:5px 12px;font-size:13px}
+.rar{display:inline-block;font-size:11px;font-weight:800;color:#fff;background:var(--rc,#8a7a8a);border-radius:999px;padding:1px 8px;line-height:1.6;white-space:nowrap}
+.dex-detail{display:flex;gap:12px;align-items:center;margin:0 18px 10px;background:#fff;border:2px solid var(--candy-edge);border-radius:16px;padding:10px 12px}
+.dex-detail img,.dex-q{flex:none;width:84px;height:84px;object-fit:contain}
+.dex-q{display:grid;place-items:center;font-family:var(--f-display);font-size:40px;color:#d8c8d4;background:#f7f0f5;border-radius:14px}
+.dex-detail b{font-family:var(--f-display);font-size:17px}
+.dex-detail p{margin:4px 0 0;font-size:13px;font-weight:700;color:var(--ink-soft);line-height:1.4}
+.dex-forms{display:flex;gap:4px;flex-wrap:wrap}
+.dex-forms span{font-size:11px;border:1.5px dashed var(--candy-edge);border-radius:999px;padding:1px 7px;color:#b8a8b4}
+.dex-forms span.on{border-style:solid;border-color:#5fbf86;background:#e9f8ef;color:#2f7a4b}
+.dex-grid{grid-template-columns:repeat(auto-fill,minmax(96px,1fr))}
+.dex-card{cursor:pointer;font:inherit;color:inherit;gap:2px;padding:8px 4px}
+.dex-card img{width:72px;height:72px}
+.dex-card.unknown img{filter:brightness(0) opacity(.22)}
+.dex-card.unknown .ci-name{color:#b8a8b4}
+.dex-card.on{border-color:var(--accent);box-shadow:0 3px 0 var(--accent-deep)}
+.evo-flash{position:absolute;inset:0;background:radial-gradient(circle at 50% 55%,#fff 0,#fffaf0 40%,rgba(255,250,240,0) 75%);pointer-events:none;z-index:30;animation:evoflash .9s ease-out forwards}
+@keyframes evoflash{0%{opacity:0}15%{opacity:1}100%{opacity:0}}
+@media (prefers-reduced-motion:reduce){.evo-flash{animation:none;opacity:0}}

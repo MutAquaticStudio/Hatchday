@@ -5,7 +5,8 @@
 import { clamp, decayStats, localDay } from '../game/rules';
 import { BY_ID, DEFAULT_LAYOUT, ITEMS, STARTER_ITEMS, type Layout } from '../game/catalog';
 import { buyable, COIN, comfortLevel, comfortScore, QUEST_POOL, QUEST_REWARD, questsForDay, rotationForDay, isWeekend } from '../game/layout';
-import type { ActionResult, DayLogRow, Economy, MemoryRow, Outfit, PetAction, PetRow, QuestRow } from './types';
+import type { ActionResult, DayLogRow, Economy, MemoryRow, Outfit, PetAction, PetRow, QuestRow, SeenRow } from './types';
+import { formFromCare, pickSpecies, stageForAge, REGIONS, GROW_MEMORY } from '../game/species';
 
 const KEY = 'hatchday-demo';
 const FOOD: Record<string, { name: string; no: number; vui: number }> = {
@@ -15,12 +16,37 @@ const FOOD: Record<string, { name: string; no: number; vui: number }> = {
 interface DB {
   pet: PetRow | null; mem: MemoryRow[]; days: Record<string, DayLogRow>; fav: string; dis: string; firsts: string[]; nextId: number;
   coins: number; earnedDay: string; earnedToday: number; owned: Record<string, number>; layouts: (Layout | null)[]; active: number;
-  quests: string[]; collections: string[];
+  quests: string[]; collections: string[]; life?: number; seen?: SeenRow[];
 }
 
 function load(): DB {
-  try { const d = JSON.parse(localStorage.getItem(KEY) || 'null'); if (d) return d as DB; } catch { /* bỏ qua */ }
+  try {
+    const d = JSON.parse(localStorage.getItem(KEY) || 'null') as DB | null;
+    if (d) {
+      // bản lưu cũ (trước khi có loài): gán loài, tuổi thọ
+      if (d.pet && !d.pet.species) { const sp = pickSpecies(0, Math.random()); d.pet.species = sp.id; d.pet.form = null; d.pet.genes = { ...d.pet.genes, region: 0, hue: 0 }; }
+      if (d.pet && !d.life) d.life = 30 + Math.floor(Math.random() * 31);
+      d.seen ||= d.pet ? [{ species_id: d.pet.species, first_at: d.pet.born_at, forms: [] }] : [];
+      return d;
+    }
+  } catch { /* bỏ qua */ }
   return fresh();
+}
+/** Lớn lên theo tuổi (cùng luật với private.grow_pet). */
+function grow(db: DB) {
+  const p = db.pet; if (!p) return;
+  const days = (Date.now() - Date.parse(p.born_at)) / 86400000;
+  const st = stageForAge(days, db.life || 45);
+  if (st === p.stage) return;
+  p.stage = st;
+  if ((st === 'adult' || st === 'elder') && !p.form) {
+    const sum = { fed: 0, ball: 0, pet: 0, talk: 0, bath: 0 };
+    for (const d of Object.values(db.days)) { sum.fed += d.fed; sum.ball += d.ball; sum.pet += d.pet; sum.talk += d.talk; sum.bath += d.bath; }
+    p.form = formFromCare(sum);
+    const row = db.seen?.find(x => x.species_id === p.species);
+    if (row && !row.forms.includes(p.form)) row.forms.push(p.form);
+  }
+  first(db, 'grow-' + st, 'milestone', GROW_MEMORY(st, p.form));
 }
 const fresh = (): DB => ({ pet: null, mem: [], days: {}, fav: '', dis: '', firsts: [], nextId: 1, coins: COIN.start, earnedDay: '', earnedToday: 0,
   owned: {}, layouts: [null, null, null], active: 0, quests: [], collections: [] });
@@ -45,24 +71,34 @@ function first(db: DB, key: string, kind: string, body: string): boolean {
   return true;
 }
 
-export async function getMyPet(): Promise<PetRow | null> { const db = load(); decay(db); store(db); return db.pet; }
+export async function getMyPet(): Promise<PetRow | null> { const db = load(); decay(db); grow(db); store(db); return db.pet; }
+export async function listSpeciesSeen(): Promise<SeenRow[]> { return load().seen || []; }
+/** Lùi ngày sinh `days` ngày (chỉ để xem thử tiến hoá). */
+export async function demoAge(days: number): Promise<PetRow | null> {
+  const db = load(); if (!db.pet) return null;
+  db.pet.born_at = new Date(Date.parse(db.pet.born_at) - days * 86400000).toISOString();
+  grow(db); store(db); return db.pet;
+}
 
 export async function createPet(name: string, family: string, egg: number): Promise<PetRow> {
   const db = load();
   if (db.pet) throw new Error('pet_exists');
   const ids = Object.keys(FOOD).sort(() => Math.random() - 0.5);
   const now = new Date().toISOString();
-  db.pet = { id: 'demo', owner_id: 'demo', name, family_name: family, generation: 1, stage: 'baby',
-    genes: { palette: egg, ear: Math.floor(Math.random() * 4), sprout: Math.floor(Math.random() * 3), scale: 1 },
+  if (!(egg >= 0 && egg < REGIONS.length)) throw new Error('invalid_egg');
+  const sp = pickSpecies(egg, Math.random());
+  db.pet = { id: 'demo', owner_id: 'demo', name, family_name: family, generation: 1, stage: 'baby', species: sp.id, form: null,
+    genes: { region: egg, ear: Math.floor(Math.random() * 4), scale: Math.round((0.96 + Math.random() * 0.08) * 1000) / 1000, hue: Math.round((Math.random() * 2 - 1) * 100) / 100 },
     personality: {}, no: 72, vui: 74, nl: 82, sach: 85, asleep: false, stats_at: now, bond_xp: 0, born_at: now };
-  db.fav = ids[0]; db.dis = ids[1];
+  db.fav = ids[0]; db.dis = ids[1]; db.life = 30 + Math.floor(Math.random() * 31);
+  db.seen ||= []; if (!db.seen.some(x => x.species_id === sp.id)) db.seen.push({ species_id: sp.id, first_at: now, forms: [] });
   const tags = ['mem', 'sach', 'cay', 'choi', 'sang', 'retro'].sort(() => Math.random() - 0.5);
   db.pet.genes.likes = [tags[0], tags[1]]; db.pet.genes.dislike = tags[2];
   db.pet.outfit = {}; db.pet.outfit_presets = [{}, {}, {}];
   for (const id of [...STARTER_ITEMS, ...Object.keys(FOOD)]) db.owned[id] = Math.max(db.owned[id] || 0, 1);
   db.layouts[0] = structuredClone(DEFAULT_LAYOUT); db.active = 0;
   db.pet.comfort_level = comfortLevel(comfortScore(DEFAULT_LAYOUT));
-  first(db, 'meet', 'meet', `Ngày đầu tiên gặp bạn. Bạn đặt tên mình là ${name}.`);
+  first(db, 'meet', 'meet', `Ngày đầu tiên gặp bạn. Mình là một bé ${sp.name}, bạn đặt tên mình là ${name}.`);
   store(db);
   return db.pet;
 }

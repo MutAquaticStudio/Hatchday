@@ -4,8 +4,10 @@ export interface PetRow {
   name: string;
   family_name: string;
   generation: number;
-  stage: 'egg' | 'baby' | 'teen' | 'adult' | 'departed';
-  genes: { palette: number; ear: number; sprout: number; scale: number; likes?: string[]; dislike?: string };
+  stage: 'egg' | 'baby' | 'child' | 'teen' | 'adult' | 'elder' | 'departed';
+  species: string;
+  form: 'tron' | 'nhanh' | 'thuong' | 'sang' | null;
+  genes: { palette?: number; region?: number; ear: number; sprout?: number; scale: number; hue?: number; likes?: string[]; dislike?: string };
   personality: Record<string, number>;
   no: number; vui: number; nl: number; sach: number;
   asleep: boolean;
@@ -28,3 +30,5 @@ export interface DayLogRow { day: string; fed: number; foods: string[]; bath: nu
 export type PetAction = 'feed' | 'pet' | 'bath_scrub' | 'bath_rinse' | 'play_ball' | 'play_spin' | 'talk' | 'sleep' | 'wake';
 
 export interface ActionResult { pet: PetRow; refused: null | 'asleep' | 'full' | 'tired'; fav: boolean; new_memory: boolean; earned?: number; coins?: number }
+
+export interface SeenRow { species_id: string; first_at: string; forms: string[] }

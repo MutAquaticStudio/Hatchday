@@ -1,6 +1,6 @@
 import { supabase, isConfigured } from '../lib/supabase';
 import * as demo from './demo-api';
-import type { ActionResult, DayLogRow, Economy, MemoryRow, Outfit, PetAction, PetRow, QuestRow } from './types';
+import type { ActionResult, DayLogRow, Economy, MemoryRow, Outfit, PetAction, PetRow, QuestRow, SeenRow } from './types';
 import type { Layout } from '../game/catalog';
 
 /** Chưa cấu hình Supabase thì chạy chế độ Chơi thử (dữ liệu trong trình duyệt). */
@@ -76,3 +76,9 @@ export async function listCollectionClaims(): Promise<string[]> {
   if (isDemo) return demo.listCollectionClaims();
   return (unwrap(await supabase.from('collection_claims').select('theme')) as { theme: string }[]).map(r => r.theme);
 }
+
+/* ---------- Loài & lớn lên ---------- */
+export const listSpeciesSeen = async () =>
+  isDemo ? demo.listSpeciesSeen() : unwrap(await supabase.from('species_seen').select('species_id, first_at, forms').order('first_at')) as SeenRow[];
+/** Chỉ chế độ Chơi thử: lùi ngày sinh để xem thú lớn lên. Bản thật không có (tuổi do server tính). */
+export const demoAge = async (days: number) => (isDemo ? demo.demoAge(days) : null);

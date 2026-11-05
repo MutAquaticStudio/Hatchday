@@ -35,7 +35,7 @@ describe('tạo thú', () => {
   it('tạo được một thú, không tạo được thú thứ hai', async () => {
     const p = (await q('select * from create_pet($1, $2, 1)', ['Bánh Bò', 'Nhà Mây']))[0];
     expect(p.name).toBe('Bánh Bò');
-    expect(p.genes.palette).toBe(1);
+    expect(p.genes.region).toBe(1);
     await expect(q("select * from create_pet('X', 'Y', 0)")).rejects.toThrow(/pet_exists/);
   });
   it('kiểm tra tên', async () => {

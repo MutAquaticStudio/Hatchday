@@ -2,6 +2,8 @@
 import { BY_ID, DEFAULT_LAYOUT, GRID, ITEMS, PET_ZONE, RARITY, SET_LINES, SLOTS, TAGS, THEMES, WINDOW_CELLS } from './catalog';
 import { activeSets, buyable, canPlace, cellsOf, comfortLevel, comfortScore, footprint, placedCount, QUEST_POOL, QUEST_REWARD } from './layout';
 import { makeDecor } from './decor3d.js';
+import { disposePet } from './pet3d.js';
+import { FORMS, RARITIES, REGIONS, SPECIES, SPECIES_BY_ID } from './species';
 import { viError } from '../lib/errors';
 
 const esc = v => String(v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -48,9 +50,14 @@ export function initHome(ctx) {
   const outfitRoot = new THREE.Group(); ctx.pivot.add(outfitRoot);
   let outfitKey = '';
   function renderOutfit(o) {
-    const k = JSON.stringify(o || {}); if (k === outfitKey) return; outfitKey = k;
+    const parts = ctx.getPetParts(), off = parts?.offsets || {};
+    const k = JSON.stringify(o || {}) + '|' + JSON.stringify(off); if (k === outfitKey) return; outfitKey = k;
     outfitRoot.clear();
-    Object.values(o || {}).forEach(id => { if (BY_ID[id]) outfitRoot.add(D.buildOutfit(id)); });
+    Object.values(o || {}).forEach(id => {
+      const it = BY_ID[id]; if (!it) return;
+      const g = D.buildOutfit(id), [dy, dz] = off[it.slot] || [0, 0];
+      g.position.y += dy; g.position.z += dz; outfitRoot.add(g);
+    });
   }
 
   /* ===================== Phản ứng của bé ===================== */
@@ -92,7 +99,7 @@ export function initHome(ctx) {
     if (!el) { el = document.createElement('section'); el.id = id; el.className = 'sheet hsheet ' + cls; el.hidden = true; el.setAttribute('aria-label', id); app.appendChild(el); }
     return el;
   }
-  const sheets = ['house', 'shop', 'wardrobe', 'quests'];
+  const sheets = ['house', 'shop', 'wardrobe', 'quests', 'dex'];
   function closeAll(except) { sheets.forEach(s => { if (s !== except && $(s)) $(s).hidden = true; }); ctx.setZoom(0); $('a-house').setAttribute('aria-pressed', 'false'); }
   function open(id) { ctx.closeGameSheets(); closeAll(id); const el = sheet(id); el.hidden = false; $('a-house').setAttribute('aria-pressed', String(id !== 'none')); el.querySelector('button, input')?.focus({ preventScroll: true }); return el; }
   const head = (title, sub = '') => `<header class="hs-head"><div><h2>${title}</h2>${sub ? `<p>${sub}</p>` : ''}</div><button type="button" class="hs-close" data-close aria-label="Đóng">✕</button></header>`;
@@ -106,12 +113,13 @@ export function initHome(ctx) {
       <button type="button" class="tile" data-go="decor"><b>Trang trí phòng</b><span>Đặt, xoay, cất đồ</span></button>
       <button type="button" class="tile" data-go="shop"><b>Cửa hàng</b><span>Chợ, tiệm hôm nay, chợ cuối tuần</span></button>
       <button type="button" class="tile" data-go="wardrobe"><b>Tủ đồ</b><span>Trang phục cho bé</span></button>
-      <button type="button" class="tile${questReady() ? ' ready' : ''}" data-go="quests"><b>Nhiệm vụ hôm nay</b><span>${S.quests.filter(q => q.claimed).length}/3 đã nhận</span></button></div>`;
+      <button type="button" class="tile${questReady() ? ' ready' : ''}" data-go="quests"><b>Nhiệm vụ hôm nay</b><span>${S.quests.filter(q => q.claimed).length}/3 đã nhận</span></button>
+      <button type="button" class="tile" data-go="dex"><b>Sổ loài</b><span>Đã gặp ${S.seen.length}/${SPECIES.length} loài</span></button></div>`;
   }
   $('a-house').addEventListener('click', () => { ctx.hideHint(); const hs = $('house'); if (hs && !hs.hidden) { closeAll(); return; } openHouse(); });
   app.addEventListener('click', e => {
     const b = e.target.closest('.tile'); if (!b) return;
-    ({ decor: () => enterEdit(), shop: () => openShop('market'), wardrobe: openWardrobe, quests: openQuests })[b.dataset.go]();
+    ({ decor: () => enterEdit(), shop: () => openShop('market'), wardrobe: openWardrobe, quests: openQuests, dex: () => openDex() })[b.dataset.go]();
   });
 
   /* ---------- Ảnh thu nhỏ 3D ---------- */
@@ -124,14 +132,18 @@ export function initHome(ctx) {
         thumbR.r.setSize(160, 160); thumbR.r.setPixelRatio(1);
         thumbR.s.add(new THREE.HemisphereLight('#fff6fb', '#b9a3e3', 1.8)); const dl = new THREE.DirectionalLight('#fff1dc', 2.2); dl.position.set(3, 6, 5); thumbR.s.add(dl);
       }
-      const it = BY_ID[id], g = it.kind === 'outfit' ? D.buildOutfit(id) : it.layer === 'wallpaper' || it.layer === 'flooring' ? swatch(it) : D.build(id);
-      if (it.kind === 'outfit') g.position.set(0, 0, 0);
+      let g;
+      if (id.startsWith('pet:')) { const [, species, stage, form] = id.split(':'); g = new THREE.Group(); ctx.petBuilder.build(g, { species, stage, form: form || null, genes: {}, face: true }); }
+      else { const it = BY_ID[id]; g = it.kind === 'outfit' ? D.buildOutfit(id) : it.layer === 'wallpaper' || it.layer === 'flooring' ? swatch(it) : D.build(id); if (it.kind === 'outfit') g.position.set(0, 0, 0); }
       thumbR.s.add(g);
-      const box = new THREE.Box3().setFromObject(g), c = box.getCenter(new THREE.Vector3()), size = box.getSize(new THREE.Vector3()).length();
-      thumbR.c.position.copy(c).add(new THREE.Vector3(0.9, 0.75, 1.6).normalize().multiplyScalar(size * 1.75));
-      thumbR.c.lookAt(c); thumbR.r.render(thumbR.s, thumbR.c);
+      if (id.startsWith('pet:')) { const st = id.split(':')[2], k = { baby: 0.78, child: 0.86, teen: 0.94 }[st] || 1; g.scale.setScalar(k); thumbR.c.position.set(1.2, 1.9, 5.0); thumbR.c.lookAt(0, 1.2, 0); }
+      else {
+        const box = new THREE.Box3().setFromObject(g), c = box.getCenter(new THREE.Vector3()), size = box.getSize(new THREE.Vector3()).length();
+        thumbR.c.position.copy(c).add(new THREE.Vector3(0.9, 0.75, 1.6).normalize().multiplyScalar(size * 1.75)); thumbR.c.lookAt(c);
+      }
+      thumbR.r.render(thumbR.s, thumbR.c);
       thumbs[id] = thumbR.r.domElement.toDataURL('image/png');
-      thumbR.s.remove(g);
+      thumbR.s.remove(g); if (id.startsWith('pet:')) disposePet(g);
     } catch (e) { thumbs[id] = ''; }
     return thumbs[id];
   }
@@ -148,6 +160,30 @@ export function initHome(ctx) {
     requestAnimationFrame(step);
   }
   const card = (it, body) => `<article class="card-item r-${it.rarity}"><img data-thumb="${it.id}" alt="" width="80" height="80"><div class="ci-name">${esc(it.name)}</div>${body}</article>`;
+
+  /* ---------- Sổ loài ---------- */
+  let dexRegion = -1, dexSel = '';
+  function openDex() { dexSel = S.species; open('dex'); renderDex(); }
+  function renderDex(el = $('dex')) {
+    const seen = new Map(S.seen.map(x => [x.species_id, x]));
+    const leg = SPECIES.filter(x => x.rarity === 'huyen' && seen.has(x.id)).length;
+    const list = SPECIES.filter(x => dexRegion < 0 || x.region === dexRegion);
+    const sel = SPECIES_BY_ID[dexSel], selSeen = sel && seen.get(sel.id);
+    const look = sp => { const cur = sp.id === S.species; const f = cur ? S.form : seen.get(sp.id)?.forms[0]; return `pet:${sp.id}:${cur ? S.stage : 'adult'}:${f || 'thuong'}`; };
+    el.innerHTML = head('Sổ loài', `Đã gặp ${seen.size}/${SPECIES.length} loài · Huyền thoại ${leg}/5`) +
+      (sel ? `<div class="dex-detail">${selSeen ? `<img data-thumb="${look(sel)}" alt="" width="96" height="96">` : '<div class="dex-q">?</div>'}
+        <div><b>${selSeen ? esc(sel.name) : '???'}</b> <span class="rar" style="--rc:${RARITIES[sel.rarity].color}">${RARITIES[sel.rarity].name}</span>
+        <p>${REGIONS[sel.region].name}${selSeen ? ' · ' + esc(sel.blurb) : ' · Chưa gặp. Ấp ' + REGIONS[sel.region].egg.toLowerCase() + ' để có cơ hội gặp.'}</p>
+        ${selSeen ? `<p class="dex-forms">${Object.entries(FORMS).map(([k, f]) => `<span class="${selSeen.forms.includes(k) ? 'on' : ''}">${f.name}</span>`).join('')}</p>` : ''}</div></div>` : '') +
+      `<div class="tabs-row" role="tablist">${[[-1, 'Tất cả'], ...REGIONS.map((r, i) => [i, r.name])].map(([i, n]) => `<button type="button" class="pill${dexRegion === i ? ' on' : ''}" data-dexr="${i}" role="tab" aria-selected="${dexRegion === i}">${n}</button>`).join('')}</div>
+      <div class="grid-items dex-grid">${list.map(sp => { const ok = seen.has(sp.id); return `<button type="button" class="card-item dex-card r-${sp.rarity}${ok ? '' : ' unknown'}${dexSel === sp.id ? ' on' : ''}" data-dex="${sp.id}">
+        <img data-thumb="${look(sp)}" alt="" width="72" height="72"><div class="ci-name">${ok ? esc(sp.name) : '???'}</div><span class="rar" style="--rc:${RARITIES[sp.rarity].color}">${RARITIES[sp.rarity].name}</span></button>`; }).join('')}</div>`;
+    fillThumbs(el);
+  }
+  app.addEventListener('click', e => {
+    const r = e.target.closest('[data-dexr]'); if (r) { dexRegion = Number(r.dataset.dexr); renderDex(); return; }
+    const c = e.target.closest('[data-dex]'); if (c) { dexSel = c.dataset.dex; renderDex(); $('dex').querySelector('.hs-body, .dex-detail')?.scrollIntoView({ block: 'nearest' }); }
+  });
 
   /* ---------- Cửa hàng ---------- */
   let shopTab = 'market', shopKind = 'all', confirmId = '';
@@ -521,5 +557,5 @@ export function initHome(ctx) {
   store.onSync(sync); sync();
   lastSets = activeSets(store.activeLayout());
 
-  return { update, pickVisit, isEditing: () => editing, openShop, enterEdit, closeAll };
+  return { update, pickVisit, isEditing: () => editing, openShop, enterEdit, closeAll, openDex, refreshOutfit: () => renderOutfit(S.outfit) };
 }

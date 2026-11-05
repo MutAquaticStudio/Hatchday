@@ -46,6 +46,8 @@ src/
   game/game.js         Hiển thị 3D + tương tác (chuyển từ bản mẫu)
   game/home.js         Nhà: chế độ trang trí, cửa hàng, tủ đồ, nhiệm vụ, phản ứng của thú
   game/decor3d.js      Dựng mô hình toon cho đồ trang trí + trang phục (thủ tục, không cần file 3D)
+  game/species.ts      50 loài, độ hiếm, luật lớn lên theo tuổi và dáng trưởng thành (+ test SQL so khớp)
+  game/pet3d.js        Dựng thú theo loài + giai đoạn + dáng + gen (dùng cho game và Sổ loài)
   game/markup.html, game.css
 supabase/migrations/   Schema, RLS, RPC
 supabase/tests/        Test RPC trên PGlite
@@ -84,6 +86,8 @@ Khoá 15 phút sau 5 lần sai hiện chỉ có ở phía máy (trải nghiệm)
 | `items` | Món ăn, đồ trang trí, trang phục: lớp, ô trang phục, kích thước ô, thoải mái, chủ đề, nhãn, giá, nguồn, độ hiếm | đọc |
 | `entitlements` | Quyền sở hữu vật phẩm và số lượng | đọc của mình |
 | `wallets` | Xu, xu chăm sóc đã nhận hôm nay | đọc của mình |
+| `species` | 50 loài: tên, miền, độ hiếm, trọng số | đọc |
+| `species_seen` | Sổ loài: loài đã từng nuôi, các dáng đã đạt | đọc của mình |
 | `room_layouts` | 3 ô bố cục phòng (jsonb), `profiles.active_layout` chọn ô đang dùng | đọc của mình |
 | `quest_claims`, `collection_claims` | Đã nhận thưởng nhiệm vụ ngày / bộ sưu tập | đọc của mình |
 | `memories` | Ký ức, `first_key` để "lần đầu" chỉ ghi một lần | đọc, xoá của mình |
@@ -100,6 +104,8 @@ Khoá 15 phút sau 5 lần sai hiện chỉ có ở phía máy (trải nghiệm)
 | `rename_pet(name)` | | | `invalid_name` |
 | `pet_action(action, item?, count?)` | `feed`, `pet`, `bath_scrub`, `bath_rinse`, `play_ball`, `play_spin`, `talk`, `sleep`, `wake` | `{ pet, refused, fav, new_memory }` | `unknown_action`, `unknown_item`, `not_owned`, `rate_limited`, `no_pet` |
 | `add_talk_memory(text)` | 4–120 ký tự, tối đa 20/ngày | | `no_pet` |
+| `get_my_pet()` (cập nhật) | | áp giảm chỉ số rồi `grow_pet`: đổi giai đoạn theo tuổi, chốt dáng khi trưởng thành, ghi ký ức | |
+| `create_pet(name, family, egg)` (cập nhật) | trứng = miền 0–4 | bốc loài theo độ hiếm trên server, ghi Sổ loài | `invalid_egg` |
 | `get_economy()` | | xu, xu hôm nay, 6 món tiệm hôm nay, cuối tuần? | |
 | `buy_item(item)` | | `{ coins, owned }` | `not_for_sale`, `already_owned`, `not_enough_coins` |
 | `save_room_layout(slot, layout, activate)` | ô 0–2 | `{ comfort_level }` | `invalid_layout`, `not_owned` |
@@ -128,6 +134,17 @@ Khoá 15 phút sau 5 lần sai hiện chỉ có ở phía máy (trải nghiệm)
 - **Kinh tế (chỉ xu, không gacha):** bắt đầu 300 xu. Chăm sóc +5 xu (tối đa 50/ngày), 3 nhiệm vụ/ngày × 30 xu. Chợ bán cố định; Tiệm hôm nay xoay 6 món theo ngày; Chợ cuối tuần mở T7–CN; Quầy trả phí hiển thị "sắp mở".
 - **Trang phục:** 4 ô (đầu, mặt, cổ, lưng), 3 bộ phối lưu sẵn.
 - Hằng số và công thức xoay vòng/nhiệm vụ nằm ở `layout.ts` và migration `20261105000000_decor_cosmetics.sql` — test `decor.test.ts` so khớp hai bên.
+
+## 7c. Loài và lớn lên
+
+- **50 loài** = 5 miền (Đồng Nội, Sông Nước, Mây Trời, Rừng Đêm, Góc Bếp) × (4 Thường, 3 Hiếm, 2 Quý, 1 Huyền thoại). Trọng số 8/4/2/1 → mỗi miền: Thường ≈65%, Hiếm ≈24%, Quý ≈8%, Huyền thoại ≈2%.
+- **Không giống game khác:** chung một dáng "bánh dẻo" chibi; loài khác nhau ở tai, chỏm đầu, đuôi, hoa văn, phụ kiện, màu; cảm hứng Việt Nam (món ăn, cây cỏ, dân gian). Không có hệ, không đánh nhau, không bắt thú, không mua trứng bằng tiền.
+- **Ấp trứng:** người chơi chọn 1 trong 3 quả trứng (3 miền ngẫu nhiên). Server bốc loài (`private.pick_species`), client không chọn được. Gen `hue` (lệch sắc độ), `scale`, `ear` để không bé nào giống bé nào.
+- **Giai đoạn theo ngày tuổi:** Sơ sinh (0–2, đội vỏ trứng) → Nhí (2–7, có chỏm, đuôi, hoa văn) → Thiếu niên (7–14, có phụ kiện) → Trưởng thành (14+, hào quang cho Huyền thoại) → Xế chiều (5 ngày cuối tuổi thọ, màu nhạt, tóc bạc). Tuổi thọ vẫn chỉ server biết.
+- **Dáng trưởng thành** chốt lúc vào Trưởng thành, theo tổng `day_logs`: ăn → Phúng Phính, chơi bóng → Lanh Lợi, vuốt + nói → Tình Cảm, tắm → Lấp Lánh. Thiếu niên được báo "đang nghiêng về dáng…" để người chơi chủ động.
+- **Cảnh tiến hoá:** thú phát sáng trắng, xoay, loé sáng rồi đổi hình (`evoGlow` trong shader toon). Tôn trọng `prefers-reduced-motion`.
+- **Chế độ Chơi thử** có nút "Tua 1 ngày" để xem tiến hoá; bản thật không có (tuổi do server tính).
+- Việc tiếp theo: thú mất khi hết tuổi thọ → trang tưởng niệm → trứng đời sau mang tên dòng họ, thừa hưởng một phần gen (gia phả).
 
 ## 8. Bảo mật
 
