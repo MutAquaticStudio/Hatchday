@@ -3,7 +3,7 @@ import { PGlite } from '@electric-sql/pglite';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { CROPS, DISHES, FOOD_BY_ID, FOODS, FRIDGE, RECIPES, spoilLoss } from '../../src/game/catalog';
+import { CROPS, DISHES, FOOD_BY_ID, FOODS, FRIDGE, readyAtMs, RECIPES, spoilLoss, WATER } from '../../src/game/catalog';
 
 const U = 'cccccccc-cccc-cccc-cccc-cccccccccccc';
 let db: PGlite;
@@ -244,5 +244,58 @@ describe('ăn món nấu và khẩu vị', () => {
       const pol = await q('select cmd from pg_policies where tablename = $1', [t]);
       expect(pol.map(x => x.cmd)).toEqual(['SELECT']);
     }
+  });
+});
+
+describe('tưới nước', () => {
+  const plant = async (plotN = 0, crop = 'carot') => { await db.exec('delete from garden_plots'); await setCoins(500); await q('select plant_crop($1, $2)', [plotN, crop]); };
+  const garden = async () => (await one('select get_garden()')).plots[0];
+  it('giờ chín theo số lần tưới giống readyAtMs()', async () => {
+    for (const c of CROPS) for (let w = 0; w <= 3; w++) {
+      const ms = Date.parse('2026-11-05T08:00:00Z');
+      const sql = await one('select private.plot_ready_at($1::timestamptz, $2, $3)', ['2026-11-05T08:00:00Z', c.hours, w]);
+      expect(new Date(sql).getTime()).toBe(Math.round(readyAtMs(ms, c.hours, w)));
+    }
+  });
+  it('tưới nước rút ngắn 10% thời gian chín, hai lần tưới phải cách nhau 30 phút, tối đa 3 lần', async () => {
+    await plant();
+    const g0 = await garden();
+    expect(g0).toMatchObject({ waters: 0, can_water: true, ready: false });
+    const r1 = await one('select water_crop(0)');
+    expect(r1.waters).toBe(1);
+    const g1 = await garden();
+    expect(Date.parse(g0.ready_at) - Date.parse(g1.ready_at)).toBe(WATER.cut * CROPS[0].hours * 3600000);
+    expect(g1.can_water).toBe(false);
+    await expect(q('select water_crop(0)')).rejects.toThrow(/too_soon/);
+    for (const n of [2, 3]) {
+      await db.exec(`update garden_plots set watered_at = now() - interval '31 minutes'`);
+      expect((await one('select water_crop(0)')).waters).toBe(n);
+    }
+    await db.exec(`update garden_plots set watered_at = now() - interval '31 minutes'`);
+    expect((await garden()).can_water).toBe(false);
+    await expect(q('select water_crop(0)')).rejects.toThrow(/max_watered/);
+    expect(WATER.max).toBe(3);
+  });
+  it('ô trống hoặc cây đã chín thì không tưới', async () => {
+    await db.exec('delete from garden_plots');
+    await expect(q('select water_crop(2)')).rejects.toThrow(/plot_empty/);
+    await plant();
+    await db.exec(`update garden_plots set planted_at = now() - interval '5 hours'`);
+    await expect(q('select water_crop(0)')).rejects.toThrow(/already_ready/);
+    expect((await garden()).can_water).toBe(false);
+  });
+  it('tưới đủ thì chín sớm hơn và hái được sớm hơn', async () => {
+    await plant();
+    await db.exec(`update garden_plots set planted_at = now() - interval '3 hours 50 minutes'`);
+    await expect(q('select harvest_crop(0)')).rejects.toThrow(/not_ready/); // carot cần 4 giờ
+    await db.exec(`update garden_plots set waters = 1`); // 4 giờ × 0,9 = 3 giờ 36 phút
+    await setStock('carot', 0);
+    expect((await one('select harvest_crop(0)')).got).toBe(CROPS[0].yield);
+  });
+  it('anon không gọi được, chưa đăng nhập thì từ chối', async () => {
+    expect(await one("select has_function_privilege('anon', 'public.water_crop(int)', 'execute')")).toBe(false);
+    await db.exec('reset request.uid');
+    await expect(q('select water_crop(0)')).rejects.toThrow(/not_authenticated/);
+    await as(U);
   });
 });

@@ -187,6 +187,10 @@ export const CROPS: Crop[] = [
   { id: 'dua-hau', hours: 10, seed: 10, yield: 3 },
 ];
 export const GARDEN_PLOTS = 4;
+/** Tưới nước: mỗi lần rút ngắn `cut` tổng thời gian chín, tối đa `max` lần mỗi cây, hai lần tưới cách nhau ít nhất `gapMinutes`. */
+export const WATER = { max: 3, cut: 0.1, gapMinutes: 30 } as const;
+/** Giờ cây chín (ms). Giống private.plot_ready_at(). */
+export const readyAtMs = (plantedMs: number, hours: number, waters: number) => plantedMs + hours * 3600000 * (1 - WATER.cut * waters);
 
 /* ---------- Tủ lạnh và thức ăn hỏng ----------
  * Thức ăn tươi (fresh) mỗi ngày hỏng một phần số dư trên mức giữ được. Mua tủ lạnh lớn hơn để giữ được nhiều hơn.

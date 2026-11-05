@@ -170,6 +170,9 @@ export async function upgradeFridge(): Promise<unknown> {
 export async function plantCrop(plot: number, crop: string): Promise<unknown> {
   try { const r = await api.plantCrop(plot, crop); S.coins = r.coins; await refreshGarden(); return null; } catch (e) { return e; }
 }
+export async function waterCrop(plot: number): Promise<unknown> {
+  try { await api.waterCrop(plot); await refreshGarden(); return null; } catch (e) { return e; }
+}
 export async function harvestCrop(plot: number): Promise<{ item: string; got: number } | { error: unknown }> {
   try { const r = await api.harvestCrop(plot); S.owned = { ...S.owned, [r.item]: r.qty }; await refreshGarden(); return r; } catch (error) { return { error }; }
 }

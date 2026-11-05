@@ -35,7 +35,7 @@ export type PetAction = 'feed' | 'pet' | 'bath_scrub' | 'bath_rinse' | 'play_bal
 
 export interface ActionResult { pet: PetRow; refused: null | 'asleep' | 'full' | 'tired'; fav: boolean; new_memory: boolean; earned?: number; coins?: number; stock?: number | null; balanced?: boolean; dislike?: boolean }
 
-export interface GardenPlot { plot: number; crop: string; planted_at: string; ready_at: string; ready: boolean }
+export interface GardenPlot { plot: number; crop: string; planted_at: string; ready_at: string; ready: boolean; waters: number; watered_at: string | null; can_water: boolean }
 /** `now` là giờ server, để tính giờ còn lại mà không tin đồng hồ máy. */
 export interface Garden { now: string; plots: GardenPlot[] }
 /** Khẩu vị bé đã lộ ra: món tủ / món ghét chỉ biết sau khi bé được ăn thử món đó. */

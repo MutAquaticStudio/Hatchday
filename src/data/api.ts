@@ -87,6 +87,7 @@ export const buyFood = (id: string, qty: number) => (isDemo ? demo.buyFood(id, q
 export const upgradeFridge = () => (isDemo ? demo.upgradeFridge() : rpc<{ coins: number; fridge_level: number }>('upgrade_fridge'));
 export const getGarden = () => (isDemo ? demo.getGarden() : rpc<Garden>('get_garden'));
 export const plantCrop = (plot: number, crop: string) => (isDemo ? demo.plantCrop(plot, crop) : rpc<{ coins: number }>('plant_crop', { p_plot: plot, p_crop: crop }));
+export const waterCrop = (plot: number) => (isDemo ? demo.waterCrop(plot) : rpc<{ waters: number; ready_at: string }>('water_crop', { p_plot: plot }));
 export const harvestCrop = (plot: number) => (isDemo ? demo.harvestCrop(plot) : rpc<{ item: string; qty: number; got: number }>('harvest_crop', { p_plot: plot }));
 export const cook = (recipe: string, qty = 1) => (isDemo ? demo.cook(recipe, qty) : rpc<{ dish: string; qty: number }>('cook', { p_recipe: recipe, p_qty: qty }));
 export const getTastes = () => (isDemo ? demo.getTastes() : rpc<Tastes>('get_tastes'));

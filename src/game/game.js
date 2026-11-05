@@ -1,7 +1,7 @@
 // Lớp hiển thị & tương tác 3D (chuyển từ bản mẫu). Sẽ tách nhỏ và chuyển sang TypeScript dần.
 import * as THREE from 'three';
 import { S, save, act, actBatched, addTalkMemory, renamePet, onSync, onSyncError, onTraitShift, startPeriodicSync,
-  buy, saveLayout, equip, savePreset, claimQuest, claimQuestBonus, claimWeeklyQuest, claimCollection, buyFood, claimRation, nutritionNow, refreshFamily, familyMemories, refreshGarden, plantCrop, harvestCrop, cook, upgradeFridge, serverNow, onSpoil, refreshQuests, activeLayout, previewComfort } from './store';
+  buy, saveLayout, equip, savePreset, claimQuest, claimQuestBonus, claimWeeklyQuest, claimCollection, buyFood, claimRation, nutritionNow, refreshFamily, familyMemories, refreshGarden, plantCrop, waterCrop, harvestCrop, cook, upgradeFridge, serverNow, onSpoil, refreshQuests, activeLayout, previewComfort } from './store';
 import { initHome } from './home.js';
 import { decayStats, localDay } from './rules';
 import { makePetBuilder, disposePet } from './pet3d.js';
@@ -13,6 +13,7 @@ import { initChat } from './chat.js';
 import { initGrowth } from './growth.js';
 import { initTour } from './tour.js';
 import { initFarewell } from './farewell.js';
+import { initGarden3d } from './garden3d.js';
 import { FOOD_BY_ID } from './catalog';
 import { tastesLine } from './nutrition';
 import { sfx, music, initAudio } from './audio.js';
@@ -147,7 +148,7 @@ const CAM = {
   home:    [[30, 0, 3.2, 9.6, 0, 0.75, 0], [44, 0, 3.6, 11.5, 0, 0.35, 0]],
   kitchen: [[30, 0, 3.4, 9.4, 0, 0.75, 0.3], [44, 0, 3.8, 11.2, 0, 0.35, 0.3]],
   bath:    [[30, 0, 3.9, 8.8, 0, 0.95, 0], [44, 0, 4.3, 10.6, 0, 0.5, 0]],
-  garden:  [[34, 0, 2.8, 10.5, 0, 1.0, 0], [48, 0, 3.2, 12.5, 0, 0.6, 0]],
+  garden:  [[34, 0, 5.6, 10.0, 0, 0.35, -0.9], [48, 0, 6.6, 11.8, 0, 0.1, -0.9]], // nhìn từ cao hơn để thấy cả luống rau phía sau thú
   bedroom: [[30, 0, 4.0, 8.8, 0, 1.25, -0.3], [44, 0, 4.4, 10.6, 0, 0.85, -0.3]],
 };
 function shell(wallColor, wallT, floorColor, floorT, trim) {
@@ -214,7 +215,7 @@ add(garden, new THREE.CylinderGeometry(0.28, 0.38, 2.2, 14), toon('#a8744e'), -4
 [[-4.6, 2.9, -2.6, 1.3], [-5.3, 2.4, -2.2, 0.9], [-3.9, 2.5, -2.3, 0.95]].forEach(([x, y, z, r]) => add(garden, new THREE.SphereGeometry(r, 22, 16), toon('#5fc46c'), x, y, z, '#2f7a3d'));
 [[4.3, 0.5, -3.0, 0.8], [5.2, 0.45, -2.3, 0.6], [3.6, 0.4, -2.2, 0.5]].forEach(([x, y, z, r]) => add(garden, new THREE.SphereGeometry(r, 18, 14), toon('#6fd08c'), x, y, z, '#2f7a3d'));
 { const R2 = rnd(5); const cols = ['#ff9ec4', '#ffd36e', '#ffffff', '#c9b8ff'];
-  for (let i = 0; i < 26; i++) { const x = (R2() * 2 - 1) * 6, z = -3.6 + R2() * 6.5; if (Math.hypot(x, z - 0.6) < 2.6) continue;
+  for (let i = 0; i < 26; i++) { const x = (R2() * 2 - 1) * 6, z = -3.6 + R2() * 6.5; if (Math.hypot(x, z - 0.6) < 2.6 || (Math.abs(x) < 3.2 && z < -1.9 && z > -3.6)) continue; // chừa chỗ cho luống rau
     add(garden, new THREE.CylinderGeometry(0.02, 0.02, 0.3, 6), toon('#4fae5a'), x, 0.15, z, null);
     add(garden, new THREE.SphereGeometry(0.11, 10, 8), toon(cols[i % 4]), x, 0.33, z, '#7a4a63', 0.015); } }
 const cloudM = new THREE.MeshBasicMaterial({ color: '#ffffff' });
@@ -276,7 +277,8 @@ function onEnter(name) {
   const ctx = document.getElementById('ctx');
   ctx.innerHTML = CTX[name].map(([k, l]) => `<button class="ctx-btn${k === 'home' || k === 'wake' ? ' ghosty' : ''}" type="button" data-k="${k}">${l}</button>`).join('');
   ctx.hidden = !CTX[name].length;
-  const line = { kitchen: 'Tới giờ ăn rồi! Hôm nay ăn gì đây?', bath: 'Nước ấm quá~ Vuốt lên người mình để kỳ cọ nha!', garden: 'Ra vườn chơi thôi! Ném bóng cho mình đi!' }[name];
+  const line = { kitchen: 'Tới giờ ăn rồi! Hôm nay ăn gì đây?', bath: 'Nước ấm quá~ Vuốt lên người mình để kỳ cọ nha!', garden: 'Ra vườn thôi! Chạm vào luống đất để trồng rau, hoặc ném bóng cho mình nhé!' }[name];
+  if (name === 'garden') refreshGarden().then(() => gardenFx.sync()).catch(() => {});
   if (line) setTimeout(() => say(line, 3200), reduce ? 0 : 350);
 }
 function applyAreaLights() {
@@ -481,7 +483,11 @@ canvas.addEventListener('pointermove', e => {
   down.moved += d; down.acc += d;
   if (down.acc > 42) { down.acc = 0; petStroke(); }
 });
-function endDown() { if (down && down.hit && down.moved < 10) poke(); down = null; canvas.style.cursor = 'grab'; }
+function endDown(e) {
+  if (down && down.hit && down.moved < 10) poke();
+  else if (down && !down.hit && Math.hypot(e.clientX - down.x, e.clientY - down.y) < 10 && gardenFx.tap(e)) hideHint(); // chạm luống rau
+  down = null; canvas.style.cursor = 'grab';
+}
 canvas.addEventListener('pointerup', endDown);
 canvas.addEventListener('pointercancel', () => { down = null; });
 
@@ -553,6 +559,12 @@ $('pet-name').addEventListener('input', e => { const v = e.target.value.trim().s
 initDiary();
 const food = initFood({ petRoot, camera, canvas, reduce, hitPet, hideHint, say, setTemp, popText, impulse, spawn, renderStats, shake: () => { shake = 1; }, openShop: () => home && home.openShop('food') });
 initChat({ reduce, hideHint, say, setTemp, spawn });
+/* Vườn rau 3D: luống đất, cây lớn dần, hoạt ảnh gieo, tưới, hái (garden3d.js) */
+const gardenFx = initGarden3d({
+  THREE, garden, toon, add, canvasTex, camera, canvas, ray, ndcFrom, spawnAt, popText, say, startAction, toast, sfx, buzz, reduce, getArea: () => area,
+  petPos: () => petRoot.getWorldPosition(new THREE.Vector3()),
+  store: { S, plantCrop, waterCrop, harvestCrop, refreshGarden, serverNow },
+});
 
 /* ---------------- hành vi rảnh rỗi & hoạt cảnh ---------------- */
 let idleAt = performance.now() + 6000, wander = null, action = null, walking = false, walkPh = 0, chompAt = 0, puffAt = 0, earTwAt = performance.now() + 3000;
@@ -758,7 +770,7 @@ applyPeriod(); applySleep(); renderStats(); updateNeeds();
 if (S.asleep) goTo('bedroom', true);
 dayRec();
 const growth = initGrowth({ evoGlow, reduce, buildLook, cancelMotion: () => { action = null; wander = null; anim = null; }, say, setTemp, spawn, impulse, addTrauma, toast, popText, buzz, getHome: () => home });
-onSync(() => { renderStats(); applySleep(); if (!$('diary').hidden) renderDiary(); if (!growth.isEvolving()) buildLook(); if (!$('stats').hidden) growth.renderSpecies(); });
+onSync(() => { gardenFx.sync(); renderStats(); applySleep(); if (!$('diary').hidden) renderDiary(); if (!growth.isEvolving()) buildLook(); if (!$('stats').hidden) growth.renderSpecies(); });
 startPeriodicSync();
 if (new URLSearchParams(location.search).has('dev')) { document.querySelector('.review').hidden = false; const f = $('fast'); if (f) f.closest('label').hidden = false; }
 const DEV = new URLSearchParams(location.search).has('dev'), devhud = $('devhud');
@@ -766,6 +778,7 @@ if (DEV) devhud.hidden = false;
 let blinkAt = performance.now() + 2500, blinkUntil = 0, fxAt = 0, saveAt = 0, clockAt = 0, lastKey = '', fpsN = 0, fpsAt = 0;
 function tick(now, dt) {
   const t = now / 1000;
+  gardenFx.update(dt, now);
   /* chỉ số theo thời gian */
   decay(S, (dt / 60) * ($('fast')?.checked ? 60 : 1));
   if (now > saveAt) { saveAt = now + 5000; save(); if (!$('stats').hidden) renderStats(); }
@@ -842,6 +855,7 @@ renderer.setAnimationLoop(() => { timer.update(); tick(performance.now(), Math.m
 initTour({ isBusy: () => growth.isEvolving() });
 initFarewell();
 /* Chỉ ở ?dev: cho script kiểm tra biết thú đang ở đâu trên màn hình (thú đi lang thang nên không nằm cố định giữa màn hình) */
+if (DEV) window.__plotXY = i => gardenFx.screenOf(i);
 if (DEV) window.__petXY = () => { const v = new THREE.Vector3(); petRoot.localToWorld(v.set(0, 0.9, 0)); v.project(camera); const r = canvas.getBoundingClientRect(); return { x: r.left + (v.x + 1) / 2 * r.width, y: r.top + (1 - v.y) / 2 * r.height }; };
 setTimeout(() => { say(greeting(S.personality, S.name), 3200); if (!S.asleep && S.personality.social > -30) startAction('wave'); }, 700);
 setTimeout(hideHint, 9000);

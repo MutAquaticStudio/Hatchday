@@ -3,7 +3,7 @@
  * Mô phỏng đúng luật của các RPC trong supabase/migrations (để xem trước, không dùng cho bản chính thức).
  */
 import { clamp, decayStats, localDay } from '../game/rules';
-import { BY_ID, CROPS, DEFAULT_LAYOUT, EDIBLES, FOOD_BY_ID, FOOD_STOCK, FOODS, FRIDGE, GARDEN_PLOTS, ITEMS, RECIPES, spoilLoss, STARTER_ITEMS, type Layout } from '../game/catalog';
+import { BY_ID, CROPS, readyAtMs, WATER, DEFAULT_LAYOUT, EDIBLES, FOOD_BY_ID, FOOD_STOCK, FOODS, FRIDGE, GARDEN_PLOTS, ITEMS, RECIPES, spoilLoss, STARTER_ITEMS, type Layout } from '../game/catalog';
 import { BALANCED_BONUS, isBalanced } from '../game/nutrition';
 import { buyable, COIN, comfortLevel, comfortScore, dayNumber, QUEST_BONUS, QUEST_POOL, questsForDay, rotationForDay, isWeekend, weekStart, WEEKLY_POOL, weeklyForDay } from '../game/layout';
 import type { ActionResult, DayLogRow, Economy, Garden, MemoryRow, Outfit, PetAction, PetRow, QuestBoard, QuestRow, SeenRow, Tastes } from './types';
@@ -21,7 +21,7 @@ interface DB {
   /** Gia phả: các bé đã ra đi (cũ trước) và ký ức của họ. Ở bản thử, nhật ký ngày và nhiệm vụ tuần tính lại từ đầu cho bé đời sau. */
   family?: PetRow[]; oldMem?: Record<string, MemoryRow[]>;
   /** Tủ lạnh (cấp 0–2), ngày đã tính thức ăn hỏng lần cuối, vườn rau (ô → cây và giờ gieo). */
-  fridge?: number; spoilDay?: string; garden?: Record<string, { crop: string; planted_at: string }>;
+  fridge?: number; spoilDay?: string; garden?: Record<string, { crop: string; planted_at: string; waters?: number; watered_at?: string }>;
 }
 
 function load(): DB {
@@ -295,8 +295,10 @@ export async function upgradeFridge() {
 export async function getGarden(): Promise<Garden> {
   const db = load(), now = Date.now();
   const plots = Object.entries(db.garden || {}).map(([k, g]) => {
-    const ready = Date.parse(g.planted_at) + CROPS.find(c => c.id === g.crop)!.hours * 3600000;
-    return { plot: +k, crop: g.crop, planted_at: g.planted_at, ready_at: new Date(ready).toISOString(), ready: now >= ready };
+    const waters = g.waters || 0, ready = readyAtMs(Date.parse(g.planted_at), CROPS.find(c => c.id === g.crop)!.hours, waters);
+    const gapOk = !g.watered_at || now - Date.parse(g.watered_at) >= WATER.gapMinutes * 60000;
+    return { plot: +k, crop: g.crop, planted_at: g.planted_at, ready_at: new Date(ready).toISOString(), ready: now >= ready,
+      waters, watered_at: g.watered_at || null, can_water: waters < WATER.max && now < ready && gapOk };
   }).sort((a, b) => a.plot - b.plot);
   return { now: new Date(now).toISOString(), plots };
 }
@@ -307,10 +309,19 @@ export async function plantCrop(plot: number, crop: string) {
   if (db.coins < c.seed) throw new Error('not_enough_coins');
   db.coins -= c.seed; (db.garden ||= {})[plot] = { crop, planted_at: new Date().toISOString() }; store(db); return { coins: db.coins };
 }
+export async function waterCrop(plot: number) {
+  const db = load(), g = db.garden?.[plot]; if (!g) throw new Error('plot_empty');
+  const c = CROPS.find(x => x.id === g.crop)!, now = Date.now(), waters = g.waters || 0;
+  if (now >= readyAtMs(Date.parse(g.planted_at), c.hours, waters)) throw new Error('already_ready');
+  if (waters >= WATER.max) throw new Error('max_watered');
+  if (g.watered_at && now - Date.parse(g.watered_at) < WATER.gapMinutes * 60000) throw new Error('too_soon');
+  g.waters = waters + 1; g.watered_at = new Date(now).toISOString(); store(db);
+  return { waters: g.waters, ready_at: new Date(readyAtMs(Date.parse(g.planted_at), c.hours, g.waters)).toISOString() };
+}
 export async function harvestCrop(plot: number) {
   const db = load(), g = db.garden?.[plot]; if (!g) throw new Error('plot_empty');
   const c = CROPS.find(x => x.id === g.crop)!;
-  if (Date.now() < Date.parse(g.planted_at) + c.hours * 3600000) throw new Error('not_ready');
+  if (Date.now() < readyAtMs(Date.parse(g.planted_at), c.hours, g.waters || 0)) throw new Error('not_ready');
   applySpoilage(db);
   const got = Math.min(c.yield, FOOD_STOCK.max - (db.owned[c.id] || 0)); if (got <= 0) throw new Error('stock_full');
   db.owned[c.id] = (db.owned[c.id] || 0) + got; delete db.garden![plot]; store(db);
