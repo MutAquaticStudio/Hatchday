@@ -136,12 +136,12 @@ describe('bệnh do ăn uống', () => {
 
 describe('bệnh do vận động và môi trường', () => {
   const play = async () => { await db.exec(`update pets set nl = 90, asleep = false where owner_id = '${U}'`); return act('play_ball'); };
-  const seed = async (n: number, minutesAgo: number) => {
+  const seed = async (n: number, secondsAgo: number) => {
     const pid = await one(`select id from pets where owner_id = '${U}'`);
-    await db.exec(`insert into action_log (pet_id, action, created_at) select '${pid}', 'play_spin', now() - interval '${minutesAgo} minutes' from generate_series(1, ${n})`);
+    await db.exec(`insert into action_log (pet_id, action, created_at) select '${pid}', 'play_spin', now() - interval '${secondsAgo} seconds' from generate_series(1, ${n})`);
   };
   it('căng cơ: lần chơi thứ 12 trong 1 giờ (11 lần thì chưa); tự khỏi sau 2 giờ', async () => {
-    await seed(10, 10); await play();
+    await seed(10, 600); await play();
     expect((await pet()).illness).toBeNull(); // 11
     await play();
     const p = await pet();
@@ -149,21 +149,21 @@ describe('bệnh do vận động và môi trường', () => {
     expect(Math.abs(Date.parse(p.recover_at) - Date.parse(p.sick_since) - 2 * 3600000)).toBeLessThan(1000);
   });
   it('chơi cách nhau hơn 1 giờ thì không dồn lại', async () => {
-    await seed(11, 70); await play();
+    await seed(11, 4200); await play();
     expect((await pet()).illness).toBeNull();
   });
   it('cảm lạnh: chơi khuya lần thứ 2 trong 2 giờ; ban ngày thì không', async () => {
-    await setTz(tzForHour(23)); await seed(1, 5);
+    await setTz(tzForHour(23)); await seed(1, 300);
     await play();
     const p = await pet();
     expect(p.illness).toBe('cam-lanh');
     expect(Math.abs(Date.parse(p.recover_at) - Date.parse(p.sick_since) - 4 * 3600000)).toBeLessThan(1000);
-    await reset(); await setTz(tzForHour(14)); await seed(1, 5); await play();
+    await reset(); await setTz(tzForHour(14)); await seed(1, 300); await play();
     expect((await pet()).illness).toBeNull();
   });
   it('khuya: 22:00 tính, 21:59 không; 04:59 tính, 05:00 không', async () => {
     for (const [h, sick] of [[22, true], [21, false], [4, true], [5, false]] as const) {
-      await reset(); await setTz(tzForHour(h)); await seed(1, 1); await play();
+      await reset(); await setTz(tzForHour(h)); await seed(1, 1); await play(); // 1 giây trước, để không lọt sang giờ trước
       expect(!!(await pet()).illness, `giờ ${h}`).toBe(sick);
     }
   });

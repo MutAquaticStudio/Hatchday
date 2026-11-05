@@ -202,7 +202,7 @@ ok('phòng khám: khỏi ngay, trừ 150 xu, Vui bồi bổ lên 60',!dm.pet.ill
 await p.click('.hsheet:not([hidden]) [data-close]');
 await setDemo("d.pet.illness=null;d.pet.sick_since=null;d.pet.recover_at=null;d.pet.sach=0;d.pet.no=70;d.pet.vui=70;d.pet.stats_at=new Date().toISOString();d.pet.critical_since=new Date(Date.now()-15*60000).toISOString();");
 await reload();
-ok('sắp ốm: chip cảnh báo "Sắp ốm: Sạch"',await p.isVisible('#sick-chip')&&(await p.textContent('#sick-chip')).includes('Sắp ốm: Sạch'),await p.textContent('#sick-chip').catch(()=>''));
+ok('sắp ốm: chip cảnh báo "Sắp ốm: độ sạch"',await p.isVisible('#sick-chip')&&(await p.textContent('#sick-chip')).includes('Sắp ốm: độ sạch'),await p.textContent('#sick-chip').catch(()=>''));
 await setDemo("d.pet.sach=70;d.pet.critical_since=null;");
 await reload();
 // vòng đời: tua tuổi cho bé hết tuổi thọ, mở lại game → trang tưởng niệm → đón trứng đời sau → gia phả 2 đời

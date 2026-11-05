@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { S, save, act, actBatched, addTalkMemory, renamePet, onSync, onSyncError, onTraitShift, startPeriodicSync,
   buy, saveLayout, equip, savePreset, claimQuest, claimQuestBonus, claimWeeklyQuest, claimCollection, buyFood, claimRation, nutritionNow, refreshFamily, familyMemories, refreshGarden, plantCrop, waterCrop, harvestCrop, upgradeParcel, buyParcel, saveFarm, cook, upgradeFridge, serverNow, onSpoil, refreshQuests, activeLayout, previewComfort, onIllness, healthNow, buyMedicine, useMedicine, visitClinic, refreshHealth } from './store';
-import { HEALTH, ILLNESS_BY_ID, isSevere, minutesToSick, STAT_LABEL } from './health';
+import { HEALTH, ILLNESS_BY_ID, isSevere, minutesToSick, STAT_NOUN } from './health';
 import { blockedNow, minutesVi } from './clinic.js';
 import { initHome } from './home.js';
 import { decayStats, localDay } from './rules';
@@ -772,8 +772,8 @@ function updateHealth(now) {
     sickChip.hidden = false; sickChip.className = 'sick-chip' + (sev ? ' severe' : ''); sickChip.textContent = `Đang ${il.name.toLowerCase()}${sev ? ' (nặng)' : ''}`;
     if (now > sickFxAt && !S.asleep && !editing && area !== 'bath') { sickFxAt = now + 25000 + Math.random() * 15000; spawn('sweat', 2); if (area === 'home') say(il.sign, 3000); }
   } else if (risk && risk.left <= 20) {
-    sickChip.hidden = false; sickChip.className = 'sick-chip warn'; sickChip.textContent = `Sắp ốm: ${STAT_LABEL[risk.stat]} · ${minutesVi(risk.left)}`;
-    if (now > warnAt) { warnAt = now + 5 * 60000; toast(`${S.name} sắp ốm: ${STAT_LABEL[risk.stat]} gần 0, còn khoảng ${minutesVi(risk.left)}. Chăm bé ngay nhé!`); if (area === 'home') say('Mình khó chịu quá… chăm mình đi mà…', 3200); }
+    sickChip.hidden = false; sickChip.className = 'sick-chip warn'; sickChip.textContent = `Sắp ốm: ${STAT_NOUN[risk.stat]} · ${minutesVi(risk.left)}`;
+    if (now > warnAt) { warnAt = now + 5 * 60000; toast(`${S.name} sắp ốm: ${STAT_NOUN[risk.stat]} gần 0, còn khoảng ${minutesVi(risk.left)}. Chăm bé ngay nhé!`); if (area === 'home') say('Mình khó chịu quá… chăm mình đi mà…', 3200); }
   } else sickChip.hidden = true;
 }
 onIllness((now, was) => {

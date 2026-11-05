@@ -69,13 +69,13 @@ export interface Illness {
 }
 
 export const ILLNESSES: Illness[] = [
-  { id: 'dau-bung', name: 'Đau bụng', family: 'bo-be', cause: 'No ở mức gần 0 suốt 30 phút mà chưa cho ăn', sign: 'Bụng mình đau quá…',
+  { id: 'dau-bung', name: 'Đau bụng', family: 'bo-be', cause: 'Độ no gần 0 suốt 30 phút mà chưa cho ăn', sign: 'Bụng mình đau quá…',
     decay: { no: 1.5, vui: 1.2 }, block: ['play'], heal: { kind: 'stat', stat: 'no', hours: 3 }, medicine: 'tra-gung' },
-  { id: 'ngua-da', name: 'Nổi mẩn', family: 'bo-be', cause: 'Sạch ở mức gần 0 suốt 30 phút mà chưa tắm', sign: 'Người mình ngứa ngáy khó chịu…',
+  { id: 'ngua-da', name: 'Nổi mẩn', family: 'bo-be', cause: 'Độ sạch gần 0 suốt 30 phút mà chưa tắm', sign: 'Người mình ngứa ngáy khó chịu…',
     decay: { sach: 1.5, vui: 1.3 }, block: [], heal: { kind: 'stat', stat: 'sach', hours: 3 }, medicine: 'thuoc-boi' },
-  { id: 'u-rut', name: 'Ủ rũ', family: 'bo-be', cause: 'Vui ở mức gần 0 suốt 30 phút mà chưa chơi hay vuốt ve', sign: 'Mình buồn lắm, chẳng muốn làm gì…',
+  { id: 'u-rut', name: 'Ủ rũ', family: 'bo-be', cause: 'Độ vui gần 0 suốt 30 phút mà chưa chơi hay vuốt ve', sign: 'Mình buồn lắm, chẳng muốn làm gì…',
     decay: { vui: 1.5, nl: 1.2 }, block: ['play'], heal: { kind: 'stat', stat: 'vui', hours: 3 }, medicine: 'mat-ong' },
-  { id: 'sot-met', name: 'Sốt mệt', family: 'bo-be', cause: 'Năng lượng ở mức gần 0 suốt 30 phút mà chưa cho ngủ', sign: 'Mình nóng người, mệt rã rời…',
+  { id: 'sot-met', name: 'Sốt mệt', family: 'bo-be', cause: 'Năng lượng gần 0 suốt 30 phút mà chưa cho ngủ', sign: 'Mình nóng người, mệt rã rời…',
     decay: { nl: 1.5, no: 1.2 }, block: ['play'], heal: { kind: 'stat', stat: 'nl', hours: 3 }, medicine: 'thuoc-sot' },
   { id: 'sau-rang', name: 'Sâu răng', family: 'an-uong', cause: 'Cho ăn món ngọt thứ 4 trong cùng một ngày', sign: 'Răng mình ê buốt, không ăn đồ ngọt được…',
     decay: { vui: 1.3 }, block: ['sweets'], heal: { kind: 'time', hours: 6 }, medicine: 'nuoc-muoi' },
@@ -217,22 +217,25 @@ export function minutesToRecover(s: HealthState, nowMs: number): number | null {
 /** Giá phòng khám theo độ nặng. */
 export const clinicPrice = (severe: boolean) => (severe ? HEALTH.clinicSeverePrice : HEALTH.clinicPrice);
 
+/** Tên ngắn của chỉ số (đúng như trên thanh chỉ số). */
 export const STAT_LABEL: Record<HealthStat, string> = { no: 'No', sach: 'Sạch', vui: 'Vui', nl: 'Năng lượng' };
+/** Tên chỉ số khi viết trong câu, để không đọc nhầm "Vui", "No", "Sạch" thành tính từ. */
+export const STAT_NOUN: Record<HealthStat, string> = { no: 'độ no', sach: 'độ sạch', vui: 'độ vui', nl: 'năng lượng' };
+export const capFirst = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
 export const BLOCK_LABEL: Record<Block, string> = { play: 'không chơi được đồ chơi', bath: 'không tắm được', sweets: 'không ăn được đồ ngọt' };
 
 /** Mô tả ảnh hưởng của một bệnh cho người chơi đọc. */
 export function effectLines(il: Illness): string[] {
   const L: string[] = [];
-  const d = (Object.entries(il.decay) as [HealthStat, number][]).map(([k, v]) => `${STAT_LABEL[k]} giảm nhanh ×${String(v).replace('.', ',')}`);
-  if (d.length) L.push(d.join(', '));
-  il.block.forEach(b => L.push(BLOCK_LABEL[b][0].toUpperCase() + BLOCK_LABEL[b].slice(1)));
+  (Object.entries(il.decay) as [HealthStat, number][]).forEach(([k, v]) => L.push(`${capFirst(STAT_NOUN[k])} tụt nhanh gấp ${String(v).replace('.', ',')} lần`));
+  il.block.forEach(b => L.push(capFirst(BLOCK_LABEL[b])));
   return L;
 }
 
 /** Cách tự khỏi, viết cho người chơi đọc. */
 export function healLine(il: Illness): string {
   const h = il.heal;
-  if (h.kind === 'stat') return `${STAT_LABEL[h.stat]} được chăm lên từ ${HEALTH.fixAt} thì nghỉ ${h.hours} giờ là khỏi`;
+  if (h.kind === 'stat') return `${capFirst(STAT_NOUN[h.stat])} được chăm lên từ ${HEALTH.fixAt} thì nghỉ ${h.hours} giờ là khỏi`;
   if (h.kind === 'time') return `Tự khỏi sau ${h.hours} giờ nghỉ ngơi`;
   return `Khỏi ngay khi ăn cân bằng (từ ${HEALTH.balancedGroups} nhóm lành mạnh trong 3 ngày)`;
 }

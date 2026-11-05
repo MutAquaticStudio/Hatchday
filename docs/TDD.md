@@ -214,6 +214,8 @@ Khoá 15 phút sau 5 lần sai hiện chỉ có ở phía máy (trải nghiệm)
 
 Bệnh chỉ do chăm chưa đúng, không ngẫu nhiên. Luật ở `src/game/health.ts` và `20261121000000_illness.sql`.
 
+Cột Ảnh hưởng: "×1,5" nghĩa là chỉ số đó tụt nhanh gấp 1,5 lần so với lúc khoẻ (trong game hiện thành câu "Độ no tụt nhanh gấp 1,5 lần").
+
 | Bệnh | Nhóm | Điều kiện mắc | Ảnh hưởng | Khỏi |
 | --- | --- | --- | --- | --- |
 | Đau bụng | bỏ bê | No ≤ 5 liền 30 phút | No ×1,5, Vui ×1,2; không chơi | Trà gừng; hoặc No ≥ 50 rồi nghỉ 3 giờ |
