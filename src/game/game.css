@@ -452,7 +452,7 @@ body.editing .top,body.editing .scene-tag,body.editing .bottom,body.editing #hin
 .pin.alert::after{content:"";position:absolute;top:2px;right:8px;width:12px;height:12px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 3px #fff;animation:pinpulse 1.4s ease-in-out infinite}
 @keyframes pinpulse{50%{transform:scale(1.25)}}
 .map-card{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 10px;min-height:64px;background:#fff;border:2.5px solid var(--candy-edge);border-radius:16px;padding:10px 14px}
-.map-card b{font-family:var(--f-display);font-size:16px}.map-card p{margin:2px 0 0;font-size:12px;font-weight:700;color:var(--ink-soft)}
+.map-card .btn-sm{flex:none;white-space:nowrap}.map-card b{font-family:var(--f-display);font-size:16px}.map-card p{margin:2px 0 0;font-size:12px;font-weight:700;color:var(--ink-soft)}
 .map-block{font-size:12px;font-weight:800;color:#8a5a12;background:#fff7e6;border-radius:12px;padding:6px 10px;max-width:46%}
 .map-hint{margin:0;font-size:13px;font-weight:700;color:var(--ink-soft)}
 .hot-layer{position:absolute;inset:0;z-index:7;pointer-events:none;overflow:hidden}
