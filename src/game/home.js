@@ -3,7 +3,8 @@ import { BY_ID, DEFAULT_LAYOUT, GRID, ITEMS, PET_ZONE, RARITY, SET_LINES, SLOTS,
 import { activeSets, buyable, canPlace, cellsOf, comfortLevel, comfortScore, footprint, placedCount, QUEST_POOL, QUEST_REWARD } from './layout';
 import { makeDecor } from './decor3d.js';
 import { disposePet } from './pet3d.js';
-import { FORMS, RARITIES, REGIONS, SPECIES, SPECIES_BY_ID } from './species';
+import { makeFitter } from './fit.js';
+import { FORMS, RARITIES, REGIONS, SPECIES, SPECIES_BY_ID, STAGES } from './species';
 import { viError } from '../lib/errors';
 
 const esc = v => String(v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -14,6 +15,7 @@ export function initHome(ctx) {
   const { THREE, scene, camera, canvas, room, store, $ } = ctx;
   const { S } = store;
   const D = makeDecor(ctx);
+  const fitter = makeFitter(THREE);
   const app = $('app');
 
   /* ===================== Phòng theo bố cục ===================== */
@@ -49,16 +51,14 @@ export function initHome(ctx) {
   /* ===================== Trang phục trên thú ===================== */
   const outfitRoot = new THREE.Group(); ctx.pivot.add(outfitRoot);
   let outfitKey = '';
+  let outfitParts = null;
   function renderOutfit(o) {
-    const parts = ctx.getPetParts(), off = parts?.offsets || {};
-    const k = JSON.stringify(o || {}) + '|' + JSON.stringify(off); if (k === outfitKey) return; outfitKey = k;
+    const parts = ctx.getPetParts();
+    const k = JSON.stringify(o || {}); if (k === outfitKey && parts === outfitParts) return; outfitKey = k; outfitParts = parts;
     outfitRoot.clear();
-    Object.values(o || {}).forEach(id => {
-      const it = BY_ID[id]; if (!it) return;
-      const g = D.buildOutfit(id), o = off[it.slot];
-      if (o) { const p0 = g.position.clone(); g.scale.multiplyScalar(o.k); g.position.set(o.c[0] + p0.x * o.k, o.c[1] + (p0.y - 0.98) * o.k, o.c[2] + p0.z * o.k); }
-      outfitRoot.add(g);
-    });
+    let hideTop = false;
+    Object.values(o || {}).forEach(id => { const it = BY_ID[id]; if (!it) return; const g = fitter.fit(D.buildOutfit(id), it, parts?.sockets); if (g.userData.fit?.hideTop) hideTop = true; outfitRoot.add(g); });
+    if (parts?.top) parts.top.visible = !hideTop;
   }
 
   /* ===================== Phản ứng của bé ===================== */
@@ -134,10 +134,14 @@ export function initHome(ctx) {
         thumbR.s.add(new THREE.HemisphereLight('#fff6fb', '#b9a3e3', 1.8)); const dl = new THREE.DirectionalLight('#fff1dc', 2.2); dl.position.set(3, 6, 5); thumbR.s.add(dl);
       }
       let g;
-      if (id.startsWith('pet:')) { const [, species, stage, form] = id.split(':'); g = new THREE.Group(); ctx.petBuilder.build(g, { species, stage, form: form || null, genes: {}, face: true }); }
+      if (id.startsWith('pet:')) {
+        const [, species, stage, form, wear] = id.split(':'); g = new THREE.Group();
+        const parts = ctx.petBuilder.build(g, { species, stage, form: form || null, genes: {}, face: true });
+        (wear ? wear.split(',') : []).forEach(w => { const it = BY_ID[w]; if (!it) return; const o = fitter.fit(D.buildOutfit(w), it, parts.sockets); if (o.userData.fit?.hideTop) parts.top.visible = false; g.add(o); });
+      }
       else { const it = BY_ID[id]; g = it.kind === 'outfit' ? D.buildOutfit(id) : it.layer === 'wallpaper' || it.layer === 'flooring' ? swatch(it) : D.build(id); if (it.kind === 'outfit') g.position.set(0, 0, 0); }
       thumbR.s.add(g);
-      if (id.startsWith('pet:')) { const st = id.split(':')[2], k = { baby: 0.78, child: 0.86, teen: 0.94 }[st] || 1; g.scale.setScalar(k); thumbR.c.position.set(3.0, 1.9, 4.1); thumbR.c.lookAt(0, 1.15, -0.15); }
+      if (id.startsWith('pet:')) { const st = id.split(':')[2], k = { baby: 0.78, child: 0.86, teen: 0.94 }[st] || 1; g.scale.setScalar(k); thumbR.c.position.set(3.2, 2.05, 4.4); thumbR.c.lookAt(0, 1.22, -0.15); }
       else {
         const box = new THREE.Box3().setFromObject(g), c = box.getCenter(new THREE.Vector3()), size = box.getSize(new THREE.Vector3()).length();
         thumbR.c.position.copy(c).add(new THREE.Vector3(0.9, 0.75, 1.6).normalize().multiplyScalar(size * 1.75)); thumbR.c.lookAt(c);
@@ -175,7 +179,10 @@ export function initHome(ctx) {
       (sel ? `<div class="dex-detail">${selSeen ? `<img data-thumb="${look(sel)}" alt="" width="96" height="96">` : '<div class="dex-q">?</div>'}
         <div><b>${selSeen ? esc(sel.name) : '???'}</b> <span class="rar" style="--rc:${RARITIES[sel.rarity].color}">${RARITIES[sel.rarity].name}</span>
         <p>${REGIONS[sel.region].name}${selSeen ? ' · ' + esc(sel.blurb) : ' · Chưa gặp. Ấp ' + REGIONS[sel.region].egg.toLowerCase() + ' để có cơ hội gặp.'}</p>
-        ${selSeen ? `<p class="dex-forms">${Object.entries(FORMS).map(([k, f]) => `<span class="${selSeen.forms.includes(k) ? 'on' : ''}">${f.name}</span>`).join('')}</p>` : ''}</div></div>` : '') +
+        </div></div>${selSeen ? `<div class="evo-line" aria-label="Các giai đoạn tiến hoá">
+          ${['baby', 'child', 'teen'].map(st => `<figure><img data-thumb="pet:${sel.id}:${st}:" alt="" width="72" height="72"><figcaption>${STAGES[st].name}</figcaption></figure>`).join('<span class="evo-arrow">›</span>')}
+          <span class="evo-arrow">›</span><div class="evo-forms">${Object.entries(FORMS).map(([k, f]) => { const got = selSeen.forms.includes(k); return `<figure class="${got ? '' : 'unknown'}"><img data-thumb="pet:${sel.id}:adult:${k}" alt="" width="64" height="64"><figcaption>${got ? f.name : '?'}</figcaption></figure>`; }).join('')}</div></div>
+          <p class="evo-note">Trưởng thành có 4 dáng, tuỳ cách bạn chăm: ${Object.values(FORMS).map(f => `<b>${f.name}</b> (${f.hint})`).join(', ')}.</p>` : ''}` : '') +
       `<div class="tabs-row" role="tablist">${[[-1, 'Tất cả'], ...REGIONS.map((r, i) => [i, r.name])].map(([i, n]) => `<button type="button" class="pill${dexRegion === i ? ' on' : ''}" data-dexr="${i}" role="tab" aria-selected="${dexRegion === i}">${n}</button>`).join('')}</div>
       <div class="grid-items dex-grid">${list.map(sp => { const ok = seen.has(sp.id); return `<button type="button" class="card-item dex-card r-${sp.rarity}${ok ? '' : ' unknown'}${dexSel === sp.id ? ' on' : ''}" data-dex="${sp.id}">
         <img data-thumb="${look(sp)}" alt="" width="72" height="72"><div class="ci-name">${ok ? esc(sp.name) : '???'}</div><span class="rar" style="--rc:${RARITIES[sp.rarity].color}">${RARITIES[sp.rarity].name}</span></button>`; }).join('')}</div>`;
@@ -557,6 +564,27 @@ export function initHome(ctx) {
   }
   store.onSync(sync); sync();
   lastSets = activeSets(store.activeLayout());
+
+  /* Kiểm tra mặc đồ cho mọi loài × giai đoạn × món (chỉ khi mở với ?fitcheck): trả về các trường hợp bị lẹm. */
+  if (/[?&]fitcheck\b/.test(location.search)) window.__fitDebug = (spId, stage, form, itemId) => {
+    const g = new THREE.Group(), parts = ctx.petBuilder.build(g, { species: spId, stage, form, genes: {} }), it = BY_ID[itemId];
+    const o = fitter.fit(D.buildOutfit(itemId), it, parts.sockets);
+    return { neck: parts.sockets.neck, head: parts.sockets.head, body: parts.sockets.body, kinds: parts.sockets.keepOut.map(k => k.kind + ':' + k.r.toFixed(2) + '@' + k.c.map(x => x.toFixed(2)).join(',')), fit: o.userData.fit, check: fitter.check(o, it, parts.sockets) };
+  };
+  if (/[?&]fitcheck\b/.test(location.search)) window.__thumb = thumb;
+  if (/[?&]fitcheck\b/.test(location.search)) window.__fitCheck = () => {
+    const outfits = ITEMS.filter(i => i.kind === 'outfit'), bad = []; let n = 0;
+    const looks = [['baby', null], ['child', null], ['teen', null], ['adult', 'tron'], ['adult', 'nhanh'], ['adult', 'thuong']];
+    for (const sp of SPECIES) for (const [stage, form] of looks) {
+      const g = new THREE.Group(), parts = ctx.petBuilder.build(g, { species: sp.id, stage, form, genes: {} });
+      for (const it of outfits) {
+        const o = fitter.fit(D.buildOutfit(it.id), it, parts.sockets), r = fitter.check(o, it, parts.sockets); n++;
+        if (r.keepOut > 0.04 || r.sink > 0.06) bad.push({ sp: sp.id, stage, form, item: it.id, keepOut: +r.keepOut.toFixed(3), sink: +r.sink.toFixed(3), place: o.userData.fit?.t });
+      }
+      disposePet(g);
+    }
+    return { checked: n, bad };
+  };
 
   return { update, pickVisit, isEditing: () => editing, openShop, enterEdit, closeAll, openDex, refreshOutfit: () => renderOutfit(S.outfit) };
 }

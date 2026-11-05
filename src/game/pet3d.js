@@ -37,7 +37,8 @@ export function makePetBuilder(K) {
    */
   /** Bố trí đầu (H) và thân (B) theo dáng cơ thể + giai đoạn. Sơ sinh luôn là bánh dẻo tròn. */
   function layout(sp, lvl, form) {
-    const fat = form === 'tron' ? 1.1 : 1, quick = form === 'nhanh';
+    const fat = form === 'tron' ? 1.18 : 1, quick = form === 'nhanh';
+    const legK = form === 'tron' ? 0.8 : quick ? 1.15 : 1;
     if (lvl === 0 || sp.plan === 'banh' || !sp.plan) {
       const b = { ...BODY[sp.body] };
       if (form === 'tron') { b.sx *= 1.08; b.sz *= 1.06; b.sy *= 0.98; b.cy -= 0.02; }
@@ -48,19 +49,19 @@ export function makePetBuilder(K) {
     const t = lvl === 1 ? 0 : lvl === 2 ? 0.5 : 1, L = (a, b) => a + (b - a) * t;
     const hr = L(0.8, 0.67), H = { sx: hr * 1.06, sy: hr * 0.97, sz: hr }, g = L(0.84, 1);
     if (sp.plan === 'thu4') {
-      const legL = L(0.2, 0.36) * (quick ? 1.25 : 1);
+      const legL = L(0.2, 0.36) * (quick ? 1.25 : 1) * legK;
       const B = { sx: 0.74 * fat * g, sy: 0.56 * g, sz: (quick ? 1.08 : 1) * g * 0.98 };
       B.y = legL + B.sy * 0.85; B.z = -0.22; H.y = B.y + B.sy * 0.55 + H.sy * 0.52; H.z = B.z + B.sz * 0.78;
       return { kind: 'thu4', H, B, sep: true, legs: 'thu4', legL, arms: false, hover: 0, segs: [] };
     }
     if (sp.plan === 'dung') {
-      const legL = L(0.1, 0.18) * (quick ? 1.35 : 1);
+      const legL = L(0.1, 0.18) * (quick ? 1.35 : 1) * legK;
       const B = { sx: 0.66 * fat * g, sy: L(0.5, 0.6), sz: 0.6 * fat * g };
       B.y = legL + B.sy * 0.92; B.z = 0; H.y = B.y + B.sy * 0.78 + H.sy * 0.62; H.z = 0.04;
       return { kind: 'dung', H, B, sep: true, legs: 'stub', legL, arms: true, hover: 0, segs: [] };
     }
     if (sp.plan === 'chim') {
-      const legL = L(0.16, 0.3) * (quick ? 1.3 : 1) * (sp.id === 'hac-trang' ? 1.5 : 1);
+      const legL = L(0.16, 0.3) * (quick ? 1.3 : 1) * legK * (sp.id === 'hac-trang' ? 1.5 : 1);
       const B = { sx: 0.62 * fat * g, sy: L(0.52, 0.62), sz: 0.62 * fat * g };
       B.y = legL + B.sy * 0.9; B.z = -0.06; H.y = B.y + B.sy * 0.7 + H.sy * 0.62; H.z = 0.08;
       return { kind: 'chim', H, B, sep: true, legs: 'chim', legL, arms: false, hover: 0, segs: [] };
@@ -93,7 +94,7 @@ export function makePetBuilder(K) {
     const bodyMat = petToon(pal.body), deepMat = petToon(pal.deep), accMat = toon(pal.accent), innerMat = toon(pal.inner);
 
     const Lo = layout(sp, lvl, form), { H, B, sep } = Lo;
-    const root = new THREE.Group(); root.position.y = Lo.hover; into.add(root);
+    const root = new THREE.Group(); root.position.y = Lo.hover;
     const kH = H.sx / BASE.sx, kB = B.sx / BASE.sx;
     const outward = (m, E) => m.lookAt(m.position.clone().sub(new THREE.Vector3(0, E.y, E.z)).multiplyScalar(2).add(new THREE.Vector3(0, E.y, E.z)));
 
@@ -105,7 +106,8 @@ export function makePetBuilder(K) {
     if (!sep && sp.body === 'le') { const bl = add(root, S(0.86, 40, 28), bodyMat, 0, B.y - 0.42, 0.02, INK, 0.035); bl.scale.set(1.36, 0.78, 1.22); }
     if (!sep && sp.body === 'giot') add(root, Cone(0.42, 0.62, 28), bodyMat, 0, B.y + B.sy * 0.93, -0.04, INK, 0.03).rotation.x = -0.12;
     Lo.segs.forEach((g, i) => add(root, S(g.r, 24, 18), i % 2 ? deepMat : bodyMat, 0, g.y, g.z, INK, 0.03));
-    if (Lo.kind === 'thu4') { const nk = add(root, S(0.36 * kH * 1.06, 20, 14), bodyMat, 0, (H.y + B.y) / 2 + 0.05, (H.z + B.z) / 2 + 0.12, INK, 0.03); nk.scale.set(1, 1.2, 1); }
+    let neckM = null;
+    if (Lo.kind === 'thu4') { neckM = add(root, S(0.36 * kH * 1.06, 20, 14), bodyMat, 0, (H.y + B.y) / 2 + 0.05, (H.z + B.z) / 2 + 0.12, INK, 0.03); neckM.scale.set(1, 1.2, 1); }
     if (Lo.kind === 'chim') add(root, Cone(0.1 * kH, 0.2 * kH, 12), toon('#ffb84a'), 0, H.y - H.sy * 0.32, H.z + H.sz * 0.97, '#a8742e', 0.012).rotation.x = Math.PI / 2;
     const headTop = H.y + H.sy;
 
@@ -130,7 +132,7 @@ export function makePetBuilder(K) {
     }
 
     /* tai: nhóm ngoài để game.js lắc (rotation.z quanh -s·0.38), nhóm trong mang góc riêng của từng kiểu */
-    const earScale = (0.9 + (genes.ear || 0) * 0.07) * [0.72, 0.85, 0.95, 1, 1][lvl] * (form === 'nhanh' ? 1.18 : 1) * kH;
+    const earScale = (0.9 + (genes.ear || 0) * 0.07) * [0.72, 0.85, 0.95, 1, 1][lvl] * (form === 'nhanh' ? 1.3 : 1) * kH;
     const ears = [-1, 1].map(s => {
       const eg = new THREE.Group(); eg.userData.s = s; eg.rotation.z = -s * 0.38; root.add(eg);
       const ig = new THREE.Group(); eg.add(ig); ig.scale.setScalar(earScale);
@@ -199,7 +201,7 @@ export function makePetBuilder(K) {
     if (last) tail.position.set(0, last.y, last.z - last.r * 0.8);
     else if (Lo.kind === 'thu4') tail.position.set(0, B.y + 0.15 * B.sy, B.z - 0.95 * B.sz);
     else tail.position.set(0, B.y - 0.5 * B.sy, B.z - 0.98 * B.sz);
-    const tailScale = [0.7, 0.85, 0.95, 1, 1][lvl] * (form === 'nhanh' ? 1.25 : 1) * (sep ? 0.9 : 1);
+    const tailScale = [0.7, 0.85, 0.95, 1, 1][lvl] * (form === 'nhanh' ? 1.4 : form === 'tron' ? 0.85 : 1) * (sep ? 0.9 : 1);
     const tg = new THREE.Group(); tg.scale.setScalar(tailScale); tail.add(tg);
     if (Lo.kind === 'thu4') tg.rotation.x = -0.5;
     const tt = lvl === 0 ? (sp.tail === 'none' ? 'none' : 'tron') : sp.tail === 'none' && Lo.kind === 'chim' ? 'ca' : sp.tail;
@@ -250,7 +252,30 @@ export function makePetBuilder(K) {
       if (ex === 'hao' && lvl >= 3) { const h = add(root, new THREE.TorusGeometry(0.42 * Math.max(kH, 0.8), 0.045, 10, 40), glow('#ffe58a', 0.7), 0, headTop + 0.42, H.z - 0.1, '#b88a2a', 0.012); h.rotation.x = Math.PI / 2 - 0.25; h.userData.y = headTop + 0.42; anim.halo = h; }
     }
 
-    /* dáng trưởng thành */
+    /* nét riêng khi trưởng thành theo dáng cơ thể */
+    const neckExtra = [];
+    if (lvl >= 3) {
+      if (Lo.kind === 'thu4' && neckM) {
+        // bờm lông xù quanh cổ
+        const c = neckM.position, r = 0.36 * kH * 1.06;
+        for (let i = 0; i < 11; i++) { const a = i / 11 * Math.PI * 2; const f = add(root, S(0.17 * kH, 14, 10), toon(lighten(pal.body, 0.45)), Math.sin(a) * r * 1.05, c.y - 0.05 + Math.cos(a) * 0.04, c.z + Math.cos(a) * r * 0.95 - 0.04, INK, 0.015); f.scale.set(1, 1.25, 0.8); neckExtra.push(f); }
+      }
+      if (Lo.kind === 'chim') {
+        // lông đuôi dài
+        [-0.35, 0, 0.35].forEach((a, i) => { const f = add(root, S(0.14, 14, 10), i === 1 ? accMat : deepMat, Math.sin(a) * 0.18, B.y - 0.25 * B.sy, B.z - B.sz * 0.95 - 0.18, INK, 0.015); f.scale.set(0.55, 0.5, 2.1); f.rotation.set(0.5, a * 0.9, 0); });
+      }
+      if (Lo.kind === 'ran') {
+        // vây lưng trên từng khúc và ria
+        Lo.segs.forEach((g, i) => { if (i < 3) { const f2 = add(root, Cone(0.15, 0.34, 3), accMat, 0, g.y + g.r * 0.85, g.z, INK, 0.015); f2.scale.z = 0.35; f2.rotation.x = -0.5; } });
+        if (!sp.extra.includes('ria')) [-1, 1].forEach(s => { const w = add(root, Cy(0.014, 0.008, 0.5 * kH, 5), toon(pal.accent), s * 0.85 * H.sx, H.y - 0.25 * H.sy, H.z + 0.6 * H.sz, null); w.rotation.z = Math.PI / 2 - s * 0.35; w.rotation.y = s * 0.6; });
+      }
+    }
+
+    /* dáng trưởng thành: mỗi dáng có dấu hiệu riêng để nhìn là biết */
+    if (form === 'nhanh') [-1, 1].forEach(s => [0, 1].forEach(k => { const m = add(root, S(0.2 * Math.max(kB, 0.7), 12, 8), toon(pal.accent), 0, 0, 0, null); m.position.copy(onBody(B, 1.45 + k * 0.28, s * (1.7 - k * 0.15), -0.03)); m.position.z += B.z; m.scale.set(1.3, 0.16, 0.3); outward(m, B); m.rotateZ(s * 0.5); }));
+    if (form === 'tron') { const m = add(root, S(0.55 * Math.max(kB, 0.7), 24, 16), toon(lighten(pal.body, 0.6)), 0, 0, 0, null); m.position.copy(onBody(B, Lo.kind === 'thu4' ? 1.75 : 2.15, 0, -0.1 * kB)); m.position.z += B.z; m.scale.set(1.2, 1, 0.45); outward(m, B); }
+    if (form === 'sang') [[1.0, 1.2], [1.3, -1.3], [0.8, 2.6], [1.5, -2.4]].forEach(([th, ph]) => { const st = add(root, starGeo(0.09 * Math.max(kB, 0.75), 0.03), glow('#fff2a8', 0.6), 0, 0, 0, '#b88a2a', 0.008); st.position.copy(onBody(B, th, ph, 0.01)); st.position.z += B.z; outward(st, B); });
+    if (form === 'thuong') { const ht = add(tail, heartGeo(0.12), toon('#ff7aa8'), 0, 0.25, -0.25, '#a83a62', 0.012); ht.rotation.y = Math.PI / 2; }
     if (form === 'thuong') { const h = add(root, heartGeo(0.16 * Math.max(kB, 0.75)), toon('#ff7aa8'), 0, 0, 0, '#a83a62', 0.015); h.position.copy(onBody(B, Lo.kind === 'thu4' ? 1.5 : sep ? 1.85 : 2.12, 0, 0.0)); h.position.z += B.z; h.rotation.x = Lo.kind === 'thu4' ? 0 : -0.35; }
     if (form === 'sang') for (let i = 0; i < 3; i++) { const st = add(root, starGeo(0.1, 0.04), glow('#fff2a8', 0.8), 0, 0, 0, '#b88a2a', 0.01); st.userData.ph = i * Math.PI * 2 / 3; anim.orbit.push(st); }
     topG.traverse(o => { if (o.userData.spin) anim.spin.push(o); });
@@ -262,10 +287,69 @@ export function makePetBuilder(K) {
       head.add(f);
     }
     const hv = Lo.hover;
-    /* đồ mặc: đầu/mặt/cổ theo đầu, đồ lưng theo thân (tâm + hệ số co) */
-    const offsets = { head: { c: [0, H.y + hv, H.z], k: kH }, face: { c: [0, H.y + hv, H.z], k: kH }, neck: sep ? { c: [0, H.y - 0.82 * H.sy + 0.38 * kH * 1.1 + hv, H.z * 0.8 + B.z * 0.2], k: kH * 1.1 } : { c: [0, H.y + hv, H.z], k: kH }, back: { c: [0, B.y + hv, B.z], k: Math.max(kB, 0.7) } };
-    return { body: head, ears, top: topG, tail, arms, feet, anim, offsets, flicker: !!topG.children[0]?.userData?.flicker, headY: headTop + hv,
+    const sockets = measureSockets(root, { H, B, Lo, kH, kB, head, neckM, neckExtra, ears, topG, tail, armRig, legRig, backLegs, anim, sp, lvl });
+    into.add(root);
+    return { body: head, ears, top: topG, tail, arms, feet, anim, sockets, flicker: !!topG.children[0]?.userData?.flicker, headY: headTop + hv,
       mouth: [0, H.y - 0.35 * H.sy + hv, H.z + 0.95 * H.sz], center: [0, (H.y + B.y) / 2 + hv, (H.z + B.z) / 2], plan: Lo.kind, stage, species: sp };
+  }
+
+  /**
+   * Đo "ổ cắm" cho đồ mặc trên chính mô hình vừa dựng (bắn tia vào bề mặt), để đồ mặc ôm sát mọi dáng:
+   * crown (đỉnh đầu), face (mặt phẳng mắt), neck (vòng cổ: tâm + bán kính x/z), back (mặt lưng + pháp tuyến),
+   * keepOut (tai, sừng, chỏm, hào quang — đồ đội đầu không được đè lên).
+   */
+  const ray = new THREE.Raycaster();
+  function measureSockets(root, m) {
+    const { H, B, Lo, kH, kB, head, neckM, neckExtra, ears, topG, tail, armRig, legRig, backLegs, anim, sp } = m;
+    const hv = Lo.hover;
+    root.updateMatrixWorld(true);
+    const skip = new Set();
+    const mark = o => o && o.traverse(x => skip.add(x));
+    ears.forEach(mark); mark(topG); mark(tail); mark(armRig); mark(legRig); backLegs.forEach(mark); anim.wings.forEach(mark); anim.orbit.forEach(mark); mark(anim.halo);
+    const solid = []; root.traverse(o => { if (o.isMesh && !o.userData.outline && !skip.has(o) && !o.material.transparent) solid.push(o); });
+    const first = (o, d, list = solid) => { ray.set(o, d.normalize()); ray.far = 20; const h = ray.intersectObjects(list, false)[0]; return h ? h.point : null; };
+    const V = (x, y, z) => new THREE.Vector3(x, y, z);
+
+    /* mặt: tia từ phía trước ở độ cao mắt (mắt vẽ ở 0.2·ry trên tâm đầu) */
+    const eyeY = H.y + hv + 0.2 * H.sy;
+    const fh = first(V(0, eyeY, 6), V(0, 0, -1), [head]);
+    const face = { p: [0, eyeY, (fh ? fh.z : H.z + H.sz)], k: kH };
+
+    /* cổ: đo tiết diện ngang theo 12 hướng */
+    let ny, nz;
+    if (Lo.kind === 'banh') { ny = H.y - 0.4 * H.sy + hv; nz = H.z; }
+    else if (Lo.kind === 'thu4') { ny = (H.y + B.y) / 2 + 0.05 + hv; nz = (H.z + B.z) / 2 + 0.12; }
+    else if (Lo.kind === 'ran') { ny = H.y - 0.72 * H.sy + hv; nz = H.z - 0.12; }
+    else { ny = H.y - 0.84 * H.sy + hv; nz = H.z * 0.6 + B.z * 0.4; }
+    // thú bốn chân / bay lượn: chỉ đo đầu + khúc cổ (không đo thân dài), vòng cổ nghiêng theo trục cổ
+    const neckList = Lo.kind === 'thu4' ? [head, neckM, ...neckExtra] : Lo.kind === 'ran' ? [head] : solid;
+    let tilt = 0;
+    if (Lo.kind === 'thu4') tilt = Math.atan2(H.z - (B.z + 0.45 * B.sz), H.y - B.y) * 0.8;
+    let rx = 0.2, rz = 0.2;
+    for (let i = 0; i < 12; i++) {
+      const a = i / 12 * Math.PI * 2, d = V(Math.sin(a), 0, Math.cos(a));
+      const h = first(V(0, ny, nz).addScaledVector(d, 5), d.clone().negate(), neckList);
+      if (h) { rx = Math.max(rx, Math.abs(h.x)); rz = Math.max(rz, Math.abs(h.z - nz)); }
+    }
+    if (tilt) rz = Math.max(rx * 0.9, rz * Math.cos(tilt));
+    const neck = { p: [0, ny, nz], rx, rz, tilt };
+
+    /* lưng: thú bốn chân thì đeo trên sống lưng (pháp tuyến hướng lên), còn lại sau lưng (hướng -z) */
+    let back;
+    if (Lo.kind === 'thu4') { const h = first(V(0, 6, B.z - 0.1 * B.sz), V(0, -1, 0)); back = { p: [0, h ? h.y : B.y + B.sy + hv, B.z - 0.1 * B.sz], n: [0, 1, 0], k: Math.min(1, Math.max(kB * 1.1, 0.65)) }; }
+    else { const by = B.y + hv + 0.05 * B.sy, h = first(V(0, by, -6), V(0, 0, 1)); back = { p: [0, by, h ? h.z : B.z - B.sz], n: [0, 0, -1], k: Math.min(1, Math.max(kB, 0.65)) }; }
+
+    /* vùng cấm cho đồ đội đầu: mỗi lưới của tai/chỏm/hào quang thành một khối cầu bao */
+    const keepOut = [];
+    const addKO = (o, kind) => o && o.traverse(x => { if (!x.isMesh || x.userData.outline) return; x.geometry.computeBoundingSphere(); const s0 = x.geometry.boundingSphere; const c = s0.center.clone().applyMatrix4(x.matrixWorld); const sc = new THREE.Vector3().setFromMatrixScale(x.matrixWorld); keepOut.push({ kind, c: [c.x, c.y, c.z], r: s0.radius * Math.max(sc.x, sc.y, sc.z) * 0.85 }); });
+    ears.forEach(e => addKO(e, 'ear')); if (m.lvl > 0) addKO(topG, 'top'); addKO(anim.halo, 'halo');
+    /* chân tai (cho viền lỗ tai khi đội mũ len) */
+    const earInfo = ears.filter(e => e.children[0]?.children.length && sp.ears !== 'vay' && sp.ears !== 'cup').map(e => ({ p: [e.position.x, e.position.y, e.position.z], rz: e.rotation.z, r: 0.17 * e.children[0].scale.x / 0.9 + 0.02 }));
+    return {
+      ears: earInfo, plan: Lo.kind, crown: { p: [0, H.y + H.sy + hv, H.z], k: kH, r: [H.sx, H.sy, H.sz], c: [0, H.y + hv, H.z] }, face, neck, back, keepOut,
+      head: { c: [0, H.y + hv, H.z], r: [H.sx, H.sy, H.sz] }, body: { c: [0, B.y + hv, B.z], r: [B.sx, B.sy, B.sz] },
+      bodyBottom: Lo.kind === 'banh' ? 0.12 : B.y + hv - B.sy, ownWings: anim.wings.length > 0, shell: sp.extra.includes('mai') || sp.extra.includes('oc'),
+    };
   }
 
   /** Mặt tĩnh cho ảnh thu nhỏ (trong game, mặt do game.js vẽ và đổi theo cảm xúc). */
