@@ -116,7 +116,7 @@ supabase/migrations/      13 migration; supabase/tests/ test RPC
 
 **Đã hẹn để sau**
 6. Tích hợp AI: trò chuyện có trí nhớ, nhật ký do AI viết mỗi đêm (Edge Function `chat` và tác vụ theo lịch, xem TDD mục 11).
-7. Xã hội: thăm nhà bạn bè, khu vực chung, an toàn cộng đồng.
+7. Xã hội: bản đồ thế giới, khu gặp gỡ realtime, chat, kết bạn, thăm nhà, tặng quà, bệnh viện và chợ, trang quản trị (tặng quà, tạo sự kiện). **Đã có bản thiết kế: [PLAN-social-admin.md](PLAN-social-admin.md)** (chưa có code, còn các câu hỏi cần chốt ở mục 13).
 8. Sự kiện theo mùa, bộ đồ Lễ hội.
 9. Thông báo đẩy, service worker (đã có `manifest.webmanifest`).
 10. Bán cosmetic thật: cổng thanh toán, Edge Function xác minh giao dịch, rồi bật `PAID_SHOP_ENABLED`.
