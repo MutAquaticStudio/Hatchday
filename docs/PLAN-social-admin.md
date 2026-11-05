@@ -3,6 +3,19 @@
 Trạng thái: **bản thiết kế, chưa có dòng code nào**. Viết để nhóm duyệt và chốt các câu hỏi mở ở mục 13 trước khi làm.
 Nền hiện có: xem [HANDOFF.md](HANDOFF.md) và [TDD.md](TDD.md). Mọi con số trong tài liệu này là đề xuất, cần chỉnh khi có người chơi thật.
 
+## Cập nhật quyết định (sau khi PR #1 gộp)
+
+Bản thiết kế này đã được đối chiếu với code và thay đổi như sau. Kế hoạch triển khai chi tiết nằm trong các PR; phần này là chỗ khác với bản gốc bên dưới:
+
+1. **Chat công cộng gõ chữ bật sẵn** (mục 5 và 13 #2 bên dưới viết là tuỳ chọn). Cờ `chat.public.enabled` ở bản chạy thật giữ tắt cho tới khi chốt pháp lý và có người kiểm duyệt.
+2. **`post_chat` là RPC SQL** rồi phát bằng `realtime.send`, không phải Edge Function (Edge Function để dành cho AI).
+3. **"Bệnh nặng chỉ chữa ở bệnh viện" chỉ chặn ở giao diện**: máy chủ không biết vị trí, và `needs_clinic` đã ép bệnh nặng ra phòng khám, nên không sửa `visit_clinic` (mục 7 và 10 bên dưới).
+4. **Không thêm nút thứ 7 vào thanh dưới** (không vừa 390px): Bản đồ vào bằng chip tên khu vực ở góc trên và một ô trong menu Nhà.
+5. **Admin là `vite.admin.config.ts` riêng**, không phải điểm vào thứ hai trong build game.
+6. **Hook sự kiện hoãn**: giảm giá, tăng xu và mùa cúm phải viết lại các hàm mua hàng và `private.earn`, nên làm ở một migration "hooks" có một chủ; lát cắt đầu của sự kiện chỉ dùng hàm mới và trigger.
+7. **Realtime làm bản mô phỏng trước** (bạn ảo, nhiều tab); bản Supabase viết sẵn nhưng tắt cờ cho tới khi có dự án thật.
+8. **Trần kênh mặc định 12 người (gói Free) hoặc 20 (Pro)**, đọc từ cờ hệ thống; người chơi gửi ý định đi chứ không gửi vị trí liên tục.
+
 ## 1. Mục tiêu và nguyên tắc
 
 Hatchday là game nuôi thú ấm áp cho người đi làm. Chế độ xã hội phải giữ đúng chất đó: **gặp gỡ nhẹ nhàng, không so đo, không ép**.
@@ -113,7 +126,7 @@ Bảng `friendships (a, b, status, created_at)` với `a < b` để mỗi cặp 
 
 ## 7. Bệnh trong bối cảnh xã hội
 
-Nền đã có (8 bệnh, mục 7b của TDD). Mở rộng khi có xã hội:
+Nền đã có (8 bệnh, mục 7d của TDD). Mở rộng khi có xã hội:
 
 - **Bệnh viện** là nơi chữa. Bệnh nặng (đã để 24 giờ) **chỉ chữa ở Bệnh viện** (thay vì phòng khám tại nhà như hiện tại; thay đổi này cần sửa `visit_clinic` và test). Bệnh nhẹ vẫn dùng thuốc ở nhà.
 - **Bệnh lây** (mới): thêm bệnh **Cúm** (không do bỏ bê). Điều kiện: ở cùng kênh với thú đang bị cúm ≥ 10 phút → 25% mỗi lần kiểm tra mất 10 phút lây (giới hạn mỗi người 1 lần lây/ngày để không tạo dịch dây chuyền khó kiểm soát). Cúm tự khỏi sau 6 giờ hoặc uống thuốc. Bé ốm vẫn vào được Quảng trường nhưng hiện **biểu tượng ốm** để người khác biết và tránh. Người chơi có thể **bật "chế độ cách ly"** (không vào khu chung khi đang ốm) để khỏi bị trách.

@@ -212,7 +212,7 @@ Khoá 15 phút sau 5 lần sai hiện chỉ có ở phía máy (trải nghiệm)
 - Service worker cho PWA (cache tài nguyên, thông báo đẩy).
 - Đưa chữ giao diện ra file riêng để dễ dịch.
 
-## 7b. Sức khoẻ: bệnh, điều kiện mắc và cách khỏi
+## 7d. Sức khoẻ: bệnh, điều kiện mắc và cách khỏi
 
 Bệnh chỉ do chăm chưa đúng, không ngẫu nhiên. Luật ở `src/game/health.ts` và `20261121000000_illness.sql`.
 
@@ -235,7 +235,7 @@ Cột Ảnh hưởng: "×1,5" nghĩa là chỉ số đó tụt nhanh gấp 1,5 l
 - Thuốc 40–70 xu một liều (kho tối đa 10). Phòng khám 150 xu, bệnh nặng 250 xu.
 - Chữa khỏi được +3 gắn bó (`bond_xp`).
 
-## 7c. Gắn bó
+## 7e. Gắn bó
 
 Mốc điểm cấp 1–10: 0, 25, 80, 170, 300, 480, 720, 1020, 1400, 1900. Quà xu từ cấp 2: 50, 80, 120, 160, 220, 300, 400, 520, 700.
 Danh hiệu: Mới quen, Quen thuộc, Thân thiết, Gắn bó, Tin cậy, Bạn tốt, Tri âm, Tri kỷ, Khó tách rời, Một lòng.
