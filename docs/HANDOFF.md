@@ -16,6 +16,7 @@ Bản chơi thử (chế độ demo, dữ liệu lưu trong trình duyệt): htt
 | 50 loài, 5 miền × 4 độ hiếm, lớn lên theo tuổi, 4 dáng trưởng thành, Sổ loài | Xong |
 | Đồ mặc ôm theo mọi dáng, không lẹm | Xong, có script kiểm tra tự động |
 | Âm thanh: 12 tiếng hiệu ứng, nhạc nền tự sinh theo phòng/đêm/lúc ngủ, nút Tiếng/Nhạc/Âm lượng | Xong (Web Audio, không cần file âm thanh) |
+| Cá tính 5 trục: bốc lúc sinh, dịch theo cách chăm, đổi hành vi rảnh, lời chào, câu nói; hiện trong bảng Chỉ số | Xong |
 | Quầy trả phí | Đã ẩn (`PAID_SHOP_ENABLED = false` trong `src/game/catalog.ts`) |
 | Chạy trên Supabase thật | Chưa. Mọi thứ mới thử ở chế độ demo hoặc PGlite |
 
@@ -24,7 +25,7 @@ Bản chơi thử (chế độ demo, dữ liệu lưu trong trình duyệt): htt
 ```bash
 npm install                 # có .npmrc legacy-peer-deps=true (lỗi arborist)
 npm run dev                 # không có .env thì tự vào chế độ Chơi thử
-npm test                    # 66 test: luật chơi + toàn bộ RPC trên Postgres thật (PGlite)
+npm test                    # 87 test: luật chơi + toàn bộ RPC trên Postgres thật (PGlite)
 npm run build               # typecheck + build
 node scripts/smoke.mjs      # sau build: chạy thật trên trình duyệt (ăn, nói chuyện, tắm, ngủ, lớn lên…)
 node scripts/fit-check.mjs  # sau build: thử 3.900 tổ hợp loài × dáng × đồ mặc, phải ra 0 lẹm
@@ -46,6 +47,7 @@ src/data/api.ts           gọi RPC; isDemo thì chuyển sang demo-api.ts (mô 
 src/game/store.ts         trạng thái thú, xu, đồ, bố cục, loài; gộp lô hành động
 src/game/rules.ts         luật thuần: giảm chỉ số, nhật ký       (song song với private.decay_pet trong SQL)
 src/game/layout.ts        đặt đồ, thoải mái, nhiệm vụ, tiệm xoay   (song song với SQL)
+src/game/personality.ts   cá tính 5 trục: bốc, dịch theo cách chăm (song song với SQL), hành vi, câu nói
 src/game/species.ts       50 loài, độ hiếm, giai đoạn, dáng        (song song với SQL, scripts/gen-seed.ts)
 src/game/catalog.ts       danh mục vật phẩm (nguồn của seed SQL)
 src/game/pet3d.js         dựng thú theo loài/giai đoạn/dáng + đo "ổ cắm" cho đồ mặc
@@ -59,7 +61,7 @@ src/game/chat.js          trò chuyện (bản mẫu)
 src/game/diary.js         nhật ký, ký ức, bộ đếm hành động trong ngày
 src/game/growth.js        cảnh tiến hoá + thẻ loài
 src/game/audio.js         sfx()/music() tổng hợp bằng Web Audio; cài đặt trong bảng Chỉ số
-supabase/migrations/      3 migration; supabase/tests/ test RPC
+supabase/migrations/      4 migration; supabase/tests/ test RPC
 ```
 
 **Quy tắc quan trọng khi sửa:**
@@ -67,31 +69,32 @@ supabase/migrations/      3 migration; supabase/tests/ test RPC
 - Đổi danh mục vật phẩm hoặc danh sách loài: sửa `catalog.ts` / `species.ts`, chạy `node --experimental-strip-types scripts/gen-seed.ts` để lấy SQL, dán vào migration mới (đừng sửa migration đã có).
 - Thêm đồ mặc mới: dựng trong `decor3d.js`, thêm quy tắc đặt vào `fit.js` nếu cần, rồi chạy `fit-check`.
 - Tuổi thọ thú (30–60 ngày) và món tủ chỉ server biết (`pet_secrets`), không đưa xuống client.
+- Cá tính chạy bằng trigger, không nằm trong `create_pet`/`pet_action`: thú mới có cá tính toàn 0 thì được bốc ngẫu nhiên; mỗi dòng `action_log` dịch cá tính theo `private.personality_drift`. Thêm hành động mới thì thêm độ dịch ở cả `DRIFT` (personality.ts) và hàm SQL đó. Làm vòng đời: truyền sẵn cá tính thừa hưởng khi insert thú đời sau, trigger sẽ giữ nguyên.
+- Thiết kế 5 trục cá tính (tên nét, độ dịch) chưa đối chiếu với GDD. Cần xem lại cho khớp.
 
 ## Việc chưa làm, theo thứ tự đề xuất
 
 **Ưu tiên cao**
 1. **Vòng đời và gia phả.** Hiện bé dừng ở tuổi Xế chiều, không bao giờ mất. Cần: chia tay khi hết tuổi thọ, trang tưởng niệm, trứng đời sau mang tên dòng họ và thừa hưởng một phần gen, cây gia phả. (`pets.stage = 'departed'` và `generation` đã có trong schema.)
 2. **Thức ăn.** Mới có 4 món, ăn miễn phí không giới hạn. GDD có nhóm dinh dưỡng cân bằng 3 ngày, khẩu vị, trồng trọt, nấu ăn, bảo quản, khoảng 12 món mẫu.
-3. **Cá tính 5 trục.** Cột `pets.personality` đã có nhưng chưa dùng.
 
 **Ưu tiên vừa**
-4. Cấp Gắn bó (1–10) và mở thêm không gian (hiện chỉ có phòng khách trang trí được).
-5. Sức khoẻ: bệnh và cách chữa (hiện chỉ có biểu cảm ốm khi bẩn).
-6. Đồ chơi theo bảng trong GDD (mới có ném bóng, xoay vòng).
-7. Màn chào mừng quay lại sau khi vắng lâu.
-8. Hướng dẫn lần đầu chơi khoảng 30 giây.
-9. Đồng hành giờ làm việc: nhắc giải lao, uống nước, chào sáng và tối.
+3. Cấp Gắn bó (1–10) và mở thêm không gian (hiện chỉ có phòng khách trang trí được).
+4. Sức khoẻ: bệnh và cách chữa (hiện chỉ có biểu cảm ốm khi bẩn).
+5. Đồ chơi theo bảng trong GDD (mới có ném bóng, xoay vòng).
+6. Màn chào mừng quay lại sau khi vắng lâu.
+7. Hướng dẫn lần đầu chơi khoảng 30 giây.
+8. Đồng hành giờ làm việc: nhắc giải lao, uống nước, chào sáng và tối.
 
 **Đã hẹn để sau**
-10. Tích hợp AI: trò chuyện có trí nhớ, nhật ký do AI viết mỗi đêm (Edge Function `chat` và tác vụ theo lịch, xem TDD mục 11).
-11. Xã hội: thăm nhà bạn bè, khu vực chung, an toàn cộng đồng.
-12. Sự kiện theo mùa, bộ đồ Lễ hội.
-13. Thông báo đẩy, service worker (đã có `manifest.webmanifest`).
-14. Bán cosmetic thật: cổng thanh toán, Edge Function xác minh giao dịch, rồi bật `PAID_SHOP_ENABLED`.
+9. Tích hợp AI: trò chuyện có trí nhớ, nhật ký do AI viết mỗi đêm (Edge Function `chat` và tác vụ theo lịch, xem TDD mục 11).
+10. Xã hội: thăm nhà bạn bè, khu vực chung, an toàn cộng đồng.
+11. Sự kiện theo mùa, bộ đồ Lễ hội.
+12. Thông báo đẩy, service worker (đã có `manifest.webmanifest`).
+13. Bán cosmetic thật: cổng thanh toán, Edge Function xác minh giao dịch, rồi bật `PAID_SHOP_ENABLED`.
 
 **Đưa lên chạy thật (chưa ai làm)**
-- Tạo dự án Supabase (region Singapore), `npx supabase link`, `npx supabase db push` (3 migration), điền `.env` theo `.env.example`.
+- Tạo dự án Supabase (region Singapore), `npx supabase link`, `npx supabase db push` (4 migration), điền `.env` theo `.env.example`.
 - Dashboard Authentication: Site URL và Redirect URLs, mật khẩu tối thiểu 8, rate limit, CAPTCHA, bật Google, viết lại mẫu email tiếng Việt (chi tiết TDD mục 4).
 - Host tĩnh thư mục `dist/` (Vercel, Netlify hoặc Cloudflare Pages).
 - Thú tạo trước migration loài sẽ được gán loài tự động theo quả trứng cũ.

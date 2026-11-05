@@ -10,6 +10,7 @@ import type { CareSums, Form, Stage } from './species';
 import { emptyDay, localDay, writeDiary, type DayLog } from './rules';
 import { DEFAULT_LAYOUT, type Layout } from './catalog';
 import { comfortLevel, comfortScore } from './layout';
+import { normalize, topTraits, type Personality } from './personality';
 
 export interface Memory { id?: number; t: number; type: string; text: string }
 
@@ -21,6 +22,7 @@ export interface PetState {
   coins: number; earnedToday: number; rotation: string[]; weekend: boolean;
   owned: Record<string, number>; layouts: (Layout | null)[]; activeLayout: number; comfort: number;
   outfit: Outfit; presets: Outfit[]; likes: string[]; dislike: string; quests: QuestRow[]; collections: string[];
+  personality: Personality;
 }
 
 export const S: PetState = {
@@ -28,6 +30,7 @@ export const S: PetState = {
   favFound: false, mem: [], day: null, diary: {}, firsts: {},
   coins: 0, earnedToday: 0, rotation: [], weekend: false, owned: {}, layouts: [null, null, null], activeLayout: 0, comfort: 1,
   outfit: {}, presets: [{}, {}, {}], likes: [], dislike: '', quests: [], collections: [],
+  personality: normalize(null),
 };
 /** Bố cục đang dùng (luôn có giá trị). */
 export const activeLayout = (): Layout => S.layouts[S.activeLayout] || S.layouts[0] || DEFAULT_LAYOUT;
@@ -41,12 +44,20 @@ const errListeners = new Set<(e: unknown) => void>();
 export const onSyncError = (fn: (e: unknown) => void) => { errListeners.add(fn); return () => errListeners.delete(fn); };
 
 function applyRow(p: PetRow) {
+  const prevPid = S.id;
   S.id = p.id; S.name = p.name; S.family = p.family_name; S.palette = p.genes?.palette ?? 0;
   S.no = p.no; S.vui = p.vui; S.nl = p.nl; S.sach = p.sach; S.asleep = p.asleep; S.t = Date.now();
   if (p.outfit) S.outfit = p.outfit;
   if (p.outfit_presets) S.presets = p.outfit_presets;
   if (p.comfort_level) S.comfort = p.comfort_level;
   S.likes = p.genes?.likes || ['mem', 'cay']; S.dislike = p.genes?.dislike || 'retro';
+  S.personality = normalize(p.personality);
+  const trait = topTraits(S.personality, 1)[0];
+  // Chỉ báo khi nét mới vượt nét đã báo ít nhất 3 điểm, để hai trục sát nhau không báo qua báo lại.
+  if (!hydrated || prevPid !== p.id) shownTrait = trait ?? null;
+  else if (trait && trait.name !== shownTrait?.name && Math.abs(trait.v) >= Math.abs(shownTrait ? S.personality[shownTrait.axis] : 0) + 3) {
+    shownTrait = trait; traitListeners.forEach(fn => fn(trait.name));
+  }
   const prev = { stage: S.stage, form: S.form, id: S.id };
   S.species = p.species || 'mam-xanh'; S.form = p.form ?? null; S.genes = p.genes; S.generation = p.generation || 1;
   S.stage = (['baby', 'child', 'teen', 'adult', 'elder'].includes(p.stage) ? p.stage : 'baby') as Stage;
@@ -56,6 +67,10 @@ function applyRow(p: PetRow) {
   }
 }
 let hydrated = false;
+let shownTrait: ReturnType<typeof topTraits>[number] | null = null;
+const traitListeners = new Set<(name: string) => void>();
+/** Báo khi nét cá tính nổi bật nhất của thú đổi sang nét khác (do cách chăm). */
+export const onTraitShift = (fn: (name: string) => void) => { traitListeners.add(fn); return () => traitListeners.delete(fn); };
 const growListeners = new Set<(from: Stage, to: Stage) => void>();
 /** Báo khi thú lớn sang giai đoạn mới (để chạy cảnh tiến hoá). */
 export const onGrow = (fn: (from: Stage, to: Stage) => void) => { growListeners.add(fn); return () => growListeners.delete(fn); };

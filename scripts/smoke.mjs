@@ -1,5 +1,5 @@
 // Kiểm tra khói trên trình duyệt thật (chế độ Chơi thử): vuốt ve, cho ăn, trò chuyện, nhật ký, lớn lên, tắm, chơi, ngủ,
-// Sổ loài, cửa hàng, âm thanh. Chạy sau `npm run build`: node scripts/smoke.mjs   (cần Playwright + Chromium). Thoát mã 1 nếu có lỗi.
+// Sổ loài, cửa hàng, âm thanh, cá tính. Chạy sau `npm run build`: node scripts/smoke.mjs   (cần Playwright + Chromium). Thoát mã 1 nếu có lỗi.
 import { createRequire } from 'node:module';
 import http from 'node:http';
 import { existsSync, readFileSync, statSync } from 'node:fs';
@@ -74,6 +74,9 @@ await p.click('.hsheet:not([hidden]) [data-close]');await p.waitForTimeout(300);
 // âm thanh: nhạc theo buổi, nút tắt nhạc lưu lại
 ok('nhạc ban ngày/đêm',['day','night'].includes((await au()).mood),JSON.stringify(await au()));
 await p.click('#btn-stats');await p.click('#snd-music');await p.waitForTimeout(200);
+// cá tính: hiện trong bảng Chỉ số, đã dịch theo các lần chăm ở trên
+const pd=await demo();ok('cá tính hiện trong bảng Chỉ số',(await p.textContent('#persona-desc')).startsWith('Bé')&&(await p.$$('#persona-axes .axis')).length===5,JSON.stringify(pd.pet.personality));
+ok('cá tính dịch theo cách chăm',Object.values(pd.pet.personality).some(v=>!Number.isInteger(v)));
 ok('tắt nhạc',(await au()).mood===''&&(await p.getAttribute('#snd-music','aria-pressed'))==='false'&&JSON.parse(await p.evaluate(()=>localStorage.getItem('hatchday-audio'))).music===false);
 await p.click('#snd-music');await p.click('#btn-stats');
 console.log(out.join('\n'));console.log('errors:',JSON.stringify(errs));

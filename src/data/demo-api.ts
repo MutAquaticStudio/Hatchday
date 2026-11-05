@@ -6,6 +6,7 @@ import { clamp, decayStats, localDay } from '../game/rules';
 import { BY_ID, DEFAULT_LAYOUT, ITEMS, STARTER_ITEMS, type Layout } from '../game/catalog';
 import { buyable, COIN, comfortLevel, comfortScore, QUEST_POOL, QUEST_REWARD, questsForDay, rotationForDay, isWeekend } from '../game/layout';
 import type { ActionResult, DayLogRow, Economy, MemoryRow, Outfit, PetAction, PetRow, QuestRow, SeenRow } from './types';
+import { applyDrift, isBlank, normalize, rollPersonality } from '../game/personality';
 import { formFromCare, pickSpecies, stageForAge, REGIONS, GROW_MEMORY } from '../game/species';
 
 const KEY = 'hatchday-demo';
@@ -71,7 +72,11 @@ function first(db: DB, key: string, kind: string, body: string): boolean {
   return true;
 }
 
-export async function getMyPet(): Promise<PetRow | null> { const db = load(); decay(db); grow(db); store(db); return db.pet; }
+export async function getMyPet(): Promise<PetRow | null> {
+  const db = load(); decay(db); grow(db);
+  if (db.pet && isBlank(db.pet.personality)) db.pet.personality = rollPersonality(); // giống phần chuyển dữ liệu trong migration cá tính
+  store(db); return db.pet;
+}
 export async function listSpeciesSeen(): Promise<SeenRow[]> { return load().seen || []; }
 /** Lùi ngày sinh `days` ngày (chỉ để xem thử tiến hoá). */
 export async function demoAge(days: number): Promise<PetRow | null> {
@@ -89,7 +94,7 @@ export async function createPet(name: string, family: string, egg: number): Prom
   const sp = pickSpecies(egg, Math.random());
   db.pet = { id: 'demo', owner_id: 'demo', name, family_name: family, generation: 1, stage: 'baby', species: sp.id, form: null,
     genes: { region: egg, ear: Math.floor(Math.random() * 4), scale: Math.round((0.96 + Math.random() * 0.08) * 1000) / 1000, hue: Math.round((Math.random() * 2 - 1) * 100) / 100 },
-    personality: {}, no: 72, vui: 74, nl: 82, sach: 85, asleep: false, stats_at: now, bond_xp: 0, born_at: now };
+    personality: rollPersonality(), no: 72, vui: 74, nl: 82, sach: 85, asleep: false, stats_at: now, bond_xp: 0, born_at: now };
   db.fav = ids[0]; db.dis = ids[1]; db.life = 30 + Math.floor(Math.random() * 31);
   db.seen ||= []; if (!db.seen.some(x => x.species_id === sp.id)) db.seen.push({ species_id: sp.id, first_at: now, forms: [] });
   const tags = ['mem', 'sach', 'cay', 'choi', 'sang', 'retro'].sort(() => Math.random() - 0.5);
@@ -132,6 +137,7 @@ export async function petAction(action: PetAction, item?: string, count = 1): Pr
   } else if (action === 'talk') { p.vui = clamp(p.vui + 2); d.talk++; }
   else if (action === 'sleep') { p.asleep = true; d.sleep++; }
   else if (action === 'wake') p.asleep = false;
+  if (!refused) p.personality = applyDrift(normalize(p.personality), action); // giống trigger trên action_log
   const earned = !refused && ['feed', 'bath_rinse', 'play_ball', 'play_spin', 'talk', 'sleep'].includes(action) ? earn(db, COIN.careReward, true) : 0;
   store(db);
   return { pet: { ...p }, refused, fav, new_memory: newMem, earned, coins: db.coins };

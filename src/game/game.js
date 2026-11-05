@@ -1,6 +1,6 @@
 // Lớp hiển thị & tương tác 3D (chuyển từ bản mẫu). Sẽ tách nhỏ và chuyển sang TypeScript dần.
 import * as THREE from 'three';
-import { S, save, act, actBatched, addTalkMemory, renamePet, onSync, onSyncError, startPeriodicSync,
+import { S, save, act, actBatched, addTalkMemory, renamePet, onSync, onSyncError, onTraitShift, startPeriodicSync,
   buy, saveLayout, equip, savePreset, claimQuest, claimCollection, refreshQuests, activeLayout, previewComfort } from './store';
 import { initHome } from './home.js';
 import { decayStats, localDay } from './rules';
@@ -13,6 +13,7 @@ import { initChat } from './chat.js';
 import { initGrowth } from './growth.js';
 import { sfx, music, initAudio } from './audio.js';
 import { STAGES } from './species';
+import { AXES, TRAITS, describe as describePersona, greeting, idleGapFactor, idleWeights, petLine, pickWeighted, walkSpeedFactor } from './personality';
 let home = null, editing = false;
 const camOverride = { pos: null, look: null };
 
@@ -486,7 +487,7 @@ function petStroke() {
   if (area === 'bath' && !S.asleep) { scrub(); return; }
   if (S.asleep) { if (Math.random() < 0.3) spawn('zzz'); impulse(-0.5); return; }
   S.vui = clamp(S.vui + 1.6); sfx('pet'); count('pet'); actBatched('pet'); if (++petN % 6 === 0) popText('+Vui'); setTemp('love', 1500); spawn('heart', 1, 0.7); impulse(-1.1);
-  if (Math.random() < 0.15) say(['Hihi, nhột quá!', 'Thêm chút nữa đi mà~', 'Dễ chịu ghê!'][Math.floor(Math.random() * 3)], 1800);
+  if (Math.random() < 0.15) say(petLine(S.personality), 1800);
 }
 function poke() {
   hideHint();
@@ -528,7 +529,18 @@ $('chips').addEventListener('click', e => {
 const STAT = [['no', 'No', '#ffb35c'], ['vui', 'Vui', '#ff6fa8'], ['nl', 'Năng lượng', '#8f7cff'], ['sach', 'Sạch sẽ', '#4fc3f7']];
 $('bars').innerHTML = STAT.map(([k, l, c]) => `<div class="stat"><span>${l}</span><div class="track"><div class="fill" id="f-${k}" style="background:${c}"></div></div><span class="lvl" id="l-${k}"></span></div>`).join('');
 const lvl = v => v >= 75 ? 'Đầy' : v >= 45 ? 'Ổn' : v >= 25 ? 'Hơi thấp' : 'Thấp';
-function renderStats() { STAT.forEach(([k]) => { $('f-' + k).style.width = S[k] + '%'; $('l-' + k).textContent = lvl(S[k]); }); }
+function renderStats() { STAT.forEach(([k]) => { $('f-' + k).style.width = S[k] + '%'; $('l-' + k).textContent = lvl(S[k]); }); renderPersona(); }
+/* Cá tính: mỗi trục là một thanh hai đầu, chấm nằm lệch về nét mạnh hơn */
+$('persona-axes').innerHTML = AXES.map(a => `<div class="axis" role="img" id="ax-${a}"><span>${TRAITS[a].lo}</span><div class="axis-track"><i id="axd-${a}"></i></div><span>${TRAITS[a].hi}</span></div>`).join('');
+function renderPersona() {
+  $('persona-desc').textContent = describePersona(S.personality);
+  AXES.forEach(a => {
+    const v = S.personality[a];
+    $('axd-' + a).style.left = (50 + v / 2) + '%';
+    $('ax-' + a).setAttribute('aria-label', `${TRAITS[a].lo} – ${TRAITS[a].hi}: ${Math.abs(v) < 15 ? 'cân bằng' : (v > 0 ? TRAITS[a].hi : TRAITS[a].lo)}`);
+  });
+}
+onTraitShift(name => { toast(`${S.name} đang dần trở nên ${name.toLowerCase()} hơn.`); if (!$('stats').hidden) renderPersona(); });
 $('btn-stats').onclick = () => { const s = $('stats'); s.hidden = !s.hidden; $('btn-stats').setAttribute('aria-expanded', String(!s.hidden)); renderStats(); if (!s.hidden) growth.renderSpecies(); if (!s.hidden) { $('diary').hidden = true; $('btn-diary').setAttribute('aria-expanded', 'false'); } };
 $('pet-name').value = S.name;
 $('pet-name').addEventListener('input', e => { const v = e.target.value.trim().slice(0, 16); if (v) renamePet(v); });
@@ -545,15 +557,13 @@ function busy(now) { return growth.isEvolving() || editing || S.asleep || area !
 function startAction(type) { action = { type, t: 0, fxAt: 0 }; }
 function idleThink(now) {
   if (now < idleAt) return;
-  idleAt = now + 4500 + Math.random() * 6000;
+  idleAt = now + (4500 + Math.random() * 6000) * idleGapFactor(S.personality);
   if (busy(now) || wander || action) return;
-  const r = Math.random();
-  if (r < 0.3) { const v = home && home.pickVisit(); if (v) { wander = { x: v.x - petBase.x, z: v.z - petBase.z, then: v.then }; return; } }
-  if (r < 0.5) { const a = Math.random() * Math.PI * 2, d = 0.5 + Math.random() * 0.9; wander = { x: Math.cos(a) * d, z: Math.sin(a) * d * 0.6 }; }
-  else if (r < 0.58 && S.nl < 65) startAction('yawn');
-  else if (r < 0.74) startAction('look');
-  else if (r < 0.88 && S.vui > 55) startAction('dance');
-  else startAction('hop');
+  // Cá tính quyết định bé hay làm gì lúc rảnh (personality.ts)
+  let k = pickWeighted(idleWeights(S.personality, S), Math.random());
+  if (k === 'visit') { const v = home && home.pickVisit(); if (v) { wander = { x: v.x - petBase.x, z: v.z - petBase.z, then: v.then }; return; } k = 'wander'; }
+  if (k === 'wander') { const a = Math.random() * Math.PI * 2, d = 0.5 + Math.random() * 0.9; wander = { x: Math.cos(a) * d, z: Math.sin(a) * d * 0.6 }; }
+  else startAction(k);
 }
 function spawnAt(type, x, y, z, o = {}) {
   const sp = getSprite(FXT[type]);
@@ -566,7 +576,7 @@ function animStep(dt, t, now, key) {
   if (wander) {
     if (busy(now)) wander = null;
     else {
-      const dx = wander.x - petOff.x, dz = wander.z - petOff.z, d = Math.hypot(dx, dz), step = 1.2 * dt;
+      const dx = wander.x - petOff.x, dz = wander.z - petOff.z, d = Math.hypot(dx, dz), step = 1.2 * walkSpeedFactor(S.personality) * dt;
       if (d > 0.04) { petOff.x += dx / d * Math.min(step, d); petOff.z += dz / d * Math.min(step, d); moveYaw = Math.atan2(dx, dz); }
       else { const then = wander.then; wander = null; moveYaw = null; if (then) then(); }
     }
@@ -823,6 +833,6 @@ function tick(now, dt) {
 /* Vòng lặp theo skill threejs-scene-setup: setAnimationLoop + Timer, dt kẹp trong [0, 0.1] */
 const timer = new THREE.Timer(); timer.connect(document);
 renderer.setAnimationLoop(() => { timer.update(); tick(performance.now(), Math.min(Math.max(timer.getDelta(), 0), 0.1)); });
-setTimeout(() => { say(`Chào bạn! Mình là ${S.name}.`, 3200); if (!S.asleep) startAction('wave'); }, 700);
+setTimeout(() => { say(greeting(S.personality, S.name), 3200); if (!S.asleep && S.personality.social > -30) startAction('wave'); }, 700);
 setTimeout(hideHint, 9000);
 addEventListener('pagehide', save);

@@ -49,12 +49,13 @@ Mỗi tính năng nên nằm trong **file riêng của nó**, `game.js` chỉ n�
 | Âm thanh | `src/game/audio.js` (`sfx('tên')`, `music('cảnh')`) |
 | Nhà: trang trí, cửa hàng, tủ đồ, nhiệm vụ, Sổ loài | `src/game/home.js` |
 | Dựng thú, đồ mặc | `pet3d.js`, `fit.js`, `decor3d.js` |
-| Luật thuần (có bản SQL song song) | `rules.ts`, `layout.ts`, `species.ts`, `catalog.ts` |
+| Cá tính: bốc, dịch theo cách chăm, hành vi rảnh, câu nói | `src/game/personality.ts` |
+| Luật thuần (có bản SQL song song) | `rules.ts`, `layout.ts`, `species.ts`, `catalog.ts`, `personality.ts` |
 | Trạng thái và gọi server | `store.ts`, `data/api.ts`, `data/demo-api.ts`, `data/types.ts` |
 
 ## Quy tắc dễ làm hỏng nhất
 
-**1. Luật ở hai nơi.** Phần lớn luật chơi có bản TypeScript (client) và bản SQL (server). Sửa một nơi phải sửa nơi kia; test `rpc.test.ts`, `decor.test.ts`, `species.test.ts` so khớp hai bên. Chế độ Chơi thử (`demo-api.ts`) cũng phải mô phỏng đúng RPC mới.
+**1. Luật ở hai nơi.** Phần lớn luật chơi có bản TypeScript (client) và bản SQL (server). Sửa một nơi phải sửa nơi kia; test `rpc.test.ts`, `decor.test.ts`, `species.test.ts`, `personality.test.ts` so khớp hai bên. Chế độ Chơi thử (`demo-api.ts`) cũng phải mô phỏng đúng RPC mới.
 
 **2. Migration.**
 - Không sửa migration đã có. Thêm file mới `supabase/migrations/YYYYMMDDHHMMSS_ten.sql`, giờ lớn hơn mọi file đang có.
