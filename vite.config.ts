@@ -4,5 +4,5 @@ export default defineConfig({
   base: './',
   build: { target: 'es2022', sourcemap: true },
   server: { port: 5173 },
-  test: { environment: 'node', include: ['src/**/*.test.ts', 'supabase/tests/**/*.test.ts'] },
+  test: { environment: 'node', include: ['src/**/*.test.ts', 'supabase/tests/**/*.test.ts', 'admin/src/**/*.test.ts'] },
 } as any);

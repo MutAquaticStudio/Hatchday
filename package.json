@@ -6,11 +6,13 @@
   "description": "Game nuôi thú ảo 3D phong cách anime trên web",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
+    "build": "tsc --noEmit && tsc -p admin --noEmit && vite build && vite build -c vite.admin.config.ts",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:db": "vitest run supabase/tests"
+    "test:db": "vitest run supabase/tests",
+    "dev:admin": "vite -c vite.admin.config.ts",
+    "build:admin": "tsc -p admin --noEmit && vite build -c vite.admin.config.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.117.3",

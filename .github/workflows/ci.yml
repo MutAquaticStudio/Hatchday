@@ -37,4 +37,5 @@ jobs:
       - run: npm i --no-save playwright@1.49.1 && npx playwright install --with-deps chromium
       - run: node scripts/smoke.mjs        # vuốt ve, cho ăn, trò chuyện, nhật ký, lớn lên, tắm, chơi, ngủ, cửa hàng
       - run: node scripts/fit-check.mjs    # 3.900 tổ hợp loài × dáng × đồ mặc, phải 0 lẹm
-      - run: node scripts/mobile-check.mjs # giả lập iPhone: chạm, kéo thú, trồng rau, trang trí phòng, thanh trên không tràn
+      - run: node scripts/mobile-check.mjs # giả lập iPhone: chạm, kéo thú, trồng rau, trang trí phòng, thanh trên không tràn, bản đồ và địa điểm
+      - run: node scripts/admin-smoke.mjs  # trang quản trị: vai trò, quà, thông báo, sự kiện, kiểm duyệt, nhật ký

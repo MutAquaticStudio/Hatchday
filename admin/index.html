@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Hatchday — Quản trị</title>
+  <style>
+    :root{--ink:#3b2a3a;--soft:#7a6a7a;--bg:#f7f3f8;--card:#fff;--edge:#e5d9ea;--accent:#d6457f;--ok:#2f8f5b;--warn:#b7791f;--bad:#c0392b}
+    *{box-sizing:border-box}body{margin:0;font:14px/1.45 system-ui,"Segoe UI",sans-serif;color:var(--ink);background:var(--bg)}
+    header{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:10px 16px;background:#fff;border-bottom:1px solid var(--edge);position:sticky;top:0;z-index:5}
+    header h1{font-size:16px;margin:0 8px 0 0}header .who{margin-left:auto;color:var(--soft);font-size:12px}
+    nav{display:flex;flex-wrap:wrap;gap:6px}nav button{border:1px solid var(--edge);background:#fff;border-radius:999px;padding:6px 12px;font:inherit;cursor:pointer}
+    nav button[aria-current=true]{background:var(--ink);color:#fff;border-color:var(--ink)}
+    main{max-width:1000px;margin:0 auto;padding:16px}
+    h2{font-size:18px;margin:0 0 12px}h3{font-size:14px;margin:18px 0 8px}
+    .card{background:var(--card);border:1px solid var(--edge);border-radius:12px;padding:14px;margin-bottom:12px;overflow-x:auto}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+    .stat{background:#fff;border:1px solid var(--edge);border-radius:12px;padding:10px 12px}.stat b{display:block;font-size:22px}.stat span{color:var(--soft);font-size:12px}
+    table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--edge);vertical-align:top}th{color:var(--soft);font-weight:600}
+    label{display:block;margin:8px 0 2px;color:var(--soft);font-size:12px}input,select,textarea{width:100%;max-width:520px;padding:7px 9px;border:1px solid var(--edge);border-radius:8px;font:inherit;background:#fff}
+    textarea{min-height:60px}.row{display:flex;flex-wrap:wrap;gap:8px;align-items:end}.row>*{flex:0 1 auto}
+    button.p{background:var(--accent);color:#fff;border:0;border-radius:8px;padding:8px 14px;font:inherit;cursor:pointer}button.g{background:#fff;border:1px solid var(--edge);border-radius:8px;padding:6px 10px;font:inherit;cursor:pointer}
+    button:disabled{opacity:.5;cursor:default}.msg{margin:8px 0;padding:8px 10px;border-radius:8px;background:#eaf7ef;color:var(--ok)}.msg.err{background:#fdecea;color:var(--bad)}
+    .pill{display:inline-block;border-radius:999px;padding:1px 8px;font-size:12px;background:#eee}.pill.ok{background:#eaf7ef;color:var(--ok)}.pill.warn{background:#fff6e0;color:var(--warn)}.pill.bad{background:#fdecea;color:var(--bad)}
+    .login{max-width:380px;margin:60px auto}.small{color:var(--soft);font-size:12px}
+    @media (max-width:560px){main{padding:10px}header{padding:8px 10px}}
+  </style>
+</head>
+<body><div id="root"></div><script type="module" src="./src/main.ts"></script></body>
+</html>
