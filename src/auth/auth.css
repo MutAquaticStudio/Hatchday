@@ -59,3 +59,9 @@ form{display:flex;flex-direction:column;gap:12px}
 .hatch.r-quy .egg-shape,.hatch.r-huyen .egg-shape{filter:drop-shadow(0 0 18px #ffe58a)}
 @keyframes fadeup{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion:reduce){.hatch-sp{animation:none}}
+
+/* Trang tưởng niệm và trứng đời sau */
+.memorial .memo-days{font-size:18px;margin:6px 0}
+.memo-list{margin:8px 0 10px;text-align:left}
+.memo{margin:4px 0;font-size:14px;font-weight:700;line-height:1.4;background:#fff8fb;border-radius:12px;padding:6px 10px}
+.egg-pick .kin{display:block;font-size:10.5px;font-weight:800;color:#a8507a;margin-top:2px}

@@ -2,7 +2,7 @@ import './styles/base.css';
 import { supabase, isConfigured } from './lib/supabase';
 import { mountAuth } from './auth/auth-ui';
 import { mountOnboarding } from './onboarding/onboarding';
-import { getMyPet, setTimezone } from './data/api';
+import { getMyPet, listFamily, setTimezone } from './data/api';
 import { viError } from './lib/errors';
 
 const root = document.getElementById('root')!;
@@ -38,8 +38,12 @@ async function onSignedIn(): Promise<void> {
   try {
     await setTimezone();
     const pet = await getMyPet();
-    if (pet) await startGame();
-    else mountOnboarding(root, () => { startGame(); });
+    if (pet && pet.stage !== 'departed') await startGame();
+    else {
+      // chưa có bé đang sống: nếu từng có bé đã đi thì đón quả trứng đời sau, không thì là lần đầu chơi
+      const gone = (await listFamily()).filter(p => p.stage === 'departed');
+      mountOnboarding(root, () => { startGame(); }, { parent: gone[gone.length - 1] });
+    }
   } catch (e) {
     started = false;
     mountAuth(root, 'login', onSignedIn, viError(e));

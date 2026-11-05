@@ -12,9 +12,24 @@ Bản chơi thử (chế độ demo, dữ liệu lưu trong trình duyệt): htt
 | Tài khoản (đăng nhập, đăng ký, quên/đặt lại mật khẩu) | Xong, đã thử với Supabase giả lập |
 | Thú: 4 chỉ số, biểu cảm, hành vi rảnh, chuyển cảnh ăn/tắm/chơi/ngủ | Xong |
 | Nhật ký ngày, Ký ức | Xong (nhật ký ghép tự động, chưa dùng AI) |
-| Trang trí phòng, tủ đồ, cửa hàng bằng xu, nhiệm vụ ngày, sổ sưu tập | Xong |
+| Trang trí phòng, tủ đồ, cửa hàng bằng xu, sổ sưu tập | Xong |
+| Thức ăn: 12 món, 5 nhóm dinh dưỡng, kho (mua bằng xu, ăn là hết một phần), suất ăn miễn phí mỗi ngày, ăn cân bằng | Xong |
+| Nhiệm vụ kiếm xu: 5 nhiệm vụ ngày (12 loại), thưởng làm đủ cả ngày, 3 nhiệm vụ tuần | Xong |
 | 50 loài, 5 miền × 4 độ hiếm, lớn lên theo tuổi, 4 dáng trưởng thành, Sổ loài | Xong |
 | Đồ mặc ôm theo mọi dáng, không lẹm | Xong, có script kiểm tra tự động |
+| Âm thanh: 12 tiếng hiệu ứng, nhạc nền tự sinh theo phòng/đêm/lúc ngủ, nút Tiếng/Nhạc/Âm lượng | Xong (Web Audio, không cần file âm thanh) |
+| Cá tính 5 trục: bốc lúc sinh, dịch theo cách chăm, đổi hành vi rảnh, lời chào, câu nói; hiện trong bảng Chỉ số | Xong |
+| Hướng dẫn lần đầu chơi (5 bước ~30 giây, bỏ qua được, xem lại trong Chỉ số) | Xong (`tour.js`, chỉ phía giao diện) |
+| Vòng đời và gia phả: bé sống 30–60 ngày rồi ra đi, trang tưởng niệm, trứng đời sau thừa hưởng họ, cá tính, tai, sở thích, món tủ; cây gia phả | Xong |
+| Thức ăn nâng cao: khẩu vị riêng (món tủ/món ghét lộ dần), vườn rau 4 ô (đợi giờ thật), nấu ăn 16 món từ 2 nguyên liệu, tủ lạnh 3 cấp và thức ăn tươi bị hỏng | Xong |
+| Vườn rau 3D trong cảnh Vườn: luống đất, cây lớn dần theo giờ thật, chạm luống để gieo/tưới/hái với hoạt ảnh; tưới nước rút ngắn 10% thời gian chín (tối đa 3 lần, cách nhau 30 phút) | Xong (`garden3d.js`) |
+| Mảnh đất: mỗi mảnh 3 ô, nâng cấp lên 6 rồi 9 ô (300 và 600 xu), đủ 9 ô mới mua mảnh mới (1.000 và 2.000 xu), tối đa 3 mảnh (27 ô) | Xong |
+| Tự điều khiển thú trong vườn: chạm đất, giữ và kéo, phím mũi tên/WASD; thú tự đi tới luống khi trồng/tưới/hái. Dùng được trên điện thoại cảm ứng | Xong (mới ở cảnh Vườn) |
+| Trang trí nông trại: 12 món (bù nhìn, ghế, tổ ong, giếng…) mua ở tiệm, đặt trong vườn bằng chế độ Trang trí (kéo thả, xoay, cất), lưu lên server (`farm_layouts`). Dùng được trên điện thoại | Xong |
+| Sức khoẻ: 8 bệnh chia 4 nhóm (bỏ bê, ăn uống, vận động, môi trường), mỗi bệnh có điều kiện mắc, hệ số giảm chỉ số, việc bị chặn, cách tự khỏi và thuốc riêng; bệnh để 24 giờ thành nặng; chữa bằng thuốc (tiệm), phòng khám hoặc nghỉ ngơi; sổ sức khoẻ có từ điển bệnh. Chạy trên điện thoại | Xong (`health.ts`, `clinic.js`) |
+| Gắn bó: cấp 1–10 theo điểm (mỗi hành động chăm sóc +1, chữa bệnh +3), danh hiệu từng cấp, quà xu từ cấp 2 (50 → 700 xu), nhận ở bảng Chỉ số, báo khi lên cấp | Xong (`bond.ts`, `20261122000000_bond.sql`) |
+| Chào mừng quay lại: vắng từ 3 giờ thì hiện thẻ tóm tắt chỉ số tụt, bệnh, gợi ý Cho ăn/Tắm/Sức khoẻ | Xong (`companion.js`, chỉ client) |
+| Đồng hành giờ làm việc: nhắc giải lao mỗi 50 phút, uống nước mỗi 90 phút (08:00–19:00, khi trang đang mở), chào sáng và chào tối mỗi ngày một lần; tắt/bật từng loại ở Chỉ số | Xong (chỉ client, chỉ là lời bé nói, chưa có thông báo đẩy) |
 | Quầy trả phí | Đã ẩn (`PAID_SHOP_ENABLED = false` trong `src/game/catalog.ts`) |
 | Chạy trên Supabase thật | Chưa. Mọi thứ mới thử ở chế độ demo hoặc PGlite |
 
@@ -23,16 +38,18 @@ Bản chơi thử (chế độ demo, dữ liệu lưu trong trình duyệt): htt
 ```bash
 npm install                 # có .npmrc legacy-peer-deps=true (lỗi arborist)
 npm run dev                 # không có .env thì tự vào chế độ Chơi thử
-npm test                    # 66 test: luật chơi + toàn bộ RPC trên Postgres thật (PGlite)
+npm test                    # 254 test: luật chơi + toàn bộ RPC trên Postgres thật (PGlite)
 npm run build               # typecheck + build
 node scripts/smoke.mjs      # sau build: chạy thật trên trình duyệt (ăn, nói chuyện, tắm, ngủ, lớn lên…)
 node scripts/fit-check.mjs  # sau build: thử 3.900 tổ hợp loài × dáng × đồ mặc, phải ra 0 lẹm
+node scripts/mobile-check.mjs # sau build: giả lập iPhone với sự kiện chạm và kéo thật
 ```
 
-- `?dev` trên URL: bảng duyệt biểu cảm, tua nhanh thời gian.
+- `?dev` trên URL: bảng duyệt biểu cảm, tua nhanh thời gian, và `window.__petXY()` (vị trí thú trên màn hình, để script kiểm tra nhắm cú vuốt).
 - `?fitcheck` chỉ để script kiểm tra đồ mặc dùng (mở `window.__fitCheck`, `window.__thumb`).
 - Chế độ Chơi thử có nút **Tua 1 ngày** trong bảng Chỉ số để xem lớn lên và tiến hoá.
 - Playwright dùng swiftshader nên FPS đo trong headless không có ý nghĩa.
+- `?dev` cũng mở `window.__sfx('tên')` và `window.__audio()` để thử âm thanh. Âm thanh mới chỉ đo bằng máy, chưa ai nghe trên loa thật; muốn chỉnh tiếng thì sửa bảng `VOICES` trong `audio.js`.
 
 ## Kiến trúc ngắn
 
@@ -42,22 +59,33 @@ Vite + TypeScript + three.js + Supabase. Server là nguồn sự thật, client 
 src/main.ts               điều hướng: tài khoản → tạo thú → game
 src/data/api.ts           gọi RPC; isDemo thì chuyển sang demo-api.ts (mô phỏng RPC bằng localStorage)
 src/game/store.ts         trạng thái thú, xu, đồ, bố cục, loài; gộp lô hành động
-src/game/rules.ts         luật thuần: giảm chỉ số, nhật ký       (song song với private.decay_pet trong SQL)
-src/game/layout.ts        đặt đồ, thoải mái, nhiệm vụ, tiệm xoay   (song song với SQL)
+src/game/rules.ts         luật thuần: giảm chỉ số (có hệ số bệnh), nhật ký       (song song với private.decay_pet trong SQL)
+src/game/health.ts        8 bệnh, thuốc, điều kiện mắc, hồi phục, bệnh nặng   (song song với private.health_step trong SQL)
+src/game/bond.ts          cấp Gắn bó 1–10, quà theo cấp   (song song với private.bond_level trong SQL)
+src/game/companion-rules.ts  luật nhắc giờ làm việc, chào mừng quay lại (chỉ client)
+src/game/companion.js     giao diện: thẻ chào mừng, nhắc giải lao/uống nước, chào sáng/tối
+src/game/clinic.js        sổ sức khoẻ: thẻ bệnh, tủ thuốc, từ điển bệnh, cảnh báo sắp ốm
+src/game/layout.ts        đặt đồ, thoải mái, nhiệm vụ ngày/tuần, tiệm xoay   (song song với SQL)
+src/game/nutrition.ts     ăn cân bằng: 3 nhóm lành mạnh trong 3 ngày thì mỗi bữa Vui +3   (song song với SQL)
+src/game/personality.ts   cá tính 5 trục: bốc, dịch theo cách chăm (song song với SQL), hành vi, câu nói
 src/game/species.ts       50 loài, độ hiếm, giai đoạn, dáng        (song song với SQL, scripts/gen-seed.ts)
 src/game/catalog.ts       danh mục vật phẩm (nguồn của seed SQL)
 src/game/pet3d.js         dựng thú theo loài/giai đoạn/dáng + đo "ổ cắm" cho đồ mặc
 src/game/fit.js           đặt đồ mặc vừa từng dáng thú
-src/game/decor3d.js       mô hình đồ trang trí + đồ mặc (dựng bằng code)
+src/game/decor3d.js       mô hình đồ trang trí (cả đồ nông trại) + đồ mặc (dựng bằng code)
+src/game/garden3d.js      cảnh Vườn: luống, cây, hoạt ảnh, mảnh đất, chế độ trang trí nông trại, kết cấu mặt đất
 src/game/home.js          nhà: trang trí, cửa hàng, tủ đồ, nhiệm vụ, Sổ loài
 src/game/game.js          cảnh 3D, vòng lặp, camera, khu vực (~820 dòng, nối các mảng dưới đây)
 src/game/face.js          mặt và biểu cảm
-src/game/food.js          thức ăn + khay + cho ăn
+src/game/food.js          khay thức ăn theo kho + cho ăn + biểu tượng 12 món (số liệu từng món ở catalog.ts: FOODS)
 src/game/chat.js          trò chuyện (bản mẫu)
+src/game/lineage.ts       luật thừa hưởng cho thú đời sau (blendPersonality, pickHeirSpecies)   (song song với SQL)
+src/game/farewell.js      lớp chia tay khi bé hết tuổi thọ
+src/game/tour.js          hướng dẫn lần đầu chơi (5 bước, chờ người chơi làm thật)
 src/game/diary.js         nhật ký, ký ức, bộ đếm hành động trong ngày
 src/game/growth.js        cảnh tiến hoá + thẻ loài
-src/game/audio.js         sfx()/music() còn trống; game đã gọi sfx('pet'|'feed'|'bath'|…) ở ~14 chỗ
-supabase/migrations/      3 migration; supabase/tests/ test RPC
+src/game/audio.js         sfx()/music() tổng hợp bằng Web Audio; cài đặt trong bảng Chỉ số
+supabase/migrations/      13 migration; supabase/tests/ test RPC
 ```
 
 **Quy tắc quan trọng khi sửa:**
@@ -65,32 +93,36 @@ supabase/migrations/      3 migration; supabase/tests/ test RPC
 - Đổi danh mục vật phẩm hoặc danh sách loài: sửa `catalog.ts` / `species.ts`, chạy `node --experimental-strip-types scripts/gen-seed.ts` để lấy SQL, dán vào migration mới (đừng sửa migration đã có).
 - Thêm đồ mặc mới: dựng trong `decor3d.js`, thêm quy tắc đặt vào `fit.js` nếu cần, rồi chạy `fit-check`.
 - Tuổi thọ thú (30–60 ngày) và món tủ chỉ server biết (`pet_secrets`), không đưa xuống client.
+- Cá tính chạy bằng trigger, không nằm trong `create_pet`/`pet_action`: thú mới có cá tính toàn 0 thì được bốc ngẫu nhiên; mỗi dòng `action_log` dịch cá tính theo `private.personality_drift`. Thêm hành động mới thì thêm độ dịch ở cả `DRIFT` (personality.ts) và hàm SQL đó. Làm vòng đời: truyền sẵn cá tính thừa hưởng khi insert thú đời sau, trigger sẽ giữ nguyên.
+- Vòng đời chạy trong `private.grow_pet` (hết tuổi thọ thì `stage = 'departed'`, ghi `departed_at`, `lived_days`; `get_my_pet` trả về bé vừa đi đúng một lần rồi trả null). Đón thú đời sau bằng `hatch_heir`, không dùng `create_pet` (trigger `heir_required` chặn). Gia phả đọc thẳng từ bảng `pets` (RLS), nối nhau qua `parent_id`. Muốn đổi cách thừa hưởng: sửa `lineage.ts` và `20261115000000_lifecycle.sql` cùng lúc, `lifecycle.test.ts` so khớp. Ở bản thử, nhật ký ngày và nhiệm vụ tuần tính lại từ đầu cho bé đời sau.
+- Sức khoẻ (`health.ts` + `20261121000000_illness.sql`): bệnh bỏ bê tính **chỉ khi người chơi đang mở game** (chỉ số ≤ 5 liền 30 phút, xét trong `get_health` mỗi phút và sau mỗi hành động), nên người đi làm vắng cả đêm không bị phạt. Bệnh do hành động (sâu răng, thiếu chất, căng cơ, cảm lạnh) chỉ xét ngay lúc làm hành động đó qua trigger `action_log_health`, không tự mắc lại khi mở game. Trigger này cũng chặn chơi/tắm khi bệnh cấm (`sick_blocked`); chặn món ngọt khi sâu răng chỉ do giao diện vì `action_log` không ghi món. Hệ số giảm chỉ số theo bệnh nằm ở bảng `illnesses.decay` và `decayStats`/`private.decay_pet` (hai bên phải khớp, `health.test.ts` kiểm cho cả 8 bệnh, cả bệnh nặng). Thêm bệnh: sửa `ILLNESSES`/`MEDICINES` trong `health.ts`, chạy `gen-seed.ts`, dán vào migration mới, và nếu điều kiện mắc mới thì thêm vào `triggeredByAction` (TS) và `private.health_step` (SQL). Test cảm lạnh dùng `tzForHour()` ở `supabase/tests/util.ts` để không phụ thuộc giờ máy. Giá thuốc, giá phòng khám và các ngưỡng (30 phút, 12 lần/giờ, 4 món ngọt…) là con số tự đặt, chưa chơi thử dài ngày.
+- Gắn bó: `bond_xp` tăng trong `pet_action` (đã có từ đầu) và khi chữa bệnh. Cấp và quà ở `bond.ts` và `private.bond_level`/`bond_reward`; `claim_bond_reward(level)` mỗi cấp một lần mỗi bé (bảng `bond_claims`), quà không tính vào trần xu chăm sóc. Mốc điểm và quà là con số tự cân (bé sống 30–60 ngày; cấp 10 cần 1.900 điểm).
+- Chào mừng quay lại và nhắc giờ làm việc chỉ chạy ở client: mốc "lần cuối thấy bé" lưu ở localStorage `hatchday-seen` (ghi mỗi 30 giây khi trang nhìn thấy và lúc rời trang), cài đặt ở `hatchday-companion`, buổi đã chào ở `hatchday-greeted`. Chưa có thông báo đẩy ngoài trình duyệt nên không nhắc được khi đóng trang. Hai tên file `companion.js` và `companion-rules.ts` phải khác nhau (trình dựng ưu tiên `.js` khi import không đuôi).
+- Vườn rau: số ô toàn cục = mảnh × 9 + ô trong mảnh. Luật nâng cấp/mua đất ở `GARDEN_LAND`, `PARCEL` (catalog.ts) và `20261119000000_garden_expand.sql`; luật tưới nước ở `WATER`, `readyAtMs` và `20261118000000_garden_water.sql`. Cảnh 3D và hoạt ảnh ở `garden3d.js` (module riêng, được `game.js` nối vào); thú tự đi bằng `walkPetTo`/`steerTo` trong `game.js`. Màn hình cảm ứng: bấm popover phải bỏ qua cú "click" giả trong 450ms đầu (trình duyệt bắn click vào chỗ menu vừa hiện), nút tối thiểu 40px (`@media (pointer: coarse)`).
+- Trang trí nông trại: đồ có `layer = 'farm'` (12 món trong `ITEMS`), mua ở tiệm như đồ phòng nhưng không hiện trong tủ đồ của phòng. Bố cục lưu ở `farm_layouts` qua `save_farm_layout` (tối đa 60 món, x∈[-6.5,6.5], z∈[-4.2,5.2], xoay 0–3, mỗi món chỉ đặt tối đa số lượng đã có). Mô hình dựng ở `decor3d.js`, chế độ đặt/kéo/xoay ở `garden3d.js` (`editPointer`); khu vực nhìn thấy khi zoom-out là |x|≤4, z≤3.8 nên món mới được đặt trong khoảng đó. Test `farm.test.ts` so khớp luật giữa `catalog.ts` và `20261120000000_farm_decor.sql`.
+- Thức ăn nâng cao chạy bằng `DISHES`/`RECIPES`/`CROPS`/`FRIDGE`/`spoilLoss` (catalog.ts) và migration `20261116000000_food_advanced.sql`. Món nấu là `items.kind = 'dish'` (không bán, không làm món tủ/món ghét của bé). Thức ăn tươi (`effects.fresh`) mỗi ngày hỏng 1/4 phần vượt mức tủ lạnh giữ được; việc tính hỏng làm lười ở `get_economy` (client gọi lúc mở game và mỗi 60 giây), tối đa 7 ngày dồn. Vườn rau tính giờ bằng giờ server (`get_garden` trả `now`). Khẩu vị đọc qua `get_tastes`, món tủ/món ghét chỉ lộ sau khi bé đã được ăn thử món đó. Thêm món nấu: sửa `DISHES`/`RECIPES`, thêm biểu tượng trong `food.js`, chạy `gen-seed.ts` và dán vào migration mới.
+- Thức ăn và nhiệm vụ chạy bằng `FOODS`/`FOOD_STOCK` (catalog.ts), `QUEST_POOL`/`WEEKLY_POOL` (layout.ts) và migration `20261114000000_food_economy.sql`. Món ăn là hàng tồn kho trong `entitlements` (qty); `buy_item` không bán thức ăn, dùng `buy_food`. Kho bé mới được tặng bằng trigger, `create_pet` không bị viết lại. Muốn thêm món: sửa `FOODS`, thêm biểu tượng trong `food.js` (FOOD_SVG), chạy `gen-seed.ts`, dán vào migration mới.
+- Giá và thưởng (xu) là con số mình tự cân, chưa chơi thử dài ngày: bé đói khoảng 54 điểm No mỗi giờ thức, một bữa 15–32 xu; thu nhập tối đa mỗi ngày khoảng 240–270 xu (chăm sóc 50 + 5 nhiệm vụ 140–170 + thưởng cả ngày 50), mỗi tuần thêm khoảng 300 xu từ nhiệm vụ tuần. Cần chỉnh khi có người chơi thật.
+- Thiết kế 5 trục cá tính (tên nét, độ dịch) chưa đối chiếu với GDD. Cần xem lại cho khớp.
 
 ## Việc chưa làm, theo thứ tự đề xuất
 
 **Ưu tiên cao**
-1. **Vòng đời và gia phả.** Hiện bé dừng ở tuổi Xế chiều, không bao giờ mất. Cần: chia tay khi hết tuổi thọ, trang tưởng niệm, trứng đời sau mang tên dòng họ và thừa hưởng một phần gen, cây gia phả. (`pets.stage = 'departed'` và `generation` đã có trong schema.)
-2. **Thức ăn.** Mới có 4 món, ăn miễn phí không giới hạn. GDD có nhóm dinh dưỡng cân bằng 3 ngày, khẩu vị, trồng trọt, nấu ăn, bảo quản, khoảng 12 món mẫu.
-3. **Âm thanh.** Game đã gọi sẵn `sfx('tên')` ở các chỗ đáng có tiếng; chỉ cần làm `src/game/audio.js` (phát tiếng, nhạc nền, nút bật/tắt và âm lượng trong Cài đặt). Không phải sửa game.js.
-4. **Cá tính 5 trục.** Cột `pets.personality` đã có nhưng chưa dùng.
-
-**Ưu tiên vừa**
-5. Cấp Gắn bó (1–10) và mở thêm không gian (hiện chỉ có phòng khách trang trí được).
-6. Sức khoẻ: bệnh và cách chữa (hiện chỉ có biểu cảm ốm khi bẩn).
-7. Đồ chơi theo bảng trong GDD (mới có ném bóng, xoay vòng).
-8. Màn chào mừng quay lại sau khi vắng lâu.
-9. Hướng dẫn lần đầu chơi khoảng 30 giây.
-10. Đồng hành giờ làm việc: nhắc giải lao, uống nước, chào sáng và tối.
+1. ~~Cấp Gắn bó (1–10)~~ Đã xong. Còn lại: mở thêm không gian (ban công, phòng chơi…) theo cấp Gắn bó, vì mỗi không gian cần dựng 3D riêng.
+2. ~~Sức khoẻ: bệnh và cách chữa~~ Đã xong (xem bảng trên). Còn lại: bệnh lây qua bạn bè, bệnh nặng chỉ chữa ở bệnh viện ngoài bản đồ xã hội, thảo dược từ vườn làm thuốc, bệnh theo sự kiện (mùa cúm).
+3. Đồ chơi theo bảng trong GDD (mới có ném bóng, xoay vòng).
+4. ~~Màn chào mừng quay lại~~ Đã xong.
+5. ~~Đồng hành giờ làm việc~~ Đã xong (lời bé nói khi trang đang mở). Còn lại: thông báo đẩy khi đóng trang (cần service worker, mục 9).
 
 **Đã hẹn để sau**
-11. Tích hợp AI: trò chuyện có trí nhớ, nhật ký do AI viết mỗi đêm (Edge Function `chat` và tác vụ theo lịch, xem TDD mục 11).
-12. Xã hội: thăm nhà bạn bè, khu vực chung, an toàn cộng đồng.
-13. Sự kiện theo mùa, bộ đồ Lễ hội.
-14. Thông báo đẩy, service worker (đã có `manifest.webmanifest`).
-15. Bán cosmetic thật: cổng thanh toán, Edge Function xác minh giao dịch, rồi bật `PAID_SHOP_ENABLED`.
+6. Tích hợp AI: trò chuyện có trí nhớ, nhật ký do AI viết mỗi đêm (Edge Function `chat` và tác vụ theo lịch, xem TDD mục 11).
+7. Xã hội: bản đồ thế giới, khu gặp gỡ realtime, chat, kết bạn, thăm nhà, tặng quà, bệnh viện và chợ, trang quản trị (tặng quà, tạo sự kiện). **Đã có bản thiết kế: [PLAN-social-admin.md](PLAN-social-admin.md)** (chưa có code, còn các câu hỏi cần chốt ở mục 13).
+8. Sự kiện theo mùa, bộ đồ Lễ hội.
+9. Thông báo đẩy, service worker (đã có `manifest.webmanifest`).
+10. Bán cosmetic thật: cổng thanh toán, Edge Function xác minh giao dịch, rồi bật `PAID_SHOP_ENABLED`.
 
 **Đưa lên chạy thật (chưa ai làm)**
-- Tạo dự án Supabase (region Singapore), `npx supabase link`, `npx supabase db push` (3 migration), điền `.env` theo `.env.example`.
+- Tạo dự án Supabase (region Singapore), `npx supabase link`, `npx supabase db push` (13 migration), điền `.env` theo `.env.example`.
 - Dashboard Authentication: Site URL và Redirect URLs, mật khẩu tối thiểu 8, rate limit, CAPTCHA, bật Google, viết lại mẫu email tiếng Việt (chi tiết TDD mục 4).
 - Host tĩnh thư mục `dist/` (Vercel, Netlify hoặc Cloudflare Pages).
 - Thú tạo trước migration loài sẽ được gán loài tự động theo quả trứng cũ.

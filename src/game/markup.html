@@ -10,6 +10,7 @@
     <div class="top-btns"><button id="btn-coins" class="pill coins" type="button" title="Xu của bạn · mở cửa hàng"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="#ffd36e" stroke="#a8742e" stroke-width="2"/><path d="M12 7v10M9.5 9.5h4a1.8 1.8 0 0 1 0 3.5h-3a1.8 1.8 0 0 0 0 3.5h4" fill="none" stroke="#a8742e" stroke-width="1.8" stroke-linecap="round"/></svg><span id="coin-n">0</span><span class="sr-only"> xu</span></button><button id="btn-diary" class="pill" type="button" aria-expanded="false" aria-controls="diary">Nhật ký</button><button id="btn-stats" class="pill" type="button" aria-expanded="false" aria-controls="stats">Chỉ số</button></div>
   </header>
   <div class="scene-tag" id="scene-tag">Phòng khách</div>
+  <button class="sick-chip" id="sick-chip" type="button" hidden aria-label="Sức khoẻ của bé: mở sổ sức khoẻ"></button>
 
   <div class="hint" id="hint">Vuốt lên thú để vuốt ve · chạm để chọc</div>
   <div id="bubble" hidden></div>
@@ -20,11 +21,18 @@
   <section id="stats" class="sheet stats" hidden aria-label="Chỉ số của thú">
     <h2>Chỉ số</h2>
     <div id="species-card" class="species-card"></div>
+    <div id="bond" class="bond"></div>
     <label class="name">Tên riêng của thú<input id="pet-name" maxlength="16" autocomplete="off"></label>
     <div id="bars"></div>
+    <div class="persona"><h3>Cá tính</h3><p id="persona-desc" class="note"></p><div id="persona-axes"></div><p class="note" id="tastes"></p></div>
     <div class="row quality" role="group" aria-label="Chất lượng hình ảnh">Hình ảnh <button type="button" class="qbtn" data-q="thap" aria-pressed="false">Thấp</button><button type="button" class="qbtn" data-q="vua" aria-pressed="true">Vừa</button><button type="button" class="qbtn" data-q="cao" aria-pressed="false">Cao</button></div>
+    <div class="row sound" role="group" aria-label="Âm thanh">Âm thanh <button type="button" class="qbtn" id="snd-sfx" aria-pressed="true">Tiếng</button><button type="button" class="qbtn" id="snd-music" aria-pressed="true">Nhạc</button></div>
+    <div class="row companion" role="group" aria-label="Đồng hành giờ làm việc">Đồng hành <button type="button" class="qbtn" data-cp="break" aria-pressed="true">Giải lao</button><button type="button" class="qbtn" data-cp="water" aria-pressed="true">Uống nước</button><button type="button" class="qbtn" data-cp="greet" aria-pressed="true">Chào sáng/tối</button></div>
+    <p class="note">Khi bạn đang mở game trong giờ làm (08:00–19:00), bé nhắc giải lao mỗi 50 phút và uống nước mỗi 90 phút.</p>
+    <label class="row vol">Âm lượng<input type="range" id="snd-vol" min="0" max="100" step="5" value="70"></label>
     <label class="row" hidden><input type="checkbox" id="fast"> Tua nhanh thời gian ×60 (chế độ dev)</label>
     <p class="note">Chỉ số giảm theo giờ thật, kể cả khi bạn đóng trang. Mọi thứ được lưu vào tài khoản của bạn.</p>
+    <button id="btn-tour" class="pill" type="button">Xem lại hướng dẫn</button>
     <button id="btn-logout" class="pill" type="button">Đăng xuất</button>
     <p hidden></p>
   </section>

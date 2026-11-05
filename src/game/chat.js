@@ -4,6 +4,7 @@ import { S, act, addTalkMemory } from './store';
 import { $, clamp } from './dom.js';
 import { count, remember } from './diary.js';
 import { sfx } from './audio.js';
+import { smallTalk } from './personality';
 
 /** `c`: { reduce, hideHint, say, setTemp, spawn }. */
 export function initChat(c) {
@@ -20,7 +21,7 @@ export function initChat(c) {
     if (/làm|công việc|sếp|deadline/.test(s)) return 'Làm việc xong nhớ uống nước nha. Mình ngồi đây chờ bạn.';
     if (/nhớ/.test(s) && S.mem.length) { const m = S.mem[Math.floor(Math.random() * Math.min(S.mem.length, 8))]; return `Nhớ chứ! ${m.text}`; }
     setTemp('excited', 900);
-    return ['Ừm ừm, kể tiếp đi!', 'Thật hả? Hay quá!', 'Mình nhớ chuyện này rồi nha.', 'Hihi, bạn nói chuyện vui ghê.'][Math.floor(Math.random() * 4)];
+    return smallTalk(S.personality);
   }
   $('chat').addEventListener('submit', e => {
     e.preventDefault(); const v = $('chat-input').value.trim(); if (!v) return;

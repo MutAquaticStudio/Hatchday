@@ -1,5 +1,5 @@
 // Sinh câu lệnh seed SQL từ src/game/catalog.ts. Chạy: node --experimental-strip-types scripts/gen-seed.ts
-import { ITEMS, DEFAULT_LAYOUT } from '../src/game/catalog.ts';
+import { ITEMS, DEFAULT_LAYOUT, FOODS, DISHES, RECIPES, CROPS } from '../src/game/catalog.ts';
 const q = (v: unknown) => v == null ? 'null' : typeof v === 'number' ? String(v) : `'${String(v).replace(/'/g, "''")}'`;
 const arr = (a?: string[]) => `'{${(a || []).join(',')}}'`;
 const rows = ITEMS.map(i => `  (${q(i.id)}, ${q(i.kind)}, ${q(i.name)}, ${q(i.layer)}, ${q(i.slot)}, ${q(i.w ?? null)}, ${q(i.d ?? null)}, ${q(i.comfort ?? 0)}, ${q(i.theme ?? null)}, ${arr(i.tags)}, ${q(i.price)}, ${q(i.source)}, ${q(i.rarity)})`);
@@ -8,3 +8,23 @@ console.log(`-- DEFAULT_LAYOUT\n${JSON.stringify(DEFAULT_LAYOUT)}`);
 // Loài thú (src/game/species.ts) — dán vào migration 20261112000000_species_growth.sql
 import { SPECIES, RARITIES } from '../src/game/species.ts';
 console.log(`-- SPECIES\ninsert into public.species (id, name, region, rarity, weight) values\n${SPECIES.map(s => `  (${q(s.id)}, ${q(s.name)}, ${s.region}, ${q(s.rarity)}, ${RARITIES[s.rarity].weight})`).join(',\n')};`);
+
+// Thức ăn, món nấu, công thức, cây trồng (src/game/catalog.ts) — dán vào migration 20261114000000_food_economy.sql (thức ăn)
+// và 20261116000000_food_advanced.sql (món nấu, công thức, cây trồng, và cờ fresh của thức ăn)
+const eff = (f: (typeof FOODS)[number] | (typeof DISHES)[number]) => JSON.stringify({ no: f.no, vui: f.vui, group: f.group, ...(f.group2 ? { group2: f.group2 } : {}), fresh: f.fresh });
+console.log(`-- FOODS\ninsert into public.items (id, kind, name, effects, price_coins, source, rarity) values\n${FOODS.map(f => `  (${q(f.id)}, 'food', ${q(f.name)}, '${eff(f)}', ${f.price}, 'market', 'thuong')`).join(',\n')}\non conflict (id) do update set name = excluded.name, effects = excluded.effects, price_coins = excluded.price_coins, source = excluded.source, rarity = excluded.rarity;`);
+console.log(`-- DISHES\ninsert into public.items (id, kind, name, effects, price_coins, source, rarity) values\n${DISHES.map(f => `  (${q(f.id)}, 'dish', ${q(f.name)}, '${eff(f)}', null, 'cook', 'thuong')`).join(',\n')}\non conflict (id) do update set name = excluded.name, effects = excluded.effects;`);
+console.log(`-- RECIPES\ninsert into public.recipes (id, dish, a, b) values\n${RECIPES.map(r => `  (${q(r.id)}, ${q(r.dish)}, ${q(r.a)}, ${q(r.b)})`).join(',\n')}\non conflict (id) do update set dish = excluded.dish, a = excluded.a, b = excluded.b;`);
+console.log(`-- CROPS\ninsert into public.crops (id, hours, seed, yield) values\n${CROPS.map(c => `  (${q(c.id)}, ${c.hours}, ${c.seed}, ${c.yield})`).join(',\n')};`);
+
+// Đồ trang trí nông trại (layer 'farm') — dán vào migration 20261120000000_farm_decor.sql
+console.log(`-- FARM ITEMS\ninsert into public.items (id, kind, name, layer, slot, w, d, comfort, theme, tags, price_coins, source, rarity) values\n${ITEMS.filter(i => i.layer === 'farm').map(i => `  (${q(i.id)}, ${q(i.kind)}, ${q(i.name)}, ${q(i.layer)}, ${q(i.slot)}, ${q(i.w ?? null)}, ${q(i.d ?? null)}, ${q(i.comfort ?? 0)}, ${q(i.theme ?? null)}, ${arr(i.tags)}, ${q(i.price)}, ${q(i.source)}, ${q(i.rarity)})`).join(',\n')}\non conflict (id) do nothing;`);
+
+// Bệnh và thuốc (src/game/health.ts) — dán vào migration 20261121000000_illness.sql
+import { ILLNESSES, MEDICINES } from '../src/game/health.ts';
+console.log(`-- MEDICINES\ninsert into public.items (id, kind, name, effects, price_coins, source, rarity) values\n${MEDICINES.map(m => `  (${q(m.id)}, 'medicine', ${q(m.name)}, '${JSON.stringify({ cures: m.cures })}', ${m.price}, 'market', 'thuong')`).join(',\n')}\non conflict (id) do update set name = excluded.name, effects = excluded.effects, price_coins = excluded.price_coins;`);
+console.log(`-- ILLNESSES\ninsert into public.illnesses (id, name, family, decay, block, heal_kind, heal_stat, heal_hours, medicine) values\n${ILLNESSES.map(i => `  (${q(i.id)}, ${q(i.name)}, ${q(i.family)}, '${JSON.stringify(i.decay)}', ${arr(i.block)}, ${q(i.heal.kind)}, ${q(i.heal.kind === 'stat' ? i.heal.stat : null)}, ${q(i.heal.kind === 'balanced' ? null : i.heal.hours)}, ${q(i.medicine)})`).join(',\n')}\non conflict (id) do update set name = excluded.name, family = excluded.family, decay = excluded.decay, block = excluded.block, heal_kind = excluded.heal_kind, heal_stat = excluded.heal_stat, heal_hours = excluded.heal_hours, medicine = excluded.medicine;`);
+
+// Gắn bó (src/game/bond.ts) — dán vào migration 20261122000000_bond.sql
+import { BOND } from '../src/game/bond.ts';
+console.log(`-- BOND: mốc cấp 2..10 và quà\n-- levels ${JSON.stringify(BOND.levels)}\n-- rewards ${JSON.stringify(BOND.rewards)}`);

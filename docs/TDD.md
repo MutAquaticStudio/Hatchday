@@ -45,11 +45,11 @@ src/
   game/store.ts        Trạng thái thú, xu, đồ sở hữu, bố cục, trang phục, đồng bộ định kỳ
   game/game.js         Cảnh 3D, vòng lặp, camera, khu vực, hành vi rảnh (nối các mảng bên dưới)
   game/face.js         Mặt và biểu cảm (EXPR, drawFace)
-  game/food.js         Thức ăn, khay, cho ăn
+  game/food.js         Thức ăn, khay theo kho, cho ăn (số liệu món: catalog.ts; ăn cân bằng: nutrition.ts)
   game/chat.js         Trò chuyện (bản mẫu, sau này nối AI)
   game/diary.js        Nhật ký ngày, Ký ức, bộ đếm hành động
   game/growth.js       Cảnh tiến hoá, thẻ loài
-  game/audio.js        sfx()/music(): chỗ trống để làm âm thanh (game đã gọi sẵn)
+  game/audio.js        sfx()/music(): âm thanh tổng hợp bằng Web Audio
   game/dom.js          $, esc, clamp dùng chung
   game/home.js         Nhà: chế độ trang trí, cửa hàng, tủ đồ, nhiệm vụ, phản ứng của thú
   game/decor3d.js      Dựng mô hình toon cho đồ trang trí + trang phục (thủ tục, không cần file 3D)
@@ -96,7 +96,13 @@ Khoá 15 phút sau 5 lần sai hiện chỉ có ở phía máy (trải nghiệm)
 | `species` | 50 loài: tên, miền, độ hiếm, trọng số | đọc |
 | `species_seen` | Sổ loài: loài đã từng nuôi, các dáng đã đạt | đọc của mình |
 | `room_layouts` | 3 ô bố cục phòng (jsonb), `profiles.active_layout` chọn ô đang dùng | đọc của mình |
-| `quest_claims`, `collection_claims` | Đã nhận thưởng nhiệm vụ ngày / bộ sưu tập | đọc của mình |
+| `garden_plots` (vườn rau), `recipes`, `crops` (tham chiếu, ai cũng đọc) | Cây đang trồng (kèm số lần tưới) / công thức nấu / cây trồng được | đọc của mình / đọc |
+| `garden_parcels` | Mảnh đất của người chơi: mảnh 0–2, cấp 0–2 (3/6/9 ô) | đọc của mình |
+| `farm_layouts` | Bố cục trang trí nông trại (jsonb, tối đa 60 món) | đọc của mình |
+| `bond_claims` | Cấp Gắn bó (2–10) đã nhận quà của từng bé | đọc của mình |
+| `illnesses` | 8 bệnh: nhóm, hệ số giảm chỉ số (`decay`), việc bị chặn (`block`), cách khỏi (`heal_kind`, `heal_stat`, `heal_hours`), thuốc | đọc |
+| `pets.illness`, `sick_since`, `critical_since`, `recover_at` | Bệnh đang mắc; lúc ốm; lúc chỉ số bắt đầu nguy kịch; lúc sẽ tự khỏi (rỗng = chưa có tiến triển phục hồi) | chỉ đọc |
+| `quest_claims`, `weekly_claims`, `ration_claims`, `collection_claims` | Đã nhận thưởng nhiệm vụ ngày (idx 5 = thưởng cả ngày) / nhiệm vụ tuần / suất ăn / bộ sưu tập | đọc của mình |
 | `memories` | Ký ức, `first_key` để "lần đầu" chỉ ghi một lần | đọc, xoá của mình |
 | `day_logs` | Bộ đếm theo ngày → nhật ký | đọc |
 | `diary_entries` | Trang nhật ký do AI viết (giai đoạn sau) | đọc |
@@ -109,15 +115,31 @@ Khoá 15 phút sau 5 lần sai hiện chỉ có ở phía máy (trải nghiệm)
 | `get_my_pet()` | | thú hiện tại, đã áp giảm chỉ số tới giờ server | `not_authenticated` |
 | `create_pet(name, family, egg)` | tên 1–16 ký tự, trứng 0–2 | thú mới; tạo bí mật, đồ khởi đầu, ký ức "gặp nhau" | `pet_exists`, `invalid_name`, `invalid_egg` |
 | `rename_pet(name)` | | | `invalid_name` |
-| `pet_action(action, item?, count?)` | `feed`, `pet`, `bath_scrub`, `bath_rinse`, `play_ball`, `play_spin`, `talk`, `sleep`, `wake` | `{ pet, refused, fav, new_memory }` | `unknown_action`, `unknown_item`, `not_owned`, `rate_limited`, `no_pet` |
+| `pet_action(action, item?, count?)` | `feed`, `pet`, `bath_scrub`, `bath_rinse`, `play_ball`, `play_spin`, `talk`, `sleep`, `wake` (`feed` trừ 1 phần trong kho) | `{ pet, refused, fav, new_memory, earned, coins, stock, balanced }` | `unknown_action`, `unknown_item`, `not_owned`, `rate_limited`, `no_pet`, `sick_blocked` (bé đang ốm, bệnh cấm chơi/tắm) |
 | `add_talk_memory(text)` | 4–120 ký tự, tối đa 20/ngày | | `no_pet` |
-| `get_my_pet()` (cập nhật) | | áp giảm chỉ số rồi `grow_pet`: đổi giai đoạn theo tuổi, chốt dáng khi trưởng thành, ghi ký ức | |
+| `get_my_pet()` (cập nhật) | | áp giảm chỉ số rồi `grow_pet`: đổi giai đoạn theo tuổi, chốt dáng khi trưởng thành, ghi ký ức; hết tuổi thọ thì chia tay (trả bé `departed` một lần rồi null) | |
 | `create_pet(name, family, egg)` (cập nhật) | trứng = miền 0–4 | bốc loài theo độ hiếm trên server, ghi Sổ loài | `invalid_egg` |
-| `get_economy()` | | xu, xu hôm nay, 6 món tiệm hôm nay, cuối tuần? | |
+| `get_economy()` | | xu, xu hôm nay, 6 món tiệm hôm nay, cuối tuần?, đã nhận suất ăn chưa | |
+| `hatch_heir(name, egg)` | đón thú đời sau của bé đã đi, giữ dòng họ, đời + 1 | thú mới (thừa hưởng cá tính, tai, nửa sắc độ, sở thích, 50% món tủ) | `pet_exists`, `no_parent`, `invalid_name`, `invalid_egg` |
+| `upgrade_fridge()` | tủ lạnh cấp 1 giá 200 xu, cấp 2 giá 500 xu | `{ coins, fridge_level }` | `max_level`, `not_enough_coins` |
+| `get_garden()` / `plant_crop(plot, crop)` / `harvest_crop(plot)` | ô toàn cục 0–26 (= mảnh × 9 + ô), cây chín sau 4–10 giờ, thu 3 phần | `{ now, parcels[], plots[] }` kèm giờ server / `{ coins }` / `{ item, qty, got }` | `invalid_plot`, `plot_locked`, `unknown_crop`, `plot_busy`, `plot_empty`, `not_ready`, `stock_full`, `not_enough_coins` |
+| `water_crop(plot)` | mỗi lần rút 10% thời gian chín, tối đa 3 lần, cách nhau 30 phút | `{ plot, waters, ready_at }` | `plot_empty`, `already_ready`, `max_watered`, `too_soon` |
+| `upgrade_parcel(parcel)` / `buy_parcel()` | nâng 3→6 ô giá 300 xu, 6→9 ô giá 600 xu; mua mảnh mới khi mảnh cuối đủ 9 ô: 1.000 xu (mảnh 2), 2.000 xu (mảnh 3) | `{ coins, parcel, level?, size? }` | `plot_locked`, `max_land`, `max_parcels`, `parcel_not_full`, `not_enough_coins` |
+| `claim_bond_reward(level)` | cấp 2–10; đủ điểm Gắn bó; mỗi cấp một lần mỗi bé | `{ coins, reward }` (không tính vào trần xu chăm sóc) | `invalid_level`, `no_pet`, `bond_too_low`, `already_claimed` |
+| `get_health()` | | thú sau khi áp giảm chỉ số, xét bệnh bỏ bê và hồi phục (có `illness`, `critical_since`, `recover_at`) | `not_authenticated` |
+| `buy_medicine(item, qty)` | qty 1–10, kho tối đa 10 liều mỗi loại | `{ coins, qty }` | `unknown_item`, `invalid_qty`, `stock_full`, `not_enough_coins` |
+| `use_medicine(item)` | đúng thuốc của bệnh; bệnh nặng thì không dùng được | `{ pet, qty }`, cộng 3 gắn bó | `unknown_item`, `no_pet`, `not_sick`, `wrong_medicine`, `needs_clinic`, `not_owned` |
+| `visit_clinic()` | 150 xu (bệnh nặng 250 xu); bồi bổ chỉ số bị bỏ bê lên ít nhất 60 | `{ pet, coins }`, cộng 3 gắn bó | `no_pet`, `not_sick`, `not_enough_coins` |
+| `save_farm_layout(layout)` | `layout` = `{ items: [{ id, x, z, rot }] }`, tối đa 60 món (đọc bố cục thẳng từ bảng `farm_layouts`) | `{ count }` | `invalid_layout`, `not_owned` |
+| `cook(recipe, qty)` | qty 1–5, mỗi lần dùng 1 phần mỗi nguyên liệu | `{ dish, qty }` | `unknown_recipe`, `invalid_qty`, `missing_ingredient`, `stock_full` |
+| `get_tastes()` | | `{ fav, dis, tried, total }`, món tủ/ghét chỉ lộ sau khi bé đã ăn thử | `no_pet` |
+| `buy_food(item, qty)` | qty 1–10, kho tối đa 30 phần mỗi món | `{ coins, qty }` | `unknown_item`, `invalid_qty`, `stock_full`, `not_enough_coins` |
+| `claim_ration()` | 3 Cơm nắm miễn phí, mỗi ngày một lần | `{ item, qty }` | `already_claimed` |
 | `buy_item(item)` | | `{ coins, owned }` | `not_for_sale`, `already_owned`, `not_enough_coins` |
 | `save_room_layout(slot, layout, activate)` | ô 0–2 | `{ comfort_level }` | `invalid_layout`, `not_owned` |
 | `equip_outfit(outfit)` / `save_outfit_preset(slot, outfit)` | `{ head, face, neck, back }` | | `invalid_outfit`, `not_owned` |
-| `get_quests()` / `claim_quest(key)` | | 3 nhiệm vụ ngày + tiến độ / `{ coins }` | `invalid_quest`, `quest_not_done`, `already_claimed` |
+| `get_quests()` | | `{ day, quests[5], bonus, week, weekly[3] }`, mỗi nhiệm vụ có tiến độ, mục tiêu, thưởng | |
+| `claim_quest(idx)` / `claim_quest_bonus()` / `claim_weekly_quest(idx)` | nhiệm vụ ngày 0–4, thưởng làm đủ cả ngày, nhiệm vụ tuần 0–2 | `{ coins, reward }` | `invalid_quest`, `quest_not_done`, `already_claimed` |
 | `claim_collection(theme)` | | +150 xu, ký ức | `invalid_theme`, `collection_incomplete`, `already_claimed` |
 
 `pet_action` với hành động chăm sóc trả thêm `earned` và `coins` (+5 xu, tối đa 50 xu/ngày).
@@ -138,9 +160,9 @@ Khoá 15 phút sau 5 lần sai hiện chỉ có ở phía máy (trải nghiệm)
 - **Thoải mái:** cộng điểm thoải mái từng món (mỗi món tính tối đa 2 cái). ≥6 → cấp 2, ≥12 → 3, ≥20 → 4, ≥30 → 5. Mỗi cấp trên 1 giảm 5% tốc độ tụt Vui và Năng lượng, tăng 5% hồi khi ngủ. Áp ở cả `rules.decayStats` và `private.decay_pet`.
 - **Bộ chủ đề:** ≥5 món khác nhau cùng chủ đề → thú thỉnh thoảng nói câu riêng của bộ. Sưu tập đủ một bộ → nhận 150 xu + ký ức.
 - **Sở thích:** gen có 2 nhãn thích + 1 nhãn ghét. Đặt/mặc món hợp nhãn → thả tim; ghét → dỗi. Thú tự đi tới đồ yêu thích khi rảnh.
-- **Kinh tế (chỉ xu, không gacha):** bắt đầu 300 xu. Chăm sóc +5 xu (tối đa 50/ngày), 3 nhiệm vụ/ngày × 30 xu. Chợ bán cố định; Tiệm hôm nay xoay 6 món theo ngày; Chợ cuối tuần mở T7–CN; Quầy trả phí hiển thị "sắp mở".
+- **Kinh tế (chỉ xu, không gacha):** bắt đầu 300 xu. Chăm sóc +5 xu (tối đa 50/ngày), 5 nhiệm vụ/ngày (20–45 xu mỗi cái, làm đủ thêm 50 xu), 3 nhiệm vụ/tuần (100–110 xu). Thức ăn mua bằng xu (12–32 xu một phần), có suất ăn miễn phí mỗi ngày. Chợ bán cố định; Tiệm hôm nay xoay 6 món theo ngày; Chợ cuối tuần mở T7–CN; Quầy trả phí hiển thị "sắp mở".
 - **Trang phục:** 4 ô (đầu, mặt, cổ, lưng), 3 bộ phối lưu sẵn.
-- Hằng số và công thức xoay vòng/nhiệm vụ nằm ở `layout.ts` và migration `20261105000000_decor_cosmetics.sql` — test `decor.test.ts` so khớp hai bên.
+- Hằng số và công thức xoay vòng/nhiệm vụ nằm ở `layout.ts` và các migration `20261105000000_decor_cosmetics.sql`, `20261114000000_food_economy.sql` — test `decor.test.ts`, `food.test.ts` so khớp hai bên.
 
 ## 7c. Loài và lớn lên
 
@@ -189,3 +211,32 @@ Khoá 15 phút sau 5 lần sai hiện chỉ có ở phía máy (trải nghiệm)
 - Mô hình 3D thật (glTF) thay cho đồ dựng thủ tục khi có hoạ sĩ.
 - Service worker cho PWA (cache tài nguyên, thông báo đẩy).
 - Đưa chữ giao diện ra file riêng để dễ dịch.
+
+## 7b. Sức khoẻ: bệnh, điều kiện mắc và cách khỏi
+
+Bệnh chỉ do chăm chưa đúng, không ngẫu nhiên. Luật ở `src/game/health.ts` và `20261121000000_illness.sql`.
+
+Cột Ảnh hưởng: "×1,5" nghĩa là chỉ số đó tụt nhanh gấp 1,5 lần so với lúc khoẻ (trong game hiện thành câu "Độ no tụt nhanh gấp 1,5 lần").
+
+| Bệnh | Nhóm | Điều kiện mắc | Ảnh hưởng | Khỏi |
+| --- | --- | --- | --- | --- |
+| Đau bụng | bỏ bê | No ≤ 5 liền 30 phút | No ×1,5, Vui ×1,2; không chơi | Trà gừng; hoặc No ≥ 50 rồi nghỉ 3 giờ |
+| Nổi mẩn | bỏ bê | Sạch ≤ 5 liền 30 phút | Sạch ×1,5, Vui ×1,3 | Thuốc bôi lá; hoặc Sạch ≥ 50 rồi nghỉ 3 giờ |
+| Ủ rũ | bỏ bê | Vui ≤ 5 liền 30 phút | Vui ×1,5, Năng lượng ×1,2; không chơi | Mật ong ấm; hoặc Vui ≥ 50 rồi nghỉ 3 giờ |
+| Sốt mệt | bỏ bê | Năng lượng ≤ 5 (lúc thức) liền 30 phút | Năng lượng ×1,5, No ×1,2; không chơi | Thuốc hạ sốt; hoặc Năng lượng ≥ 50 rồi nghỉ 3 giờ |
+| Sâu răng | ăn uống | Món ngọt thứ 4 trong ngày | Vui ×1,3; không ăn đồ ngọt (chỉ giao diện chặn) | Nước súc miệng muối; hoặc tự khỏi sau 6 giờ |
+| Thiếu chất | ăn uống | Từ 6 bữa trong 3 ngày mà chỉ 1 nhóm lành mạnh | Năng lượng ×1,3, No ×1,2 | Vitamin tổng hợp; hoặc khỏi khi ăn đủ 3 nhóm lành mạnh trong 3 ngày |
+| Căng cơ | vận động | Chơi đồ chơi từ 12 lần trong 1 giờ | Năng lượng ×1,3; không chơi | Dầu xoa bóp; hoặc tự khỏi sau 2 giờ |
+| Cảm lạnh | môi trường | Chơi ngoài vườn lúc khuya (22:00–05:00 giờ địa phương) từ 2 lần trong 2 giờ | Năng lượng ×1,3, Vui ×1,2; không chơi, không tắm | Siro ho thảo mộc; hoặc tự khỏi sau 4 giờ |
+
+- Bệnh bỏ bê chỉ tính lúc người chơi đang mở game (đồng hồ chạy trong `get_health` và sau mỗi hành động). Đóng game thì đồng hồ không chạy.
+- Bệnh do hành động chỉ xét ngay lúc làm hành động (trigger `action_log_health`).
+- Bệnh nặng: không có tiến triển phục hồi (`recover_at` rỗng) suốt 24 giờ; mọi hệ số nhân thêm 1,25 và chỉ phòng khám chữa được.
+- Thuốc 40–70 xu một liều (kho tối đa 10). Phòng khám 150 xu, bệnh nặng 250 xu.
+- Chữa khỏi được +3 gắn bó (`bond_xp`).
+
+## 7c. Gắn bó
+
+Mốc điểm cấp 1–10: 0, 25, 80, 170, 300, 480, 720, 1020, 1400, 1900. Quà xu từ cấp 2: 50, 80, 120, 160, 220, 300, 400, 520, 700.
+Danh hiệu: Mới quen, Quen thuộc, Thân thiết, Gắn bó, Tin cậy, Bạn tốt, Tri âm, Tri kỷ, Khó tách rời, Một lòng.
+Điểm cộng: +1 mỗi hành động chăm sóc thành công (`pet_action`), +3 khi chữa khỏi bệnh. Luật ở `src/game/bond.ts` và `20261122000000_bond.sql`.

@@ -1,6 +1,6 @@
 import { supabase, isConfigured } from '../lib/supabase';
 import * as demo from './demo-api';
-import type { ActionResult, DayLogRow, Economy, MemoryRow, Outfit, PetAction, PetRow, QuestRow, SeenRow } from './types';
+import type { ActionResult, CureResult, DayLogRow, Economy, FarmItem, Garden, MemoryRow, Outfit, PetAction, PetRow, QuestBoard, SeenRow, Tastes } from './types';
 import type { Layout } from '../game/catalog';
 
 /** Chưa cấu hình Supabase thì chạy chế độ Chơi thử (dữ liệu trong trình duyệt). */
@@ -28,6 +28,14 @@ export async function getMyPet(): Promise<PetRow | null> {
 export const createPet = async (name: string, family: string, egg: number) =>
   isDemo ? demo.createPet(name, family, egg) : unwrap(await supabase.rpc('create_pet', { p_name: name, p_family: family, p_egg: egg })) as PetRow;
 
+/** Đón quả trứng đời sau của bé đã đi (giữ dòng họ, đời + 1, thừa hưởng cá tính và gen). */
+export const hatchHeir = async (name: string, egg: number) =>
+  isDemo ? demo.hatchHeir(name, egg) : unwrap(await supabase.rpc('hatch_heir', { p_name: name, p_egg: egg })) as PetRow;
+
+/** Cả gia phả: mọi bé của người chơi từ đời 1 tới nay, cũ trước. */
+export const listFamily = async (): Promise<PetRow[]> =>
+  isDemo ? demo.listFamily() : unwrap(await supabase.from('pets').select('id, parent_id, name, family_name, generation, stage, species, form, genes, personality, born_at, departed_at, lived_days').order('generation')) as PetRow[];
+
 export const renamePet = async (name: string) => { if (isDemo) return demo.renamePet(name); unwrap(await supabase.rpc('rename_pet', { p_name: name })); };
 
 export const petAction = async (action: PetAction, item?: string, count = 1) =>
@@ -36,12 +44,12 @@ export const petAction = async (action: PetAction, item?: string, count = 1) =>
 export const addTalkMemory = async (text: string) => { if (isDemo) return demo.addTalkMemory(text); unwrap(await supabase.rpc('add_talk_memory', { p_text: text })); };
 
 export const listMemories = async (petId: string) =>
-  isDemo ? demo.listMemories() : unwrap(await supabase.from('memories').select('id, kind, body, created_at').eq('pet_id', petId).order('created_at', { ascending: false }).limit(60)) as MemoryRow[];
+  isDemo ? demo.listMemories(petId) : unwrap(await supabase.from('memories').select('id, kind, body, created_at').eq('pet_id', petId).order('created_at', { ascending: false }).limit(60)) as MemoryRow[];
 
 export const deleteMemory = async (id: number) => { if (isDemo) return demo.deleteMemory(id); unwrap(await supabase.from('memories').delete().eq('id', id)); };
 
 export const listDayLogs = async (petId: string) =>
-  isDemo ? demo.listDayLogs() : unwrap(await supabase.from('day_logs').select('day, fed, foods, bath, ball, pet, talk, sleep').eq('pet_id', petId).order('day', { ascending: false }).limit(30)) as DayLogRow[];
+  isDemo ? demo.listDayLogs() : unwrap(await supabase.from('day_logs').select('day, fed, foods, fgroups, bath, ball, pet, talk, sleep').eq('pet_id', petId).order('day', { ascending: false }).limit(30)) as DayLogRow[];
 
 /* ---------- Trang trí, trang phục, xu, nhiệm vụ ---------- */
 const rpc = async <T>(fn: string, args?: Record<string, unknown>) => unwrap(await supabase.rpc(fn, args)) as T;
@@ -69,8 +77,26 @@ export const saveLayout = (slot: number, layout: Layout, activate = true) =>
 export const equipOutfit = (o: Outfit) => (isDemo ? demo.equipOutfit(o) : rpc<Outfit>('equip_outfit', { p_outfit: o }));
 export const saveOutfitPreset = async (i: number, o: Outfit) => { if (isDemo) return demo.saveOutfitPreset(i, o); await rpc('save_outfit_preset', { p_idx: i, p_outfit: o }); };
 
-export const getQuests = () => (isDemo ? demo.getQuests() : rpc<QuestRow[]>('get_quests'));
-export const claimQuest = (i: number) => (isDemo ? demo.claimQuest(i) : rpc<{ coins: number }>('claim_quest', { p_idx: i }));
+export const getQuests = () => (isDemo ? demo.getQuests() : rpc<QuestBoard>('get_quests'));
+export const claimQuest = (i: number) => (isDemo ? demo.claimQuest(i) : rpc<{ coins: number; reward: number }>('claim_quest', { p_idx: i }));
+export const claimQuestBonus = () => (isDemo ? demo.claimQuestBonus() : rpc<{ coins: number; reward: number }>('claim_quest_bonus'));
+export const claimWeeklyQuest = (i: number) => (isDemo ? demo.claimWeeklyQuest(i) : rpc<{ coins: number; reward: number }>('claim_weekly_quest', { p_idx: i }));
+
+/* ---------- Thức ăn ---------- */
+export const buyFood = (id: string, qty: number) => (isDemo ? demo.buyFood(id, qty) : rpc<{ coins: number; qty: number }>('buy_food', { p_item: id, p_qty: qty }));
+export const upgradeFridge = () => (isDemo ? demo.upgradeFridge() : rpc<{ coins: number; fridge_level: number }>('upgrade_fridge'));
+export const getGarden = () => (isDemo ? demo.getGarden() : rpc<Garden>('get_garden'));
+export const plantCrop = (plot: number, crop: string) => (isDemo ? demo.plantCrop(plot, crop) : rpc<{ coins: number }>('plant_crop', { p_plot: plot, p_crop: crop }));
+export const upgradeParcel = (parcel: number) => (isDemo ? demo.upgradeParcel(parcel) : rpc<{ coins: number; parcel: number; level: number; size: number }>('upgrade_parcel', { p_parcel: parcel }));
+export const buyParcel = () => (isDemo ? demo.buyParcel() : rpc<{ coins: number; parcel: number }>('buy_parcel'));
+export const getFarm = async (): Promise<FarmItem[]> =>
+  isDemo ? demo.getFarm() : ((unwrap(await supabase.from('farm_layouts').select('layout').maybeSingle()) as { layout: { items: FarmItem[] } } | null)?.layout.items ?? []);
+export const saveFarm = (items: FarmItem[]) => (isDemo ? demo.saveFarm(items) : rpc<{ count: number }>('save_farm_layout', { p_layout: { items } }));
+export const waterCrop = (plot: number) => (isDemo ? demo.waterCrop(plot) : rpc<{ waters: number; ready_at: string }>('water_crop', { p_plot: plot }));
+export const harvestCrop = (plot: number) => (isDemo ? demo.harvestCrop(plot) : rpc<{ item: string; qty: number; got: number }>('harvest_crop', { p_plot: plot }));
+export const cook = (recipe: string, qty = 1) => (isDemo ? demo.cook(recipe, qty) : rpc<{ dish: string; qty: number }>('cook', { p_recipe: recipe, p_qty: qty }));
+export const getTastes = () => (isDemo ? demo.getTastes() : rpc<Tastes>('get_tastes'));
+export const claimRation = () => (isDemo ? demo.claimRation() : rpc<{ item: string; qty: number }>('claim_ration'));
 export const claimCollection = (t: string) => (isDemo ? demo.claimCollection(t) : rpc<{ coins: number }>('claim_collection', { p_theme: t }));
 export async function listCollectionClaims(): Promise<string[]> {
   if (isDemo) return demo.listCollectionClaims();
@@ -82,3 +108,19 @@ export const listSpeciesSeen = async () =>
   isDemo ? demo.listSpeciesSeen() : unwrap(await supabase.from('species_seen').select('species_id, first_at, forms').order('first_at')) as SeenRow[];
 /** Chỉ chế độ Chơi thử: lùi ngày sinh để xem thú lớn lên. Bản thật không có (tuổi do server tính). */
 export const demoAge = async (days: number) => (isDemo ? demo.demoAge(days) : null);
+
+/* ---------- Sức khoẻ ---------- */
+/** Áp giảm chỉ số, xét bệnh bỏ bê và hồi phục. Gọi lúc mở game và mỗi phút. */
+export const getHealth = async (): Promise<PetRow | null> => {
+  if (isDemo) return demo.getHealth();
+  const row = unwrap(await supabase.rpc('get_health')) as PetRow | null;
+  return row && row.id ? row : null;
+};
+export const buyMedicine = (id: string, qty: number) => (isDemo ? demo.buyMedicine(id, qty) : rpc<{ coins: number; qty: number }>('buy_medicine', { p_item: id, p_qty: qty }));
+export const useMedicine = (id: string) => (isDemo ? demo.useMedicine(id) : rpc<CureResult>('use_medicine', { p_item: id }));
+export const visitClinic = () => (isDemo ? demo.visitClinic() : rpc<CureResult>('visit_clinic'));
+
+/* ---------- Gắn bó ---------- */
+export const getBondClaims = async (): Promise<number[]> =>
+  isDemo ? demo.getBondClaims() : (unwrap(await supabase.from('bond_claims').select('level')) as { level: number }[]).map(r => r.level);
+export const claimBond = (level: number) => (isDemo ? demo.claimBond(level) : rpc<{ coins: number; reward: number }>('claim_bond_reward', { p_level: level }));

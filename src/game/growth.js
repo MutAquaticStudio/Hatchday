@@ -51,11 +51,12 @@ export function initGrowth(c) {
     el.innerHTML = `<div class="sp-head"><b>${esc(sp.name)}</b><span class="rar" style="--rc:${rar.color}">${rar.name}</span></div>
       <p class="sp-sub">${REGIONS[sp.region].name} · ${esc(S.family)} · đời ${S.generation}</p>
       <p class="sp-stage"><b>${STAGES[st].name}</b> · ${Math.floor(days)} ngày tuổi${S.form ? ` · dáng <b>${FORMS[S.form].name}</b>` : ''}</p>
-      ${next ? `<p class="sp-next">Còn ${leftTxt} nữa lên <b>${STAGES[next].name}</b>${st === 'teen' ? `. Bé đang nghiêng về dáng <b>${lean.name}</b> vì ${lean.hint}.` : '.'}</p>` : st === 'elder' ? '<p class="sp-next">Bé đang ở tuổi xế chiều. Hãy dành thật nhiều thời gian bên bé nhé.</p>' : ''}
+      ${next ? `<p class="sp-next">Còn ${leftTxt} nữa lên <b>${STAGES[next].name}</b>${st === 'teen' ? `. Bé đang nghiêng về dáng <b>${lean.name}</b> vì ${lean.hint}.` : '.'}</p>` : st === 'elder' ? '<p class="sp-next">Bé đang ở tuổi xế chiều. Hãy dành thật nhiều thời gian bên bé nhé. Khi bé ra đi, bạn sẽ đón được quả trứng đời sau.</p>' : ''}
       <p class="sp-blurb">${esc(sp.blurb)}</p>
-      <div class="sp-actions"><button type="button" class="pill" id="btn-dex">Sổ loài</button>${isDemo ? '<button type="button" class="pill ghost-pill" id="btn-age">Tua 1 ngày (bản thử)</button>' : ''}</div>`;
+      <div class="sp-actions"><button type="button" class="pill" id="btn-dex">Sổ loài</button>${isDemo ? '<button type="button" class="pill ghost-pill" id="btn-age">Tua 1 ngày (bản thử)</button><button type="button" class="pill ghost-pill" id="btn-age10">Tua 10 ngày</button>' : ''}</div>`;
     $('btn-dex').onclick = () => { $('btn-stats').click(); getHome()?.openDex(); };
     const ab = $('btn-age'); if (ab) ab.onclick = async () => { ab.disabled = true; await demoAge(1); ab.disabled = false; renderSpecies(); };
+    const ab10 = $('btn-age10'); if (ab10) ab10.onclick = async () => { ab10.disabled = true; await demoAge(10); ab10.disabled = false; renderSpecies(); };
   }
   return { isEvolving: () => !!evo, step, renderSpecies };
 }

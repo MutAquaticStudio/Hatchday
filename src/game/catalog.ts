@@ -3,7 +3,8 @@
  * Seed SQL trong supabase/migrations/*_decor_cosmetics.sql phải khớp — test catalog-sync kiểm tra.
  */
 export type Kind = 'food' | 'decor' | 'outfit';
-export type Layer = 'floor' | 'rug' | 'wall' | 'wallpaper' | 'flooring';
+/** 'farm': đồ trang trí nông trại, đặt ngoài vườn (không dùng trong phòng). */
+export type Layer = 'floor' | 'rug' | 'wall' | 'wallpaper' | 'flooring' | 'farm';
 export type Slot = 'head' | 'face' | 'neck' | 'back';
 /** Bật quầy trả phí trong cửa hàng (tạm ẩn cho tới khi có cổng thanh toán). */
 export const PAID_SHOP_ENABLED = false;
@@ -52,6 +53,19 @@ export const ITEMS: Item[] = [
   D('bong', 'Bóng', 'floor', 1, 1, 1, null, ['choi'], null, 'starter'),
   D('cay-dao', 'Cây đào Tết', 'floor', 1, 1, 3, 'le-hoi', ['cay'], null, 'event', 'hiem'),
   D('den-ong-sao', 'Đèn ông sao', 'floor', 1, 1, 2, 'le-hoi', ['sang'], null, 'event', 'hiem'),
+  // Trang trí nông trại (đặt ngoài vườn, mua nhiều bản được, không tính điểm thoải mái của phòng)
+  D('bien-nong-trai', 'Biển nông trại', 'farm', 1, 1, 0, null, [], 90, 'market'),
+  D('dong-rom', 'Đống rơm', 'farm', 1, 1, 0, null, [], 120, 'market'),
+  D('hom-thu', 'Hòm thư', 'farm', 1, 1, 0, null, [], 130, 'market'),
+  D('bu-nhin', 'Bù nhìn', 'farm', 1, 1, 0, null, [], 140, 'market'),
+  D('goc-nam', 'Gốc cây nấm', 'farm', 1, 1, 0, null, [], 150, 'market'),
+  D('ghe-vuon', 'Ghế gỗ vườn', 'farm', 1, 1, 0, null, [], 160, 'market'),
+  D('to-ong', 'Tổ ong', 'farm', 1, 1, 0, null, [], 200, 'market'),
+  D('xe-hoa', 'Xe đẩy hoa', 'farm', 1, 1, 0, null, [], 220, 'market'),
+  D('den-vuon', 'Đèn lồng vườn', 'farm', 1, 1, 0, null, [], 240, 'market'),
+  D('gieng', 'Giếng nước', 'farm', 1, 1, 0, null, [], 420, 'rotating', 'dep'),
+  D('ao-nho', 'Ao sen nhỏ', 'farm', 1, 1, 0, null, [], 520, 'rotating', 'dep'),
+  D('coi-xay-gio', 'Cối xay gió mini', 'farm', 1, 1, 0, null, [], 760, 'weekend', 'hiem'),
   // Thảm
   D('tham-tron', 'Thảm tròn xanh', 'rug', 4, 4, 1, null, ['mem'], null, 'starter'),
   D('tham-cat', 'Thảm cát', 'rug', 3, 2, 1, 'bien', [], 240, 'market'),
@@ -103,6 +117,113 @@ export const SET_LINES: Partial<Record<Theme, string>> = {
 export const TAGS: Record<Tag, string> = { mem: 'đồ êm', sach: 'sách vở', cay: 'cây cỏ', choi: 'đồ chơi', sang: 'đồ phát sáng', retro: 'đồ cổ điển' };
 export const SLOTS: Record<Slot, string> = { head: 'Đầu', face: 'Mặt', neck: 'Cổ', back: 'Lưng' };
 export const RARITY: Record<Rarity, string> = { thuong: 'Thường', dep: 'Đẹp', hiem: 'Hiếm', 'ky-niem': 'Kỷ niệm' };
+
+/* ---------- Thức ăn ----------
+ * Mua bằng xu ở tab "Thức ăn" trong cửa hàng, mỗi lần cho ăn dùng hết một phần.
+ * Seed SQL (bảng items, kind = 'food') phải khớp: supabase/migrations/20261114000000_food_economy.sql, test kiểm tra. */
+export type FoodGroup = 'tinhbot' | 'rau' | 'dam' | 'traicay' | 'ngot';
+/** `healthy`: tính vào "ăn cân bằng" (xem nutrition.ts). Đồ ngọt thì không. */
+export const FOOD_GROUPS: Record<FoodGroup, { name: string; healthy: boolean }> = {
+  tinhbot: { name: 'Tinh bột', healthy: true }, rau: { name: 'Rau củ', healthy: true }, dam: { name: 'Đạm', healthy: true },
+  traicay: { name: 'Trái cây', healthy: true }, ngot: { name: 'Đồ ngọt', healthy: false },
+};
+/** `kind` 'food': mua ở cửa hàng hoặc thu hoạch. 'dish': món nấu, không bán. `fresh`: thức ăn tươi, để lâu trong kho sẽ hỏng (xem FRIDGE). */
+export interface Food { id: string; name: string; kind: 'food' | 'dish'; group: FoodGroup; group2?: FoodGroup; no: number; vui: number; price: number | null; fresh: boolean; line: string }
+const FRESH_GROUPS: FoodGroup[] = ['rau', 'traicay', 'dam'];
+const F = (id: string, name: string, group: FoodGroup, no: number, vui: number, price: number, line: string): Food & { price: number } =>
+  ({ id, name, kind: 'food', group, no, vui, price, fresh: FRESH_GROUPS.includes(group), line });
+export const FOODS: (Food & { price: number })[] = [
+  F('comnam', 'Cơm nắm', 'tinhbot', 25, 3, 15, 'No bụng ghê, cảm ơn nha!'),
+  F('bap-nuong', 'Bắp nướng', 'tinhbot', 22, 7, 22, 'Thơm lừng mùi bơ!'),
+  F('banh-mi', 'Bánh mì', 'tinhbot', 28, 6, 32, 'Giòn tan, ngon ghê!'),
+  F('carot', 'Cà rốt', 'rau', 10, 2, 12, 'Giòn giòn ngọt ngọt!'),
+  F('canh-rau', 'Canh rau', 'rau', 16, 3, 18, 'Ấm bụng ghê!'),
+  F('trung-op', 'Trứng ốp la', 'dam', 20, 4, 24, 'Béo béo thơm thơm!'),
+  F('ca-vien', 'Cá viên chiên', 'dam', 14, 12, 30, 'Giòn rụm, nóng hổi!'),
+  F('sua-chua', 'Sữa chua', 'dam', 12, 9, 20, 'Chua chua ngọt ngọt!'),
+  F('chuoi', 'Chuối', 'traicay', 12, 5, 14, 'Chuối thơm quá trời!'),
+  F('dua-hau', 'Dưa hấu', 'traicay', 14, 8, 20, 'Mát rượi, ngọt lịm!'),
+  F('kem', 'Kem que', 'ngot', 5, 15, 22, 'Mát lạnh luôn!'),
+  F('che', 'Chè đậu', 'ngot', 15, 12, 28, 'Ngọt lịm tim!'),
+];
+
+/* ---------- Món nấu (kind 'dish') ----------
+ * Nấu từ hai nguyên liệu trong kho (mỗi thứ một phần). Mỗi món thuộc hai nhóm dinh dưỡng, nên dễ đạt "ăn cân bằng". */
+const Dish = (id: string, name: string, group: FoodGroup, group2: FoodGroup, no: number, vui: number, line: string): Food =>
+  ({ id, name, kind: 'dish', group, group2, no, vui, price: null, fresh: true, line });
+export const DISHES: Food[] = [
+  Dish('chao-trung', 'Cháo trứng', 'tinhbot', 'dam', 40, 10, 'Nóng hổi, béo ngậy!'),
+  Dish('com-rau', 'Cơm rau', 'tinhbot', 'rau', 38, 8, 'Ăn xong khoẻ re!'),
+  Dish('banh-mi-trung', 'Bánh mì trứng', 'tinhbot', 'dam', 45, 14, 'Thơm nức mũi luôn!'),
+  Dish('sinh-to', 'Sinh tố chuối', 'traicay', 'dam', 24, 22, 'Mịn mịn, ngọt thanh!'),
+  Dish('salad', 'Salad trái cây', 'rau', 'traicay', 22, 18, 'Tươi rói, giòn tan!'),
+  Dish('che-trai-cay', 'Chè trái cây', 'ngot', 'traicay', 26, 28, 'Mát lịm, ngon hết sảy!'),
+  Dish('com-chien-rau', 'Cơm chiên rau củ', 'tinhbot', 'rau', 36, 9, 'Thơm lừng, hạt cơm tơi xốp!'),
+  Dish('banh-mi-ca-vien', 'Bánh mì cá viên', 'tinhbot', 'dam', 40, 20, 'Nóng giòn, nhai sướng răng!'),
+  Dish('bap-xao-trung', 'Bắp xào trứng', 'tinhbot', 'dam', 38, 12, 'Ngọt bùi, béo thơm!'),
+  Dish('canh-trung', 'Canh trứng rau', 'rau', 'dam', 30, 8, 'Ấm bụng, dễ ăn ghê!'),
+  Dish('sua-chua-dua', 'Sữa chua dưa hấu', 'dam', 'traicay', 24, 22, 'Mát chua ngọt, đã quá!'),
+  Dish('kem-chuoi', 'Kem chuối', 'ngot', 'traicay', 18, 30, 'Lạnh tê răng mà mê!'),
+  Dish('che-bap', 'Chè bắp', 'ngot', 'tinhbot', 32, 22, 'Dẻo thơm, ngọt dịu!'),
+  Dish('banh-flan', 'Bánh flan', 'dam', 'ngot', 20, 26, 'Mềm mịn, tan trong miệng!'),
+  Dish('ca-vien-rau', 'Cá viên xào rau', 'dam', 'rau', 30, 16, 'Giòn giòn, đủ vị!'),
+  Dish('chuoi-nuong', 'Chuối nướng', 'traicay', 'tinhbot', 30, 18, 'Thơm khói, ngọt lịm!'),
+];
+export interface Recipe { id: string; dish: string; a: string; b: string }
+export const RECIPES: Recipe[] = [
+  { id: 'chao-trung', dish: 'chao-trung', a: 'comnam', b: 'trung-op' },
+  { id: 'com-rau', dish: 'com-rau', a: 'comnam', b: 'canh-rau' },
+  { id: 'banh-mi-trung', dish: 'banh-mi-trung', a: 'banh-mi', b: 'trung-op' },
+  { id: 'sinh-to', dish: 'sinh-to', a: 'chuoi', b: 'sua-chua' },
+  { id: 'salad', dish: 'salad', a: 'carot', b: 'dua-hau' },
+  { id: 'che-trai-cay', dish: 'che-trai-cay', a: 'che', b: 'dua-hau' },
+  { id: 'com-chien-rau', dish: 'com-chien-rau', a: 'comnam', b: 'carot' },
+  { id: 'banh-mi-ca-vien', dish: 'banh-mi-ca-vien', a: 'banh-mi', b: 'ca-vien' },
+  { id: 'bap-xao-trung', dish: 'bap-xao-trung', a: 'bap-nuong', b: 'trung-op' },
+  { id: 'canh-trung', dish: 'canh-trung', a: 'canh-rau', b: 'trung-op' },
+  { id: 'sua-chua-dua', dish: 'sua-chua-dua', a: 'sua-chua', b: 'dua-hau' },
+  { id: 'kem-chuoi', dish: 'kem-chuoi', a: 'kem', b: 'chuoi' },
+  { id: 'che-bap', dish: 'che-bap', a: 'che', b: 'bap-nuong' },
+  { id: 'banh-flan', dish: 'banh-flan', a: 'trung-op', b: 'sua-chua' },
+  { id: 'ca-vien-rau', dish: 'ca-vien-rau', a: 'ca-vien', b: 'canh-rau' },
+  { id: 'chuoi-nuong', dish: 'chuoi-nuong', a: 'chuoi', b: 'bap-nuong' },
+];
+/** Mọi thứ bé ăn được: thức ăn mua + món nấu. */
+export const EDIBLES: Food[] = [...FOODS, ...DISHES];
+export const FOOD_BY_ID: Record<string, Food> = Object.fromEntries(EDIBLES.map(f => [f.id, f]));
+
+/* ---------- Vườn rau: gieo hạt, đợi thật vài giờ, thu hoạch được 3 phần ---------- */
+export interface Crop { id: string; hours: number; seed: number; yield: number }
+export const CROPS: Crop[] = [
+  { id: 'carot', hours: 4, seed: 5, yield: 3 },
+  { id: 'bap-nuong', hours: 6, seed: 6, yield: 3 },
+  { id: 'chuoi', hours: 8, seed: 8, yield: 3 },
+  { id: 'dua-hau', hours: 10, seed: 10, yield: 3 },
+];
+/** Nâng cấp một mảnh đất: 3 ô → 6 ô (300 xu) → 9 ô (600 xu). Giống public.upgrade_parcel(). */
+export const GARDEN_LAND = [{ plots: 3, price: 0 }, { plots: 6, price: 300 }, { plots: 9, price: 600 }] as const;
+/** Mua thêm mảnh đất khi mảnh cuối đã đủ 9 ô: mảnh thứ hai 1.000 xu, mảnh thứ ba 2.000 xu, tối đa 3 mảnh. Giống public.buy_parcel(). */
+export const PARCEL = { plots: 9, max: 3, prices: [0, 1000, 2000] } as const;
+/** Số thứ tự ô toàn cục = mảnh × 9 + ô trong mảnh. */
+export const plotIndex = (parcel: number, slot: number) => parcel * PARCEL.plots + slot;
+export const GARDEN_PLOTS = PARCEL.plots * PARCEL.max; // số ô tối đa (27)
+/** Tưới nước: mỗi lần rút ngắn `cut` tổng thời gian chín, tối đa `max` lần mỗi cây, hai lần tưới cách nhau ít nhất `gapMinutes`. */
+export const WATER = { max: 3, cut: 0.1, gapMinutes: 30 } as const;
+/** Giờ cây chín (ms). Giống private.plot_ready_at(). */
+export const readyAtMs = (plantedMs: number, hours: number, waters: number) => plantedMs + hours * 3600000 * (1 - WATER.cut * waters);
+
+/* ---------- Tủ lạnh và thức ăn hỏng ----------
+ * Thức ăn tươi (fresh) mỗi ngày hỏng một phần số dư trên mức giữ được. Mua tủ lạnh lớn hơn để giữ được nhiều hơn.
+ * Thức ăn khô (tinh bột, đồ ngọt) không bao giờ hỏng. */
+export const FRIDGE = [{ keep: 3, price: 0 }, { keep: 6, price: 200 }, { keep: 10, price: 500 }] as const;
+/** Số phần hỏng sau một ngày: 1/4 phần vượt mức giữ, làm tròn lên. Giống private.spoil_loss(). */
+export const spoilLoss = (qty: number, keep: number) => (qty > keep ? Math.ceil((qty - keep) / 4) : 0);
+export const FOOD_STOCK = {
+  start: 2,            // mỗi món bé mới được tặng 2 phần để thử và tìm món tủ
+  max: 30,             // giữ tối đa 30 phần mỗi món
+  packMax: 10,         // mua tối đa 10 phần một lần
+  rationId: 'comnam', ration: 3, // suất ăn miễn phí mỗi ngày: 3 Cơm nắm, để bé không bao giờ đói vì hết xu
+} as const;
 
 /* ---------- Lưới phòng ---------- */
 export const GRID = { cols: 8, rows: 6, cell: 1, x0: -4, z0: -3.3, wallRows: 3, wallY0: 1.0 } as const;

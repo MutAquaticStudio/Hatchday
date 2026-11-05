@@ -7,7 +7,7 @@ const WD = ['Chủ nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 
 export function today() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
 export function dayRec() {
   const k = today();
-  if (!S.day || S.day.d !== k) { if (S.day) S.diary[S.day.d] = writeDiary(S.day); S.day = { d: k, fed: 0, foods: [], bath: 0, ball: 0, pet: 0, talk: 0, sleep: 0 }; }
+  if (!S.day || S.day.d !== k) { if (S.day) S.diary[S.day.d] = writeDiary(S.day); S.day = { d: k, fed: 0, foods: [], groups: [], bath: 0, ball: 0, pet: 0, talk: 0, sleep: 0 }; }
   return S.day;
 }
 export function count(k) { const d = dayRec(); d[k] = (d[k] || 0) + 1; if (!$('diary').hidden) renderDiary(); }

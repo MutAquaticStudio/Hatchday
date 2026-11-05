@@ -81,17 +81,52 @@ export function placedCount(layout: Layout): Record<string, number> {
 export const dayNumber = (day: string) => Math.round(Date.parse(day + 'T00:00:00Z') / 86400000);
 export function isWeekend(day: string): boolean { const w = new Date(day + 'T00:00:00Z').getUTCDay(); return w === 0 || w === 6; }
 
-export const QUEST_POOL = [
-  { key: 'fed', label: 'Cho bé ăn 2 lần', target: 2 },
-  { key: 'bath', label: 'Tắm cho bé 1 lần', target: 1 },
-  { key: 'ball', label: 'Chơi ném bóng 3 lần', target: 3 },
-  { key: 'pet', label: 'Vuốt ve bé 20 lần', target: 20 },
-  { key: 'talk', label: 'Trò chuyện với bé 2 lần', target: 2 },
-  { key: 'sleep', label: 'Chúc bé ngủ ngon', target: 1 },
+/**
+ * Nhiệm vụ ngày: mỗi ngày 5 nhiệm vụ lấy từ QUEST_POOL, làm hết cả 5 thì nhận thêm QUEST_BONUS.
+ * `key` là cột trong day_logs, hoặc 'foods_distinct' (số món khác nhau) / 'groups_distinct' (số nhóm dinh dưỡng khác nhau).
+ * Server (SQL) có bản y hệt trong public.get_quests().
+ */
+export interface QuestDef { key: string; label: string; target: number; reward: number }
+export const QUEST_POOL: readonly QuestDef[] = [
+  { key: 'fed', label: 'Cho bé ăn 2 lần', target: 2, reward: 20 },
+  { key: 'bath', label: 'Tắm cho bé 1 lần', target: 1, reward: 20 },
+  { key: 'ball', label: 'Chơi ném bóng 3 lần', target: 3, reward: 25 },
+  { key: 'pet', label: 'Vuốt ve bé 20 lần', target: 20, reward: 20 },
+  { key: 'talk', label: 'Trò chuyện với bé 2 lần', target: 2, reward: 20 },
+  { key: 'sleep', label: 'Chúc bé ngủ ngon', target: 1, reward: 20 },
+  { key: 'fed', label: 'Cho bé ăn 4 bữa', target: 4, reward: 35 },
+  { key: 'ball', label: 'Chơi ném bóng 6 lần', target: 6, reward: 40 },
+  { key: 'pet', label: 'Vuốt ve bé 60 lần', target: 60, reward: 40 },
+  { key: 'talk', label: 'Trò chuyện với bé 5 lần', target: 5, reward: 40 },
+  { key: 'foods_distinct', label: 'Cho bé ăn 3 món khác nhau', target: 3, reward: 40 },
+  { key: 'groups_distinct', label: 'Cho bé ăn đủ 3 nhóm dinh dưỡng', target: 3, reward: 45 },
 ] as const;
-export const QUEST_REWARD = 30;
-/** 3 nhiệm vụ của ngày, chỉ số trong QUEST_POOL. */
-export function questsForDay(day: string): number[] { const n = dayNumber(day); return [n % 6, (n + 2) % 6, (n + 4) % 6]; }
+export const QUESTS_PER_DAY = 5;
+export const QUEST_BONUS = 50;
+/** 5 nhiệm vụ của ngày, là chỉ số trong QUEST_POOL (bước 5 nguyên tố cùng nhau với 12 nên không trùng). */
+export function questsForDay(day: string): number[] { const n = dayNumber(day); return Array.from({ length: QUESTS_PER_DAY }, (_, i) => (n + i * 5) % QUEST_POOL.length); }
+
+/**
+ * Nhiệm vụ tuần (thứ Hai tới Chủ nhật): 3 nhiệm vụ cộng dồn cả tuần, thưởng lớn.
+ * Tiến độ tính từ day_logs của mọi ngày trong tuần.
+ */
+export const WEEKLY_POOL: readonly QuestDef[] = [
+  { key: 'fed', label: 'Cho bé ăn 20 bữa trong tuần', target: 20, reward: 100 },
+  { key: 'ball', label: 'Chơi ném bóng 20 lần trong tuần', target: 20, reward: 100 },
+  { key: 'talk', label: 'Trò chuyện với bé 15 lần trong tuần', target: 15, reward: 100 },
+  { key: 'pet', label: 'Vuốt ve bé 150 lần trong tuần', target: 150, reward: 110 },
+  { key: 'bath', label: 'Tắm cho bé 5 lần trong tuần', target: 5, reward: 100 },
+  { key: 'sleep', label: 'Chúc bé ngủ ngon 5 tối trong tuần', target: 5, reward: 100 },
+] as const;
+export const WEEKLY_PER_WEEK = 3;
+/** Ngày thứ Hai đầu tuần chứa `day` (YYYY-MM-DD). Ngày 0 của epoch là thứ Năm nên thứ Hai rơi vào n ≡ 4 (mod 7). */
+export function weekStart(day: string): string {
+  const n = dayNumber(day), start = 7 * Math.floor((n + 3) / 7) - 3;
+  return new Date(start * 86400000).toISOString().slice(0, 10);
+}
+const weekNumber = (day: string) => Math.floor((dayNumber(day) + 3) / 7);
+/** 3 nhiệm vụ của tuần, là chỉ số trong WEEKLY_POOL. */
+export function weeklyForDay(day: string): number[] { const w = weekNumber(day); return Array.from({ length: WEEKLY_PER_WEEK }, (_, i) => (w + i * 2) % WEEKLY_POOL.length); }
 
 /** 6 món của tiệm xoay vòng trong ngày. */
 export function rotationForDay(day: string): string[] {

@@ -2,26 +2,31 @@
  * Luật chơi thuần (không phụ thuộc DOM/three.js) — client dùng để dự đoán,
  * server (supabase/migrations/*_init.sql) là nguồn sự thật. Hằng số phải khớp hai bên.
  */
+import { decayFactor } from './health';
+
 export const DECAY_PER_MIN = { no: 0.9, vui: 0.5, sach: 0.35, nlAwake: 0.45, nlAsleep: 3 } as const;
 export const MAX_OFFLINE_MIN = 60 * 24 * 3;
 
-export interface Stats { no: number; vui: number; nl: number; sach: number; asleep: boolean }
+export interface Stats { no: number; vui: number; nl: number; sach: number; asleep: boolean; illness?: string | null; severe?: boolean }
 
 export const clamp = (v: number, a = 0, b = 100) => Math.max(a, Math.min(b, v));
 
 /**
  * Giảm chỉ số theo số phút đã trôi qua. Trả về bản sao.
  * `comfort` (cấp thoải mái 1–5 của phòng): mỗi cấp trên 1 làm Vui và Năng lượng giảm chậm hơn 5%, hồi khi ngủ nhanh hơn 5%.
+ * Đang ốm (`s.illness`): mỗi chỉ số giảm nhanh theo hệ số của bệnh (health.ts: decayFactor), bệnh nặng (`s.severe`) thêm 25%.
+ * Năng lượng chỉ chịu hệ số lúc thức (lúc ngủ vẫn hồi bình thường).
  */
 export function decayStats<T extends Stats>(s: T, mins: number, comfort = 1): T {
   const m = Math.max(0, Math.min(mins, MAX_OFFLINE_MIN));
   const k = 0.05 * (Math.max(1, Math.min(5, comfort)) - 1);
+  const f = (stat: 'no' | 'sach' | 'vui' | 'nl') => decayFactor(s.illness, stat, !!s.severe);
   return {
     ...s,
-    no: clamp(s.no - m * DECAY_PER_MIN.no),
-    vui: clamp(s.vui - m * DECAY_PER_MIN.vui * (1 - k)),
-    sach: clamp(s.sach - m * DECAY_PER_MIN.sach),
-    nl: clamp(s.asleep ? s.nl + m * DECAY_PER_MIN.nlAsleep * (1 + k) : s.nl - m * DECAY_PER_MIN.nlAwake * (1 - k)),
+    no: clamp(s.no - m * DECAY_PER_MIN.no * f('no')),
+    vui: clamp(s.vui - m * DECAY_PER_MIN.vui * (1 - k) * f('vui')),
+    sach: clamp(s.sach - m * DECAY_PER_MIN.sach * f('sach')),
+    nl: clamp(s.asleep ? s.nl + m * DECAY_PER_MIN.nlAsleep * (1 + k) : s.nl - m * DECAY_PER_MIN.nlAwake * (1 - k) * f('nl')),
   };
 }
 
@@ -30,7 +35,7 @@ export type ExprKey = 'vui' | 'excited' | 'hungry' | 'sleepy' | 'sleep' | 'sick'
 /** Biểu cảm mặc định suy ra từ chỉ số (khi không có biểu cảm tạm thời). */
 export function deriveExpression(s: Stats): ExprKey {
   if (s.asleep) return 'sleep';
-  if (s.sach < 20) return 'sick';
+  if (s.illness || s.sach < 20) return 'sick';
   if (s.no < 30 && s.vui < 40) return 'sulky';
   if (s.no < 30) return 'hungry';
   if (s.nl < 22) return 'sleepy';
@@ -40,9 +45,9 @@ export function deriveExpression(s: Stats): ExprKey {
 
 export const levelLabel = (v: number) => (v >= 75 ? 'Đầy' : v >= 45 ? 'Ổn' : v >= 25 ? 'Hơi thấp' : 'Thấp');
 
-export interface DayLog { d: string; fed: number; foods: string[]; bath: number; ball: number; pet: number; talk: number; sleep: number }
+export interface DayLog { d: string; fed: number; foods: string[]; groups: string[]; bath: number; ball: number; pet: number; talk: number; sleep: number }
 
-export const emptyDay = (d: string): DayLog => ({ d, fed: 0, foods: [], bath: 0, ball: 0, pet: 0, talk: 0, sleep: 0 });
+export const emptyDay = (d: string): DayLog => ({ d, fed: 0, foods: [], groups: [], bath: 0, ball: 0, pet: 0, talk: 0, sleep: 0 });
 
 /** Trang nhật ký ghép từ mẫu câu (sẽ thay bằng AI ở giai đoạn sau). */
 export function writeDiary(d: DayLog): string {
