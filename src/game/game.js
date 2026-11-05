@@ -1,8 +1,9 @@
 // Lớp hiển thị & tương tác 3D (chuyển từ bản mẫu). Sẽ tách nhỏ và chuyển sang TypeScript dần.
 import * as THREE from 'three';
 import { S, save, act, actBatched, addTalkMemory, renamePet, onSync, onSyncError, onTraitShift, startPeriodicSync,
-  buy, saveLayout, equip, savePreset, claimQuest, claimQuestBonus, claimWeeklyQuest, claimCollection, buyFood, claimRation, nutritionNow, refreshFamily, familyMemories, refreshGarden, plantCrop, waterCrop, harvestCrop, upgradeParcel, buyParcel, saveFarm, cook, upgradeFridge, serverNow, onSpoil, refreshQuests, activeLayout, previewComfort, onIllness, healthNow, buyMedicine, useMedicine, visitClinic, refreshHealth, onBondLevel, claimBond } from './store';
-import { BOND, bondProgress, unclaimedLevels } from './bond';
+  buy, saveLayout, equip, savePreset, claimQuest, claimQuestBonus, claimWeeklyQuest, claimCollection, buyFood, claimRation, nutritionNow, refreshFamily, familyMemories, refreshGarden, plantCrop, waterCrop, harvestCrop, upgradeParcel, buyParcel, saveFarm, cook, upgradeFridge, serverNow, onSpoil, refreshQuests, activeLayout, previewComfort, onIllness, healthNow, buyMedicine, useMedicine, visitClinic, refreshHealth, onBondLevel, claimBond, sellFood, refreshSell } from './store';
+import { BOND, bondLevel, bondProgress, unclaimedLevels } from './bond';
+import { PLACES, PLACE_BY_ID, MAP_NODES, BLOCK_TEXT, enterBlock } from './places/registry';
 import { HEALTH, ILLNESS_BY_ID, isSevere, minutesToSick, STAT_NOUN } from './health';
 import { blockedNow, minutesVi } from './clinic.js';
 import { initHome } from './home.js';
@@ -257,14 +258,25 @@ let going = false;
 function goTo(name, instant) {
   if (going) return;
   if (name === area) { onEnter(name); return; }
+  if (PLACE_BY_ID[name]) {
+    const blk = enterBlock(name, { bondLevel: bondLevel(S.bondXp), asleep: S.asleep });
+    if (blk) { toast(BLOCK_TEXT[blk](MAP_NODES.find(n => n.id === name))); return; }
+    if (!placeInst[name]) { // dựng lười nhóm 3D của địa điểm lần vào đầu tiên
+      going = true;
+      loadPlace(name).then(() => { going = false; goTo(name, instant); }).catch(e => { going = false; console.warn(e); toast('Chưa mở được nơi này, thử lại nhé.'); });
+      return;
+    }
+  }
   const label = name === 'home' ? 'Về Phòng khách…' : `Đi tới ${AREA_NAME[name]}…`;
   const swap = () => {
+    if (placeInst[area] && placeInst[area].leave) placeInst[area].leave();
     Object.entries(areas).forEach(([k, g]) => { g.visible = k === name; });
     area = name; petBase.set(...PET_POS[name]); petOff.set(0, 0, 0); moveYaw = null; fetchBall = null; wander = null; action = null; cancelCtrl();
     if (name === 'garden') ball.position.set(2.0, 0.3, 1.4);
     particles.forEach(p => releaseSprite(p.s)); particles.length = 0; camIntro = reduce ? 0 : 1;
     bubbleEl.hidden = true; anim = null;
     resize(); applyAreaLights(); onEnter(name);
+    if (placeInst[name] && placeInst[name].enter) placeInst[name].enter();
     document.getElementById('scene-tag').textContent = AREA_NAME[name];
     updateMusic();
   };
@@ -281,13 +293,33 @@ const CTX = {
   garden: [['ball', 'Ném bóng'], ['spin', 'Xoay vòng'], ['farm', 'Trang trí'], ['home', 'Về phòng']],
   bedroom: [['wake', 'Thức dậy']],
 };
+for (const d of PLACES) { AREA_NAME[d.id] = d.name; PET_POS[d.id] = d.pet; CAM[d.id] = d.cam; CTX[d.id] = d.ctx; }
+/* Địa điểm (src/game/places): dựng lười khi vào lần đầu */
+const placeInst = {}, placeLoading = {};
+const PLACE_LOADERS = {
+  hospital: () => import('./places/hospital.js').then(m => m.initHospital),
+  market: () => import('./places/market.js').then(m => m.initMarket),
+  tailor: () => import('./places/tailor.js').then(m => m.initTailor),
+  library: () => import('./places/library.js').then(m => m.initLibrary),
+};
+const placeOpen = {
+  clinic: sec => home.openClinic(sec), shop: (t, k) => home.openShop(t, k), wardrobe: () => home.openWardrobe(), dex: () => home.openDex(), family: () => home.openFamily(), sell: () => home.openSell(),
+  news: () => (home.openNews ? home.openNews() : toast('Chưa có tin mới.')), ai: () => toast('Thủ thư AI sắp có. Đợi chút nhé!'),
+};
+function loadPlace(name) {
+  if (placeInst[name]) return Promise.resolve(placeInst[name]);
+  return placeLoading[name] || (placeLoading[name] = PLACE_LOADERS[name]().then(init => {
+    const inst = init({ THREE, add, toon, canvasTex, shell, windowOn, scene, camera, canvas, ray, ndcFrom, walkPetTo, say, startAction, toast, sfx, spawn, hideHint, getArea: () => area, state: S, open: placeOpen });
+    inst.group.visible = false; areas[name] = inst.group; applyShadows(inst.group); placeInst[name] = inst; return inst;
+  }));
+}
 function onEnter(name) {
   document.getElementById('tray').hidden = name !== 'kitchen';
   [['a-eat', 'kitchen'], ['a-bath', 'bath'], ['a-play', 'garden']].forEach(([id, a]) => document.getElementById(id).setAttribute('aria-pressed', String(name === a)));
   const ctx = document.getElementById('ctx');
   ctx.innerHTML = CTX[name].map(([k, l]) => `<button class="ctx-btn${k === 'home' || k === 'wake' ? ' ghosty' : ''}" type="button" data-k="${k}">${l}</button>`).join('');
   ctx.hidden = !CTX[name].length;
-  const line = { kitchen: 'Tới giờ ăn rồi! Hôm nay ăn gì đây?', bath: 'Nước ấm quá~ Vuốt lên người mình để kỳ cọ nha!', garden: 'Ra vườn thôi! Chạm vào đất để mình đi tới đó, chạm luống đất để trồng rau, hoặc ném bóng cho mình nhé!' }[name];
+  const line = (PLACE_BY_ID[name] && PLACE_BY_ID[name].enterLine) || { kitchen: 'Tới giờ ăn rồi! Hôm nay ăn gì đây?', bath: 'Nước ấm quá~ Vuốt lên người mình để kỳ cọ nha!', garden: 'Ra vườn thôi! Chạm vào đất để mình đi tới đó, chạm luống đất để trồng rau, hoặc ném bóng cho mình nhé!' }[name];
   if (name === 'garden') refreshGarden().then(() => gardenFx.sync()).catch(() => {});
   if (line) setTimeout(() => say(line, 3200), reduce ? 0 : 350);
 }
@@ -296,9 +328,9 @@ function applyAreaLights() {
   beams.visible = !night;
   rimColor.value.set(area === 'bedroom' || night ? '#b9c4ff' : period === 'chieu' ? '#ffd9b8' : '#fff4e8'); rimStrength.value = area === 'bedroom' ? 0.35 : night ? 0.4 : 0.5;
   if (area === 'bedroom') { hemi.intensity = 0.75; sun.intensity = 0.35; sun.color.set('#b7b8ff'); lamp.position.set(2.4, 2.2, -0.6); lamp.intensity = 20; return; }
-  const moon = night && area === 'garden';
+  const outdoor = area === 'garden' || !!(PLACE_BY_ID[area] && PLACE_BY_ID[area].outdoor), moon = night && outdoor;
   hemi.intensity = moon ? 1.3 : night ? 0.95 : 1.6; sun.intensity = moon ? 1.0 : night ? 0.7 : 2.0; sun.color.set(night ? '#c3c4ff' : (period === 'chieu' ? '#ffd2b0' : '#fff1dc'));
-  lamp.position.set(-1.5, 3, 2); lamp.intensity = night && area !== 'garden' ? 18 : 0;
+  lamp.position.set(-1.5, 3, 2); lamp.intensity = night && !outdoor ? 18 : 0;
 }
 let scrubN = 0;
 function scrub() {
@@ -338,7 +370,7 @@ function spinPlay() {
 const tmpV = new THREE.Vector3();
 function updateArea(dt, t) {
   if (area === 'bath') { duck.position.y = 1.05 + Math.sin(t * 2.2) * 0.04; duck.rotation.z = Math.sin(t * 1.7) * 0.12; }
-  moveMark.visible = !!ctrl && area === 'garden';
+  moveMark.visible = !!ctrl && walkable();
   if (moveMark.visible) { const k = 1 + Math.sin(t * 7) * 0.12; moveMark.scale.set(k, k, k); }
   if (area !== 'garden' || !fetchBall) { if (!wander && !ctrl && !keyMoving) moveYaw = null; return; }
   const f = fetchBall;
@@ -496,7 +528,7 @@ canvas.addEventListener('pointerdown', e => {
   if (gardenFx.editing()) { gardenFx.editPointer('down', e); return; } // đang trang trí nông trại
   if (editing) return;
   const hit = hitPet(e);
-  down = { x: e.clientX, y: e.clientY, lx: e.clientX, ly: e.clientY, hit, moved: 0, acc: 0, ground: area === 'garden' && !hit && !fetchBall, steer: false };
+  down = { x: e.clientX, y: e.clientY, lx: e.clientX, ly: e.clientY, hit, moved: 0, acc: 0, ground: walkable() && !hit && !fetchBall, steer: false };
   if (hit) { canvas.setPointerCapture(e.pointerId); canvas.style.cursor = 'grabbing'; }
 });
 canvas.addEventListener('pointermove', e => {
@@ -513,7 +545,8 @@ function endDown(e) {
   if (down && down.hit && down.moved < 10) poke();
   else if (down && !down.hit && !down.steer && Math.hypot(e.clientX - down.x, e.clientY - down.y) < 10) {
     if (gardenFx.tap(e)) hideHint(); // chạm luống rau hoặc đóng bảng chọn
-    else if (area === 'garden') steerTo(groundPoint(e)); // chạm đất: thú đi tới đó
+    else if (placeInst[area] && placeInst[area].tap(e)) hideHint(); // chạm điểm chạm của địa điểm
+    else if (walkable()) steerTo(groundPoint(e)); // chạm đất: thú đi tới đó
   }
   down = null; canvas.style.cursor = 'grab';
 }
@@ -548,7 +581,7 @@ function goSleep() { sfx('sleep'); count('sleep'); act('sleep'); S.asleep = true
 function wake() { sfx('wake'); act('wake'); S.asleep = false; applySleep(); goTo('home'); setTimeout(() => { say('Chào buổi sáng! Mình ngủ ngon lắm.', 2600); startAction('stretch'); spawn('sparkle', 2); }, reduce ? 0 : 700); save(); }
 $('ctx').addEventListener('click', e => {
   const b = e.target.closest('.ctx-btn'); if (!b) return; hideHint();
-  ({ home: () => goTo('home'), rinse, ball: throwBall, spin: spinPlay, wake, farm: () => gardenFx.startEdit() })[b.dataset.k]();
+  ({ home: () => goTo('home'), map: () => home.openMap(), rinse, ball: throwBall, spin: spinPlay, wake, farm: () => gardenFx.startEdit() })[b.dataset.k]();
 });
 /* Nhạc nền: lúc ngủ > ban đêm > theo khu vực */
 function updateMusic() { music(S.asleep ? 'sleep' : period === 'dem' ? 'night' : area); }
@@ -636,15 +669,19 @@ function spawnAt(type, x, y, z, o = {}) {
 }
 /* ---------------- tự điều khiển thú trong vườn ---------------- */
 const GARDEN_X = 4.0, GARDEN_Z1 = 3.2; // vùng thú được đi (toạ độ thế giới); mép sau là phía trước hàng luống gần nhất (gardenFx.minZ())
-const clampGardenOff = (v, axis) => (axis === 'x' ? clamp(v, -GARDEN_X - petBase.x, GARDEN_X - petBase.x) : clamp(v, gardenFx.minZ() - petBase.z, GARDEN_Z1 - petBase.z));
+/** Vùng thú đi được ở khu hiện tại: vườn (có luống phía sau) hoặc vùng `walk` của địa điểm; null nếu không đi lại được. */
+const walkBounds = () => { if (area === 'garden') return { x0: -GARDEN_X, x1: GARDEN_X, z0: gardenFx.minZ(), z1: GARDEN_Z1 }; const w = PLACE_BY_ID[area] && PLACE_BY_ID[area].walk; return w ? { x0: w.x[0], x1: w.x[1], z0: w.z[0], z1: w.z[1] } : null; };
+const walkable = () => !!walkBounds();
+const clampGardenOff = (v, axis) => { const b = walkBounds() || { x0: -GARDEN_X, x1: GARDEN_X, z0: -3, z1: GARDEN_Z1 }; return axis === 'x' ? clamp(v, b.x0 - petBase.x, b.x1 - petBase.x) : clamp(v, b.z0 - petBase.z, b.z1 - petBase.z); };
 const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), groundHit = new THREE.Vector3();
 const moveMark = new THREE.Mesh(new THREE.RingGeometry(0.2, 0.3, 28), new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.85, side: THREE.DoubleSide }));
-moveMark.rotation.x = -Math.PI / 2; moveMark.visible = false; garden.add(moveMark);
+moveMark.rotation.x = -Math.PI / 2; moveMark.visible = false; scene.add(moveMark);
 /** Điểm trên mặt đất dưới con trỏ (toạ độ thế giới), đã kẹp trong vùng đi được. */
 function groundPoint(e) {
   ray.setFromCamera(ndcFrom(e), camera);
   if (!ray.ray.intersectPlane(groundPlane, groundHit)) return null;
-  return { x: clamp(groundHit.x, -GARDEN_X, GARDEN_X), z: clamp(groundHit.z, gardenFx.minZ(), GARDEN_Z1) };
+  const b = walkBounds(); if (!b) return null;
+  return { x: clamp(groundHit.x, b.x0, b.x1), z: clamp(groundHit.z, b.z0, b.z1) };
 }
 function cancelCtrl() { const c = ctrl; ctrl = null; if (c && c.then) c.then(false); }
 /** Cho thú đi tới (wx, wz). Trả về Promise khi tới nơi (hoặc bị huỷ). */
@@ -666,7 +703,7 @@ function steerTo(g) {
 }
 const KEYDIR = { ArrowUp: 'up', w: 'up', W: 'up', ArrowDown: 'down', s: 'down', S: 'down', ArrowLeft: 'left', a: 'left', A: 'left', ArrowRight: 'right', d: 'right', D: 'right' };
 addEventListener('keydown', e => {
-  const k = KEYDIR[e.key]; if (!k || area !== 'garden' || e.ctrlKey || e.metaKey || e.altKey) return;
+  const k = KEYDIR[e.key]; if (!k || !walkable() || e.ctrlKey || e.metaKey || e.altKey) return;
   if (e.target instanceof Element && e.target.closest('input, textarea, [contenteditable]')) return;
   keys.add(k); e.preventDefault();
 });
@@ -677,7 +714,7 @@ function animStep(dt, t, now, key) {
   if (!reduce) idleThink(now);
   /* điều khiển thú trong vườn: phím mũi tên / WASD hoặc chạm đất để thú đi tới */
   keyMoving = false;
-  if (area === 'garden' && !S.asleep && !editing && !fetchBall && !growth.isEvolving()) {
+  if (walkable() && !S.asleep && !editing && !fetchBall && !growth.isEvolving()) {
     const kx = (keys.has('right') ? 1 : 0) - (keys.has('left') ? 1 : 0), kz = (keys.has('down') ? 1 : 0) - (keys.has('up') ? 1 : 0);
     if (kx || kz) {
       cancelCtrl(); wander = null; action = null; keyMoving = true;
@@ -701,7 +738,7 @@ function animStep(dt, t, now, key) {
   walking = sp > 0.25;
   if (walking) {
     walkPh += dt * (sp > 2 ? 18 : 12); o.hop += Math.abs(Math.sin(walkPh)) * 0.08; o.roll += Math.sin(walkPh) * 0.05;
-    if (area === 'garden' && now > puffAt) { puffAt = now + 180; spawnAt('puff', petRoot.position.x, 0.15, petRoot.position.z + 0.3, { vy: 0.3, vx: (Math.random() - 0.5) * 0.4, scale: 0.35, max: 0.6 }); }
+    if (walkable() && now > puffAt) { puffAt = now + 180; spawnAt('puff', petRoot.position.x, 0.15, petRoot.position.z + 0.3, { vy: 0.3, vx: (Math.random() - 0.5) * 0.4, scale: 0.35, max: 0.6 }); }
   }
   feet.forEach((f, i) => { const ph = walkPh + i * Math.PI; f.position.y = 0.1 + (walking ? Math.max(0, Math.sin(ph)) * 0.14 : 0); f.position.z = 0.38 + (walking ? Math.cos(ph) * 0.1 : 0); });
   if (action) {
@@ -777,6 +814,7 @@ onSyncError(() => { const n = performance.now(); if (n - toastAt > 15000) { toas
 document.querySelector('.bar').addEventListener('click', e => { if (e.target.closest('.act')) buzz(8); });
 
 /* Chấm gợi ý nhu cầu trên nút (không đếm số, không màu đỏ) */
+$('scene-tag').addEventListener('click', () => { hideHint(); if (home) home.openMap(); });
 let warnAt = 0, sickFxAt = 0;
 const sickChip = $('sick-chip');
 sickChip.addEventListener('click', () => { hideHint(); if (home) home.openClinic(); });
@@ -814,6 +852,7 @@ addEventListener('keydown', e => {
     if (!$('chat').hidden) { toggleSheet(null); $('a-talk').focus(); }
     else if (!$('diary').hidden) { $('btn-diary').click(); $('btn-diary').focus(); }
     else if (!$('stats').hidden) { $('btn-stats').click(); $('btn-stats').focus(); }
+    else if (PLACE_BY_ID[area]) home.openMap();
     else if (area !== 'home' && area !== 'bedroom') goTo('home');
     return;
   }
@@ -877,7 +916,7 @@ initAudio();
 home = initHome({
   THREE, scene, camera, canvas, renderer, room, toon, add, canvasTex, grad, $, reduce,
   homeFloor, homeWalls: [homeWall, homeWall2], pivot, petBase, petBuilder, getPetParts: () => petParts,
-  store: { S, healthNow, buyMedicine, useMedicine, visitClinic, refreshHealth, buy, saveLayout, equip, savePreset, claimQuest, claimQuestBonus, claimWeeklyQuest, claimCollection, buyFood, claimRation, nutritionNow, refreshFamily, familyMemories, refreshGarden, plantCrop, harvestCrop, cook, upgradeFridge, serverNow, refreshQuests, activeLayout, previewComfort, onSync, today: () => localDay() },
+  store: { S, sellFood, refreshSell, healthNow, buyMedicine, useMedicine, visitClinic, refreshHealth, buy, saveLayout, equip, savePreset, claimQuest, claimQuestBonus, claimWeeklyQuest, claimCollection, buyFood, claimRation, nutritionNow, refreshFamily, familyMemories, refreshGarden, plantCrop, harvestCrop, cook, upgradeFridge, serverNow, refreshQuests, activeLayout, previewComfort, onSync, today: () => localDay() },
   say, setTemp, spawn, popText, impulse, startAction, addTrauma, buzz, toast, hideHint, applyShadows, ndcFrom,
   getArea: () => area, goTo, isIdle: () => !busy(performance.now()), isNight: () => period === 'dem',
   setZoom: z => { zoomExtra = z; },
@@ -893,7 +932,7 @@ applyPeriod(); applySleep(); renderStats(); updateNeeds();
 if (S.asleep) goTo('bedroom', true);
 dayRec();
 const growth = initGrowth({ evoGlow, reduce, buildLook, cancelMotion: () => { action = null; wander = null; anim = null; }, say, setTemp, spawn, impulse, addTrauma, toast, popText, buzz, getHome: () => home });
-onSync(() => { gardenFx.sync(); renderStats(); applySleep(); updateHealth(performance.now()); if (!$('diary').hidden) renderDiary(); if (!growth.isEvolving()) buildLook(); if (!$('stats').hidden) growth.renderSpecies(); });
+onSync(() => { gardenFx.sync(); if (placeInst[area] && placeInst[area].sync) placeInst[area].sync(); renderStats(); applySleep(); updateHealth(performance.now()); if (!$('diary').hidden) renderDiary(); if (!growth.isEvolving()) buildLook(); if (!$('stats').hidden) growth.renderSpecies(); });
 startPeriodicSync();
 if (new URLSearchParams(location.search).has('dev')) { document.querySelector('.review').hidden = false; const f = $('fast'); if (f) f.closest('label').hidden = false; }
 const DEV = new URLSearchParams(location.search).has('dev'), devhud = $('devhud');
@@ -902,6 +941,7 @@ let blinkAt = performance.now() + 2500, blinkUntil = 0, fxAt = 0, saveAt = 0, cl
 function tick(now, dt) {
   const t = now / 1000;
   gardenFx.update(dt, now);
+  if (placeInst[area] && placeInst[area].update) placeInst[area].update(dt, now);
   /* chỉ số theo thời gian */
   decay(S, (dt / 60) * ($('fast')?.checked ? 60 : 1));
   if (now > saveAt) { saveAt = now + 5000; save(); if (!$('stats').hidden) renderStats(); }

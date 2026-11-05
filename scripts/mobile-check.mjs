@@ -150,6 +150,27 @@ const out = []; const ok = (n, c, x = '') => { out.push((c ? 'OK  ' : 'FAIL') + 
   ok('nút Đồng hành giờ làm việc đủ cao để chạm (≥ 36px)', cpBtn.length === 3 && cpBtn.every(h => h >= 36), JSON.stringify(cpBtn));
   await tap('#btn-stats'); await p.waitForTimeout(300);
 
+  // ---- bản đồ và địa điểm trên điện thoại ----
+  await p.goto(`http://localhost:${PORT}/?dev`); await p.waitForTimeout(800); // trang đăng nhập: chưa ghi mốc "lần cuối thấy bé"
+  await p.evaluate(() => { const d = JSON.parse(localStorage.getItem('hatchday-demo')); d.pet.bond_xp = 100; d.pet.illness = 'sot-met'; d.pet.sick_since = new Date(Date.now() - 3600000).toISOString(); d.pet.recover_at = null; d.pet.no = 70; d.pet.sach = 70; d.pet.vui = 70; d.pet.nl = 90; d.pet.stats_at = new Date().toISOString(); localStorage.setItem('hatchday-demo', JSON.stringify(d)); localStorage.setItem('hatchday-seen', JSON.stringify({ t: Date.now(), no: 70, vui: 70, sach: 70, nl: 90 })); });
+  await tap('#demo'); await p.waitForTimeout(3000);
+  const chipFit = await p.evaluate(() => { const t = document.getElementById('scene-tag').getBoundingClientRect(), s = document.getElementById('sick-chip').getBoundingClientRect(); return { tagRight: Math.round(t.right), sickLeft: Math.round(s.left), tagW: Math.round(t.width), h: Math.round(t.height), ok: t.right <= s.left - 4 }; });
+  ok('chip khu vực và chip bệnh nằm cùng hàng, không đè nhau', chipFit.ok && chipFit.tagW <= 150 && chipFit.h >= 24, JSON.stringify(chipFit));
+  await tap('#scene-tag'); await p.waitForTimeout(500);
+  const mapFit = await p.evaluate(() => { const m = document.getElementById('map'), pins = [...document.querySelectorAll('#map .pin')].map(e => e.getBoundingClientRect()); return { n: pins.length, minW: Math.round(Math.min(...pins.map(r => r.width))), minH: Math.round(Math.min(...pins.map(r => r.height))), noOverflow: m.scrollWidth <= m.clientWidth + 1, inScreen: pins.every(r => r.left >= 0 && r.right <= innerWidth) }; });
+  ok('Bản đồ trên điện thoại: 9 ghim, mỗi ghim ≥ 44px, không tràn ngang', mapFit.n === 9 && mapFit.minW >= 44 && mapFit.minH >= 44 && mapFit.noOverflow && mapFit.inScreen, JSON.stringify(mapFit));
+  ok('bé đang ốm: ghim Bệnh viện có chấm cảnh báo', await p.evaluate(() => document.querySelector('#map [data-pin="hospital"]').classList.contains('alert')));
+  await tap('#map [data-pin="hospital"]'); await p.waitForTimeout(300);
+  const goBtn = await p.evaluate(() => { const b = document.querySelector('#map [data-go-place]'); return b ? Math.round(b.getBoundingClientRect().height) : 0; });
+  ok('nút Đi tới đủ cao để chạm (≥ 36px)', goBtn >= 36, `h=${goBtn}`);
+  await tap('#map [data-go-place]');
+  ok('chạm Đi tới: vào Bệnh viện, hiện nhãn điểm chạm', await until(async () => (await p.textContent('#scene-tag')).includes('Bệnh viện') && await p.isVisible('.hot[data-hot="shelf"]'), 14000));
+  const hotFit = await p.evaluate(() => [...document.querySelectorAll('.hot')].map(e => { const r = e.getBoundingClientRect(); return { id: e.dataset.hot, h: Math.round(r.height), inScreen: r.left >= 0 && r.right <= innerWidth && r.top >= 0 && r.bottom <= innerHeight }; }));
+  ok('nhãn điểm chạm đủ cao (≥ 36px) và nằm trong màn hình', hotFit.every(x => x.h >= 36 && x.inScreen), JSON.stringify(hotFit.filter(x => x.h < 36 || !x.inScreen)));
+  await tap('.hot[data-hot="shelf"]');
+  ok('chạm Quầy thuốc bằng ngón tay: thú đi tới rồi mở Sổ sức khoẻ', await until(() => p.isVisible('#clinic'), 15000));
+  await tap('.hsheet:not([hidden]) [data-close]'); await p.waitForTimeout(300);
+
   console.log(out.join('\n')); console.log('errors:', JSON.stringify(errs));
   await b.close(); srv.close(); process.exitCode = (out.some(l => l.startsWith('FAIL')) || errs.length) ? 1 : 0;
 })().catch(e => { console.log(out.join('\n')); console.error(e); srv.close(); process.exit(1); });

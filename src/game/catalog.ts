@@ -245,3 +245,7 @@ export const DEFAULT_LAYOUT: Layout = {
   ],
 };
 export const STARTER_ITEMS = ITEMS.filter(i => i.source === 'starter').map(i => i.id);
+
+/** Thu mua nông sản ở Chợ: giá bằng 40% giá mua (làm tròn xuống), tối đa 80 xu mỗi ngày, mỗi lần 1–30 phần. Song song với public.sell_food. */
+export const SELL = { ratio: 0.4, dailyCap: 80, maxQty: 30 } as const;
+export const sellPrice = (price: number): number => Math.floor(price * SELL.ratio);

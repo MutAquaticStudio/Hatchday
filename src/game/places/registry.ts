@@ -1,0 +1,87 @@
+/**
+ * Danh mục địa điểm của thế giới (dữ liệu thuần, không phụ thuộc three.js) và các nút trên Bản đồ.
+ * Luật mở khoá theo Gắn bó nằm ở đây; game.js tra bảng này thay cho các bảng cứng theo khu.
+ */
+export type CamPreset = [number, number, number, number, number, number, number]; // [fov, camX, camY, camZ, lookX, lookY, lookZ]
+
+export interface PlaceDef {
+  id: string;
+  name: string;
+  /** Tên ngắn hiện ở chip khu vực (≤ 12 ký tự). */
+  short: string;
+  /** solo: một mình; shared: nơi chung có người khác (realtime). */
+  kind: 'solo' | 'shared';
+  outdoor: boolean;
+  /** Cấp Gắn bó tối thiểu để vào. */
+  unlock: number;
+  /** Chỗ thú đứng lúc vào: [x, y, z]. */
+  pet: [number, number, number];
+  /** Camera ngang và dọc. */
+  cam: [CamPreset, CamPreset];
+  /** Vùng thú đi được (toạ độ thế giới). */
+  walk: { x: [number, number]; z: [number, number] };
+  /** Nút ngữ cảnh dưới đáy. */
+  ctx: [string, string][];
+  enterLine: string;
+  blurb: string;
+  /** Vị trí ghim trên Bản đồ, phần trăm của khung 100×100. */
+  map: { x: number; y: number };
+  /** Số người tối đa mỗi kênh ở nơi chung (gói Free dùng số nhỏ hơn, xem net/). */
+  cap: number;
+  /** false: đã có chỗ trên Bản đồ nhưng chưa mở (sẽ bật khi làm xong). */
+  ready: boolean;
+}
+
+const INDOOR_CAM: [CamPreset, CamPreset] = [[30, 0, 3.2, 9.6, 0, 0.75, 0], [44, 0, 3.6, 11.5, 0, 0.35, 0]];
+const OUTDOOR_CAM: [CamPreset, CamPreset] = [[34, 0, 5.4, 10.2, 0, 0.5, -0.8], [48, 0, 6.4, 12, 0, 0.2, -0.8]];
+const BACK: [string, string][] = [['map', 'Bản đồ'], ['home', 'Về phòng']];
+
+export const PLACES: PlaceDef[] = [
+  { id: 'hospital', name: 'Bệnh viện', short: 'Bệnh viện', kind: 'solo', outdoor: false, unlock: 0, pet: [0, 0, 0.9], cam: INDOOR_CAM,
+    walk: { x: [-3.5, 3.5], z: [-1.5, 2.6] }, ctx: BACK, enterLine: 'Bệnh viện Nhà thuốc Bông đây. Mình không sợ đâu… chắc vậy.', map: { x: 84, y: 28 }, cap: 12, ready: true,
+    blurb: 'Khám bệnh, mua thuốc, xem sổ bệnh. Luôn mở, kể cả lúc bé ốm.' },
+  { id: 'market', name: 'Chợ Xanh', short: 'Chợ Xanh', kind: 'solo', outdoor: true, unlock: 2, pet: [0, 0, 1.2], cam: OUTDOOR_CAM,
+    walk: { x: [-3.4, 3.4], z: [-0.8, 3] }, ctx: BACK, enterLine: 'Chợ đông vui ghê! Mua gì cũng có.', map: { x: 16, y: 28 }, cap: 16, ready: true,
+    blurb: 'Mua thức ăn, đồ trang trí, nông trại; bán rau thừa lấy xu.' },
+  { id: 'tailor', name: 'Tiệm may Kim Chỉ', short: 'Tiệm may', kind: 'solo', outdoor: false, unlock: 0, pet: [0, 0, 0.9], cam: INDOOR_CAM,
+    walk: { x: [-3.4, 3.4], z: [-1.2, 2.6] }, ctx: BACK, enterLine: 'Thử đồ nào! Mình muốn xem mình mặc gì hợp nhất.', map: { x: 50, y: 77 }, cap: 1, ready: true,
+    blurb: 'Gương lớn, giá treo đồ, thử và mua trang phục.' },
+  { id: 'library', name: 'Thư viện Sách Mây', short: 'Thư viện', kind: 'solo', outdoor: false, unlock: 2, pet: [0, 0, 0.9], cam: INDOOR_CAM,
+    walk: { x: [-3.4, 3.4], z: [-1.2, 2.6] }, ctx: BACK, enterLine: 'Suỵt… ở đây phải nói nhỏ thôi nha.', map: { x: 50, y: 10 }, cap: 1, ready: true,
+    blurb: 'Sổ loài, nhật ký, gia phả và bảng tin cập nhật.' },
+  { id: 'plaza', name: 'Quảng trường Mầm', short: 'Quảng trường', kind: 'shared', outdoor: true, unlock: 2, pet: [0, 0, 1.6], cam: OUTDOOR_CAM,
+    walk: { x: [-5, 5], z: [-1.5, 3.6] }, ctx: BACK, enterLine: 'Quảng trường đông vui quá! Mình chào mọi người nhé.', map: { x: 50, y: 45 }, cap: 12, ready: false,
+    blurb: 'Khu gặp gỡ: gặp người chơi khác, nhắn tin, kết bạn.' },
+  { id: 'tea', name: 'Tiệm trà Gió', short: 'Tiệm trà', kind: 'shared', outdoor: false, unlock: 3, pet: [0, 0, 1.2], cam: INDOOR_CAM,
+    walk: { x: [-3.4, 3.4], z: [-1.2, 2.6] }, ctx: BACK, enterLine: 'Thơm mùi trà quá~ Mình ngồi một chút nhé.', map: { x: 84, y: 62 }, cap: 16, ready: false,
+    blurb: 'Bàn bốn chỗ, ngồi nhâm nhi và trò chuyện cùng bạn.' },
+  { id: 'park', name: 'Công viên Cỏ Non', short: 'Công viên', kind: 'shared', outdoor: true, unlock: 4, pet: [0, 0, 1.4], cam: OUTDOOR_CAM,
+    walk: { x: [-5, 5], z: [-1.5, 3.6] }, ctx: BACK, enterLine: 'Công viên rộng ghê! Mình chạy thử nha.', map: { x: 16, y: 62 }, cap: 16, ready: false,
+    blurb: 'Sân chơi, ao vịt, bóng chung và chơi cùng bạn.' },
+];
+export const PLACE_BY_ID: Record<string, PlaceDef> = Object.fromEntries(PLACES.map(p => [p.id, p]));
+
+/** Ghim trên Bản đồ: các nơi có sẵn (Nhà, Vườn nhà) cộng các địa điểm. */
+export interface MapNode { id: string; name: string; blurb: string; map: { x: number; y: number }; unlock: number; ready: boolean; place: boolean }
+export const MAP_NODES: MapNode[] = [
+  { id: 'home', name: 'Nhà', blurb: 'Phòng khách, bếp, phòng tắm và phòng ngủ của bé.', map: { x: 22, y: 91 }, unlock: 0, ready: true, place: false },
+  { id: 'garden', name: 'Vườn nhà', blurb: 'Trồng rau, tưới nước, trang trí nông trại.', map: { x: 78, y: 91 }, unlock: 0, ready: true, place: false },
+  ...PLACES.map(p => ({ id: p.id, name: p.name, blurb: p.blurb, map: p.map, unlock: p.unlock, ready: p.ready, place: true })),
+];
+
+export const isUnlocked = (unlock: number, bondLevel: number) => bondLevel >= unlock;
+
+export type EnterBlock = null | 'locked' | 'asleep' | 'soon';
+/** Vào được không? Ngủ thì không đi đâu được, trừ Bệnh viện. Trả về lý do nếu không. */
+export function enterBlock(id: string, o: { bondLevel: number; asleep: boolean }): EnterBlock {
+  const n = MAP_NODES.find(x => x.id === id); if (!n) return 'soon';
+  if (!n.ready) return 'soon';
+  if (!isUnlocked(n.unlock, o.bondLevel)) return 'locked';
+  if (o.asleep && id !== 'hospital' && id !== 'home') return 'asleep';
+  return null;
+}
+export const BLOCK_TEXT: Record<Exclude<EnterBlock, null>, (n?: MapNode) => string> = {
+  locked: n => `Chưa mở. Cần Gắn bó cấp ${n?.unlock ?? 2}.`,
+  asleep: () => 'Bé đang ngủ. Cho bé thức dậy rồi hãy đi nhé.',
+  soon: () => 'Nơi này sắp mở. Đợi chút nhé!',
+};

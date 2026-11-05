@@ -60,7 +60,7 @@ function book() {
 
 /** HTML thân sổ sức khoẻ. `hs` là healthNow() của store. */
 export function clinicBody(S, hs, now, coinSvg) {
-  return `<div class="hs-body">${statusCard(S, hs, now, coinSvg)}${cabinet(S, coinSvg)}${book()}</div>`;
+  return `<div class="hs-body"><div id="cl-status">${statusCard(S, hs, now, coinSvg)}</div><div id="cl-cabinet">${cabinet(S, coinSvg)}</div><div id="cl-book">${book()}</div></div>`;
 }
 
 export { BLOCK_LABEL };

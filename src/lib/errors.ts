@@ -44,6 +44,7 @@ const RPC: Record<string, string> = {
   no_parent: 'Chưa có bé nào ra đi để đón thú đời sau.',
   invalid_egg: 'Quả trứng này chưa hợp lệ.',
   invalid_layout: 'Bố cục chưa hợp lệ.',
+  sell_cap: 'Hôm nay bạn đã bán đủ mức tối đa ở chợ. Mai bán tiếp nhé.',
   bond_too_low: 'Gắn bó chưa đủ cấp để nhận quà này.',
   invalid_level: 'Cấp gắn bó này chưa hợp lệ.',
   not_sick: 'Bé đang khoẻ, không cần chữa.',

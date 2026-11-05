@@ -30,6 +30,7 @@ Bản chơi thử (chế độ demo, dữ liệu lưu trong trình duyệt): htt
 | Gắn bó: cấp 1–10 theo điểm (mỗi hành động chăm sóc +1, chữa bệnh +3), danh hiệu từng cấp, quà xu từ cấp 2 (50 → 700 xu), nhận ở bảng Chỉ số, báo khi lên cấp | Xong (`bond.ts`, `20261122000000_bond.sql`) |
 | Chào mừng quay lại: vắng từ 3 giờ thì hiện thẻ tóm tắt chỉ số tụt, bệnh, gợi ý Cho ăn/Tắm/Sức khoẻ | Xong (`companion.js`, chỉ client) |
 | Đồng hành giờ làm việc: nhắc giải lao mỗi 50 phút, uống nước mỗi 90 phút (08:00–19:00, khi trang đang mở), chào sáng và chào tối mỗi ngày một lần; tắt/bật từng loại ở Chỉ số | Xong (chỉ client, chỉ là lời bé nói, chưa có thông báo đẩy) |
+| Bản đồ thế giới và 4 địa điểm một mình: Bệnh viện, Chợ (có thu mua nông sản), Tiệm may, Thư viện; Quảng trường, Quán trà, Công viên đã có chỗ trên Bản đồ ("sắp mở"). Mở khoá theo Gắn bó, vào bằng chip tên khu vực hoặc ô Nhà | Xong (`src/game/places/`, `20261202000000_sell_food.sql`) |
 | Quầy trả phí | Đã ẩn (`PAID_SHOP_ENABLED = false` trong `src/game/catalog.ts`) |
 | Chạy trên Supabase thật | Chưa. Mọi thứ mới thử ở chế độ demo hoặc PGlite |
 
@@ -64,6 +65,7 @@ src/game/health.ts        8 bệnh, thuốc, điều kiện mắc, hồi phục,
 src/game/bond.ts          cấp Gắn bó 1–10, quà theo cấp   (song song với private.bond_level trong SQL)
 src/game/companion-rules.ts  luật nhắc giờ làm việc, chào mừng quay lại (chỉ client)
 src/game/companion.js     giao diện: thẻ chào mừng, nhắc giải lao/uống nước, chào sáng/tối
+src/game/places/          khung địa điểm: registry.ts (dữ liệu, mở khoá), kit.js (điểm chạm, NPC), map.js, hospital/market/tailor/library.js
 src/game/clinic.js        sổ sức khoẻ: thẻ bệnh, tủ thuốc, từ điển bệnh, cảnh báo sắp ốm
 src/game/layout.ts        đặt đồ, thoải mái, nhiệm vụ ngày/tuần, tiệm xoay   (song song với SQL)
 src/game/nutrition.ts     ăn cân bằng: 3 nhóm lành mạnh trong 3 ngày thì mỗi bữa Vui +3   (song song với SQL)
