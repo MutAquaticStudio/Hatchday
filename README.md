@@ -27,4 +27,4 @@ npm run typecheck
 npm run build
 ```
 
-Thiết kế kỹ thuật: [docs/TDD.md](docs/TDD.md).
+Thiết kế kỹ thuật: [docs/TDD.md](docs/TDD.md). Trạng thái hiện tại và việc còn lại: [docs/HANDOFF.md](docs/HANDOFF.md).
