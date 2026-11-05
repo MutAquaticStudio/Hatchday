@@ -1,7 +1,7 @@
 // Lớp hiển thị & tương tác 3D (chuyển từ bản mẫu). Sẽ tách nhỏ và chuyển sang TypeScript dần.
 import * as THREE from 'three';
 import { S, save, act, actBatched, addTalkMemory, renamePet, onSync, onSyncError, onTraitShift, startPeriodicSync,
-  buy, saveLayout, equip, savePreset, claimQuest, claimQuestBonus, claimWeeklyQuest, claimCollection, buyFood, claimRation, nutritionNow, refreshFamily, familyMemories, refreshGarden, plantCrop, waterCrop, harvestCrop, upgradeParcel, buyParcel, cook, upgradeFridge, serverNow, onSpoil, refreshQuests, activeLayout, previewComfort } from './store';
+  buy, saveLayout, equip, savePreset, claimQuest, claimQuestBonus, claimWeeklyQuest, claimCollection, buyFood, claimRation, nutritionNow, refreshFamily, familyMemories, refreshGarden, plantCrop, waterCrop, harvestCrop, upgradeParcel, buyParcel, saveFarm, cook, upgradeFridge, serverNow, onSpoil, refreshQuests, activeLayout, previewComfort } from './store';
 import { initHome } from './home.js';
 import { decayStats, localDay } from './rules';
 import { makePetBuilder, disposePet } from './pet3d.js';
@@ -14,6 +14,7 @@ import { initGrowth } from './growth.js';
 import { initTour } from './tour.js';
 import { initFarewell } from './farewell.js';
 import { groundTextures, initGarden3d } from './garden3d.js';
+import { makeDecor } from './decor3d.js';
 import { FOOD_BY_ID } from './catalog';
 import { tastesLine } from './nutrition';
 import { sfx, music, initAudio } from './audio.js';
@@ -269,7 +270,7 @@ const CTX = {
   home: [],
   kitchen: [['home', 'Ăn xong, về phòng']],
   bath: [['rinse', 'Xả nước'], ['home', 'Về phòng']],
-  garden: [['ball', 'Ném bóng'], ['spin', 'Xoay vòng'], ['home', 'Về phòng']],
+  garden: [['ball', 'Ném bóng'], ['spin', 'Xoay vòng'], ['farm', 'Trang trí'], ['home', 'Về phòng']],
   bedroom: [['wake', 'Thức dậy']],
 };
 function onEnter(name) {
@@ -475,6 +476,7 @@ let down = null;
 const hint = $('hint');
 function hideHint() { hint.classList.add('gone'); }
 canvas.addEventListener('pointerdown', e => {
+  if (gardenFx.editing()) { gardenFx.editPointer('down', e); return; } // đang trang trí nông trại
   if (editing) return;
   const hit = hitPet(e);
   down = { x: e.clientX, y: e.clientY, lx: e.clientX, ly: e.clientY, hit, moved: 0, acc: 0, ground: area === 'garden' && !hit && !fetchBall, steer: false };
@@ -482,6 +484,7 @@ canvas.addEventListener('pointerdown', e => {
 });
 canvas.addEventListener('pointermove', e => {
   pointerNdc.copy(ndcFrom(e));
+  if (gardenFx.editing()) { gardenFx.editPointer('move', e); return; }
   if (down && down.ground && Math.hypot(e.clientX - down.x, e.clientY - down.y) > 12) { down.steer = true; steerTo(groundPoint(e)); } // giữ và kéo để dắt thú
   if (!down || !down.hit) return;
   const d = Math.hypot(e.clientX - down.lx, e.clientY - down.ly); down.lx = e.clientX; down.ly = e.clientY;
@@ -489,6 +492,7 @@ canvas.addEventListener('pointermove', e => {
   if (down.acc > 42) { down.acc = 0; petStroke(); }
 });
 function endDown(e) {
+  if (gardenFx.editing()) { gardenFx.editPointer('up', e); down = null; return; }
   if (down && down.hit && down.moved < 10) poke();
   else if (down && !down.hit && !down.steer && Math.hypot(e.clientX - down.x, e.clientY - down.y) < 10) {
     if (gardenFx.tap(e)) hideHint(); // chạm luống rau hoặc đóng bảng chọn
@@ -527,7 +531,7 @@ function goSleep() { sfx('sleep'); count('sleep'); act('sleep'); S.asleep = true
 function wake() { sfx('wake'); act('wake'); S.asleep = false; applySleep(); goTo('home'); setTimeout(() => { say('Chào buổi sáng! Mình ngủ ngon lắm.', 2600); startAction('stretch'); spawn('sparkle', 2); }, reduce ? 0 : 700); save(); }
 $('ctx').addEventListener('click', e => {
   const b = e.target.closest('.ctx-btn'); if (!b) return; hideHint();
-  ({ home: () => goTo('home'), rinse, ball: throwBall, spin: spinPlay, wake })[b.dataset.k]();
+  ({ home: () => goTo('home'), rinse, ball: throwBall, spin: spinPlay, wake, farm: () => gardenFx.startEdit() })[b.dataset.k]();
 });
 /* Nhạc nền: lúc ngủ > ban đêm > theo khu vực */
 function updateMusic() { music(S.asleep ? 'sleep' : period === 'dem' ? 'night' : area); }
@@ -568,10 +572,13 @@ initDiary();
 const food = initFood({ petRoot, camera, canvas, reduce, hitPet, hideHint, say, setTemp, popText, impulse, spawn, renderStats, shake: () => { shake = 1; }, openShop: () => home && home.openShop('food') });
 initChat({ reduce, hideHint, say, setTemp, spawn });
 /* Vườn rau 3D: luống đất, cây lớn dần, hoạt ảnh gieo, tưới, hái (garden3d.js) */
+const farmDecor = makeDecor({ THREE, toon, add, canvasTex, grad }); // mô hình đồ trang trí nông trại (dùng chung kiểu dựng với đồ trong phòng)
 const gardenFx = initGarden3d({
   THREE, garden, toon, add, canvasTex, ground: groundTex, grad, camera, canvas, ray, ndcFrom, spawnAt, popText, say, startAction, toast, sfx, buzz, reduce, getArea: () => area,
   petPos: () => petRoot.getWorldPosition(new THREE.Vector3()), walkPet: walkPetTo,
-  store: { S, plantCrop, waterCrop, harvestCrop, upgradeParcel, buyParcel, refreshGarden, serverNow },
+  buildDecor: id => farmDecor.build(id), thumb: id => home && home.thumb(id),
+  setCam: (pos, look) => { camOverride.pos = pos; camOverride.look = look; }, // lùi camera ra để thấy cả sân khi trang trí
+  store: { S, plantCrop, waterCrop, harvestCrop, upgradeParcel, buyParcel, saveFarm, refreshGarden, serverNow },
 });
 
 /* ---------------- hành vi rảnh rỗi & hoạt cảnh ---------------- */

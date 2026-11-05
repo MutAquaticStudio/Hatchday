@@ -1,7 +1,7 @@
 // Vườn rau 3D trong cảnh Vườn: 4 luống đất, cây lớn dần theo giờ thật, chạm vào luống để gieo hạt, tưới nước, hái rau.
 // Mỗi thao tác có hoạt ảnh: hạt bay vào đất và nảy mầm, bình tưới nghiêng rót nước, rau bay vào giỏ.
 // Dữ liệu thật (cây nào, chín lúc nào, số lần tưới) nằm ở server (get_garden, plant_crop, water_crop, harvest_crop); file này chỉ vẽ và gọi.
-import { CROPS, FOOD_BY_ID, GARDEN_LAND, PARCEL, plotIndex, WATER } from './catalog';
+import { BY_ID, CROPS, FOOD_BY_ID, GARDEN_LAND, ITEMS, PARCEL, plotIndex, WATER } from './catalog';
 import { FOOD_SVG } from './food.js';
 import { viError } from '../lib/errors';
 import { $, esc } from './dom.js';
@@ -63,7 +63,7 @@ export function leftText(ms) { const m = Math.max(1, Math.ceil(ms / 60000)), h =
 
 /**
  * `c`: { THREE, garden, toon, add, canvasTex, camera, canvas, ray, ndcFrom, spawnAt, popText, say, startAction, toast, sfx, buzz,
- *        reduce, getArea, petPos, store }. `store`: { S, plantCrop, waterCrop, harvestCrop, refreshGarden, serverNow }.
+ *        reduce, getArea, petPos, walkPet, buildDecor, thumb, store }. `store`: { S, plantCrop, waterCrop, harvestCrop, upgradeParcel, buyParcel, saveFarm, refreshGarden, serverNow }.
  * Trả về { sync, tap, update, screenOf, closeMenu }.
  */
 export function initGarden3d(c) {
@@ -320,7 +320,7 @@ export function initGarden3d(c) {
       await toBed(); b.busy = false; animHarvest(b, res.item, res.got);
     }
   });
-  addEventListener('keydown', e => { if (e.key === 'Escape' && !menu.hidden) { closeMenu(); e.stopImmediatePropagation(); } }, true);
+  addEventListener('keydown', e => { if (e.key === 'Escape' && edit) { stopEdit(); e.stopImmediatePropagation(); } else if (e.key === 'Escape' && !menu.hidden) { closeMenu(); e.stopImmediatePropagation(); } }, true);
 
   /** Chạm lên canvas: trúng luống thì mở bảng chọn. Trả về true nếu đã xử lý. */
   function tap(e) {
@@ -332,6 +332,111 @@ export function initGarden3d(c) {
     const i = o.userData.plot; if (beds[i].busy) return true;
     store.refreshGarden().then(() => { if (c.getArea() === 'garden') openMenu(i); }).catch(() => openMenu(i));
     buzz(6); return true;
+  }
+
+  /* ---------------- trang trí nông trại: đặt, kéo, xoay, cất đồ mua ở cửa hàng ---------------- */
+  const FARM_ITEMS = ITEMS.filter(i => i.layer === 'farm');
+  const farmRoot = new THREE.Group(); garden.add(farmRoot);
+  let farmMeshes = [], farmSig = '', edit = null; // edit: { items, sel, drag }
+  const ring = new THREE.Mesh(new THREE.RingGeometry(0.5, 0.62, 28), new THREE.MeshBasicMaterial({ color: '#5fbf86', transparent: true, opacity: 0.9, side: THREE.DoubleSide }));
+  ring.rotation.x = -Math.PI / 2; ring.position.y = 0.04; ring.visible = false; garden.add(ring);
+  const farmGround = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), farmHit = new THREE.Vector3();
+  const snap = v => Math.round(v * 4) / 4;
+  /** Bán kính chiếm chỗ của từng món (đơn vị thế giới), để không đặt chồng lên nhau. */
+  const FARM_R = { 'ao-nho': 1.0, gieng: 0.7, 'coi-xay-gio': 0.75, 'to-ong': 0.5, 'xe-hoa': 0.65, 'ghe-vuon': 0.65, 'dong-rom': 0.55, 'bu-nhin': 0.5, 'bien-nong-trai': 0.7, 'hom-thu': 0.35, 'den-vuon': 0.4, 'goc-nam': 0.45 };
+  const farmR = id => FARM_R[id] ?? 0.5;
+  function placeMesh(g, it) { g.position.set(it.x, 0, it.z); g.rotation.y = it.rot * Math.PI / 2; }
+  function buildFarm(items) {
+    farmRoot.children.slice().forEach(g => { farmRoot.remove(g); g.traverse(o => o.geometry?.dispose()); });
+    farmMeshes = items.map(it => { const g = c.buildDecor(it.id); placeMesh(g, it); farmRoot.add(g); return g; });
+  }
+  function syncFarm() { if (edit) return; const sig = JSON.stringify(S.farm); if (sig !== farmSig) { farmSig = sig; buildFarm(S.farm); } }
+  /** Chỗ đặt hợp lệ: trong sân, ngoài vùng luống, ngoài thảm cỏ của thú, ngoài giỏ, không đè món khác. Server chỉ kiểm tra phạm vi và số lượng. */
+  function farmValid(items, i) {
+    const it = items[i];
+    if (Math.abs(it.x) > 6.4 || it.z < -4.0 || it.z > 5.0) return false;
+    if (Math.abs(it.x) < 3.3 && it.z < -0.2) return false;
+    if (Math.hypot(it.x, it.z - 0.6) < 1.4) return false; // chỗ thú đứng giữa sân (thú đi quanh được, đồ chỉ là trang trí)
+    if (Math.hypot(it.x - basket.position.x, it.z - basket.position.z) < 0.9) return false;
+    return items.every((o, k) => k === i || Math.hypot(o.x - it.x, o.z - it.z) >= farmR(o.id) + farmR(it.id) + 0.1);
+  }
+  function updateRing() {
+    const it = edit && edit.sel >= 0 ? edit.items[edit.sel] : null; ring.visible = !!it;
+    if (it) { ring.position.set(it.x, 0.04, it.z); ring.material.color.set(farmValid(edit.items, edit.sel) ? '#5fbf86' : '#ff5a5a'); }
+  }
+  const fe = sel => panel.querySelector(sel);
+  const panel = document.createElement('div'); panel.className = 'edit-ui farm-ui'; panel.hidden = true; $('app').appendChild(panel);
+  function renderPanel() {
+    const counts = {}; edit.items.forEach(it => { counts[it.id] = (counts[it.id] || 0) + 1; });
+    const list = FARM_ITEMS.filter(i => (S.owned[i.id] || 0) > 0), selIt = edit.sel >= 0 ? BY_ID[edit.items[edit.sel].id] : null;
+    panel.innerHTML = `<div class="edit-top"><div class="edit-title"><b>Trang trí nông trại</b><span>${edit.items.length} món · chạm món bên dưới để đặt, kéo để di chuyển</span></div>
+        <div class="edit-actions"><button type="button" class="pill save" data-fe="save">Lưu</button><button type="button" class="pill" data-fe="cancel">Hủy</button></div></div>
+      <div class="item-bar" ${selIt ? '' : 'hidden'}><b>${selIt ? esc(selIt.name) : ''}</b><button type="button" class="btn-sm ghost" data-fe="rotate">Xoay</button><button type="button" class="btn-sm ghost" data-fe="store">Cất</button><button type="button" class="btn-sm ghost" data-fe="desel">Xong</button></div>
+      <div class="inventory"><div class="inv-row">${list.length ? list.map(i => { const left = (S.owned[i.id] || 0) - (counts[i.id] || 0);
+        return `<button type="button" class="inv-item" data-fe-add="${i.id}" ${left <= 0 ? 'disabled' : ''} title="${esc(i.name)}"><img data-fe-thumb="${i.id}" alt="" width="56" height="56"><span>${esc(i.name)}</span><em>${left}</em></button>`; }).join('')
+        : '<p class="hs-note" style="margin:6px 8px">Bạn chưa có đồ trang trí nông trại. Mua ở Cửa hàng, mục Nông trại nhé.</p>'}</div></div>`;
+    panel.querySelectorAll('[data-fe-thumb]').forEach(im => { const u = c.thumb?.(im.dataset.feThumb); if (u) im.src = u; });
+  }
+  function startEdit() {
+    if (c.getArea() !== 'garden' || edit) return;
+    closeMenu(); edit = { items: structuredClone(S.farm), sel: -1, drag: null }; farmSig = '';
+    c.setCam?.(new THREE.Vector3(0, 8.4, 14.5), new THREE.Vector3(0, 0, 0.4)); // lùi ra để thấy cả sân
+    $('app').classList.add('farm-editing'); panel.hidden = false; buildFarm(edit.items); renderPanel(); updateRing();
+    say('Chạm đồ ở dưới để đặt vào sân nhé!', 2600);
+  }
+  function stopEdit() { c.setCam?.(null, null); edit = null; panel.hidden = true; ring.visible = false; $('app').classList.remove('farm-editing'); farmSig = ''; syncFarm(); }
+  function addItem(id) {
+    let best = null;
+    for (let x = -6.0; x <= 6.0; x += 0.5) for (let z = -3.5; z <= 4.9; z += 0.5) {
+      const cand = { id, x, z, rot: 0 }; if (!farmValid([...edit.items, cand], edit.items.length)) continue;
+      // ưu tiên chỗ nhìn thấy được ở góc nhìn thường (|x| ≤ 4, z ≤ 3,8), gần quanh thú, không quá gần thú
+      const d = Math.max(0, Math.abs(x) - 4.0) * 3 + Math.max(0, z - 3.8) * 3 + Math.abs(z - 1.6) * 0.25 + (Math.hypot(x, z - 0.6) < 2.1 ? 1.5 : 0) + Math.abs(Math.abs(x) - 3.0) * 0.1;
+      if (!best || d < best.d) best = { d, cand };
+    }
+    if (!best) { toast('Sân hết chỗ trống rồi.'); return; }
+    edit.items.push(best.cand); edit.sel = edit.items.length - 1;
+    const g = c.buildDecor(id); placeMesh(g, best.cand); farmRoot.add(g); farmMeshes.push(g);
+    sfx('place'); buzz(10); renderPanel(); updateRing();
+  }
+  function removeSel() { const i = edit.sel; if (i < 0) return; const g = farmMeshes.splice(i, 1)[0]; farmRoot.remove(g); g.traverse(o => o.geometry?.dispose()); edit.items.splice(i, 1); edit.sel = -1; sfx('ui'); renderPanel(); updateRing(); }
+  panel.addEventListener('click', async e => {
+    const add = e.target.closest('[data-fe-add]'), act = e.target.closest('[data-fe]'); if (!edit) return;
+    if (add) { addItem(add.dataset.feAdd); return; }
+    if (!act) return;
+    const k = act.dataset.fe;
+    if (k === 'rotate' && edit.sel >= 0) { const it = edit.items[edit.sel]; it.rot = (it.rot + 1) % 4; placeMesh(farmMeshes[edit.sel], it); sfx('ui'); }
+    else if (k === 'store') removeSel();
+    else if (k === 'desel') { edit.sel = -1; renderPanel(); updateRing(); }
+    else if (k === 'cancel') { stopEdit(); }
+    else if (k === 'save') {
+      const bad = edit.items.findIndex((_, i) => !farmValid(edit.items, i));
+      if (bad >= 0) { edit.sel = bad; renderPanel(); updateRing(); toast('Có món đang đặt sai chỗ (vòng đỏ). Hãy dời đi nhé.'); return; }
+      act.disabled = true; const err = await store.saveFarm(edit.items);
+      if (err) { act.disabled = false; toast(viError(err)); return; }
+      stopEdit(); sfx('coin'); toast('Đã lưu nông trại!'); startAction('dance');
+    }
+  });
+  /** Con trỏ khi đang trang trí nông trại: chọn món, kéo đi, thả (thả sai chỗ thì quay về chỗ cũ). */
+  function editPointer(type, e) {
+    if (!edit) return;
+    const groundAt = () => { ray.setFromCamera(ndcFrom(e), camera); return ray.ray.intersectPlane(farmGround, farmHit) ? farmHit : null; };
+    if (type === 'down') {
+      ray.setFromCamera(ndcFrom(e), camera);
+      const hit = ray.intersectObjects(farmMeshes, true)[0]; let idx = -1;
+      if (hit) { let o = hit.object; while (o && !farmMeshes.includes(o)) o = o.parent; idx = farmMeshes.indexOf(o); }
+      edit.sel = idx; edit.drag = idx >= 0 ? { i: idx, orig: { x: edit.items[idx].x, z: edit.items[idx].z }, x: e.clientX, y: e.clientY, moved: false } : null;
+      if (idx >= 0) buzz(6);
+      renderPanel(); updateRing();
+    } else if (type === 'move' && edit.drag) {
+      const d = edit.drag; if (Math.hypot(e.clientX - d.x, e.clientY - d.y) > 6) d.moved = true; if (!d.moved) return;
+      const g = groundAt(); if (!g) return; const it = edit.items[d.i];
+      it.x = Math.max(-6.5, Math.min(6.5, snap(g.x))); it.z = Math.max(-4.2, Math.min(5.2, snap(g.z))); placeMesh(farmMeshes[d.i], it); updateRing();
+    } else if (type === 'up' && edit.drag) {
+      const d = edit.drag; edit.drag = null; const it = edit.items[d.i];
+      if (d.moved && !farmValid(edit.items, d.i)) { it.x = d.orig.x; it.z = d.orig.z; placeMesh(farmMeshes[d.i], it); toast('Chỗ này không đặt được, món về chỗ cũ.'); buzz(20); }
+      else if (d.moved) sfx('place');
+      updateRing();
+    }
   }
 
   /* ---------------- thanh chọn mảnh đất ---------------- */
@@ -369,8 +474,10 @@ export function initGarden3d(c) {
     }
     beds.forEach(b => { b.soilMat.color.set(b.locked ? '#a6d48a' : b.dark > 0 ? (b.dark > 0.5 ? '#4a2c1a' : '#5e3a22') : '#7a4a2e'); });
     if (basketSq > 0) { basketSq = Math.max(0, basketSq - dt * 4); basket.scale.set(1 + 0.12 * basketSq, 1 - 0.18 * basketSq, 1 + 0.12 * basketSq); }
-    bar.hidden = c.getArea() !== 'garden';
-    if (c.getArea() !== 'garden') { if (!menu.hidden) closeMenu(); return; }
+    bar.hidden = c.getArea() !== 'garden' || !!edit;
+    if (c.getArea() !== 'garden') { if (!menu.hidden) closeMenu(); if (edit) stopEdit(); return; }
+    syncFarm();
+    if (edit && ring.visible) ring.scale.setScalar(1 + Math.sin(now / 160) * 0.06);
     if (now > tickAt) {
       tickAt = now + 250; sync();
       const key = parcelsNow().map(p => p.level).join() + '|' + parcel + '|' + (S.coins >= PARCEL.prices[1]);
@@ -380,5 +487,5 @@ export function initGarden3d(c) {
     if (!reduce && now > sparkAt) { sparkAt = now + 1300; beds.forEach(b => { const p = plotOf(b.i); if (p && !b.busy && store.serverNow() >= Date.parse(p.ready_at)) spawnAt('sparkle', b.root.position.x + (Math.random() - 0.5) * 0.8, 0.8, b.root.position.z + 0.2, { vy: 0.45, max: 0.9, scale: 0.22 }); }); }
   }
 
-  return { sync, tap, update, screenOf, closeMenu, minZ: () => workZ() - 0.25, workSpot: i => ({ x: beds[i].root.position.x, z: workZ() }) };
+  return { sync, tap, update, screenOf, closeMenu, startEdit, editing: () => !!edit, editPointer, minZ: () => workZ() - 0.25, workSpot: i => ({ x: beds[i].root.position.x, z: workZ() }) };
 }

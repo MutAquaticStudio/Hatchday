@@ -35,7 +35,7 @@ const out = []; const ok = (n, c, x = '') => { out.push((c ? 'OK  ' : 'FAIL') + 
   await p.goto(`http://localhost:${PORT}/?dev`); await p.waitForTimeout(800);
   await p.evaluate(() => localStorage.setItem('hatchday-tour', '1'));
   await tap('#demo'); await p.waitForTimeout(500); await tap('button[type=submit]'); await p.waitForTimeout(7000);
-  await p.evaluate(() => { const d = JSON.parse(localStorage.getItem('hatchday-demo')); d.owned['ghe-dau'] = 2; d.coins = 1000; localStorage.setItem('hatchday-demo', JSON.stringify(d)); });
+  await p.evaluate(() => { const d = JSON.parse(localStorage.getItem('hatchday-demo')); d.owned['ghe-dau'] = 2; d.owned['bu-nhin'] = 1; d.coins = 1000; localStorage.setItem('hatchday-demo', JSON.stringify(d)); });
   await p.goto(`http://localhost:${PORT}/?dev`); await p.waitForTimeout(800); await tap('#demo'); await p.waitForTimeout(3000);
   ok('chạy ở chế độ điện thoại cảm ứng', await p.evaluate(() => matchMedia('(pointer: coarse)').matches));
 
@@ -43,8 +43,8 @@ const out = []; const ok = (n, c, x = '') => { out.push((c ? 'OK  ' : 'FAIL') + 
   await p.evaluate(() => { document.getElementById('coin-n').textContent = '999.999'; document.getElementById('lcdmsg').textContent = 'Bánh Bò đang rất vui vẻ và no nê'; });
   for (const w of [320, 360, 390, 430]) {
     await p.setViewportSize({ width: w, height: 700 }); await p.waitForTimeout(400);
-    const m = await p.evaluate(() => { const r = id => document.querySelector(id).getBoundingClientRect(), lcd = r('.lcd'), clock = r('#clock'), btns = r('.top-btns'), coins = r('#btn-coins');
-      return { visible: lcd.width > 40 && clock.width > 20 && btns.width > 100, clockIn: clock.left >= lcd.left - 0.5 && clock.right <= lcd.right + 0.5, noOverlap: lcd.right <= btns.left + 0.5, fits: btns.right <= innerWidth + 0.5, lcd: [Math.round(lcd.left), Math.round(lcd.right)], coins: [Math.round(coins.left), Math.round(coins.right)] }; });
+    const m = await p.evaluate(() => { const r = id => document.querySelector(id).getBoundingClientRect(), lcd = r('.lcd'), clock = r('#clock'), btns = r('.top-btns'), coins = r('#btn-coins'), last = r('#btn-stats');
+      return { visible: lcd.width > 40 && clock.width > 20 && btns.width > 100, clockIn: clock.left >= lcd.left - 0.5 && clock.right <= lcd.right + 0.5, noOverlap: lcd.right <= btns.left + 0.5, fits: btns.right <= innerWidth + 0.5 && last.right <= innerWidth + 0.5 && last.left >= coins.right - 0.5, lcd: [Math.round(lcd.left), Math.round(lcd.right)], coins: [Math.round(coins.left), Math.round(coins.right)] }; });
     ok(`thanh trên cùng rộng ${w}px: đồng hồ nằm trong ô, không bị nút xu đè, không tràn màn hình`, m.visible && m.clockIn && m.noOverlap && m.fits, JSON.stringify(m));
   }
   await p.setViewportSize({ width: 390, height: 664 }); await p.waitForTimeout(400);
@@ -74,6 +74,13 @@ const out = []; const ok = (n, c, x = '') => { out.push((c ? 'OK  ' : 'FAIL') + 
   ok('nút chọn cây đủ lớn để chạm (≥ 44px)', btns.length === 4 && btns.every(([w, h]) => w >= 44 && h >= 44), JSON.stringify(btns.map(x => x.map(Math.round))));
   await tap('#plot-menu [data-plant="carot"]');
   ok('gieo cây bằng ngón tay, thú đi tới luống rồi gieo', await until(async () => (await demo()).garden?.['0']?.crop === 'carot'));
+  // trang trí nông trại bằng ngón tay
+  await tap('.ctx-btn[data-k="farm"]'); await p.waitForTimeout(1200);
+  ok('trang trí nông trại trên điện thoại: hiện bảng chọn đồ', await p.isVisible('.farm-ui [data-fe-add="bu-nhin"]'));
+  const fi = await center('.farm-ui [data-fe-add="bu-nhin"]'); ok('ô đồ nông trại đủ lớn để chạm (≥ 44px)', fi.w >= 44 && fi.h >= 44, `${Math.round(fi.w)}x${Math.round(fi.h)}`);
+  await tap('.farm-ui [data-fe-add="bu-nhin"]'); await p.waitForTimeout(500); await tap('.farm-ui [data-fe="save"]');
+  ok('đặt và lưu đồ nông trại bằng ngón tay', await until(async () => (await demo()).farm?.length === 1));
+  await p.waitForTimeout(2000);
   await p.waitForTimeout(6000); // hoạt ảnh gieo xong và thú quay về giữa sân
   ok('chạm mảnh đất trống: hiện nút mua', await tapPlot(3, '[data-expand]'));
   const exb = await center('#plot-menu [data-expand]');

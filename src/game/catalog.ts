@@ -3,7 +3,8 @@
  * Seed SQL trong supabase/migrations/*_decor_cosmetics.sql phải khớp — test catalog-sync kiểm tra.
  */
 export type Kind = 'food' | 'decor' | 'outfit';
-export type Layer = 'floor' | 'rug' | 'wall' | 'wallpaper' | 'flooring';
+/** 'farm': đồ trang trí nông trại, đặt ngoài vườn (không dùng trong phòng). */
+export type Layer = 'floor' | 'rug' | 'wall' | 'wallpaper' | 'flooring' | 'farm';
 export type Slot = 'head' | 'face' | 'neck' | 'back';
 /** Bật quầy trả phí trong cửa hàng (tạm ẩn cho tới khi có cổng thanh toán). */
 export const PAID_SHOP_ENABLED = false;
@@ -52,6 +53,19 @@ export const ITEMS: Item[] = [
   D('bong', 'Bóng', 'floor', 1, 1, 1, null, ['choi'], null, 'starter'),
   D('cay-dao', 'Cây đào Tết', 'floor', 1, 1, 3, 'le-hoi', ['cay'], null, 'event', 'hiem'),
   D('den-ong-sao', 'Đèn ông sao', 'floor', 1, 1, 2, 'le-hoi', ['sang'], null, 'event', 'hiem'),
+  // Trang trí nông trại (đặt ngoài vườn, mua nhiều bản được, không tính điểm thoải mái của phòng)
+  D('bien-nong-trai', 'Biển nông trại', 'farm', 1, 1, 0, null, [], 90, 'market'),
+  D('dong-rom', 'Đống rơm', 'farm', 1, 1, 0, null, [], 120, 'market'),
+  D('hom-thu', 'Hòm thư', 'farm', 1, 1, 0, null, [], 130, 'market'),
+  D('bu-nhin', 'Bù nhìn', 'farm', 1, 1, 0, null, [], 140, 'market'),
+  D('goc-nam', 'Gốc cây nấm', 'farm', 1, 1, 0, null, [], 150, 'market'),
+  D('ghe-vuon', 'Ghế gỗ vườn', 'farm', 1, 1, 0, null, [], 160, 'market'),
+  D('to-ong', 'Tổ ong', 'farm', 1, 1, 0, null, [], 200, 'market'),
+  D('xe-hoa', 'Xe đẩy hoa', 'farm', 1, 1, 0, null, [], 220, 'market'),
+  D('den-vuon', 'Đèn lồng vườn', 'farm', 1, 1, 0, null, [], 240, 'market'),
+  D('gieng', 'Giếng nước', 'farm', 1, 1, 0, null, [], 420, 'rotating', 'dep'),
+  D('ao-nho', 'Ao sen nhỏ', 'farm', 1, 1, 0, null, [], 520, 'rotating', 'dep'),
+  D('coi-xay-gio', 'Cối xay gió mini', 'farm', 1, 1, 0, null, [], 760, 'weekend', 'hiem'),
   // Thảm
   D('tham-tron', 'Thảm tròn xanh', 'rug', 4, 4, 1, null, ['mem'], null, 'starter'),
   D('tham-cat', 'Thảm cát', 'rug', 3, 2, 1, 'bien', [], 240, 'market'),

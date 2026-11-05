@@ -96,7 +96,9 @@ Khoá 15 phút sau 5 lần sai hiện chỉ có ở phía máy (trải nghiệm)
 | `species` | 50 loài: tên, miền, độ hiếm, trọng số | đọc |
 | `species_seen` | Sổ loài: loài đã từng nuôi, các dáng đã đạt | đọc của mình |
 | `room_layouts` | 3 ô bố cục phòng (jsonb), `profiles.active_layout` chọn ô đang dùng | đọc của mình |
-| `garden_plots` (vườn rau), `recipes`, `crops` (tham chiếu, ai cũng đọc) | Cây đang trồng / công thức nấu / cây trồng được | đọc của mình / đọc |
+| `garden_plots` (vườn rau), `recipes`, `crops` (tham chiếu, ai cũng đọc) | Cây đang trồng (kèm số lần tưới) / công thức nấu / cây trồng được | đọc của mình / đọc |
+| `garden_parcels` | Mảnh đất của người chơi: mảnh 0–2, cấp 0–2 (3/6/9 ô) | đọc của mình |
+| `farm_layouts` | Bố cục trang trí nông trại (jsonb, tối đa 60 món) | đọc của mình |
 | `quest_claims`, `weekly_claims`, `ration_claims`, `collection_claims` | Đã nhận thưởng nhiệm vụ ngày (idx 5 = thưởng cả ngày) / nhiệm vụ tuần / suất ăn / bộ sưu tập | đọc của mình |
 | `memories` | Ký ức, `first_key` để "lần đầu" chỉ ghi một lần | đọc, xoá của mình |
 | `day_logs` | Bộ đếm theo ngày → nhật ký | đọc |
@@ -117,7 +119,10 @@ Khoá 15 phút sau 5 lần sai hiện chỉ có ở phía máy (trải nghiệm)
 | `get_economy()` | | xu, xu hôm nay, 6 món tiệm hôm nay, cuối tuần?, đã nhận suất ăn chưa | |
 | `hatch_heir(name, egg)` | đón thú đời sau của bé đã đi, giữ dòng họ, đời + 1 | thú mới (thừa hưởng cá tính, tai, nửa sắc độ, sở thích, 50% món tủ) | `pet_exists`, `no_parent`, `invalid_name`, `invalid_egg` |
 | `upgrade_fridge()` | tủ lạnh cấp 1 giá 200 xu, cấp 2 giá 500 xu | `{ coins, fridge_level }` | `max_level`, `not_enough_coins` |
-| `get_garden()` / `plant_crop(plot, crop)` / `harvest_crop(plot)` | 4 ô, cây chín sau 4–10 giờ, thu 3 phần | trạng thái các ô kèm giờ server / `{ coins }` / `{ item, qty, got }` | `invalid_plot`, `unknown_crop`, `plot_busy`, `plot_empty`, `not_ready`, `stock_full`, `not_enough_coins` |
+| `get_garden()` / `plant_crop(plot, crop)` / `harvest_crop(plot)` | ô toàn cục 0–26 (= mảnh × 9 + ô), cây chín sau 4–10 giờ, thu 3 phần | `{ now, parcels[], plots[] }` kèm giờ server / `{ coins }` / `{ item, qty, got }` | `invalid_plot`, `plot_locked`, `unknown_crop`, `plot_busy`, `plot_empty`, `not_ready`, `stock_full`, `not_enough_coins` |
+| `water_crop(plot)` | mỗi lần rút 10% thời gian chín, tối đa 3 lần, cách nhau 30 phút | `{ plot, waters, ready_at }` | `plot_empty`, `already_ready`, `max_watered`, `too_soon` |
+| `upgrade_parcel(parcel)` / `buy_parcel()` | nâng 3→6 ô giá 300 xu, 6→9 ô giá 600 xu; mua mảnh mới khi mảnh cuối đủ 9 ô: 1.000 xu (mảnh 2), 2.000 xu (mảnh 3) | `{ coins, parcel, level?, size? }` | `plot_locked`, `max_land`, `max_parcels`, `parcel_not_full`, `not_enough_coins` |
+| `save_farm_layout(layout)` | `layout` = `{ items: [{ id, x, z, rot }] }`, tối đa 60 món (đọc bố cục thẳng từ bảng `farm_layouts`) | `{ count }` | `invalid_layout`, `not_owned` |
 | `cook(recipe, qty)` | qty 1–5, mỗi lần dùng 1 phần mỗi nguyên liệu | `{ dish, qty }` | `unknown_recipe`, `invalid_qty`, `missing_ingredient`, `stock_full` |
 | `get_tastes()` | | `{ fav, dis, tried, total }`, món tủ/ghét chỉ lộ sau khi bé đã ăn thử | `no_pet` |
 | `buy_food(item, qty)` | qty 1–10, kho tối đa 30 phần mỗi món | `{ coins, qty }` | `unknown_item`, `invalid_qty`, `stock_full`, `not_enough_coins` |

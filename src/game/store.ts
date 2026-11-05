@@ -5,7 +5,7 @@
  * - Vuốt ve và kỳ cọ được gộp theo lô 2 giây để không gửi quá nhiều yêu cầu.
  */
 import * as api from '../data/api';
-import type { ActionResult, Garden, Outfit, PetAction, PetRow, QuestBoard, QuestRow, SeenRow, Tastes } from '../data/types';
+import type { ActionResult, FarmItem, Garden, Outfit, PetAction, PetRow, QuestBoard, QuestRow, SeenRow, Tastes } from '../data/types';
 import type { CareSums, Form, Stage } from './species';
 import { emptyDay, localDay, writeDiary, type DayLog } from './rules';
 import { DEFAULT_LAYOUT, type Layout } from './catalog';
@@ -30,6 +30,8 @@ export interface PetState {
   lineage: PetRow[];
   /** Tủ lạnh (cấp 0–2), vườn rau, khẩu vị bé đã lộ ra. */
   fridge: number; garden: Garden | null; tastes: Tastes;
+  /** Đồ trang trí nông trại đã đặt. */
+  farm: FarmItem[];
 }
 
 export const S: PetState = {
@@ -39,7 +41,7 @@ export const S: PetState = {
   outfit: {}, presets: [{}, {}, {}], likes: [], dislike: '', quests: [], collections: [],
   personality: normalize(null),
   weekly: [], questBonus: { reward: 0, ready: false, claimed: false }, rationDay: '', groupLog: [], lineage: [],
-  fridge: 0, garden: null, tastes: { fav: null, dis: null, tried: 0, total: 0 },
+  fridge: 0, garden: null, tastes: { fav: null, dis: null, tried: 0, total: 0 }, farm: [],
 };
 /** Bố cục đang dùng (luôn có giá trị). */
 export const activeLayout = (): Layout => S.layouts[S.activeLayout] || S.layouts[0] || DEFAULT_LAYOUT;
@@ -92,6 +94,11 @@ const spoilListeners = new Set<(lost: Record<string, number>) => void>();
 let pendingSpoil: Record<string, number> | null = null;
 /** Báo khi có thức ăn tươi bị hỏng (kể cả lần hỏng xảy ra trước khi giao diện sẵn sàng). */
 export const onSpoil = (fn: (lost: Record<string, number>) => void) => { spoilListeners.add(fn); if (pendingSpoil) { const p = pendingSpoil; pendingSpoil = null; fn(p); } return () => spoilListeners.delete(fn); };
+export async function refreshFarm(): Promise<void> { S.farm = await api.getFarm(); emit(); }
+/** Lưu bố cục nông trại. Trả về lỗi nếu thất bại, null nếu thành công. */
+export async function saveFarm(items: FarmItem[]): Promise<unknown> {
+  try { await api.saveFarm(items); S.farm = structuredClone(items); emit(); return null; } catch (e) { return e; }
+}
 export async function refreshTastes(): Promise<void> { S.tastes = await api.getTastes(); emit(); }
 let gardenSkew = 0;
 /** Giờ server (để đếm ngược vườn rau không phụ thuộc đồng hồ máy). */
@@ -108,7 +115,7 @@ export async function hydrate(): Promise<void> {
   const p = await api.getMyPet();
   if (!p) throw new Error('no_pet');
   applyRow(p);
-  await Promise.all([refreshMemories(), refreshDays(), refreshEconomy(), refreshOwned(), refreshLayouts(), refreshQuests(), refreshSeen(), refreshFamily(), refreshTastes(), refreshGarden()]);
+  await Promise.all([refreshMemories(), refreshDays(), refreshEconomy(), refreshOwned(), refreshLayouts(), refreshQuests(), refreshSeen(), refreshFamily(), refreshTastes(), refreshGarden(), refreshFarm()]);
   hydrated = true;
 }
 

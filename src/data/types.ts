@@ -37,6 +37,8 @@ export interface ActionResult { pet: PetRow; refused: null | 'asleep' | 'full' |
 
 export interface GardenPlot { plot: number; crop: string; planted_at: string; ready_at: string; ready: boolean; waters: number; watered_at: string | null; can_water: boolean }
 /** `now` là giờ server, để tính giờ còn lại mà không tin đồng hồ máy. */
+/** Một món đồ trang trí nông trại đã đặt: toạ độ trên sân (x, z) và hướng xoay 0–3. */
+export interface FarmItem { id: string; x: number; z: number; rot: number }
 export interface Parcel { parcel: number; level: number; size: number }
 export interface Garden { now: string; parcels: Parcel[]; plots: GardenPlot[] }
 /** Khẩu vị bé đã lộ ra: món tủ / món ghét chỉ biết sau khi bé được ăn thử món đó. */

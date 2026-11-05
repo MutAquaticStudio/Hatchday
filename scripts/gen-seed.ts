@@ -16,3 +16,6 @@ console.log(`-- FOODS\ninsert into public.items (id, kind, name, effects, price_
 console.log(`-- DISHES\ninsert into public.items (id, kind, name, effects, price_coins, source, rarity) values\n${DISHES.map(f => `  (${q(f.id)}, 'dish', ${q(f.name)}, '${eff(f)}', null, 'cook', 'thuong')`).join(',\n')}\non conflict (id) do update set name = excluded.name, effects = excluded.effects;`);
 console.log(`-- RECIPES\ninsert into public.recipes (id, dish, a, b) values\n${RECIPES.map(r => `  (${q(r.id)}, ${q(r.dish)}, ${q(r.a)}, ${q(r.b)})`).join(',\n')}\non conflict (id) do update set dish = excluded.dish, a = excluded.a, b = excluded.b;`);
 console.log(`-- CROPS\ninsert into public.crops (id, hours, seed, yield) values\n${CROPS.map(c => `  (${q(c.id)}, ${c.hours}, ${c.seed}, ${c.yield})`).join(',\n')};`);
+
+// Đồ trang trí nông trại (layer 'farm') — dán vào migration 20261120000000_farm_decor.sql
+console.log(`-- FARM ITEMS\ninsert into public.items (id, kind, name, layer, slot, w, d, comfort, theme, tags, price_coins, source, rarity) values\n${ITEMS.filter(i => i.layer === 'farm').map(i => `  (${q(i.id)}, ${q(i.kind)}, ${q(i.name)}, ${q(i.layer)}, ${q(i.slot)}, ${q(i.w ?? null)}, ${q(i.d ?? null)}, ${q(i.comfort ?? 0)}, ${q(i.theme ?? null)}, ${arr(i.tags)}, ${q(i.price)}, ${q(i.source)}, ${q(i.rarity)})`).join(',\n')}\non conflict (id) do nothing;`);

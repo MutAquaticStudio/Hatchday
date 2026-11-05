@@ -6,7 +6,7 @@ import { clamp, decayStats, localDay } from '../game/rules';
 import { BY_ID, CROPS, readyAtMs, WATER, DEFAULT_LAYOUT, EDIBLES, FOOD_BY_ID, FOOD_STOCK, FOODS, FRIDGE, GARDEN_LAND, GARDEN_PLOTS, PARCEL, ITEMS, RECIPES, spoilLoss, STARTER_ITEMS, type Layout } from '../game/catalog';
 import { BALANCED_BONUS, isBalanced } from '../game/nutrition';
 import { buyable, COIN, comfortLevel, comfortScore, dayNumber, QUEST_BONUS, QUEST_POOL, questsForDay, rotationForDay, isWeekend, weekStart, WEEKLY_POOL, weeklyForDay } from '../game/layout';
-import type { ActionResult, DayLogRow, Economy, Garden, MemoryRow, Outfit, PetAction, PetRow, QuestBoard, QuestRow, SeenRow, Tastes } from './types';
+import type { ActionResult, DayLogRow, Economy, FarmItem, Garden, MemoryRow, Outfit, PetAction, PetRow, QuestBoard, QuestRow, SeenRow, Tastes } from './types';
 import { applyDrift, isBlank, normalize, rollPersonality } from '../game/personality';
 import { blendPersonality, HEIR_FAV_INHERIT, pickHeirSpecies } from '../game/lineage';
 import { formFromCare, pickSpecies, SPECIES_BY_ID, stageForAge, REGIONS, GROW_MEMORY } from '../game/species';
@@ -22,7 +22,7 @@ interface DB {
   family?: PetRow[]; oldMem?: Record<string, MemoryRow[]>;
   /** Tủ lạnh (cấp 0–2), ngày đã tính thức ăn hỏng lần cuối, vườn rau (ô → cây và giờ gieo). */
   /** Mức nâng cấp của từng mảnh đất (0–2), mảnh đầu có sẵn. */
-  parcels?: number[]; fridge?: number; spoilDay?: string; garden?: Record<string, { crop: string; planted_at: string; waters?: number; watered_at?: string }>;
+  parcels?: number[]; farm?: FarmItem[]; fridge?: number; spoilDay?: string; garden?: Record<string, { crop: string; planted_at: string; waters?: number; watered_at?: string }>;
 }
 
 function load(): DB {
@@ -327,6 +327,18 @@ export async function buyParcel() {
   const cost = PARCEL.prices[n]; if (db.coins < cost) throw new Error('not_enough_coins');
   db.coins -= cost; levels.push(0); db.parcels = levels; store(db);
   return { coins: db.coins, parcel: n };
+}
+/** Bố cục nông trại (giống public.save_farm_layout: đúng loại 'farm', đủ số lượng sở hữu, trong sân, xoay 0–3). */
+export async function getFarm(): Promise<FarmItem[]> { return structuredClone(load().farm || []); }
+export async function saveFarm(items: FarmItem[]) {
+  const db = load(); if (!Array.isArray(items) || items.length > 60) throw new Error('invalid_layout');
+  const n: Record<string, number> = {};
+  for (const it of items) {
+    if (BY_ID[it.id]?.layer !== 'farm' || !(Math.abs(it.x) <= 6.5 && it.z >= -4.2 && it.z <= 5.2) || ![0, 1, 2, 3].includes(it.rot)) throw new Error('invalid_layout');
+    n[it.id] = (n[it.id] || 0) + 1;
+  }
+  for (const [id, k] of Object.entries(n)) if ((db.owned[id] || 0) < k) throw new Error('not_owned');
+  db.farm = structuredClone(items); store(db); return { count: items.length };
 }
 export async function waterCrop(plot: number) {
   const db = load(), g = db.garden?.[plot]; if (!g) throw new Error('plot_empty');

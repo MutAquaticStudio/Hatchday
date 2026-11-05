@@ -21,7 +21,7 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
   display:flex;gap:10px;align-items:flex-start;justify-content:space-between;pointer-events:none}
 .top > *{pointer-events:auto}
-.lcd{display:flex;align-items:center;gap:10px;min-width:var(--lcd-min,112px);overflow:hidden;max-width:440px;background:var(--lcd);color:var(--lcd-ink);
+.lcd{display:flex;align-items:center;gap:10px;flex:1 1 0;min-width:var(--lcd-min,112px);overflow:hidden;max-width:440px;background:var(--lcd);color:var(--lcd-ink);
   border:3px solid var(--lcd-edge);border-radius:18px 18px 18px 6px;padding:7px 14px 7px 10px;
   box-shadow:inset 0 0 0 2px rgba(255,255,255,.35),0 3px 0 var(--lcd-edge);font-weight:800;font-size:14px}
 .lcd .egg{width:22px;height:26px;flex:none;border-radius:50% 50% 46% 46%/58% 58% 42% 42%;background:#fff3c4;border:2px solid var(--lcd-edge)}
@@ -98,8 +98,7 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline
 .runner::before{left:6px;transform:rotate(-22deg)}
 .runner::after{right:6px;transform:rotate(22deg)}
 @keyframes wipe-run{from{transform:translateY(0) rotate(-7deg)}to{transform:translateY(-16px) rotate(7deg)}}
-.top-btns{display:flex;gap:8px;flex:0 1 auto;min-width:0}
-.top-btns .pill{flex:0 0 auto}
+.top-btns{display:flex;gap:8px;flex:none}
 .diary{top:calc(env(safe-area-inset-top,0px) + 66px);right:max(16px,env(safe-area-inset-right,0px));width:min(360px,calc(100% - 32px));max-height:min(62vh,520px);
   display:flex;flex-direction:column;overflow:hidden;background-color:#fffdf5}
 .diary .tabs{display:flex;gap:6px;padding:12px 14px 10px;border-bottom:2px dashed var(--candy-edge);flex:none}
@@ -127,6 +126,7 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline
 @media (max-width:480px){.act{min-width:52px;padding:6px 4px 4px;font-size:12px}.lcd{font-size:13px}.hint{font-size:12px}}
 /* Màn hình hẹp: nhường chỗ để đồng hồ không bị nút xu đè lên (đồng hồ có bề rộng tối thiểu, ẩn quả trứng nhỏ, thu gọn nút) */
 @media (max-width:430px){
+  .ctx{gap:5px}.ctx-btn{padding:8px 10px;font-size:13px} /* 4 nút vừa một hàng, không che vùng chạm trên màn hình thấp */
   .top{gap:6px}.top-btns{gap:6px}
   .top-btns .pill{padding:8px 11px;font-size:13px}
   .pill.coins{gap:4px}.pill.coins svg{width:18px;height:18px}
@@ -386,3 +386,7 @@ body.editing .top,body.editing .scene-tag,body.editing .bottom,body.editing #hin
 .parcel-bar .chip{font-size:12.5px;padding:5px 12px}
 .parcel-bar .chip.buy{background:#fff1b8;border-color:#e8b34a}
 .parcel-bar .chip:disabled{opacity:.5}
+
+/* Trang trí nông trại: ẩn thanh hành động và thanh chọn mảnh đất trong lúc chỉnh sửa */
+.farm-editing .bottom,.farm-editing .parcel-bar,.farm-editing .scene-tag,.farm-editing .hint{display:none}
+.farm-ui{z-index:27}

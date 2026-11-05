@@ -261,7 +261,7 @@ export function initHome(ctx) {
 
   /* ---------- Cửa hàng ---------- */
   let shopTab = 'market', shopKind = 'all', confirmId = '';
-  const KIND_FILTER = { all: 'Tất cả', floor: 'Nội thất', rug: 'Thảm', wall: 'Treo tường', surface: 'Tường & sàn', outfit: 'Trang phục' };
+  const KIND_FILTER = { all: 'Tất cả', floor: 'Nội thất', rug: 'Thảm', wall: 'Treo tường', surface: 'Tường & sàn', farm: 'Nông trại', outfit: 'Trang phục' };
   const kindOf = it => (it.kind === 'outfit' ? 'outfit' : it.layer === 'wallpaper' || it.layer === 'flooring' ? 'surface' : it.layer);
   function openShop(tab = shopTab) {
     shopTab = tab; confirmId = '';
@@ -468,7 +468,7 @@ export function initHome(ctx) {
   function hasUnpaid() { const n = placedCount(work); return Object.entries(n).some(([id, k]) => (S.owned[id] || 0) < k); }
   function renderInventory() {
     const n = placedCount(work);
-    const list = ITEMS.filter(i => i.kind === 'decor' && (S.owned[i.id] || 0) > 0 && (filter === 'all' || kindOf(i) === filter));
+    const list = ITEMS.filter(i => i.kind === 'decor' && i.layer !== 'farm' && (S.owned[i.id] || 0) > 0 && (filter === 'all' || kindOf(i) === filter)); // đồ nông trại đặt ở cảnh Vườn
     $('e-inv').innerHTML = list.map(it => {
       const surf = it.layer === 'wallpaper' || it.layer === 'flooring', left = surf ? null : (S.owned[it.id] || 0) - (n[it.id] || 0);
       const on = surf && (work.wallpaper === it.id || work.flooring === it.id);
@@ -703,5 +703,5 @@ export function initHome(ctx) {
     return { checked: n, bad };
   };
 
-  return { update, pickVisit, isEditing: () => editing, openShop, enterEdit, closeAll, openDex, refreshOutfit: () => renderOutfit(S.outfit) };
+  return { update, pickVisit, thumb, isEditing: () => editing, openShop, enterEdit, closeAll, openDex, refreshOutfit: () => renderOutfit(S.outfit) };
 }

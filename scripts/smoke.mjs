@@ -117,7 +117,7 @@ await p.click('[data-tour="finish"]');await p.waitForTimeout(300);
 ok('xong hướng dẫn: thẻ biến mất và nhớ đã xem',(await p.$('.tour'))===null&&(await p.evaluate(()=>localStorage.getItem('hatchday-tour')))==='1');
 await p.click('#btn-stats');
 // thức ăn nâng cao: khẩu vị, nấu ăn, vườn rau, tủ lạnh, thức ăn hỏng
-await p.evaluate(()=>{const d=JSON.parse(localStorage.getItem('hatchday-demo'));d.coins=1000;localStorage.setItem('hatchday-demo',JSON.stringify(d));});
+await p.evaluate(()=>{const d=JSON.parse(localStorage.getItem('hatchday-demo'));d.coins=1000;d.owned['bu-nhin']=2;localStorage.setItem('hatchday-demo',JSON.stringify(d));});
 await p.goto(`http://localhost:${PORT}/?dev`);await p.waitForTimeout(800);await p.click('#demo');await p.waitForTimeout(2500);
 await p.click('#btn-stats');await p.waitForTimeout(300);
 ok('Chỉ số có dòng Khẩu vị (đã thử một vài món)',/Khẩu vị: .*đã thử [1-9]\d*\/12 món/.test(await p.textContent('#tastes')),await p.textContent('#tastes'));
@@ -148,6 +148,14 @@ await tapPlot(0,'[data-harvest]');
 ok('đủ giờ: bảng hiện nút Hái rau',await p.isVisible('#plot-menu [data-harvest]'));
 await p.click('#plot-menu [data-harvest]');await until(async()=>!(await demo()).garden['0']);await p.waitForTimeout(3500);dm=await demo();
 ok('hái rau: được 3 Cà rốt, ô trống lại',dm.owned.carot===carA+3&&!dm.garden['0'],'carot='+dm.owned.carot);
+// trang trí nông trại: đặt đồ mua ở cửa hàng vào sân và lưu
+await p.click('.ctx-btn[data-k="farm"]');await p.waitForTimeout(1200);
+ok('Trang trí nông trại: hiện bảng chọn đồ đã mua (Bù nhìn × 2)',await p.isVisible('.farm-ui [data-fe-add="bu-nhin"]')&&(await p.textContent('.farm-ui [data-fe-add="bu-nhin"] em'))==='2');
+await p.click('.farm-ui [data-fe-add="bu-nhin"]');await p.waitForTimeout(500);
+ok('đặt một Bù nhìn: còn lại 1, có thanh Xoay/Cất',(await p.textContent('.farm-ui [data-fe-add="bu-nhin"] em'))==='1'&&await p.isVisible('.farm-ui [data-fe="rotate"]'));
+await p.click('.farm-ui [data-fe="rotate"]');await p.click('.farm-ui [data-fe="save"]');
+ok('lưu nông trại: demo ghi 1 món, xoay 1',await until(async()=>(await demo()).farm?.length===1)&&(await demo()).farm[0].id==='bu-nhin'&&(await demo()).farm[0].rot===1,JSON.stringify((await demo()).farm));
+await p.waitForTimeout(800);
 await p.click('.ctx-btn[data-k="home"]');await p.waitForTimeout(2500);
 await p.click('#a-house');await p.click('.tile[data-go="shop"]');await p.waitForTimeout(400);await p.click('[data-shop-tab="food"]');await p.waitForTimeout(300);
 ok('thẻ tủ lạnh và khẩu vị hiện trong cửa hàng',(await p.textContent('#shop')).includes('Tủ lạnh cấp 1')&&(await p.textContent('#shop')).includes('Khẩu vị của bé'));

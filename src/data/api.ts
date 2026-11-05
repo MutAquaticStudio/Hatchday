@@ -1,6 +1,6 @@
 import { supabase, isConfigured } from '../lib/supabase';
 import * as demo from './demo-api';
-import type { ActionResult, DayLogRow, Economy, Garden, MemoryRow, Outfit, PetAction, PetRow, QuestBoard, SeenRow, Tastes } from './types';
+import type { ActionResult, DayLogRow, Economy, FarmItem, Garden, MemoryRow, Outfit, PetAction, PetRow, QuestBoard, SeenRow, Tastes } from './types';
 import type { Layout } from '../game/catalog';
 
 /** Chưa cấu hình Supabase thì chạy chế độ Chơi thử (dữ liệu trong trình duyệt). */
@@ -89,6 +89,9 @@ export const getGarden = () => (isDemo ? demo.getGarden() : rpc<Garden>('get_gar
 export const plantCrop = (plot: number, crop: string) => (isDemo ? demo.plantCrop(plot, crop) : rpc<{ coins: number }>('plant_crop', { p_plot: plot, p_crop: crop }));
 export const upgradeParcel = (parcel: number) => (isDemo ? demo.upgradeParcel(parcel) : rpc<{ coins: number; parcel: number; level: number; size: number }>('upgrade_parcel', { p_parcel: parcel }));
 export const buyParcel = () => (isDemo ? demo.buyParcel() : rpc<{ coins: number; parcel: number }>('buy_parcel'));
+export const getFarm = async (): Promise<FarmItem[]> =>
+  isDemo ? demo.getFarm() : ((unwrap(await supabase.from('farm_layouts').select('layout').maybeSingle()) as { layout: { items: FarmItem[] } } | null)?.layout.items ?? []);
+export const saveFarm = (items: FarmItem[]) => (isDemo ? demo.saveFarm(items) : rpc<{ count: number }>('save_farm_layout', { p_layout: { items } }));
 export const waterCrop = (plot: number) => (isDemo ? demo.waterCrop(plot) : rpc<{ waters: number; ready_at: string }>('water_crop', { p_plot: plot }));
 export const harvestCrop = (plot: number) => (isDemo ? demo.harvestCrop(plot) : rpc<{ item: string; qty: number; got: number }>('harvest_crop', { p_plot: plot }));
 export const cook = (recipe: string, qty = 1) => (isDemo ? demo.cook(recipe, qty) : rpc<{ dish: string; qty: number }>('cook', { p_recipe: recipe, p_qty: qty }));

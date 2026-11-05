@@ -173,6 +173,89 @@ export function makeDecor(K) {
       const bk = add(g, new THREE.ConeGeometry(0.025, 0.06, 6), toon('#ffb36b'), 0.12, 0.13, 0.33, null); bk.rotation.x = Math.PI / 2;
       add(g, Bx(0.6, 0.05, 0.3), toon(WOOD_D), 0, -0.2, 0.15, WOOD_INK);
     },
+
+    /* ---------- Đồ trang trí nông trại (layer 'farm'): gốc ở tâm, đáy y = 0 ---------- */
+    'bu-nhin': g => {
+      add(g, Cy(0.05, 0.06, 1.5, 8), toon(WOOD_D), 0, 0.75, 0, WOOD_INK, 0.015);
+      add(g, Bx(1.0, 0.07, 0.07), toon(WOOD_D), 0, 1.05, 0, WOOD_INK, 0.015);
+      const shirt = add(g, new THREE.ConeGeometry(0.34, 0.6, 12), toon('#ff7a7a'), 0, 0.95, 0, '#a83a3a'); shirt.scale.z = 0.6;
+      add(g, S(0.2, 16, 12), toon('#f3d6a6'), 0, 1.38, 0, '#8a6a3a');
+      [-0.07, 0.07].forEach(x => add(g, S(0.025, 6, 6), basic('#4a2140'), x, 1.42, 0.18, null));
+      const brim = add(g, Cy(0.36, 0.36, 0.04, 20), toon('#e8b25a'), 0, 1.55, 0, '#a8742e'); add(g, Cy(0.14, 0.2, 0.2, 16), toon('#e8b25a'), 0, 1.67, 0, '#a8742e'); brim.rotation.z = 0.04;
+      [-0.55, 0.55].forEach(x => { for (let k = 0; k < 3; k++) { const st = add(g, Cy(0.012, 0.012, 0.22, 4), toon('#f0c860'), x + (k - 1) * 0.03, 1.0, 0, null); st.rotation.z = (k - 1) * 0.35; } });
+    },
+    'bien-nong-trai': g => {
+      [-0.5, 0.5].forEach(x => add(g, Cy(0.05, 0.06, 0.9, 8), toon(WOOD_D), x, 0.45, 0, WOOD_INK, 0.015));
+      const t = tex(256, 96, c => { c.fillStyle = '#e8b47a'; c.fillRect(0, 0, 256, 96); c.strokeStyle = '#a8742e'; c.lineWidth = 6; c.strokeRect(5, 5, 246, 86); c.fillStyle = '#7a4a2e'; c.font = '800 34px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('NÔNG TRẠI', 128, 50); });
+      const b = add(g, Bx(1.3, 0.45, 0.07), toon('#ffffff', t), 0, 0.78, 0.03, WOOD_INK, 0.015);
+      add(g, S(0.07, 8, 6), toon('#ff7a7a'), -0.55, 1.03, 0.04, null); add(g, S(0.07, 8, 6), toon('#ffd36e'), 0.55, 1.03, 0.04, null);
+    },
+    'dong-rom': g => {
+      const t = tex(128, 128, c => { c.fillStyle = '#f0c860'; c.fillRect(0, 0, 128, 128); c.strokeStyle = '#d9a83a'; c.lineWidth = 3; for (let y = 8; y < 128; y += 14) { c.beginPath(); c.moveTo(0, y); c.lineTo(128, y + (y % 28 ? 4 : -4)); c.stroke(); } });
+      add(g, Cy(0.5, 0.52, 0.5, 18), toon('#ffffff', t), 0, 0.25, 0, '#a8742e');
+      const top = add(g, S(0.5, 18, 12), toon('#ffffff', t), 0, 0.5, 0, '#a8742e'); top.scale.set(1, 0.8, 1);
+      const bind = add(g, new THREE.TorusGeometry(0.505, 0.03, 6, 24), toon('#c98a5a'), 0, 0.4, 0, null); bind.rotation.x = Math.PI / 2;
+    },
+    'ghe-vuon': g => {
+      add(g, Bx(1.2, 0.08, 0.42), toon(WOOD), 0, 0.42, 0, WOOD_INK);
+      add(g, Bx(1.2, 0.34, 0.06), toon(WOOD), 0, 0.72, -0.17, WOOD_INK);
+      [-0.5, 0.5].forEach(x => { add(g, Bx(0.07, 0.42, 0.36), toon(WOOD_D), x, 0.21, 0, WOOD_INK, 0.012); add(g, Bx(0.07, 0.5, 0.06), toon(WOOD_D), x, 0.58, -0.17, null); });
+      add(g, S(0.09, 8, 6), toon('#ff9ec4'), 0.4, 0.5, 0.05, null);
+    },
+    'hom-thu': g => {
+      add(g, Cy(0.05, 0.06, 0.9, 8), toon(WOOD_D), 0, 0.45, 0, WOOD_INK, 0.015);
+      add(g, Bx(0.42, 0.26, 0.3), toon('#ff7a7a'), 0, 1.0, 0, '#a83a3a');
+      const arch = add(g, new THREE.CylinderGeometry(0.15, 0.15, 0.42, 14, 1, false, 0, Math.PI), toon('#ff7a7a'), 0, 1.13, 0, '#a83a3a'); arch.rotation.z = Math.PI / 2; arch.rotation.y = Math.PI / 2;
+      add(g, Bx(0.03, 0.2, 0.03), toon('#ffffff'), 0.26, 1.05, 0, null); add(g, Bx(0.12, 0.07, 0.03), toon('#ffd36e'), 0.31, 1.13, 0, null);
+    },
+    'xe-hoa': g => {
+      const body = add(g, Bx(0.9, 0.3, 0.55), toon('#7ab8ff'), 0, 0.42, 0, '#3f6a96'); body.rotation.z = 0.05;
+      const wheel = add(g, Cy(0.2, 0.2, 0.08, 18), toon('#a8744e'), -0.5, 0.2, 0, WOOD_INK); wheel.rotation.x = Math.PI / 2;
+      [-0.3, 0.3].forEach(z => add(g, Bx(0.55, 0.05, 0.05), toon(WOOD_D), 0.35, 0.18, z, null));
+      [['#ff9ec4', -0.25, 0.1], ['#ffd36e', 0, -0.12], ['#ffffff', 0.25, 0.1], ['#c9a6ff', -0.05, 0.14], ['#ff6f7d', 0.28, -0.1]].forEach(([c, x, z]) => { add(g, S(0.12, 10, 8), toon(c), x, 0.7 + Math.abs(z) * 0.4, z, '#7a4a63', 0.012); add(g, Cy(0.015, 0.015, 0.2, 5), toon('#4fae5a'), x, 0.58, z, null); });
+    },
+    'den-vuon': g => {
+      add(g, Cy(0.05, 0.07, 1.6, 8), toon(WOOD_D), 0, 0.8, 0, WOOD_INK, 0.015);
+      const arm = add(g, Bx(0.5, 0.05, 0.05), toon(WOOD_D), 0.22, 1.55, 0, WOOD_INK, 0.012); arm.rotation.z = 0;
+      add(g, Cy(0.008, 0.008, 0.18, 4), toon('#4a2140'), 0.44, 1.46, 0, null);
+      add(g, S(0.16, 14, 10), lanternRed, 0.44, 1.28, 0, '#a83a3a'); add(g, Cy(0.06, 0.06, 0.04, 10), toon('#ffd36e'), 0.44, 1.14, 0, null);
+    },
+    'to-ong': g => {
+      [-0.28, 0.28].forEach(x => [-0.22, 0.22].forEach(z => add(g, Cy(0.04, 0.04, 0.4, 6), toon(WOOD_D), x, 0.2, z, WOOD_INK, 0.01)));
+      add(g, Bx(0.75, 0.06, 0.55), toon(WOOD), 0, 0.42, 0, WOOD_INK);
+      const hive = tex(64, 128, c => { c.fillStyle = '#ffd95a'; c.fillRect(0, 0, 64, 128); c.fillStyle = '#e0a82a'; for (let y = 10; y < 128; y += 26) c.fillRect(0, y, 64, 8); });
+      add(g, Cy(0.28, 0.3, 0.5, 14), toon('#ffffff', hive), 0, 0.7, 0, '#a8742e'); add(g, S(0.28, 14, 10), toon('#ffd95a'), 0, 0.95, 0, '#a8742e').scale.y = 0.5;
+      add(g, Cy(0.07, 0.07, 0.04, 10), toon('#4a2140'), 0, 0.68, 0.29, null).rotation.x = Math.PI / 2;
+      [[0.4, 0.8, 0.25], [-0.38, 0.95, 0.1]].forEach(([x, y, z]) => { add(g, S(0.05, 8, 6), toon('#ffd95a'), x, y, z, '#4a2140', 0.01); add(g, S(0.035, 6, 6), toon('#ffffff'), x, y + 0.05, z - 0.04, null); });
+    },
+    'goc-nam': g => {
+      add(g, Cy(0.36, 0.42, 0.45, 16), toon('#b9814f'), 0, 0.22, 0, WOOD_INK); add(g, Cy(0.36, 0.36, 0.03, 16), toon('#e8c79a'), 0, 0.46, 0, null);
+      [[0.5, 0.12, 0.5], [0.62, -0.12, 0.34], [-0.45, 0.22, 0.4]].forEach(([x, z, sc]) => { add(g, Cy(0.05 * sc * 2, 0.06 * sc * 2, 0.2 * sc * 1.6, 8), toon('#fff3e0'), x, 0.1 * sc * 1.6, z, null); const cap = add(g, S(0.16 * sc * 1.6, 12, 8), toon('#ff6f7d'), x, 0.22 * sc * 1.6, z, '#a83a3a', 0.012); cap.scale.y = 0.6; add(g, S(0.025 * sc * 1.6, 6, 6), toon('#ffffff'), x + 0.04, 0.3 * sc * 1.6, z + 0.04, null); });
+    },
+    'gieng': g => {
+      const stone = tex(128, 64, c => { c.fillStyle = '#c9c3bb'; c.fillRect(0, 0, 128, 64); c.strokeStyle = '#9a948c'; c.lineWidth = 3; for (let y = 0; y <= 64; y += 21) { c.beginPath(); c.moveTo(0, y); c.lineTo(128, y); c.stroke(); } for (let r = 0; r < 3; r++) for (let x = (r % 2) * 16; x < 128; x += 32) { c.beginPath(); c.moveTo(x, r * 21); c.lineTo(x, r * 21 + 21); c.stroke(); } });
+      add(g, Cy(0.5, 0.52, 0.55, 20), toon('#ffffff', stone), 0, 0.27, 0, '#7a746c');
+      add(g, Cy(0.4, 0.4, 0.02, 20), toon('#5fb4e8'), 0, 0.5, 0, null);
+      [-0.45, 0.45].forEach(x => add(g, Cy(0.04, 0.05, 1.1, 8), toon(WOOD_D), x, 0.8, 0, WOOD_INK, 0.012));
+      add(g, Cy(0.03, 0.03, 0.96, 8), toon(WOOD_D), 0, 1.2, 0, WOOD_INK, 0.01).rotation.z = Math.PI / 2;
+      [-1, 1].forEach(sd => { const r = add(g, Bx(0.62, 0.05, 0.75), toon('#c25a4a'), sd * 0.27, 1.45, 0, '#7a2f26', 0.015); r.rotation.z = -sd * 0.55; });
+      add(g, Cy(0.01, 0.01, 0.4, 4), toon('#4a2140'), 0, 1.0, 0, null); add(g, Cy(0.1, 0.08, 0.14, 10), toon('#a8744e'), 0, 0.78, 0, WOOD_INK, 0.01);
+    },
+    'ao-nho': g => {
+      add(g, Cy(0.85, 0.88, 0.1, 28), toon('#5fb4e8'), 0, 0.06, 0, '#2f7aaa');
+      const rim = add(g, new THREE.TorusGeometry(0.86, 0.09, 8, 28), toon('#c9c3bb'), 0, 0.1, 0, '#7a746c', 0.012); rim.rotation.x = Math.PI / 2;
+      [[-0.3, 0.2, 0.2], [0.25, -0.2, 0.17], [0.1, 0.4, 0.14], [-0.2, -0.35, 0.12]].forEach(([x, z, r]) => { add(g, Cy(r, r, 0.02, 14), toon('#5fc46c'), x, 0.12, z, '#2f7a3d', 0.01); });
+      const fl = add(g, new THREE.ConeGeometry(0.1, 0.16, 8), toon('#ff9ec4'), -0.3, 0.22, 0.2, '#a8507a', 0.012); fl.rotation.x = Math.PI;
+      add(g, S(0.12, 10, 8), toon('#ffffff'), 0.5, 0.2, 0.1, '#7a4a63', 0.012).scale.set(1.2, 0.9, 1); add(g, S(0.07, 8, 6), toon('#ffffff'), 0.58, 0.3, 0.1, '#7a4a63', 0.01); add(g, new THREE.ConeGeometry(0.03, 0.06, 5), toon('#ffb36b'), 0.66, 0.3, 0.1, null).rotation.z = -Math.PI / 2;
+    },
+    'coi-xay-gio': g => {
+      add(g, new THREE.CylinderGeometry(0.34, 0.5, 1.4, 14), toon('#fff3e0'), 0, 0.7, 0, '#a8778e');
+      add(g, new THREE.ConeGeometry(0.42, 0.55, 14), toon('#c25a4a'), 0, 1.67, 0, '#7a2f26');
+      add(g, Bx(0.2, 0.3, 0.05), toon(WOOD), 0, 0.2, 0.49, WOOD_INK, 0.012); add(g, Bx(0.16, 0.16, 0.04), toon('#bfe8ff'), 0, 0.95, 0.38, null);
+      const hub = new THREE.Group(); hub.position.set(0, 1.3, 0.42); g.add(hub); hub.userData.blades = true;
+      add(hub, S(0.07, 8, 6), toon('#a8744e'), 0, 0, 0.04, null);
+      [0, 1, 2, 3].forEach(k => { const arm = new THREE.Group(); arm.rotation.z = k * Math.PI / 2 + 0.3; hub.add(arm); add(arm, Bx(0.07, 0.95, 0.03), toon(WOOD_D), 0, 0.47, 0, WOOD_INK, 0.01); add(arm, Bx(0.28, 0.6, 0.02), toon('#ffffff'), 0.16, 0.55, 0.01, '#a8a0c8', 0.01); });
+    },
   };
 
   /** Tạo món đồ trang trí. */
