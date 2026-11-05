@@ -16,6 +16,14 @@ const RPC: Record<string, string> = {
   invalid_name: 'Tên cần từ 1 đến 16 ký tự.',
   rate_limited: 'Chậm lại chút nha, bé thú theo không kịp.',
   not_authenticated: 'Phiên đăng nhập đã hết hạn. Bạn đăng nhập lại nhé.',
+  not_enough_coins: 'Chưa đủ xu. Chăm bé và làm nhiệm vụ ngày để kiếm thêm nhé.',
+  not_for_sale: 'Món này hôm nay không bán.',
+  already_owned: 'Bạn đã có món này rồi.',
+  already_claimed: 'Bạn đã nhận phần thưởng này rồi.',
+  quest_not_done: 'Nhiệm vụ chưa xong.',
+  collection_incomplete: 'Bộ sưu tập chưa đủ món.',
+  not_owned: 'Bạn chưa có món này.',
+  invalid_layout: 'Bố cục chưa hợp lệ.',
 };
 
 export function viError(err: unknown): string {

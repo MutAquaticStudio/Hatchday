@@ -5,14 +5,21 @@ export interface PetRow {
   family_name: string;
   generation: number;
   stage: 'egg' | 'baby' | 'teen' | 'adult' | 'departed';
-  genes: { palette: number; ear: number; sprout: number; scale: number };
+  genes: { palette: number; ear: number; sprout: number; scale: number; likes?: string[]; dislike?: string };
   personality: Record<string, number>;
   no: number; vui: number; nl: number; sach: number;
   asleep: boolean;
   stats_at: string;
   bond_xp: number;
   born_at: string;
+  outfit?: Outfit;
+  outfit_presets?: Outfit[];
+  comfort_level?: number;
 }
+
+export type Outfit = Partial<Record<'head' | 'face' | 'neck' | 'back', string>>;
+export interface Economy { coins: number; earned_today: number; day: string; rotation: string[]; weekend: boolean }
+export interface QuestRow { idx: number; quest: number; progress: number; target: number; claimed: boolean }
 
 export interface MemoryRow { id: number; kind: string; body: string; created_at: string }
 
@@ -20,4 +27,4 @@ export interface DayLogRow { day: string; fed: number; foods: string[]; bath: nu
 
 export type PetAction = 'feed' | 'pet' | 'bath_scrub' | 'bath_rinse' | 'play_ball' | 'play_spin' | 'talk' | 'sleep' | 'wake';
 
-export interface ActionResult { pet: PetRow; refused: null | 'asleep' | 'full' | 'tired'; fav: boolean; new_memory: boolean }
+export interface ActionResult { pet: PetRow; refused: null | 'asleep' | 'full' | 'tired'; fav: boolean; new_memory: boolean; earned?: number; coins?: number }

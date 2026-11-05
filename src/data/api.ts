@@ -1,6 +1,7 @@
 import { supabase, isConfigured } from '../lib/supabase';
 import * as demo from './demo-api';
-import type { ActionResult, DayLogRow, MemoryRow, PetAction, PetRow } from './types';
+import type { ActionResult, DayLogRow, Economy, MemoryRow, Outfit, PetAction, PetRow, QuestRow } from './types';
+import type { Layout } from '../game/catalog';
 
 /** Chưa cấu hình Supabase thì chạy chế độ Chơi thử (dữ liệu trong trình duyệt). */
 export const isDemo = !isConfigured;
@@ -41,3 +42,37 @@ export const deleteMemory = async (id: number) => { if (isDemo) return demo.dele
 
 export const listDayLogs = async (petId: string) =>
   isDemo ? demo.listDayLogs() : unwrap(await supabase.from('day_logs').select('day, fed, foods, bath, ball, pet, talk, sleep').eq('pet_id', petId).order('day', { ascending: false }).limit(30)) as DayLogRow[];
+
+/* ---------- Trang trí, trang phục, xu, nhiệm vụ ---------- */
+const rpc = async <T>(fn: string, args?: Record<string, unknown>) => unwrap(await supabase.rpc(fn, args)) as T;
+
+export const getEconomy = () => (isDemo ? demo.getEconomy() : rpc<Economy>('get_economy'));
+export const buyItem = (id: string) => (isDemo ? demo.buyItem(id) : rpc<{ coins: number; qty: number }>('buy_item', { p_item: id }));
+
+export async function listOwned(): Promise<Record<string, number>> {
+  if (isDemo) return demo.listOwned();
+  const rows = unwrap(await supabase.from('entitlements').select('item_id, qty')) as { item_id: string; qty: number }[];
+  return Object.fromEntries(rows.map(r => [r.item_id, r.qty]));
+}
+
+export async function getLayouts(): Promise<{ layouts: (Layout | null)[]; active: number }> {
+  if (isDemo) return demo.getLayouts();
+  const rows = unwrap(await supabase.from('room_layouts').select('slot, layout')) as { slot: number; layout: Layout }[];
+  const prof = unwrap(await supabase.from('profiles').select('active_layout').maybeSingle()) as { active_layout: number } | null;
+  const layouts: (Layout | null)[] = [null, null, null];
+  rows.forEach(r => { layouts[r.slot] = r.layout; });
+  return { layouts, active: prof?.active_layout ?? 0 };
+}
+export const saveLayout = (slot: number, layout: Layout, activate = true) =>
+  isDemo ? demo.saveLayout(slot, layout, activate) : rpc<{ comfort_level: number }>('save_room_layout', { p_slot: slot, p_layout: layout, p_activate: activate });
+
+export const equipOutfit = (o: Outfit) => (isDemo ? demo.equipOutfit(o) : rpc<Outfit>('equip_outfit', { p_outfit: o }));
+export const saveOutfitPreset = async (i: number, o: Outfit) => { if (isDemo) return demo.saveOutfitPreset(i, o); await rpc('save_outfit_preset', { p_idx: i, p_outfit: o }); };
+
+export const getQuests = () => (isDemo ? demo.getQuests() : rpc<QuestRow[]>('get_quests'));
+export const claimQuest = (i: number) => (isDemo ? demo.claimQuest(i) : rpc<{ coins: number }>('claim_quest', { p_idx: i }));
+export const claimCollection = (t: string) => (isDemo ? demo.claimCollection(t) : rpc<{ coins: number }>('claim_collection', { p_theme: t }));
+export async function listCollectionClaims(): Promise<string[]> {
+  if (isDemo) return demo.listCollectionClaims();
+  return (unwrap(await supabase.from('collection_claims').select('theme')) as { theme: string }[]).map(r => r.theme);
+}

@@ -38,12 +38,18 @@ src/
   auth/auth-ui.ts      Cổng, đăng nhập, đăng ký, quên & đặt lại mật khẩu
   onboarding/          Chọn trứng, đặt tên riêng + tên dòng họ
   data/api.ts, types.ts  Gọi RPC và bảng
+  data/demo-api.ts     Chế độ chơi thử: mô phỏng RPC trên localStorage khi chưa có Supabase
   game/rules.ts        Luật thuần: giảm chỉ số, biểu cảm, nhật ký (+ test)
-  game/store.ts        Trạng thái thú, hành động, gộp lô, đồng bộ định kỳ
+  game/catalog.ts      Danh mục vật phẩm (nguồn gốc của seed SQL), lưới, bố cục mặc định
+  game/layout.ts       Luật thuần: đặt đồ, đường đi, điểm thoải mái, nhiệm vụ, tiệm xoay vòng (+ test)
+  game/store.ts        Trạng thái thú, xu, đồ sở hữu, bố cục, trang phục, đồng bộ định kỳ
   game/game.js         Hiển thị 3D + tương tác (chuyển từ bản mẫu)
+  game/home.js         Nhà: chế độ trang trí, cửa hàng, tủ đồ, nhiệm vụ, phản ứng của thú
+  game/decor3d.js      Dựng mô hình toon cho đồ trang trí + trang phục (thủ tục, không cần file 3D)
   game/markup.html, game.css
 supabase/migrations/   Schema, RLS, RPC
 supabase/tests/        Test RPC trên PGlite
+scripts/gen-seed.ts    Sinh câu INSERT items từ catalog.ts
 docs/TDD.md
 ```
 
@@ -75,8 +81,11 @@ Khoá 15 phút sau 5 lần sai hiện chỉ có ở phía máy (trải nghiệm)
 | `profiles` | Múi giờ | đọc/sửa của mình |
 | `pets` | Tên, dòng họ, gen, cá tính, 4 chỉ số, `stats_at`, ngủ | chỉ đọc |
 | `pet_secrets` | Tuổi thọ (30–60 ngày), món tủ, món ghét | không truy cập |
-| `items` | Món ăn, đồ trang trí, trang phục | đọc |
-| `entitlements` | Quyền sở hữu vật phẩm (sẵn cho cosmetic) | đọc của mình |
+| `items` | Món ăn, đồ trang trí, trang phục: lớp, ô trang phục, kích thước ô, thoải mái, chủ đề, nhãn, giá, nguồn, độ hiếm | đọc |
+| `entitlements` | Quyền sở hữu vật phẩm và số lượng | đọc của mình |
+| `wallets` | Xu, xu chăm sóc đã nhận hôm nay | đọc của mình |
+| `room_layouts` | 3 ô bố cục phòng (jsonb), `profiles.active_layout` chọn ô đang dùng | đọc của mình |
+| `quest_claims`, `collection_claims` | Đã nhận thưởng nhiệm vụ ngày / bộ sưu tập | đọc của mình |
 | `memories` | Ký ức, `first_key` để "lần đầu" chỉ ghi một lần | đọc, xoá của mình |
 | `day_logs` | Bộ đếm theo ngày → nhật ký | đọc |
 | `diary_entries` | Trang nhật ký do AI viết (giai đoạn sau) | đọc |
@@ -91,6 +100,14 @@ Khoá 15 phút sau 5 lần sai hiện chỉ có ở phía máy (trải nghiệm)
 | `rename_pet(name)` | | | `invalid_name` |
 | `pet_action(action, item?, count?)` | `feed`, `pet`, `bath_scrub`, `bath_rinse`, `play_ball`, `play_spin`, `talk`, `sleep`, `wake` | `{ pet, refused, fav, new_memory }` | `unknown_action`, `unknown_item`, `not_owned`, `rate_limited`, `no_pet` |
 | `add_talk_memory(text)` | 4–120 ký tự, tối đa 20/ngày | | `no_pet` |
+| `get_economy()` | | xu, xu hôm nay, 6 món tiệm hôm nay, cuối tuần? | |
+| `buy_item(item)` | | `{ coins, owned }` | `not_for_sale`, `already_owned`, `not_enough_coins` |
+| `save_room_layout(slot, layout, activate)` | ô 0–2 | `{ comfort_level }` | `invalid_layout`, `not_owned` |
+| `equip_outfit(outfit)` / `save_outfit_preset(slot, outfit)` | `{ head, face, neck, back }` | | `invalid_outfit`, `not_owned` |
+| `get_quests()` / `claim_quest(key)` | | 3 nhiệm vụ ngày + tiến độ / `{ coins }` | `invalid_quest`, `quest_not_done`, `already_claimed` |
+| `claim_collection(theme)` | | +150 xu, ký ức | `invalid_theme`, `collection_incomplete`, `already_claimed` |
+
+`pet_action` với hành động chăm sóc trả thêm `earned` và `coins` (+5 xu, tối đa 50 xu/ngày).
 
 `refused` là từ chối mềm (không phải lỗi): `full` (no ≥ 90), `tired` (năng lượng < 15), `asleep`.
 
@@ -100,6 +117,17 @@ Khoá 15 phút sau 5 lần sai hiện chỉ có ở phía máy (trải nghiệm)
 - Vuốt ve và kỳ cọ gộp theo lô 2 giây, tối đa 20 lần/lô. Giới hạn 30 hành động/10 giây/thú.
 - Đồng bộ lại `get_my_pet` mỗi 60 giây và khi gửi hành động. Mất mạng thì game vẫn chạy bằng dự đoán.
 - "Ngày" của nhật ký tính theo múi giờ trong `profiles`.
+
+## 7b. Nhà, trang trí và kinh tế
+
+- **Lưới:** sàn 8×6 ô (GDD ghi 6×6, nới rộng để vừa phòng 3D), tường sau 8×3 ô (bỏ ô cửa sổ). 4 ô giữa (`PET_ZONE`) để dành cho thú. Khi đặt đồ kiểm tra: trong lưới, không chồng, không đè chỗ thú, không che cửa sổ, và BFS còn đường từ chỗ thú ra hàng trước (`layout.ts`). Server chỉ kiểm tra giới hạn + số lượng sở hữu (`private.check_layout`); chồng và đường đi kiểm ở client.
+- **Lớp:** sàn, thảm (nằm dưới đồ), tường, giấy dán tường, sàn nhà.
+- **Thoải mái:** cộng điểm thoải mái từng món (mỗi món tính tối đa 2 cái). ≥6 → cấp 2, ≥12 → 3, ≥20 → 4, ≥30 → 5. Mỗi cấp trên 1 giảm 5% tốc độ tụt Vui và Năng lượng, tăng 5% hồi khi ngủ. Áp ở cả `rules.decayStats` và `private.decay_pet`.
+- **Bộ chủ đề:** ≥5 món khác nhau cùng chủ đề → thú thỉnh thoảng nói câu riêng của bộ. Sưu tập đủ một bộ → nhận 150 xu + ký ức.
+- **Sở thích:** gen có 2 nhãn thích + 1 nhãn ghét. Đặt/mặc món hợp nhãn → thả tim; ghét → dỗi. Thú tự đi tới đồ yêu thích khi rảnh.
+- **Kinh tế (chỉ xu, không gacha):** bắt đầu 300 xu. Chăm sóc +5 xu (tối đa 50/ngày), 3 nhiệm vụ/ngày × 30 xu. Chợ bán cố định; Tiệm hôm nay xoay 6 món theo ngày; Chợ cuối tuần mở T7–CN; Quầy trả phí hiển thị "sắp mở".
+- **Trang phục:** 4 ô (đầu, mặt, cổ, lưng), 3 bộ phối lưu sẵn.
+- Hằng số và công thức xoay vòng/nhiệm vụ nằm ở `layout.ts` và migration `20261105000000_decor_cosmetics.sql` — test `decor.test.ts` so khớp hai bên.
 
 ## 8. Bảo mật
 
@@ -128,6 +156,8 @@ Khoá 15 phút sau 5 lần sai hiện chỉ có ở phía máy (trải nghiệm)
 
 - Tách `game.js` thành module TypeScript (engine, areas, pet, face, fx, behaviors).
 - **AI (đã hoãn theo yêu cầu):** Edge Function `chat` gọi Claude API với cá tính, chỉ số, 3–5 ký ức liên quan; Edge Function chạy theo lịch mỗi đêm viết `diary_entries`. Giới hạn lượt/ngày, câu mẫu dự phòng khi lỗi.
-- Tiến hoá (gen → bộ phận), chế độ trang trí phòng, xu và cửa hàng.
+- Tiến hoá (gen → bộ phận).
+- Quầy trả phí (cosmetic bán bằng tiền thật) — cần cổng thanh toán và Edge Function xác minh giao dịch.
+- Mô hình 3D thật (glTF) thay cho đồ dựng thủ tục khi có hoạ sĩ.
 - Service worker cho PWA (cache tài nguyên, thông báo đẩy).
 - Đưa chữ giao diện ra file riêng để dễ dịch.

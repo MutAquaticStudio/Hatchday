@@ -1,14 +1,18 @@
 // Lớp hiển thị & tương tác 3D (chuyển từ bản mẫu). Sẽ tách nhỏ và chuyển sang TypeScript dần.
 import * as THREE from 'three';
-import { S, save, act, actBatched, addTalkMemory, deleteMemory as delMem, renamePet, onSync, onSyncError, startPeriodicSync } from './store';
-import { decayStats, writeDiary as writeDiaryRule, PALETTES } from './rules';
+import { S, save, act, actBatched, addTalkMemory, deleteMemory as delMem, renamePet, onSync, onSyncError, startPeriodicSync,
+  buy, saveLayout, equip, savePreset, claimQuest, claimCollection, refreshQuests, activeLayout, previewComfort } from './store';
+import { initHome } from './home.js';
+import { decayStats, writeDiary as writeDiaryRule, PALETTES, localDay } from './rules';
+let home = null, editing = false;
+const camOverride = { pos: null, look: null };
 
 const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const $ = id => document.getElementById(id);
 const clamp = (v, a = 0, b = 100) => Math.max(a, Math.min(b, v));
 
 /* ---------------- trạng thái: dữ liệu nằm ở store (đồng bộ server) ---------------- */
-function decay(s, mins) { Object.assign(s, decayStats(s, mins)); s.t = Date.now(); }
+function decay(s, mins) { Object.assign(s, decayStats(s, mins, S.comfort || 1)); s.t = Date.now(); }
 
 /* ---------------- renderer ---------------- */
 const canvas = $('c');
@@ -71,14 +75,14 @@ const woodTex = canvasTex(256, 256, (g, w, h) => {
   g.fillStyle = '#efe2d6'; for (let i = 0; i < 4; i++) g.fillRect(0, i * 64 + 60, w, 4);
   g.fillStyle = '#f4ebe2'; for (let i = 0; i < 4; i++) g.fillRect((i * 97) % w, i * 64, 4, 64);
 }, [3, 3]);
-add(room, new THREE.BoxGeometry(9, 0.4, 7), toon('#f6c99c', woodTex), 0, -0.2, 0, '#9a5f4a', 0.04);
+const homeFloor = add(room, new THREE.BoxGeometry(9, 0.4, 7), toon('#f6c99c', woodTex), 0, -0.2, 0, '#9a5f4a', 0.04);
 const wallTex = canvasTex(128, 128, (g, w, h) => {
   g.fillStyle = '#ffffff'; g.fillRect(0, 0, w, h); g.fillStyle = '#ffd8e7';
   for (let y = 0; y < 2; y++) for (let x = 0; x < 2; x++) { g.beginPath(); g.arc(32 + x * 64 + (y % 2) * 32, 32 + y * 64, 7, 0, Math.PI * 2); g.fill(); }
 }, [6, 3]);
-add(room, new THREE.BoxGeometry(9, 5, 0.3), toon('#fff0f5', wallTex), 0, 2.3, -3.65, '#b77b95', 0.04);
+const homeWall = add(room, new THREE.BoxGeometry(9, 5, 0.3), toon('#fff0f5', wallTex), 0, 2.3, -3.65, '#b77b95', 0.04);
 const wallTex2 = wallTex.clone(); wallTex2.repeat.set(4, 3); wallTex2.needsUpdate = true;
-add(room, new THREE.BoxGeometry(0.3, 5, 7.3), toon('#fff0f5', wallTex2), -4.65, 2.3, 0, '#b77b95', 0.04);
+const homeWall2 = add(room, new THREE.BoxGeometry(0.3, 5, 7.3), toon('#fff0f5', wallTex2), -4.65, 2.3, 0, '#b77b95', 0.04);
 add(room, new THREE.BoxGeometry(9, 0.35, 0.36), toon('#ffb3cd'), 0, 0.17, -3.45, '#b77b95');
 
 /* cửa sổ */
@@ -99,22 +103,7 @@ for (let i = 0; i < 9; i++) {
   b.position.set(x, y, -3.42); room.add(b); bulbs.push(b);
 }
 
-/* thảm */
-add(room, new THREE.CylinderGeometry(2.2, 2.2, 0.06, 56), toon('#bfe3ff'), 0, 0.03, 0.2, '#6f8fb8', 0.02);
-add(room, new THREE.CylinderGeometry(1.6, 1.6, 0.065, 56), toon('#dff1ff'), 0, 0.035, 0.2, null);
-
-/* ổ ngủ */
-const bed = new THREE.Group(); bed.position.set(-2.9, 0, -1.9); room.add(bed);
-const torus = add(bed, new THREE.TorusGeometry(0.75, 0.3, 16, 40), toon('#ffd36e'), 0, 0.3, 0, '#a8742e');
-torus.rotation.x = -Math.PI / 2;
-add(bed, new THREE.CylinderGeometry(0.75, 0.75, 0.16, 32), toon('#fff1c4'), 0, 0.12, 0, null);
-
-/* chậu cây */
-const plant = new THREE.Group(); plant.position.set(3.4, 0, -2.5); room.add(plant);
-add(plant, new THREE.CylinderGeometry(0.42, 0.32, 0.7, 20), toon('#ff9a7a'), 0, 0.35, 0, '#a5523f');
-[[0, 1.05, 0, 0.5], [-0.3, 0.9, 0.12, 0.36], [0.3, 0.92, -0.05, 0.38], [0.05, 1.42, 0, 0.3]].forEach(([x, y, z, r]) => {
-  const l = add(plant, new THREE.SphereGeometry(r, 20, 14), toon('#6fd08c'), x, y, z, '#3f8a55'); l.scale.set(1, 0.85, 1);
-});
+/* Thảm, ổ rơm, chậu cây… giờ là đồ trang trí theo bố cục (home.js) */
 
 /* kệ + máy chơi game cầm tay hình quả trứng (chi tiết hoài niệm) */
 add(room, new THREE.BoxGeometry(0.5, 0.1, 1.6), toon('#ffd9a8'), -4.25, 2.2, -0.6, '#a8778e');
@@ -582,6 +571,7 @@ let down = null;
 const hint = $('hint');
 function hideHint() { hint.classList.add('gone'); }
 canvas.addEventListener('pointerdown', e => {
+  if (editing) return;
   const hit = hitPet(e);
   down = { x: e.clientX, y: e.clientY, lx: e.clientX, ly: e.clientY, hit, moved: 0, acc: 0 };
   if (hit) { canvas.setPointerCapture(e.pointerId); canvas.style.cursor = 'grabbing'; }
@@ -625,7 +615,7 @@ tray.addEventListener('pointerdown', e => {
   const b = e.target.closest('.food'); if (!b) return;
   e.preventDefault();
   const f = FOODS.find(x => x.id === b.dataset.id);
-  const g = document.createElement('div'); g.className = 'ghost'; g.innerHTML = f.svg; g.style.left = e.clientX + 'px'; g.style.top = e.clientY + 'px';
+  const g = document.createElement('div'); g.className = 'drag-ghost'; g.innerHTML = f.svg; g.style.left = e.clientX + 'px'; g.style.top = e.clientY + 'px';
   document.body.appendChild(g);
   drag = { f, g, x0: e.clientX, y0: e.clientY, moved: false };
   b.setPointerCapture(e.pointerId);
@@ -772,14 +762,15 @@ $('btn-diary').onclick = () => { const s = $('diary'); s.hidden = !s.hidden; $('
 let idleAt = performance.now() + 6000, wander = null, action = null, walking = false, walkPh = 0, chompAt = 0, puffAt = 0, earTwAt = performance.now() + 3000;
 const earKick = [0, 0], lastOff = new THREE.Vector3(), mouthW = new THREE.Vector3();
 const ACT_DUR = { yawn: 1.8, look: 2.4, dance: 2.0, hop: 1.0, stretch: 1.6, shake: 1.3, wave: 1.6 };
-function busy(now) { return S.asleep || area !== 'home' || anim || fetchBall || override || (temp && now < temp.until) || (down && down.hit) || drag; }
+function busy(now) { return editing || S.asleep || area !== 'home' || anim || fetchBall || override || (temp && now < temp.until) || (down && down.hit) || drag; }
 function startAction(type) { action = { type, t: 0, fxAt: 0 }; }
 function idleThink(now) {
   if (now < idleAt) return;
   idleAt = now + 4500 + Math.random() * 6000;
   if (busy(now) || wander || action) return;
   const r = Math.random();
-  if (r < 0.42) { const a = Math.random() * Math.PI * 2, d = 0.5 + Math.random() * 0.9; wander = { x: Math.cos(a) * d, z: Math.sin(a) * d * 0.6 }; }
+  if (r < 0.3) { const v = home && home.pickVisit(); if (v) { wander = { x: v.x - petBase.x, z: v.z - petBase.z, then: v.then }; return; } }
+  if (r < 0.5) { const a = Math.random() * Math.PI * 2, d = 0.5 + Math.random() * 0.9; wander = { x: Math.cos(a) * d, z: Math.sin(a) * d * 0.6 }; }
   else if (r < 0.58 && S.nl < 65) startAction('yawn');
   else if (r < 0.74) startAction('look');
   else if (r < 0.88 && S.vui > 55) startAction('dance');
@@ -798,7 +789,7 @@ function animStep(dt, t, now, key) {
     else {
       const dx = wander.x - petOff.x, dz = wander.z - petOff.z, d = Math.hypot(dx, dz), step = 1.2 * dt;
       if (d > 0.04) { petOff.x += dx / d * Math.min(step, d); petOff.z += dz / d * Math.min(step, d); moveYaw = Math.atan2(dx, dz); }
-      else { wander = null; moveYaw = null; }
+      else { const then = wander.then; wander = null; moveYaw = null; if (then) then(); }
     }
   }
   const sp = Math.hypot(petOff.x - lastOff.x, petOff.z - lastOff.z) / Math.max(dt, 1e-3); lastOff.copy(petOff);
@@ -841,10 +832,13 @@ function animStep(dt, t, now, key) {
 
 /* ---------------- camera rig: thị sai, zoom, rung nhẹ (skill game-feel) ---------------- */
 const camBase = new THREE.Vector3(), lookBase = new THREE.Vector3(), camPar = new THREE.Vector2(), focusW = new THREE.Vector3(), lookNow = new THREE.Vector3();
-let camZoom = 0, trauma = 0, camIntro = 0;
+let camZoom = 0, trauma = 0, camIntro = 0, zoomExtra = 0;
 function addTrauma(v) { if (!reduce) trauma = Math.min(1, trauma + v); }
 function updateCamera(dt, t) {
-  const zoomTarget = (!$('chat').hidden ? 0.24 : 0) + (down && down.hit ? 0.07 : 0);
+  if (camOverride.pos) {
+    const k = Math.min(1, dt * 3.5); camera.position.lerp(camOverride.pos, k); lookNow.lerp(camOverride.look, k); camera.lookAt(lookNow); return;
+  }
+  const zoomTarget = (!$('chat').hidden ? 0.24 : 0) + (down && down.hit ? 0.07 : 0) + zoomExtra;
   camZoom += (zoomTarget - camZoom) * Math.min(1, dt * 3);
   camIntro = Math.max(0, camIntro - dt * 1.5);
   if (!reduce) { const k = Math.min(1, dt * 2.5); camPar.x += (pointerNdc.x * 0.28 - camPar.x) * k; camPar.y += (pointerNdc.y * 0.14 - camPar.y) * k; }
@@ -904,8 +898,11 @@ function setupShadows() {
   sun.target.position.set(0, 0, 0); scene.add(sun.target);
   const c = sun.shadow.camera; c.left = -6; c.right = 6; c.top = 6; c.bottom = -6; c.near = 1; c.far = 24;
   sun.shadow.bias = -0.0006; sun.shadow.normalBias = 0.03;
-  scene.traverse(o => {
-    if (!o.isMesh || o.userData.outline || o === face || o === shadow || o.material.blending === THREE.AdditiveBlending) return;
+  applyShadows(scene);
+}
+function applyShadows(root) {
+  root.traverse(o => {
+    if (!o.isMesh || o.userData.outline || o === face || o === shadow || o.material.blending === THREE.AdditiveBlending || o.material.transparent) return;
     o.geometry.computeBoundingSphere();
     o.castShadow = o.geometry.boundingSphere.radius * Math.max(o.scale.x, o.scale.y, o.scale.z) < 2;
     o.receiveShadow = true;
@@ -945,6 +942,22 @@ new ResizeObserver(resize).observe(canvas); resize();
 
 /* ---------------- vòng lặp ---------------- */
 setupShadows(); applyQuality();
+/* Nhà của bé: bố cục phòng, trang trí, cửa hàng, tủ đồ, nhiệm vụ */
+home = initHome({
+  THREE, scene, camera, canvas, renderer, room, toon, add, canvasTex, grad, $, reduce,
+  homeFloor, homeWalls: [homeWall, homeWall2], pivot, petBase,
+  store: { S, buy, saveLayout, equip, savePreset, claimQuest, claimCollection, refreshQuests, activeLayout, previewComfort, onSync, today: () => localDay() },
+  say, setTemp, spawn, popText, impulse, startAction, addTrauma, buzz, toast, hideHint, applyShadows, ndcFrom,
+  getArea: () => area, goTo, isIdle: () => !busy(performance.now()), isNight: () => period === 'dem',
+  setZoom: z => { zoomExtra = z; },
+  closeGameSheets: () => { toggleSheet(null); ['stats', 'diary'].forEach(id => { $(id).hidden = true; }); $('btn-stats').setAttribute('aria-expanded', 'false'); $('btn-diary').setAttribute('aria-expanded', 'false'); },
+  setEditing: on => {
+    editing = on; wander = null; action = null; moveYaw = null; petOff.set(0, 0, 0);
+    const portrait = canvas.clientHeight > canvas.clientWidth * 1.05;
+    camOverride.pos = on ? new THREE.Vector3(0, portrait ? 15 : 10.5, portrait ? 9.5 : 7.2) : null;
+    camOverride.look = on ? new THREE.Vector3(0, 0, portrait ? -0.2 : -0.5) : null;
+  },
+});
 applyPeriod(); applySleep(); renderStats(); updateNeeds();
 if (S.asleep) goTo('bedroom', true);
 dayRec();
@@ -1016,6 +1029,7 @@ function tick(now, dt) {
     for (let i = 0; i < DUST; i++) { const sd = dustSeed[i]; a.array[i * 3 + 1] = 0.4 + ((sd * 0.37 + t * 0.06) % 2.6); a.array[i * 3] += Math.sin(t * 0.6 + sd) * 0.0015; }
     a.needsUpdate = true; beamMat.opacity = 0.38 + Math.sin(t * 0.7) * 0.07;
   }
+  if (home) home.update(dt, t);
   updateCamera(dt, t);
   if (!bubbleEl.hidden) { if (now > bubbleUntil) bubbleEl.hidden = true; else placeBubble(); }
   renderer.render(scene, camera);

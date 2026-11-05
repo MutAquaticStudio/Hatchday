@@ -3,24 +3,37 @@
  * Mô phỏng đúng luật của các RPC trong supabase/migrations (để xem trước, không dùng cho bản chính thức).
  */
 import { clamp, decayStats, localDay } from '../game/rules';
-import type { ActionResult, DayLogRow, MemoryRow, PetAction, PetRow } from './types';
+import { BY_ID, DEFAULT_LAYOUT, ITEMS, STARTER_ITEMS, type Layout } from '../game/catalog';
+import { buyable, COIN, comfortLevel, comfortScore, QUEST_POOL, QUEST_REWARD, questsForDay, rotationForDay, isWeekend } from '../game/layout';
+import type { ActionResult, DayLogRow, Economy, MemoryRow, Outfit, PetAction, PetRow, QuestRow } from './types';
 
 const KEY = 'hatchday-demo';
 const FOOD: Record<string, { name: string; no: number; vui: number }> = {
   carot: { name: 'Cà rốt', no: 10, vui: 2 }, comnam: { name: 'Cơm nắm', no: 25, vui: 3 },
   kem: { name: 'Kem que', no: 5, vui: 15 }, che: { name: 'Chè đậu', no: 15, vui: 12 },
 };
-interface DB { pet: PetRow | null; mem: MemoryRow[]; days: Record<string, DayLogRow>; fav: string; dis: string; firsts: string[]; nextId: number }
+interface DB {
+  pet: PetRow | null; mem: MemoryRow[]; days: Record<string, DayLogRow>; fav: string; dis: string; firsts: string[]; nextId: number;
+  coins: number; earnedDay: string; earnedToday: number; owned: Record<string, number>; layouts: (Layout | null)[]; active: number;
+  quests: string[]; collections: string[];
+}
 
 function load(): DB {
   try { const d = JSON.parse(localStorage.getItem(KEY) || 'null'); if (d) return d as DB; } catch { /* bỏ qua */ }
-  return { pet: null, mem: [], days: {}, fav: '', dis: '', firsts: [], nextId: 1 };
+  return fresh();
+}
+const fresh = (): DB => ({ pet: null, mem: [], days: {}, fav: '', dis: '', firsts: [], nextId: 1, coins: COIN.start, earnedDay: '', earnedToday: 0,
+  owned: {}, layouts: [null, null, null], active: 0, quests: [], collections: [] });
+function earn(db: DB, n: number, capped: boolean): number {
+  const d = localDay(); if (db.earnedDay !== d) { db.earnedDay = d; db.earnedToday = 0; }
+  const got = capped ? Math.max(0, Math.min(n, COIN.careDailyCap - db.earnedToday)) : n;
+  db.coins += got; if (capped) db.earnedToday += got; return got;
 }
 function store(db: DB) { try { localStorage.setItem(KEY, JSON.stringify(db)); } catch { /* bỏ qua */ } }
 function decay(db: DB) {
   if (!db.pet) return;
   const mins = (Date.now() - Date.parse(db.pet.stats_at)) / 60000;
-  Object.assign(db.pet, decayStats(db.pet, mins), { stats_at: new Date().toISOString() });
+  Object.assign(db.pet, decayStats(db.pet, mins, db.pet.comfort_level ?? 1), { stats_at: new Date().toISOString() });
 }
 function day(db: DB): DayLogRow {
   const d = localDay();
@@ -43,6 +56,12 @@ export async function createPet(name: string, family: string, egg: number): Prom
     genes: { palette: egg, ear: Math.floor(Math.random() * 4), sprout: Math.floor(Math.random() * 3), scale: 1 },
     personality: {}, no: 72, vui: 74, nl: 82, sach: 85, asleep: false, stats_at: now, bond_xp: 0, born_at: now };
   db.fav = ids[0]; db.dis = ids[1];
+  const tags = ['mem', 'sach', 'cay', 'choi', 'sang', 'retro'].sort(() => Math.random() - 0.5);
+  db.pet.genes.likes = [tags[0], tags[1]]; db.pet.genes.dislike = tags[2];
+  db.pet.outfit = {}; db.pet.outfit_presets = [{}, {}, {}];
+  for (const id of [...STARTER_ITEMS, ...Object.keys(FOOD)]) db.owned[id] = Math.max(db.owned[id] || 0, 1);
+  db.layouts[0] = structuredClone(DEFAULT_LAYOUT); db.active = 0;
+  db.pet.comfort_level = comfortLevel(comfortScore(DEFAULT_LAYOUT));
   first(db, 'meet', 'meet', `Ngày đầu tiên gặp bạn. Bạn đặt tên mình là ${name}.`);
   store(db);
   return db.pet;
@@ -77,8 +96,9 @@ export async function petAction(action: PetAction, item?: string, count = 1): Pr
   } else if (action === 'talk') { p.vui = clamp(p.vui + 2); d.talk++; }
   else if (action === 'sleep') { p.asleep = true; d.sleep++; }
   else if (action === 'wake') p.asleep = false;
+  const earned = !refused && ['feed', 'bath_rinse', 'play_ball', 'play_spin', 'talk', 'sleep'].includes(action) ? earn(db, COIN.careReward, true) : 0;
   store(db);
-  return { pet: { ...p }, refused, fav, new_memory: newMem };
+  return { pet: { ...p }, refused, fav, new_memory: newMem, earned, coins: db.coins };
 }
 
 export async function addTalkMemory(text: string) {
@@ -89,3 +109,61 @@ export async function listMemories(): Promise<MemoryRow[]> { return load().mem.s
 export async function deleteMemory(id: number) { const db = load(); db.mem = db.mem.filter(m => m.id !== id); store(db); }
 export async function listDayLogs(): Promise<DayLogRow[]> { return Object.values(load().days).sort((a, b) => b.day.localeCompare(a.day)).slice(0, 30); }
 export function resetDemo() { try { localStorage.removeItem(KEY); } catch { /* bỏ qua */ } }
+
+/* ---------- Trang trí, trang phục, xu, nhiệm vụ (mô phỏng RPC) ---------- */
+export async function getEconomy(): Promise<Economy> {
+  const db = load(), d = localDay();
+  return { coins: db.coins, earned_today: db.earnedDay === d ? db.earnedToday : 0, day: d, rotation: rotationForDay(d), weekend: isWeekend(d) };
+}
+export async function buyItem(id: string): Promise<{ coins: number; qty: number }> {
+  const db = load(), it = BY_ID[id];
+  if (!it || it.kind === 'food') throw new Error('unknown_item');
+  if (!buyable(it, localDay())) throw new Error('not_for_sale');
+  if ((it.kind === 'outfit' || it.layer === 'wallpaper' || it.layer === 'flooring') && db.owned[id]) throw new Error('already_owned');
+  if (db.coins < (it.price || 0)) throw new Error('not_enough_coins');
+  db.coins -= it.price || 0; db.owned[id] = (db.owned[id] || 0) + 1; store(db);
+  return { coins: db.coins, qty: db.owned[id] };
+}
+export async function listOwned() { return load().owned; }
+export async function getLayouts() { const db = load(); return { layouts: db.layouts, active: db.active }; }
+export async function saveLayout(slot: number, layout: Layout, activate = true) {
+  const db = load();
+  const n: Record<string, number> = {};
+  for (const p of layout.items) n[p.id] = (n[p.id] || 0) + 1;
+  for (const id of [layout.wallpaper, layout.flooring]) if (!db.owned[id]) throw new Error('not_owned');
+  for (const [id, k] of Object.entries(n)) if ((db.owned[id] || 0) < k) throw new Error('not_owned');
+  db.layouts[slot] = structuredClone(layout);
+  const lvl = comfortLevel(comfortScore(layout));
+  if (activate) { db.active = slot; if (db.pet) { decay(db); db.pet.comfort_level = lvl; } }
+  store(db); return { comfort_level: lvl };
+}
+export async function equipOutfit(o: Outfit) {
+  const db = load(); const clean: Outfit = {};
+  for (const [k, v] of Object.entries(o)) if (v) { if (BY_ID[v]?.slot !== k || !db.owned[v]) throw new Error('not_owned'); clean[k as keyof Outfit] = v; }
+  if (db.pet) db.pet.outfit = clean; store(db); return clean;
+}
+export async function saveOutfitPreset(i: number, o: Outfit) {
+  const db = load(); if (!db.pet) return;
+  const p = db.pet.outfit_presets || [{}, {}, {}]; p[i] = Object.fromEntries(Object.entries(o).filter(([, v]) => v)); db.pet.outfit_presets = p; store(db);
+}
+export async function getQuests(): Promise<QuestRow[]> {
+  const db = load(), d = localDay(), log = db.days[d];
+  return questsForDay(d).map((q, i) => ({ idx: i, quest: q, target: QUEST_POOL[q].target,
+    progress: log ? Number((log as unknown as Record<string, number>)[QUEST_POOL[q].key]) || 0 : 0, claimed: db.quests.includes(d + ':' + i) }));
+}
+export async function claimQuest(i: number) {
+  const q = (await getQuests())[i]; if (!q) throw new Error('invalid_quest');
+  if (q.progress < q.target) throw new Error('quest_not_done');
+  const db = load(), k = localDay() + ':' + i; if (db.quests.includes(k)) throw new Error('already_claimed');
+  db.quests.push(k); earn(db, QUEST_REWARD, false); store(db); return { coins: db.coins };
+}
+export async function claimCollection(t: string) {
+  const db = load();
+  if (t === 'le-hoi') throw new Error('invalid_theme');
+  if (ITEMS.some(i => i.theme === t && !db.owned[i.id])) throw new Error('collection_incomplete');
+  if (db.collections.includes(t)) throw new Error('already_claimed');
+  db.collections.push(t); earn(db, COIN.collectionReward, false);
+  first(db, 'collection-' + t, 'milestone', 'Tụi mình sưu tập đủ một bộ đồ trang trí rồi!');
+  store(db); return { coins: db.coins };
+}
+export async function listCollectionClaims() { return load().collections; }

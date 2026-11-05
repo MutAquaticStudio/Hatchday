@@ -1,0 +1,123 @@
+/**
+ * Danh mục vật phẩm (nguồn sự thật cho tên, giá, kích thước, chủ đề).
+ * Seed SQL trong supabase/migrations/*_decor_cosmetics.sql phải khớp — test catalog-sync kiểm tra.
+ */
+export type Kind = 'food' | 'decor' | 'outfit';
+export type Layer = 'floor' | 'rug' | 'wall' | 'wallpaper' | 'flooring';
+export type Slot = 'head' | 'face' | 'neck' | 'back';
+export type Source = 'starter' | 'market' | 'rotating' | 'weekend' | 'event' | 'paid';
+export type Rarity = 'thuong' | 'dep' | 'hiem' | 'ky-niem';
+export type Theme = 'go-moc' | 'pastel' | 'tuoi-tho-9x' | 'rung' | 'bien' | 'pho-cu' | 'le-hoi';
+export type Tag = 'mem' | 'sach' | 'cay' | 'choi' | 'sang' | 'retro';
+
+export interface Item {
+  id: string; name: string; kind: Kind;
+  layer?: Layer; slot?: Slot;
+  w?: number; d?: number;          // số ô (rộng × sâu, hoặc rộng × cao với đồ treo tường)
+  comfort?: number; theme?: Theme | null; tags?: Tag[];
+  price: number | null; source: Source; rarity: Rarity;
+}
+
+const D = (id: string, name: string, layer: Layer, w: number, d: number, comfort: number, theme: Theme | null, tags: Tag[], price: number | null, source: Source, rarity: Rarity = 'thuong'): Item =>
+  ({ id, name, kind: 'decor', layer, w, d, comfort, theme, tags, price, source, rarity });
+const O = (id: string, name: string, slot: Slot, tags: Tag[], price: number | null, source: Source, rarity: Rarity = 'thuong'): Item =>
+  ({ id, name, kind: 'outfit', slot, tags, price, source, rarity });
+
+export const ITEMS: Item[] = [
+  // Nội thất (sàn)
+  D('o-rom', 'Ổ rơm', 'floor', 2, 2, 3, 'go-moc', ['mem'], null, 'starter'),
+  D('giuong-may', 'Giường mây', 'floor', 2, 2, 5, 'pastel', ['mem'], 900, 'rotating', 'dep'),
+  D('ghe-dau', 'Ghế đẩu gỗ', 'floor', 1, 1, 1, 'go-moc', [], 120, 'market'),
+  D('ban-tra', 'Bàn trà gỗ', 'floor', 2, 1, 2, 'go-moc', [], 300, 'market'),
+  D('ke-sach', 'Kệ sách', 'floor', 1, 1, 2, 'go-moc', ['sach'], 280, 'market'),
+  D('sofa-hong', 'Sofa hồng', 'floor', 2, 1, 4, 'pastel', ['mem'], 650, 'rotating', 'dep'),
+  D('den-keo', 'Đèn kẹo ngọt', 'floor', 1, 1, 1, 'pastel', ['sang'], 380, 'market'),
+  D('gau-bong', 'Gấu bông khổng lồ', 'floor', 1, 1, 3, 'pastel', ['mem'], 720, 'rotating', 'dep'),
+  D('tv-crt', 'TV đèn hình', 'floor', 1, 1, 2, 'tuoi-tho-9x', ['retro'], 450, 'rotating', 'dep'),
+  D('may-game', 'Máy chơi game cầm tay', 'floor', 1, 1, 1, 'tuoi-tho-9x', ['retro', 'choi'], 300, 'market'),
+  D('ban-hoc', 'Bàn học gỗ', 'floor', 2, 1, 2, 'tuoi-tho-9x', ['sach'], 380, 'market'),
+  D('dong-ho-bao-thuc', 'Đồng hồ báo thức', 'floor', 1, 1, 1, 'tuoi-tho-9x', ['retro'], 150, 'market'),
+  D('chau-cay', 'Chậu cây', 'floor', 1, 1, 2, 'rung', ['cay'], null, 'starter'),
+  D('xuong-rong', 'Xương rồng', 'floor', 1, 1, 1, 'rung', ['cay'], 90, 'market'),
+  D('cay-lon', 'Cây cổ thụ mini', 'floor', 1, 1, 3, 'rung', ['cay'], 1100, 'weekend', 'hiem'),
+  D('vo-oc', 'Vỏ ốc khổng lồ', 'floor', 1, 1, 1, 'bien', [], 110, 'market'),
+  D('hai-dang', 'Đèn hải đăng', 'floor', 1, 1, 2, 'bien', ['sang'], 420, 'rotating', 'dep'),
+  D('den-long', 'Đèn lồng giấy', 'floor', 1, 1, 1, 'pho-cu', ['sang'], 220, 'market'),
+  D('long-chim', 'Lồng chim', 'floor', 1, 1, 2, 'pho-cu', [], 260, 'market'),
+  D('quat-may', 'Quạt máy', 'floor', 1, 1, 1, 'pho-cu', ['retro'], 200, 'market'),
+  D('ghe-nhua', 'Ghế nhựa đỏ', 'floor', 1, 1, 1, 'pho-cu', [], 80, 'market'),
+  D('bong', 'Bóng', 'floor', 1, 1, 1, null, ['choi'], null, 'starter'),
+  D('cay-dao', 'Cây đào Tết', 'floor', 1, 1, 3, 'le-hoi', ['cay'], null, 'event', 'hiem'),
+  D('den-ong-sao', 'Đèn ông sao', 'floor', 1, 1, 2, 'le-hoi', ['sang'], null, 'event', 'hiem'),
+  // Thảm
+  D('tham-tron', 'Thảm tròn xanh', 'rug', 4, 4, 1, null, ['mem'], null, 'starter'),
+  D('tham-cat', 'Thảm cát', 'rug', 3, 2, 1, 'bien', [], 240, 'market'),
+  D('tham-reu', 'Thảm rêu', 'rug', 3, 3, 2, 'rung', ['cay'], 300, 'market'),
+  D('tham-ca-ro', 'Thảm ca rô', 'rug', 3, 3, 1, 'pastel', ['mem'], 180, 'market'),
+  // Treo tường (rộng × cao)
+  D('poster', 'Poster hoạt hình', 'wall', 1, 1, 1, 'tuoi-tho-9x', ['retro'], 150, 'market'),
+  D('tranh-bien', 'Tranh biển', 'wall', 2, 1, 1, 'bien', [], 260, 'market'),
+  D('dong-ho-treo', 'Đồng hồ gỗ', 'wall', 1, 1, 1, 'go-moc', [], 200, 'market'),
+  D('ke-treo', 'Kệ treo tường', 'wall', 2, 1, 1, 'go-moc', ['sach'], 160, 'market'),
+  D('to-chim', 'Tổ chim', 'wall', 1, 1, 1, 'rung', ['cay'], 140, 'market'),
+  // Giấy dán tường & sàn
+  D('giay-cham-hong', 'Giấy chấm hồng', 'wallpaper', 0, 0, 0, 'pastel', [], null, 'starter'),
+  D('giay-soc-xanh', 'Giấy sọc xanh biển', 'wallpaper', 0, 0, 0, 'bien', [], 350, 'market'),
+  D('giay-go', 'Ốp ván gỗ', 'wallpaper', 0, 0, 0, 'go-moc', [], 420, 'market'),
+  D('giay-sao', 'Giấy sao đêm', 'wallpaper', 0, 0, 1, null, ['sang'], 500, 'rotating', 'dep'),
+  D('san-go', 'Sàn gỗ', 'flooring', 0, 0, 0, 'go-moc', [], null, 'starter'),
+  D('san-gach-bong', 'Gạch bông', 'flooring', 0, 0, 1, 'pho-cu', ['retro'], 480, 'rotating', 'dep'),
+  D('san-co', 'Sàn cỏ', 'flooring', 0, 0, 1, 'rung', ['cay'], 400, 'market'),
+  // Trang phục
+  O('no-hong', 'Nơ hồng', 'head', [], null, 'starter'),
+  O('mu-len', 'Mũ len', 'head', ['mem'], 220, 'market'),
+  O('non-la', 'Nón lá mini', 'head', [], 260, 'market'),
+  O('mu-tiec', 'Mũ sinh nhật', 'head', ['choi'], 180, 'market'),
+  O('vong-hoa', 'Vòng hoa', 'head', ['cay'], 520, 'rotating', 'dep'),
+  O('kinh-tron', 'Kính tròn', 'face', ['sach'], 240, 'market'),
+  O('kinh-ram', 'Kính râm', 'face', ['sang'], 300, 'market'),
+  O('khan-quang', 'Khăn quàng đỏ', 'neck', ['retro'], 120, 'market'),
+  O('chuong', 'Chuông cổ', 'neck', ['choi'], 200, 'market'),
+  O('khan-len', 'Khăn len', 'neck', ['mem'], 340, 'rotating', 'dep'),
+  O('balo', 'Ba lô nhỏ', 'back', ['choi'], 380, 'market'),
+  O('canh', 'Cánh thiên thần', 'back', ['sang'], 1200, 'weekend', 'hiem'),
+  O('ao-choang', 'Áo choàng sao', 'back', ['sang'], 950, 'weekend', 'hiem'),
+];
+
+export const BY_ID: Record<string, Item> = Object.fromEntries(ITEMS.map(i => [i.id, i]));
+
+export const THEMES: Record<Theme, string> = {
+  'go-moc': 'Gỗ mộc', pastel: 'Pastel', 'tuoi-tho-9x': 'Tuổi thơ 9x', rung: 'Rừng', bien: 'Biển', 'pho-cu': 'Phố cũ', 'le-hoi': 'Lễ hội',
+};
+export const SET_LINES: Partial<Record<Theme, string>> = {
+  'go-moc': 'Phòng ấm như nhà gỗ trên núi, mình ngủ ngon hẳn.',
+  pastel: 'Phòng toàn màu kẹo, mình muốn nhảy múa quá!',
+  'tuoi-tho-9x': 'Hồi xưa ai cũng mê mấy món này đó, bạn nhớ không?',
+  rung: 'Sáng nay có chim ghé cửa sổ chào mình nè.',
+  bien: 'Nghe như có tiếng sóng đâu đây…',
+  'pho-cu': 'Tối rồi, nghe tiếng rao đêm là thèm ăn vặt ghê.',
+};
+export const TAGS: Record<Tag, string> = { mem: 'đồ êm', sach: 'sách vở', cay: 'cây cỏ', choi: 'đồ chơi', sang: 'đồ phát sáng', retro: 'đồ cổ điển' };
+export const SLOTS: Record<Slot, string> = { head: 'Đầu', face: 'Mặt', neck: 'Cổ', back: 'Lưng' };
+export const RARITY: Record<Rarity, string> = { thuong: 'Thường', dep: 'Đẹp', hiem: 'Hiếm', 'ky-niem': 'Kỷ niệm' };
+
+/* ---------- Lưới phòng ---------- */
+export const GRID = { cols: 8, rows: 6, cell: 1, x0: -4, z0: -3.3, wallRows: 3, wallY0: 1.0 } as const;
+/** Ô dành cho thú (không đặt nội thất), lối ra phía trước là hàng cuối. */
+export const PET_ZONE = [[3, 3], [4, 3], [3, 4], [4, 4]] as const;
+/** Ô tường bị cửa sổ chiếm. */
+export const WINDOW_CELLS = [[4, 1], [5, 1], [6, 1], [4, 2], [5, 2], [6, 2]] as const;
+
+export interface Placed { id: string; c: number; r: number; rot: number }
+export interface Layout { wallpaper: string; flooring: string; items: Placed[] }
+
+export const DEFAULT_LAYOUT: Layout = {
+  wallpaper: 'giay-cham-hong', flooring: 'san-go',
+  items: [
+    { id: 'tham-tron', c: 2, r: 2, rot: 0 },
+    { id: 'o-rom', c: 0, r: 0, rot: 0 },
+    { id: 'chau-cay', c: 7, r: 0, rot: 0 },
+    { id: 'bong', c: 6, r: 4, rot: 0 },
+  ],
+};
+export const STARTER_ITEMS = ITEMS.filter(i => i.source === 'starter').map(i => i.id);

@@ -9,15 +9,19 @@ export interface Stats { no: number; vui: number; nl: number; sach: number; asle
 
 export const clamp = (v: number, a = 0, b = 100) => Math.max(a, Math.min(b, v));
 
-/** Giảm chỉ số theo số phút đã trôi qua. Trả về bản sao. */
-export function decayStats<T extends Stats>(s: T, mins: number): T {
+/**
+ * Giảm chỉ số theo số phút đã trôi qua. Trả về bản sao.
+ * `comfort` (cấp thoải mái 1–5 của phòng): mỗi cấp trên 1 làm Vui và Năng lượng giảm chậm hơn 5%, hồi khi ngủ nhanh hơn 5%.
+ */
+export function decayStats<T extends Stats>(s: T, mins: number, comfort = 1): T {
   const m = Math.max(0, Math.min(mins, MAX_OFFLINE_MIN));
+  const k = 0.05 * (Math.max(1, Math.min(5, comfort)) - 1);
   return {
     ...s,
     no: clamp(s.no - m * DECAY_PER_MIN.no),
-    vui: clamp(s.vui - m * DECAY_PER_MIN.vui),
+    vui: clamp(s.vui - m * DECAY_PER_MIN.vui * (1 - k)),
     sach: clamp(s.sach - m * DECAY_PER_MIN.sach),
-    nl: clamp(s.asleep ? s.nl + m * DECAY_PER_MIN.nlAsleep : s.nl - m * DECAY_PER_MIN.nlAwake),
+    nl: clamp(s.asleep ? s.nl + m * DECAY_PER_MIN.nlAsleep * (1 + k) : s.nl - m * DECAY_PER_MIN.nlAwake * (1 - k)),
   };
 }
 
