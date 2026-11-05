@@ -25,12 +25,13 @@ const field = (id: string, label: string, type: string, auto: string, extra = ''
 export function mountAuth(root: HTMLElement, view: AuthView, onSignedIn: () => void, info = ''): void {
   const go = (v: AuthView, msg = '') => mountAuth(root, v, onSignedIn, msg);
   const device = '<div class="device" aria-hidden="true"><div class="lcd"><div class="egg"></div></div><div class="btns"><i></i><i></i><i></i></div></div>';
-  const cfg = isConfigured ? '' : '<p class="notice bad">Chưa cấu hình Supabase. Tạo file <code>.env</code> theo <code>.env.example</code> rồi chạy lại.</p>';
+  const cfg = isConfigured ? '' : '<p class="notice">Bản chơi thử: chưa nối máy chủ, dữ liệu chỉ lưu trên trình duyệt này.</p>';
   const back = '<button type="button" class="link back" data-go="gate">← Quay lại</button>';
   const views: Record<AuthView, string> = {
     gate: `${device}<h1>Hatchday</h1><p class="sub">Một người bạn nhỏ đang chờ bạn.</p>${cfg}
-      <div class="stack"><button class="btn" data-go="login">Đăng nhập</button><button class="btn ghost" data-go="register">Tạo tài khoản</button>
-      <div class="or">hoặc</div><p class="err" id="form-err" role="alert"></p><button class="btn ghost google" id="google">${GOOGLE_ICON}Đăng nhập bằng Google</button></div>`,
+      ${isConfigured ? `<div class="stack"><button class="btn" data-go="login">Đăng nhập</button><button class="btn ghost" data-go="register">Tạo tài khoản</button>
+      <div class="or">hoặc</div><p class="err" id="form-err" role="alert"></p><button class="btn ghost google" id="google">${GOOGLE_ICON}Đăng nhập bằng Google</button></div>`
+      : '<div class="stack"><button class="btn" id="demo">Chơi thử ngay</button></div>'}`,
     login: `${back}<h1>Đăng nhập</h1>${info ? `<p class="notice">${esc(info)}</p>` : ''}<form novalidate>
       ${field('email', 'Email', 'email', 'email', 'inputmode="email" required')}
       ${field('password', 'Mật khẩu', 'password', 'current-password', 'required')}
@@ -58,6 +59,7 @@ export function mountAuth(root: HTMLElement, view: AuthView, onSignedIn: () => v
   root.innerHTML = `<main class="screen"><section class="card" aria-live="polite">${views[view]}</section></main>`;
   const $ = <T extends HTMLElement = HTMLInputElement>(id: string) => root.querySelector<T>('#' + id);
 
+  $<HTMLButtonElement>('demo')?.addEventListener('click', () => onSignedIn());
   root.querySelectorAll<HTMLElement>('[data-go]').forEach(b => b.addEventListener('click', () => go(b.dataset.go as AuthView)));
   root.querySelectorAll<HTMLButtonElement>('[data-toggle]').forEach(b => b.addEventListener('click', () => {
     const inp = $(b.dataset.toggle!)!; const show = inp.type === 'password';

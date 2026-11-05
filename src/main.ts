@@ -19,12 +19,18 @@ async function enforceRemember(): Promise<void> {
 async function startGame(): Promise<void> {
   if (started) return;
   started = true;
-  root.innerHTML = '<main class="screen"><section class="card"><p class="sub" role="status">Đang mở cửa nhà…</p></section></main>';
+  root.innerHTML = '<main class="screen"><section class="card"><div class="device" aria-hidden="true"><div class="lcd"><div class="egg"></div></div><div class="btns"><i></i><i></i><i></i></div></div><p class="sub" role="status">Đang mở cửa nhà…</p></section></main>';
   const [{ hydrate }, markup] = await Promise.all([import('./game/store'), import('./game/markup.html?raw')]);
   await import('./game/game.css');
   await hydrate();
   root.innerHTML = markup.default;
-  document.getElementById('btn-logout')?.addEventListener('click', async () => { await supabase.auth.signOut(); location.replace(location.pathname); });
+  const logout = document.getElementById('btn-logout');
+  if (logout && !isConfigured) {
+    logout.textContent = 'Thoát bản chơi thử';
+    const note = document.querySelector('#stats .note');
+    if (note) note.textContent = 'Chỉ số giảm theo giờ thật, kể cả khi bạn đóng trang. Bản chơi thử lưu dữ liệu trên trình duyệt này.';
+  }
+  logout?.addEventListener('click', async () => { if (isConfigured) await supabase.auth.signOut(); location.replace(location.pathname); });
   await import('./game/game.js');
 }
 

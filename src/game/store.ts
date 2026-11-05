@@ -25,6 +25,9 @@ type Listener = () => void;
 const listeners = new Set<Listener>();
 export const onSync = (fn: Listener) => { listeners.add(fn); return () => listeners.delete(fn); };
 const emit = () => listeners.forEach(fn => fn());
+const errListeners = new Set<(e: unknown) => void>();
+/** Báo cho giao diện khi không lưu được lên server (để hiện thông báo nhẹ). */
+export const onSyncError = (fn: (e: unknown) => void) => { errListeners.add(fn); return () => errListeners.delete(fn); };
 
 function applyRow(p: PetRow) {
   S.id = p.id; S.name = p.name; S.family = p.family_name; S.palette = p.genes?.palette ?? 0;
@@ -75,6 +78,7 @@ export async function act(action: PetAction, item?: string, count = 1): Promise<
     return r;
   } catch (e) {
     console.warn('pet_action thất bại', action, e);
+    errListeners.forEach(fn => fn(e));
     return null;
   }
 }

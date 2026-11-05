@@ -1,6 +1,7 @@
 <div id="app">
   <div id="sky"></div>
   <canvas id="c" aria-label="Căn phòng 3D có thú cưng. Vuốt lên thú để vuốt ve, chạm để chọc."></canvas>
+  <div id="vignette" aria-hidden="true"></div>
   <div id="dim"></div>
   <div id="wipe" aria-hidden="true"><span class="runner"></span><span id="wipe-label"></span></div>
 
@@ -12,11 +13,15 @@
 
   <div class="hint" id="hint">Vuốt lên thú để vuốt ve · chạm để chọc</div>
   <div id="bubble" hidden></div>
+  <div id="pops" aria-hidden="true"></div>
+  <div id="toast" role="status" hidden></div>
+  <div id="devhud" hidden></div>
 
   <section id="stats" class="sheet stats" hidden aria-label="Chỉ số của thú">
     <h2>Chỉ số</h2>
     <label class="name">Tên riêng của thú<input id="pet-name" maxlength="16" autocomplete="off"></label>
     <div id="bars"></div>
+    <div class="row quality" role="group" aria-label="Chất lượng hình ảnh">Hình ảnh <button type="button" class="qbtn" data-q="thap" aria-pressed="false">Thấp</button><button type="button" class="qbtn" data-q="vua" aria-pressed="true">Vừa</button><button type="button" class="qbtn" data-q="cao" aria-pressed="false">Cao</button></div>
     <label class="row" hidden><input type="checkbox" id="fast"> Tua nhanh thời gian ×60 (chế độ dev)</label>
     <p class="note">Chỉ số giảm theo giờ thật, kể cả khi bạn đóng trang. Mọi thứ được lưu vào tài khoản của bạn.</p>
     <button id="btn-logout" class="pill" type="button">Đăng xuất</button>
