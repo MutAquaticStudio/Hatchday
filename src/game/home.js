@@ -1,5 +1,5 @@
 // Nhà của bé: bố cục phòng, chế độ trang trí, cửa hàng, tủ đồ, nhiệm vụ ngày (theo GDD).
-import { BY_ID, DEFAULT_LAYOUT, GRID, ITEMS, PET_ZONE, RARITY, SET_LINES, SLOTS, TAGS, THEMES, WINDOW_CELLS } from './catalog';
+import { BY_ID, DEFAULT_LAYOUT, GRID, ITEMS, PAID_SHOP_ENABLED, PET_ZONE, RARITY, SET_LINES, SLOTS, TAGS, THEMES, WINDOW_CELLS } from './catalog';
 import { activeSets, buyable, canPlace, cellsOf, comfortLevel, comfortScore, footprint, placedCount, QUEST_POOL, QUEST_REWARD } from './layout';
 import { makeDecor } from './decor3d.js';
 import { disposePet } from './pet3d.js';
@@ -202,7 +202,8 @@ export function initHome(ctx) {
     const el = open('shop'); renderShop(el);
   }
   function renderShop(el = $('shop')) {
-    const tabs = { market: 'Chợ', rotating: 'Tiệm hôm nay', weekend: 'Chợ cuối tuần', paid: 'Trả phí', book: 'Sổ sưu tập' };
+    const tabs = { market: 'Chợ', rotating: 'Tiệm hôm nay', weekend: 'Chợ cuối tuần', ...(PAID_SHOP_ENABLED ? { paid: 'Trả phí' } : {}), book: 'Sổ sưu tập' };
+    if (!tabs[shopTab]) shopTab = 'market';
     let body = '';
     if (shopTab === 'paid') {
       body = '<p class="hs-note">Gian hàng trả phí sẽ mở khi game đã ổn định. Mọi món ở đây chỉ để trang trí, không tăng chỉ số, giá ghi rõ bằng tiền thật và luôn có bước xác nhận.</p>';

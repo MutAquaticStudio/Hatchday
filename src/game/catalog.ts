@@ -5,6 +5,9 @@
 export type Kind = 'food' | 'decor' | 'outfit';
 export type Layer = 'floor' | 'rug' | 'wall' | 'wallpaper' | 'flooring';
 export type Slot = 'head' | 'face' | 'neck' | 'back';
+/** Bật quầy trả phí trong cửa hàng (tạm ẩn cho tới khi có cổng thanh toán). */
+export const PAID_SHOP_ENABLED = false;
+
 export type Source = 'starter' | 'market' | 'rotating' | 'weekend' | 'event' | 'paid';
 export type Rarity = 'thuong' | 'dep' | 'hiem' | 'ky-niem';
 export type Theme = 'go-moc' | 'pastel' | 'tuoi-tho-9x' | 'rung' | 'bien' | 'pho-cu' | 'le-hoi';
