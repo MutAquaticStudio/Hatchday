@@ -1,19 +1,22 @@
 // Lớp hiển thị & tương tác 3D (chuyển từ bản mẫu). Sẽ tách nhỏ và chuyển sang TypeScript dần.
 import * as THREE from 'three';
-import { onGrow, demoAge } from './store';
-import { S, save, act, actBatched, addTalkMemory, deleteMemory as delMem, renamePet, onSync, onSyncError, startPeriodicSync,
+import { S, save, act, actBatched, addTalkMemory, renamePet, onSync, onSyncError, startPeriodicSync,
   buy, saveLayout, equip, savePreset, claimQuest, claimCollection, refreshQuests, activeLayout, previewComfort } from './store';
 import { initHome } from './home.js';
-import { decayStats, writeDiary as writeDiaryRule, localDay } from './rules';
+import { decayStats, localDay } from './rules';
 import { makePetBuilder, disposePet } from './pet3d.js';
-import { STAGES, STAGE_ORDER, FORMS, RARITIES, REGIONS, SPECIES_BY_ID, formFromCare } from './species';
-import { isDemo } from '../data/api';
+import { makeFace } from './face.js';
+import { dayRec, count, renderDiary, initDiary } from './diary.js';
+import { $, clamp } from './dom.js';
+import { initFood } from './food.js';
+import { initChat } from './chat.js';
+import { initGrowth } from './growth.js';
+import { sfx } from './audio.js';
+import { STAGES } from './species';
 let home = null, editing = false;
 const camOverride = { pos: null, look: null };
 
 const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-const $ = id => document.getElementById(id);
-const clamp = (v, a = 0, b = 100) => Math.max(a, Math.min(b, v));
 
 /* ---------------- trạng thái: dữ liệu nằm ở store (đồng bộ server) ---------------- */
 function decay(s, mins) { Object.assign(s, decayStats(s, mins, S.comfort || 1)); s.t = Date.now(); }
@@ -281,11 +284,11 @@ function applyAreaLights() {
 }
 let scrubN = 0;
 function scrub() {
-  actBatched('bath_scrub'); S.sach = clamp(S.sach + 3); spawn('bubble', 2, 0.9); setTemp('love', 1200); impulse(-0.9); scrubN++;
+  sfx('bath'); actBatched('bath_scrub'); S.sach = clamp(S.sach + 3); spawn('bubble', 2, 0.9); setTemp('love', 1200); impulse(-0.9); scrubN++;
   if (scrubN % 8 === 0) say(['Chỗ đó đó, ngứa quá!', 'Bọt nhiều ghê!', 'Sạch bong rồi nè!'][Math.floor(Math.random() * 3)], 1800);
 }
 function rinse() {
-  count('bath'); act('bath_rinse'); popText('Sạch bong!', '#2fa8e0');
+  sfx('bath'); count('bath'); act('bath_rinse'); popText('Sạch bong!', '#2fa8e0');
   S.sach = 100; S.vui = clamp(S.vui + 4); spawn('sparkle', 4, 1); spawn('bubble', 10, 1.3);
   startAction('shake'); setTemp('love', 2000); say('Thơm phức rồi nè!', 2200); save(); renderStats();
   setTimeout(() => { if (area === 'bath') goTo('home'); }, 2600);
@@ -295,11 +298,11 @@ function throwBall() {
   if (S.nl < 15) { setTemp('sleepy', 1800); say('Mình mệt quá, cho mình nghỉ chút đã…', 2600); return; }
   const tx = (Math.random() * 2 - 1) * 3.2, tz = -1.6 + Math.random() * 2.4;
   fetchBall = { phase: 'fly', t: 0, from: new THREE.Vector3(0.6, 2.8, 5.5), to: new THREE.Vector3(tx, 0.3, tz) };
-  setTemp('excited', 900);
+  setTemp('excited', 900); sfx('play');
 }
 function spinPlay() {
   if (S.nl < 15) { setTemp('sleepy', 1800); say('Mình mệt quá, cho mình nghỉ chút đã…', 2600); return; }
-  act('play_spin'); popText('+6 Vui'); S.vui = clamp(S.vui + 6); S.nl = clamp(S.nl - 4); S.no = clamp(S.no - 2);
+  sfx('play'); act('play_spin'); popText('+6 Vui'); S.vui = clamp(S.vui + 6); S.nl = clamp(S.nl - 4); S.no = clamp(S.no - 2);
   anim = { type: 'spin', t: 0, dur: 1.1 }; setTemp('excited', 1600); spawn('note', 2); spawn('sparkle', 2);
   setTimeout(() => say(['Yeah! Thêm vòng nữa!', 'Vui quá đi!', 'Chóng mặt mà vui ghê!'][Math.floor(Math.random() * 3)], 2200), 1100);
   save(); renderStats();
@@ -337,20 +340,22 @@ function updateArea(dt, t) {
 
 /* ---------------- con thú ---------------- */
 /* Thú dựng theo loài + giai đoạn + dáng (pet3d.js). `grow` co giãn theo tuổi, `pivot` để nhún nhảy, `petLook` chứa thân thú (dựng lại khi lớn). */
+/* khuôn mặt: xem face.js */
+const { face, EXPR, drawFace } = makeFace({ THREE, renderer });
 const petBuilder = makePetBuilder({ THREE, add, toon, petToon, grad });
 const petRoot = new THREE.Group(); petRoot.position.set(0, 0, 0.35); scene.add(petRoot);
 const grow = new THREE.Group(); petRoot.add(grow);
 const pivot = new THREE.Group(); grow.add(pivot);
 const petLook = new THREE.Group(); pivot.add(petLook);
-let body, ears, sprout, tail, arms, feet, petParts = null, lookKey = '', faceMesh = null, lookBooted = false;
+let body, ears, sprout, tail, arms, feet, petParts = null, lookKey = '', lookBooted = false;
 const currentLook = () => ({ species: S.species, stage: S.stage, form: S.form, genes: S.genes });
 function buildLook() {
   const L = currentLook(), k = JSON.stringify(L); if (k === lookKey) return false; lookKey = k;
-  if (faceMesh) faceMesh.removeFromParent();
+  face.removeFromParent();           // tách mặt trước khi giải phóng thân cũ (mặt dùng chung, không được dispose)
   disposePet(petLook);
   petParts = petBuilder.build(petLook, L);
   ({ body, ears, top: sprout, tail, arms, feet } = petParts);
-  if (typeof face !== 'undefined') body.add(face); faceMesh = face;
+  body.add(face);
   grow.scale.setScalar((STAGES[L.stage]?.scale || 1) * (L.genes?.scale || 1));
   if (lookBooted) applyShadows(petLook);
   home?.refreshOutfit();
@@ -362,123 +367,6 @@ buildLook();
 const shadowTex = canvasTex(128, 128, (g) => { const r = g.createRadialGradient(64, 64, 4, 64, 64, 62); r.addColorStop(0, 'rgba(90,40,90,.38)'); r.addColorStop(1, 'rgba(90,40,90,0)'); g.fillStyle = r; g.fillRect(0, 0, 128, 128); });
 const shadow = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 2.0), new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, depthWrite: false }));
 shadow.rotation.x = -Math.PI / 2; shadow.position.set(0, 0.075, 0.4); scene.add(shadow);
-
-/* ---------------- khuôn mặt (texture 2D) ---------------- */
-const FW = 600, FH = 496;
-const fc = document.createElement('canvas'); fc.width = FW; fc.height = FH;
-const fx = fc.getContext('2d');
-const faceTex = new THREE.CanvasTexture(fc); faceTex.colorSpace = THREE.SRGBColorSpace; faceTex.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
-const faceGeo = new THREE.SphereGeometry(1.006, 64, 40, Math.PI / 2 - 0.75, 1.5, Math.PI / 2 - 0.78, 1.24);
-const face = new THREE.Mesh(faceGeo, new THREE.MeshBasicMaterial({ map: faceTex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }));
-body.add(face);
-
-const INK = '#4a2140', LX = FW * 0.32, RX = FW * 0.68, EY = FH * 0.47, MX = FW / 2, MY = FH * 0.74;
-function ell(x, y, rx, ry) { fx.beginPath(); fx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2); }
-function star(x, y, r, col) {
-  fx.beginPath();
-  for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4 - Math.PI / 2, rr = i % 2 ? r * 0.38 : r; fx.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); }
-  fx.closePath(); fx.fillStyle = col; fx.fill();
-}
-function eyeOpen(x, y, o = {}) {
-  const rx = 46, ry = 64, ly = o.lookY || 0, lx = o.lookX || 0;
-  fx.save();
-  let lidY = null;
-  if (o.lid) { lidY = y - ry + 2 * ry * o.lid; fx.beginPath(); fx.rect(x - 90, lidY, 180, 200); fx.clip(); }
-  ell(x, y, rx, ry); fx.fillStyle = INK; fx.fill();
-  const g = fx.createLinearGradient(0, y - ry, 0, y + ry);
-  g.addColorStop(0, '#4a2140'); g.addColorStop(0.5, '#8a4be0'); g.addColorStop(1, '#ffa6dc');
-  ell(x, y + 4, rx - 8, ry - 10); fx.fillStyle = g; fx.fill();
-  ell(x + lx, y + 6 + ly, 18, 26); fx.fillStyle = '#2a0f2e'; fx.fill();
-  if (o.star) { star(x - 10, y - 18 + ly, 24, '#fff'); star(x + 17, y + 24, 11, '#fff'); }
-  else { ell(x - 15 + lx * 0.5, y - 24 + ly, 15, 19); fx.fillStyle = '#fff'; fx.fill(); ell(x + 16, y + 22, 7, 7); fx.fill(); }
-  if (o.tears) { fx.fillStyle = 'rgba(140,210,255,.85)'; fx.fillRect(x - rx, y + 30, rx * 2, 40); }
-  fx.restore();
-  fx.strokeStyle = INK; fx.lineCap = 'round';
-  if (lidY !== null) {
-    fx.lineWidth = 11; fx.beginPath(); fx.moveTo(x - rx - 4, lidY + 2); fx.quadraticCurveTo(x, lidY + (o.lidCurve || 8), x + rx + 4, lidY + 2); fx.stroke();
-  } else {
-    fx.lineWidth = 11; fx.beginPath(); fx.ellipse(x, y, rx + 2, ry + 2, 0, Math.PI * 1.08, Math.PI * 1.92); fx.stroke();
-    const side = x < MX ? -1 : 1; fx.lineWidth = 8; fx.beginPath(); fx.moveTo(x + side * (rx - 2), y - ry * 0.55); fx.lineTo(x + side * (rx + 14), y - ry * 0.78); fx.stroke();
-  }
-  if (o.tears) { fx.fillStyle = '#8fd3ff'; fx.beginPath(); const tx = x + (x < MX ? -rx + 6 : rx - 6), ty = y + ry - 2; fx.moveTo(tx, ty); fx.quadraticCurveTo(tx + 12, ty + 22, tx, ty + 30); fx.quadraticCurveTo(tx - 12, ty + 22, tx, ty); fx.fill(); }
-}
-function eyeHappy(x, y) { fx.strokeStyle = INK; fx.lineWidth = 13; fx.lineCap = 'round'; fx.beginPath(); fx.moveTo(x - 40, y + 14); fx.quadraticCurveTo(x, y - 36, x + 40, y + 14); fx.stroke(); }
-function eyeSleep(x, y) {
-  fx.strokeStyle = INK; fx.lineWidth = 11; fx.lineCap = 'round'; fx.beginPath(); fx.moveTo(x - 40, y + 4); fx.quadraticCurveTo(x, y + 34, x + 40, y + 4); fx.stroke();
-  fx.lineWidth = 6; [-24, 0, 24].forEach(d => { fx.beginPath(); fx.moveTo(x + d, y + 22 - Math.abs(d) * 0.2); fx.lineTo(x + d * 1.2, y + 36); fx.stroke(); });
-}
-function eyeSwirl(x, y) {
-  fx.strokeStyle = INK; fx.lineWidth = 8; fx.lineCap = 'round'; fx.beginPath();
-  for (let a = 0; a < Math.PI * 6; a += 0.15) { const r = 4 + a * 2.6; fx.lineTo(x + Math.cos(a) * r, y + Math.sin(a) * r * 1.15); }
-  fx.stroke();
-}
-function eyeSqueeze(x, y) {
-  const s = x < MX ? 1 : -1; fx.strokeStyle = INK; fx.lineWidth = 12; fx.lineCap = 'round'; fx.lineJoin = 'round';
-  fx.beginPath(); fx.moveTo(x - s * 30, y - 26); fx.lineTo(x + s * 26, y); fx.lineTo(x - s * 30, y + 26); fx.stroke();
-}
-function brows(kind) {
-  fx.strokeStyle = INK; fx.lineWidth = 10; fx.lineCap = 'round'; fx.beginPath();
-  if (kind === 'angry') { fx.moveTo(LX - 42, EY - 102); fx.lineTo(LX + 40, EY - 80); fx.moveTo(RX + 42, EY - 102); fx.lineTo(RX - 40, EY - 80); }
-  else { fx.moveTo(LX - 42, EY - 84); fx.lineTo(LX + 38, EY - 104); fx.moveTo(RX + 42, EY - 84); fx.lineTo(RX - 38, EY - 104); }
-  fx.stroke();
-}
-function blush(a, cold) {
-  if (a <= 0 && !cold) return;
-  [FW * 0.17, FW * 0.83].forEach(x => {
-    ell(x, FH * 0.66, 44, 22); fx.fillStyle = cold ? 'rgba(130,170,255,.35)' : `rgba(255,105,150,${a * 0.55})`; fx.fill();
-    if (!cold && a > 0.4) { fx.strokeStyle = `rgba(220,70,120,${a * 0.8})`; fx.lineWidth = 5; fx.lineCap = 'round';
-      [-16, 0, 16].forEach(d => { fx.beginPath(); fx.moveTo(x + d - 6, FH * 0.66 + 9); fx.lineTo(x + d + 6, FH * 0.66 - 9); fx.stroke(); }); }
-  });
-}
-function mouth(kind, phase) {
-  fx.strokeStyle = INK; fx.fillStyle = '#7a1f3d'; fx.lineWidth = 8; fx.lineCap = 'round'; fx.lineJoin = 'round';
-  const k = kind === 'chew' ? (phase ? 'smallo' : 'w') : kind;
-  fx.beginPath();
-  if (k === 'w') { fx.moveTo(MX - 26, MY - 6); fx.quadraticCurveTo(MX - 13, MY + 14, MX, MY - 4); fx.quadraticCurveTo(MX + 13, MY + 14, MX + 26, MY - 6); fx.stroke(); }
-  else if (k === 'open') { fx.moveTo(MX - 34, MY - 10); fx.quadraticCurveTo(MX, MY - 4, MX + 34, MY - 10); fx.quadraticCurveTo(MX + 28, MY + 34, MX, MY + 36); fx.quadraticCurveTo(MX - 28, MY + 34, MX - 34, MY - 10); fx.fill(); fx.stroke();
-    ell(MX, MY + 24, 16, 9); fx.fillStyle = '#ff8fb0'; fx.fill(); }
-  else if (k === 'o') { ell(MX, MY + 4, 13, 17); fx.fill(); fx.stroke(); }
-  else if (k === 'smallo') { ell(MX, MY + 2, 8, 9); fx.fill(); fx.stroke(); }
-  else if (k === 'line') { fx.moveTo(MX - 14, MY + 2); fx.lineTo(MX + 14, MY + 2); fx.stroke(); }
-  else if (k === 'wavy') { fx.moveTo(MX - 30, MY); for (let i = 0; i <= 6; i++) fx.lineTo(MX - 30 + i * 10, MY + (i % 2 ? -7 : 7)); fx.stroke(); }
-  else if (k === 'pout') { fx.moveTo(MX - 18, MY + 10); fx.quadraticCurveTo(MX, MY - 12, MX + 18, MY + 10); fx.stroke(); }
-  else if (k === 'frown') { fx.moveTo(MX - 26, MY + 12); fx.quadraticCurveTo(MX, MY - 14, MX + 26, MY + 12); fx.stroke(); }
-}
-function gloom() { fx.strokeStyle = 'rgba(100,120,210,.5)'; fx.lineWidth = 6; for (let i = 0; i < 7; i++) { const x = FW * 0.3 + i * FW * 0.067; fx.beginPath(); fx.moveTo(x, 8); fx.lineTo(x, 70 + (i % 2) * 22); fx.stroke(); } }
-
-const EXPR = {
-  vui:      { label: 'Vui',        eyes: 'open',  mouth: 'w',      blush: .45, msg: 'đang vui' },
-  excited:  { label: 'Phấn khích', eyes: 'star',  mouth: 'open',   blush: .7,  fx: 'sparkle', msg: 'phấn khích quá!' },
-  hungry:   { label: 'Đói',        eyes: 'open',  lookY: -12, mouth: 'o', blush: .3, drool: true, msg: 'hơi đói' },
-  sleepy:   { label: 'Buồn ngủ',   eyes: 'open',  lid: .58, mouth: 'line', blush: .25, msg: 'buồn ngủ rồi' },
-  sleep:    { label: 'Ngủ',        eyes: 'sleep', mouth: 'smallo', blush: .35, fx: 'zzz', msg: 'đang ngủ' },
-  sick:     { label: 'Ốm',         eyes: 'swirl', mouth: 'wavy',   blush: 0, cold: true, gloom: true, fx: 'sweat', msg: 'bị cảm lạnh' },
-  sulky:    { label: 'Dỗi',        eyes: 'open',  lid: .36, lidCurve: -6, brows: 'angry', mouth: 'pout', blush: .65, fx: 'anger', msg: 'đang dỗi' },
-  sad:      { label: 'Buồn',       eyes: 'open',  tears: true, brows: 'sad', mouth: 'frown', blush: .2, msg: 'hơi buồn' },
-  love:     { label: 'Âu yếm',     eyes: 'happy', mouth: 'open',   blush: .9, fx: 'heart', msg: 'thích được vuốt ve' },
-  yawn:     { label: 'Ngáp',       eyes: 'squeeze', mouth: 'open', blush: .3, msg: 'đang ngáp' },
-  chew:     { label: 'Nhai',       eyes: 'happy', mouth: 'chew',   blush: .5, msg: 'đang nhai nhóp nhép' },
-};
-let faceKey = '';
-function drawFace(key, blink, phase, gx = 0, gy = 0) {
-  const k = key + '|' + blink + '|' + phase + '|' + gx + '|' + gy; if (k === faceKey) return; faceKey = k;
-  const e = EXPR[key];
-  fx.clearRect(0, 0, FW, FH);
-  if (e.gloom) gloom();
-  blush(e.blush, e.cold);
-  const eyes = (blink && (e.eyes === 'open' || e.eyes === 'star')) ? 'blink' : e.eyes;
-  [LX, RX].forEach(x => {
-    if (eyes === 'open' || eyes === 'star') eyeOpen(x, EY, { lid: e.lid, lidCurve: e.lidCurve, lookY: e.lookY !== undefined ? e.lookY : gy, lookX: gx, star: eyes === 'star', tears: e.tears });
-    else if (eyes === 'happy') eyeHappy(x, EY);
-    else if (eyes === 'sleep' || eyes === 'blink') eyeSleep(x, EY);
-    else if (eyes === 'swirl') eyeSwirl(x, EY);
-    else if (eyes === 'squeeze') eyeSqueeze(x, EY);
-  });
-  if (e.brows) brows(e.brows);
-  mouth(e.mouth, phase);
-  if (e.drool) { fx.fillStyle = '#bfe8ff'; fx.strokeStyle = INK; fx.lineWidth = 4; fx.beginPath(); fx.moveTo(MX + 14, MY + 14); fx.quadraticCurveTo(MX + 28, MY + 38, MX + 16, MY + 46); fx.quadraticCurveTo(MX + 4, MY + 38, MX + 14, MY + 14); fx.fill(); fx.stroke(); }
-  faceTex.needsUpdate = true;
-}
 
 /* ---------------- ký hiệu cảm xúc (sprite) ---------------- */
 const FXT = {
@@ -596,75 +484,13 @@ function petStroke() {
   hideHint();
   if (area === 'bath' && !S.asleep) { scrub(); return; }
   if (S.asleep) { if (Math.random() < 0.3) spawn('zzz'); impulse(-0.5); return; }
-  S.vui = clamp(S.vui + 1.6); count('pet'); actBatched('pet'); if (++petN % 6 === 0) popText('+Vui'); setTemp('love', 1500); spawn('heart', 1, 0.7); impulse(-1.1);
+  S.vui = clamp(S.vui + 1.6); sfx('pet'); count('pet'); actBatched('pet'); if (++petN % 6 === 0) popText('+Vui'); setTemp('love', 1500); spawn('heart', 1, 0.7); impulse(-1.1);
   if (Math.random() < 0.15) say(['Hihi, nhột quá!', 'Thêm chút nữa đi mà~', 'Dễ chịu ghê!'][Math.floor(Math.random() * 3)], 1800);
 }
 function poke() {
   hideHint();
   if (S.asleep) { spawn('zzz'); impulse(-2); say('Ư… cho mình ngủ thêm chút…', 2200); return; }
-  impulse(-4.2); addTrauma(0.12); buzz(10); setTemp('excited', 900); spawn('note'); spawn('sparkle'); S.vui = clamp(S.vui + 1);
-}
-
-/* ---------------- thức ăn ---------------- */
-const FOODS = [
-  { id: 'carot', name: 'Cà rốt', no: 10, vui: 2, line: 'Giòn giòn ngọt ngọt!', svg: '<svg viewBox="0 0 40 40"><path d="M14 13l13 3-11 19z" fill="#ff9a3c" stroke="#4a2140" stroke-width="2.2" stroke-linejoin="round"/><path d="M20 14c-1-5-4-7-7-8M22 15c1-5 4-8 8-8M21 14c0-4 0-7 1-10" fill="none" stroke="#4fae5a" stroke-width="2.6" stroke-linecap="round"/></svg>' },
-  { id: 'comnam', name: 'Cơm nắm', no: 25, vui: 3, line: 'No bụng ghê, cảm ơn nha!', svg: '<svg viewBox="0 0 40 40"><path d="M20 6c6 0 15 17 13 23-1 4-25 4-26 0-2-6 7-23 13-23z" fill="#fff" stroke="#4a2140" stroke-width="2.2" stroke-linejoin="round"/><rect x="13" y="24" width="14" height="10" rx="2" fill="#2f4a3a"/></svg>' },
-  { id: 'kem', name: 'Kem que', no: 5, vui: 15, line: 'Mát lạnh luôn!', svg: '<svg viewBox="0 0 40 40"><rect x="18" y="26" width="4" height="10" rx="2" fill="#e8b47a" stroke="#4a2140" stroke-width="1.8"/><path d="M12 12a8 8 0 0 1 16 0v14H12z" fill="#ff9ec4" stroke="#4a2140" stroke-width="2.2" stroke-linejoin="round"/><path d="M12 18h16" stroke="#fff" stroke-width="2.4"/></svg>' },
-  { id: 'che', name: 'Chè đậu', no: 15, vui: 12, line: 'Ngọt lịm tim!', svg: '<svg viewBox="0 0 40 40"><path d="M9 16h22l-3 17H12z" fill="#dff4ff" stroke="#4a2140" stroke-width="2.2" stroke-linejoin="round"/><path d="M10 20h20" stroke="#4a2140" stroke-width="1.6"/><circle cx="16" cy="25" r="2.4" fill="#a8507a"/><circle cx="22" cy="27" r="2.4" fill="#a8507a"/><circle cx="20" cy="22" r="2" fill="#7edb72"/><path d="M27 6l-4 13" stroke="#ff9ec4" stroke-width="2.6" stroke-linecap="round"/></svg>' },
-];
-const tray = $('tray');
-tray.innerHTML = '<span class="tray-hint">Kéo món ăn vào thú, hoặc chạm</span>' + FOODS.map(f => `<button class="food" type="button" data-id="${f.id}">${f.svg}${f.name}<small>+${f.no} no</small></button>`).join('');
-let drag = null;
-tray.addEventListener('pointerdown', e => {
-  const b = e.target.closest('.food'); if (!b) return;
-  e.preventDefault();
-  const f = FOODS.find(x => x.id === b.dataset.id);
-  const g = document.createElement('div'); g.className = 'drag-ghost'; g.innerHTML = f.svg; g.style.left = e.clientX + 'px'; g.style.top = e.clientY + 'px';
-  document.body.appendChild(g);
-  drag = { f, g, x0: e.clientX, y0: e.clientY, moved: false };
-  b.setPointerCapture(e.pointerId);
-});
-tray.addEventListener('pointermove', e => {
-  if (!drag) return;
-  drag.g.style.left = e.clientX + 'px'; drag.g.style.top = e.clientY + 'px';
-  if (Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0) > 8) drag.moved = true;
-});
-tray.addEventListener('pointerup', e => {
-  if (!drag) return;
-  const { f, g, moved } = drag; drag = null;
-  if (!moved || hitPetLoose(e)) flyAndFeed(f, g); else { g.remove(); }
-});
-tray.addEventListener('pointercancel', () => { if (drag) { drag.g.remove(); drag = null; } });
-function hitPetLoose(e) {
-  if (hitPet(e)) return true;
-  petRoot.localToWorld(pv.set(0, 1.1, 0)); pv.project(camera);
-  const r = canvas.getBoundingClientRect();
-  const sx = (pv.x + 1) / 2 * r.width + r.left, sy = (1 - pv.y) / 2 * r.height + r.top;
-  return Math.hypot(e.clientX - sx, e.clientY - sy) < Math.min(r.width, r.height) * 0.16;
-}
-function flyAndFeed(f, g) {
-  petRoot.localToWorld(pv.set(0, 0.85, 0.9)); pv.project(camera);
-  const r = canvas.getBoundingClientRect();
-  g.classList.add('fly');
-  requestAnimationFrame(() => { g.style.left = ((pv.x + 1) / 2 * r.width + r.left) + 'px'; g.style.top = ((1 - pv.y) / 2 * r.height + r.top) + 'px'; g.style.transform = 'translate(-50%,-50%) scale(.4)'; g.style.opacity = '0.2'; });
-  setTimeout(() => { g.remove(); feed(f); }, reduce ? 0 : 450);
-}
-function feed(f) {
-  hideHint();
-  if (S.asleep) { say('Suỵt… mình đang ngủ mà.', 2400); return; }
-  if (S.no >= 90) { setTemp('sulky', 1600); shake = 1; say('Mình no căng rồi mà~', 2400); return; }
-  S.no = clamp(S.no + f.no); S.vui = clamp(S.vui + f.vui); S.sach = clamp(S.sach - 2);
-  popText(`+${f.no} No`, '#f08a24');
-  count('fed'); dayRec().foods.push(f.name);
-  setTemp('chew', 1500); impulse(-1.5);
-  const req = act('feed', f.id);
-  setTimeout(async () => {
-    const r = await req;
-    if (r && r.refused === 'full') { setTemp('sulky', 1400); say('Mình no căng rồi mà~', 2400); }
-    else if (r && r.fav) { setTemp('love', 1800); spawn('heart', 4, 1); spawn('sparkle', 2); say(S.favFound ? 'Món tủ của mình nè!!' : 'Ơ… đây là món tủ của mình! Sao bạn biết hay vậy?', 3400); S.favFound = true; }
-    else { spawn('sparkle'); say(f.line, 2600); }
-    save(); renderStats();
-  }, 1500);
+  sfx('pet'); impulse(-4.2); addTrauma(0.12); buzz(10); setTemp('excited', 900); spawn('note'); spawn('sparkle'); S.vui = clamp(S.vui + 1);
 }
 
 /* ---------------- nút hành động ---------------- */
@@ -677,37 +503,13 @@ $('a-talk').onclick = () => toggleSheet('talk');
 $('a-bath').onclick = () => { hideHint(); toggleSheet(null); if (S.asleep) { say('Để sáng mai tắm nha…', 2200); return; } goTo('bath'); };
 $('a-play').onclick = () => { hideHint(); toggleSheet(null); if (S.asleep) { say('Zzz… mai chơi tiếp nha…', 2200); return; } goTo('garden'); };
 $('a-sleep').onclick = () => { hideHint(); toggleSheet(null); S.asleep ? wake() : goSleep(); };
-function goSleep() { count('sleep'); act('sleep'); S.asleep = true; applySleep(); goTo('bedroom'); setTimeout(() => say(`Chúc ${S.name} ngủ ngon… Zzz`, 2600), reduce ? 0 : 700); save(); }
-function wake() { act('wake'); S.asleep = false; applySleep(); goTo('home'); setTimeout(() => { say('Chào buổi sáng! Mình ngủ ngon lắm.', 2600); startAction('stretch'); spawn('sparkle', 2); }, reduce ? 0 : 700); save(); }
+function goSleep() { sfx('sleep'); count('sleep'); act('sleep'); S.asleep = true; applySleep(); goTo('bedroom'); setTimeout(() => say(`Chúc ${S.name} ngủ ngon… Zzz`, 2600), reduce ? 0 : 700); save(); }
+function wake() { sfx('wake'); act('wake'); S.asleep = false; applySleep(); goTo('home'); setTimeout(() => { say('Chào buổi sáng! Mình ngủ ngon lắm.', 2600); startAction('stretch'); spawn('sparkle', 2); }, reduce ? 0 : 700); save(); }
 $('ctx').addEventListener('click', e => {
   const b = e.target.closest('.ctx-btn'); if (!b) return; hideHint();
   ({ home: () => goTo('home'), rinse, ball: throwBall, spin: spinPlay, wake })[b.dataset.k]();
 });
 function applySleep() { $('dim').classList.toggle('on', S.asleep); $('sleep-label').textContent = S.asleep ? 'Thức dậy' : 'Ngủ'; $('a-sleep').setAttribute('aria-pressed', String(S.asleep)); }
-
-/* ---------------- trò chuyện (bản mẫu, chưa dùng AI) ---------------- */
-function reply(t) {
-  const s = t.toLowerCase();
-  if (S.asleep) return 'Zzz… (thú đang ngủ, mai nói tiếp nha)';
-  if (/chào|hello|\bhi\b|alo/.test(s)) return `Chào bạn! ${S.name} nhớ bạn quá trời. Hôm nay bạn thế nào?`;
-  if (/đói|ăn|cơm|kem/.test(s)) return S.no < 45 ? 'Đói lắm luôn á… cho mình ăn đi mà~' : 'Mình vừa ăn xong, no căng bụng rồi nè!';
-  if (/buồn|mệt|chán|áp lực|stress/.test(s)) { setTemp('love', 2600); spawn('heart', 2); return 'Lại đây mình ôm một cái. Hôm nay bạn vất vả rồi ha.'; }
-  if (/yêu|thương|thích bạn|cute|dễ thương/.test(s)) { setTemp('love', 2200); spawn('heart', 3); return 'Mình cũng thương bạn nhất luôn!'; }
-  if (/tên/.test(s)) return `Mình là ${S.name} nè! Tên này bạn đặt đó.`;
-  if (/ngủ/.test(s)) return 'Tối nay nhớ chúc mình ngủ ngon nha.';
-  if (/làm|công việc|sếp|deadline/.test(s)) return 'Làm việc xong nhớ uống nước nha. Mình ngồi đây chờ bạn.';
-  if (/nhớ/.test(s) && S.mem.length) { const m = S.mem[Math.floor(Math.random() * Math.min(S.mem.length, 8))]; return `Nhớ chứ! ${m.text}`; }
-  setTemp('excited', 900);
-  return ['Ừm ừm, kể tiếp đi!', 'Thật hả? Hay quá!', 'Mình nhớ chuyện này rồi nha.', 'Hihi, bạn nói chuyện vui ghê.'][Math.floor(Math.random() * 4)];
-}
-$('chat').addEventListener('submit', e => {
-  e.preventDefault(); const v = $('chat-input').value.trim(); if (!v) return;
-  $('chat-input').value = ''; hideHint();
-  setTemp('vui', 700);
-  setTimeout(() => say(reply(v), 4200), reduce ? 0 : 500);
-  S.vui = clamp(S.vui + 2); count('talk'); act('talk');
-  if (/(^|\s)(tôi|mình|em|anh|chị|tớ)(\s|$)/i.test(v) && v.length > 10) { remember('talk', `Bạn kể: “${v.slice(0, 70)}”`); addTalkMemory(v); }
-});
 
 /* ---------------- duyệt biểu cảm ---------------- */
 const chipKeys = [['auto', 'Tự động'], ...['vui', 'excited', 'hungry', 'sleepy', 'sleep', 'sick', 'sulky', 'sad', 'love'].map(k => [k, EXPR[k].label])];
@@ -724,49 +526,19 @@ const STAT = [['no', 'No', '#ffb35c'], ['vui', 'Vui', '#ff6fa8'], ['nl', 'Năng 
 $('bars').innerHTML = STAT.map(([k, l, c]) => `<div class="stat"><span>${l}</span><div class="track"><div class="fill" id="f-${k}" style="background:${c}"></div></div><span class="lvl" id="l-${k}"></span></div>`).join('');
 const lvl = v => v >= 75 ? 'Đầy' : v >= 45 ? 'Ổn' : v >= 25 ? 'Hơi thấp' : 'Thấp';
 function renderStats() { STAT.forEach(([k]) => { $('f-' + k).style.width = S[k] + '%'; $('l-' + k).textContent = lvl(S[k]); }); }
-$('btn-stats').onclick = () => { const s = $('stats'); s.hidden = !s.hidden; $('btn-stats').setAttribute('aria-expanded', String(!s.hidden)); renderStats(); if (!s.hidden) renderSpecies(); if (!s.hidden) { $('diary').hidden = true; $('btn-diary').setAttribute('aria-expanded', 'false'); } };
+$('btn-stats').onclick = () => { const s = $('stats'); s.hidden = !s.hidden; $('btn-stats').setAttribute('aria-expanded', String(!s.hidden)); renderStats(); if (!s.hidden) growth.renderSpecies(); if (!s.hidden) { $('diary').hidden = true; $('btn-diary').setAttribute('aria-expanded', 'false'); } };
 $('pet-name').value = S.name;
 $('pet-name').addEventListener('input', e => { const v = e.target.value.trim().slice(0, 16); if (v) renamePet(v); });
 
-/* ---------------- nhật ký & ký ức ---------------- */
-const WD = ['Chủ nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
-const esc = v => String(v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-function today() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
-function dayRec() {
-  const k = today();
-  if (!S.day || S.day.d !== k) { if (S.day) S.diary[S.day.d] = writeDiary(S.day); S.day = { d: k, fed: 0, foods: [], bath: 0, ball: 0, pet: 0, talk: 0, sleep: 0 }; }
-  return S.day;
-}
-function count(k) { const d = dayRec(); d[k] = (d[k] || 0) + 1; if (!$('diary').hidden) renderDiary(); }
-function remember(type, text) { S.mem.unshift({ t: Date.now(), type, text }); if (S.mem.length > 60) S.mem.length = 60; save(); if (!$('diary').hidden) renderDiary(); }
-function firstTime(key, type, text) { if (S.firsts[key]) return; S.firsts[key] = 1; remember(type, text); }
-const writeDiary = writeDiaryRule;
-function dayTitle(k) { const [y, m, dd] = k.split('-').map(Number); return `${WD[new Date(y, m - 1, dd).getDay()]}, ${dd}/${m}`; }
-function ago(t) { const x = (Date.now() - t) / 1000; return x < 60 ? 'vừa xong' : x < 3600 ? `${Math.floor(x / 60)} phút trước` : x < 86400 ? `${Math.floor(x / 3600)} giờ trước` : `${Math.floor(x / 86400)} ngày trước`; }
-const MEM_COL = { meet: '#ff6fa8', food: '#ffb35c', bath: '#4fc3f7', play: '#7edb72', talk: '#8f7cff' };
-let dTab = 'pages';
-function renderDiary() {
-  const el = $('dpanel');
-  if (dTab === 'pages') {
-    const d = dayRec(), past = Object.keys(S.diary).sort().reverse();
-    el.innerHTML = `<article class="page"><h3>${dayTitle(d.d)}</h3><span class="writing">${esc(S.name)} đang viết trang hôm nay…</span><p>${esc(writeDiary(d))}</p></article>` +
-      past.map(k => `<article class="page"><h3>${dayTitle(k)}</h3><p>${esc(S.diary[k])}</p></article>`).join('');
-  } else {
-    el.innerHTML = S.mem.length
-      ? `<p class="empty">Những điều ${esc(S.name)} nhớ. Bạn xoá được từng dòng.</p>` + S.mem.map((m, i) => `<div class="mem"><i style="background:${MEM_COL[m.type] || '#ccc'}"></i><span>${esc(m.text)}<small>${ago(m.t)}</small></span><button type="button" data-i="${i}" aria-label="Xoá ký ức này">Xoá</button></div>`).join('')
-      : '<p class="empty">Chưa có ký ức nào.</p>';
-  }
-}
-$('dpanel').addEventListener('click', e => { const b = e.target.closest('button[data-i]'); if (!b) return; const m = S.mem[Number(b.dataset.i)]; if (m) delMem(m).then(renderDiary); renderDiary(); });
-function setTab(t) { dTab = t; $('tab-pages').setAttribute('aria-selected', String(t === 'pages')); $('tab-mem').setAttribute('aria-selected', String(t === 'mem')); renderDiary(); }
-$('tab-pages').onclick = () => setTab('pages'); $('tab-mem').onclick = () => setTab('mem');
-$('btn-diary').onclick = () => { const s = $('diary'); s.hidden = !s.hidden; $('btn-diary').setAttribute('aria-expanded', String(!s.hidden)); if (!s.hidden) { $('stats').hidden = true; $('btn-stats').setAttribute('aria-expanded', 'false'); renderDiary(); } };
+initDiary();
+const food = initFood({ petRoot, camera, canvas, reduce, hitPet, hideHint, say, setTemp, popText, impulse, spawn, renderStats, shake: () => { shake = 1; } });
+initChat({ reduce, hideHint, say, setTemp, spawn });
 
 /* ---------------- hành vi rảnh rỗi & hoạt cảnh ---------------- */
 let idleAt = performance.now() + 6000, wander = null, action = null, walking = false, walkPh = 0, chompAt = 0, puffAt = 0, earTwAt = performance.now() + 3000;
 const earKick = [0, 0], lastOff = new THREE.Vector3(), mouthW = new THREE.Vector3();
 const ACT_DUR = { yawn: 1.8, look: 2.4, dance: 2.0, hop: 1.0, stretch: 1.6, shake: 1.3, wave: 1.6 };
-function busy(now) { return !!evo || editing || S.asleep || area !== 'home' || anim || fetchBall || override || (temp && now < temp.until) || (down && down.hit) || drag; }
+function busy(now) { return growth.isEvolving() || editing || S.asleep || area !== 'home' || anim || fetchBall || override || (temp && now < temp.until) || (down && down.hit) || food.isDragging(); }
 function startAction(type) { action = { type, t: 0, fxAt: 0 }; }
 function idleThink(now) {
   if (now < idleAt) return;
@@ -965,53 +737,8 @@ home = initHome({
 applyPeriod(); applySleep(); renderStats(); updateNeeds();
 if (S.asleep) goTo('bedroom', true);
 dayRec();
-onSync(() => { renderStats(); applySleep(); if (!$('diary').hidden) renderDiary(); if (!evo) buildLook(); if (!$('stats').hidden) renderSpecies(); });
-/* ---------------- lớn lên: cảnh tiến hoá ---------------- */
-let evo = null;
-onGrow((from, to) => {
-  if (STAGE_ORDER.indexOf(to) <= STAGE_ORDER.indexOf(from) && from !== 'elder') { buildLook(); return; }
-  if (reduce) { buildLook(); growToast(to); return; }
-  evo = { t: 0, swapped: false, to }; action = null; wander = null; anim = null;
-  say(to === 'elder' ? 'Ơ… mình thấy hơi khác…' : 'Ơ ơ… người mình nóng ran nè!', 1500); buzz?.(30);
-});
-function growToast(to) {
-  const sp = SPECIES_BY_ID[S.species];
-  const msg = to === 'adult' || (to === 'elder' && S.form) ? `${S.name} đã ${STAGES[to].name.toLowerCase()} · dáng ${FORMS[S.form || 'thuong'].name}!` : `${S.name} đã lớn thành ${STAGES[to].name}!`;
-  toast(msg); popText(STAGES[to].name, '#ff8a3d');
-  say(to === 'child' ? `Mình là ${sp?.name || 'bé'} Nhí nè! Vỏ trứng rơi mất rồi.` : to === 'teen' ? 'Mình cao lên rồi đó, thấy không?' : to === 'adult' ? `Ta-da! Mình trưởng thành rồi. Cảm ơn bạn đã chăm mình!` : 'Mình già rồi, nhưng vẫn thương bạn lắm.', 3600);
-}
-function evoStep(dt) {
-  if (!evo) return 0;
-  evo.t += dt; const T = evo.t;
-  evoGlow.value = T < 1.7 ? Math.min(1, T / 1.4) * (0.75 + Math.sin(T * 18) * 0.12 * (T / 1.7)) : Math.max(0, 1 - (T - 1.7) / 0.9);
-  if (T > 0.2 && Math.random() < dt * 8) spawn('sparkle', 1, 1.1);
-  if (!evo.swapped && T >= 1.7) {
-    evo.swapped = true; buildLook(); impulse(-3.2); addTrauma(0.3); spawn('sparkle', 10, 1.4); spawn('heart', 3);
-    const f = document.createElement('div'); f.className = 'evo-flash'; $('wipe').parentElement.appendChild(f); setTimeout(() => f.remove(), 900);
-  }
-  if (T >= 2.7) { evoGlow.value = 0; const to = evo.to; evo = null; setTemp('excited', 1600); growToast(to); return 0; }
-  const u = Math.min(T / 1.7, 1);
-  return T < 1.7 ? u * u * Math.PI * 6 : 0;
-}
-
-/* ---------------- thẻ loài trong bảng Chỉ số ---------------- */
-function renderSpecies() {
-  const el = $('species-card'); if (!el) return;
-  const sp = SPECIES_BY_ID[S.species] || SPECIES_BY_ID['mam-xanh'], rar = RARITIES[sp.rarity];
-  const days = Math.max(0, (Date.now() - S.bornAt) / 86400000), st = S.stage;
-  const next = { baby: 'child', child: 'teen', teen: 'adult' }[st];
-  const left = next ? Math.max(0, STAGES[next].from - days) : 0;
-  const leftTxt = left >= 1 ? `${Math.ceil(left)} ngày` : `${Math.max(1, Math.ceil(left * 24))} giờ`;
-  const lean = FORMS[formFromCare(S.care)];
-  el.innerHTML = `<div class="sp-head"><b>${esc(sp.name)}</b><span class="rar" style="--rc:${rar.color}">${rar.name}</span></div>
-    <p class="sp-sub">${REGIONS[sp.region].name} · ${esc(S.family)} · đời ${S.generation}</p>
-    <p class="sp-stage"><b>${STAGES[st].name}</b> · ${Math.floor(days)} ngày tuổi${S.form ? ` · dáng <b>${FORMS[S.form].name}</b>` : ''}</p>
-    ${next ? `<p class="sp-next">Còn ${leftTxt} nữa lên <b>${STAGES[next].name}</b>${st === 'teen' ? `. Bé đang nghiêng về dáng <b>${lean.name}</b> vì ${lean.hint}.` : '.'}</p>` : st === 'elder' ? '<p class="sp-next">Bé đang ở tuổi xế chiều. Hãy dành thật nhiều thời gian bên bé nhé.</p>' : ''}
-    <p class="sp-blurb">${esc(sp.blurb)}</p>
-    <div class="sp-actions"><button type="button" class="pill" id="btn-dex">Sổ loài</button>${isDemo ? '<button type="button" class="pill ghost-pill" id="btn-age">Tua 1 ngày (bản thử)</button>' : ''}</div>`;
-  $('btn-dex').onclick = () => { $('btn-stats').click(); home?.openDex(); };
-  const ab = $('btn-age'); if (ab) ab.onclick = async () => { ab.disabled = true; await demoAge(1); ab.disabled = false; renderSpecies(); };
-}
+const growth = initGrowth({ evoGlow, reduce, buildLook, cancelMotion: () => { action = null; wander = null; anim = null; }, say, setTemp, spawn, impulse, addTrauma, toast, popText, buzz, getHome: () => home });
+onSync(() => { renderStats(); applySleep(); if (!$('diary').hidden) renderDiary(); if (!growth.isEvolving()) buildLook(); if (!$('stats').hidden) growth.renderSpecies(); });
 startPeriodicSync();
 if (new URLSearchParams(location.search).has('dev')) { document.querySelector('.review').hidden = false; const f = $('fast'); if (f) f.closest('label').hidden = false; }
 const DEV = new URLSearchParams(location.search).has('dev'), devhud = $('devhud');
@@ -1048,7 +775,7 @@ function tick(now, dt) {
     if (p >= 1) anim = null;
   }
   const ex = animStep(dt, t, now, key); hop += ex.hop; roll += ex.roll; spinY += ex.yaw;
-  if (evo) { spinY += evoStep(dt); hop += evo && evo.t < 1.7 ? Math.min(evo.t / 1.7, 1) * 0.5 : 0; }
+  if (growth.isEvolving()) { const g = growth.step(dt); spinY += g.spin; hop += g.hop; }
   pivot.scale.y *= 1 + ex.stretch; pivot.scale.x *= 1 - ex.stretch * 0.4; pivot.scale.z *= 1 - ex.stretch * 0.4;
   if (shake > 0) { shake = Math.max(0, shake - dt * 1.6); roll += Math.sin(t * 30) * 0.12 * shake; }
   if (!reduce && key === 'sleepy') roll += Math.sin(t * 1.4) * 0.06;

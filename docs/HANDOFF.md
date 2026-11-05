@@ -1,6 +1,6 @@
 # Hatchday · Bàn giao
 
-Cập nhật: 2026-11-05 · nhánh `main` · commit mới nhất `e00099f`.
+Cập nhật: 2026-11-05 · nhánh `main`.
 Game nuôi thú ảo 3D phong cách anime cho người đi làm thế hệ 8x, 9x. Tiếng Việt. Tên Hatchday là tên tạm.
 GDD (thiết kế game) nằm ở Claude Docs: https://claude.ai/artifact/QERSng65qNVArQwTthfvko. Thiết kế kỹ thuật: [TDD.md](TDD.md).
 Bản chơi thử (chế độ demo, dữ liệu lưu trong trình duyệt): https://claude.ai/artifact/HXVUzK4qzkHWibSCoVD3Xg
@@ -25,6 +25,7 @@ npm install                 # có .npmrc legacy-peer-deps=true (lỗi arborist)
 npm run dev                 # không có .env thì tự vào chế độ Chơi thử
 npm test                    # 66 test: luật chơi + toàn bộ RPC trên Postgres thật (PGlite)
 npm run build               # typecheck + build
+node scripts/smoke.mjs      # sau build: chạy thật trên trình duyệt (ăn, nói chuyện, tắm, ngủ, lớn lên…)
 node scripts/fit-check.mjs  # sau build: thử 3.900 tổ hợp loài × dáng × đồ mặc, phải ra 0 lẹm
 ```
 
@@ -49,7 +50,13 @@ src/game/pet3d.js         dựng thú theo loài/giai đoạn/dáng + đo "ổ c
 src/game/fit.js           đặt đồ mặc vừa từng dáng thú
 src/game/decor3d.js       mô hình đồ trang trí + đồ mặc (dựng bằng code)
 src/game/home.js          nhà: trang trí, cửa hàng, tủ đồ, nhiệm vụ, Sổ loài
-src/game/game.js          cảnh 3D, tương tác, tiến hoá (~1.100 dòng, chưa tách module)
+src/game/game.js          cảnh 3D, vòng lặp, camera, khu vực (~820 dòng, nối các mảng dưới đây)
+src/game/face.js          mặt và biểu cảm
+src/game/food.js          thức ăn + khay + cho ăn
+src/game/chat.js          trò chuyện (bản mẫu)
+src/game/diary.js         nhật ký, ký ức, bộ đếm hành động trong ngày
+src/game/growth.js        cảnh tiến hoá + thẻ loài
+src/game/audio.js         sfx()/music() còn trống; game đã gọi sfx('pet'|'feed'|'bath'|…) ở ~14 chỗ
 supabase/migrations/      3 migration; supabase/tests/ test RPC
 ```
 
@@ -64,7 +71,7 @@ supabase/migrations/      3 migration; supabase/tests/ test RPC
 **Ưu tiên cao**
 1. **Vòng đời và gia phả.** Hiện bé dừng ở tuổi Xế chiều, không bao giờ mất. Cần: chia tay khi hết tuổi thọ, trang tưởng niệm, trứng đời sau mang tên dòng họ và thừa hưởng một phần gen, cây gia phả. (`pets.stage = 'departed'` và `generation` đã có trong schema.)
 2. **Thức ăn.** Mới có 4 món, ăn miễn phí không giới hạn. GDD có nhóm dinh dưỡng cân bằng 3 ngày, khẩu vị, trồng trọt, nấu ăn, bảo quản, khoảng 12 món mẫu.
-3. **Âm thanh.** Chưa có gì: tiếng chạm, ăn, nhạc nền, chỉnh âm lượng trong Cài đặt.
+3. **Âm thanh.** Game đã gọi sẵn `sfx('tên')` ở các chỗ đáng có tiếng; chỉ cần làm `src/game/audio.js` (phát tiếng, nhạc nền, nút bật/tắt và âm lượng trong Cài đặt). Không phải sửa game.js.
 4. **Cá tính 5 trục.** Cột `pets.personality` đã có nhưng chưa dùng.
 
 **Ưu tiên vừa**
@@ -89,9 +96,13 @@ supabase/migrations/      3 migration; supabase/tests/ test RPC
 - Thú tạo trước migration loài sẽ được gán loài tự động theo quả trứng cũ.
 
 **Kỹ thuật**
-- Tách `game.js` thành module TypeScript; đưa chữ giao diện ra file riêng để dễ dịch.
+- Đã tách `game.js` thành các module (face, food, chat, diary, growth). Còn lại trong `game.js`: cảnh, vòng lặp, khu vực, camera, hành vi rảnh; chuyển dần sang TypeScript và đưa chữ giao diện ra file riêng để dễ dịch.
 - Mô hình 3D thật (glTF) cho 50 loài khi có hoạ sĩ. `pet3d.js` dựng từ khối tròn nên nét riêng giữa các loài còn nhẹ; hệ thống sẵn sàng để thay mô hình từng loài mà không đổi luật chơi.
 - Khoá đăng nhập sau 5 lần sai hiện chỉ có phía máy. Lớp bảo vệ thật là rate limit và CAPTCHA của Supabase.
+
+## Làm việc nhóm
+
+Xem [CONTRIBUTING.md](../CONTRIBUTING.md): quy trình nhánh, bản đồ file, và quy tắc migration (hàm SQL bị viết lại nguyên cả hàm nên dễ ghi đè âm thầm). CI chạy trên mọi PR (`.github/workflows/ci.yml`). Nên bật bảo vệ nhánh `main` (bắt buộc PR + CI xanh) trong GitHub Settings.
 
 ## Điểm cần để ý
 
@@ -104,6 +115,7 @@ supabase/migrations/      3 migration; supabase/tests/ test RPC
 ## Lịch sử commit
 
 ```
+(mới nhất) Tách game.js thành module, CI, CONTRIBUTING, khung âm thanh
 e00099f Ẩn quầy trả phí
 03c5305 Đồ mặc ôm mọi dáng + chuỗi tiến hoá trong Sổ loài
 8798442 5 dáng cơ thể cho các loài

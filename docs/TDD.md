@@ -43,7 +43,14 @@ src/
   game/catalog.ts      Danh mục vật phẩm (nguồn gốc của seed SQL), lưới, bố cục mặc định
   game/layout.ts       Luật thuần: đặt đồ, đường đi, điểm thoải mái, nhiệm vụ, tiệm xoay vòng (+ test)
   game/store.ts        Trạng thái thú, xu, đồ sở hữu, bố cục, trang phục, đồng bộ định kỳ
-  game/game.js         Hiển thị 3D + tương tác (chuyển từ bản mẫu)
+  game/game.js         Cảnh 3D, vòng lặp, camera, khu vực, hành vi rảnh (nối các mảng bên dưới)
+  game/face.js         Mặt và biểu cảm (EXPR, drawFace)
+  game/food.js         Thức ăn, khay, cho ăn
+  game/chat.js         Trò chuyện (bản mẫu, sau này nối AI)
+  game/diary.js        Nhật ký ngày, Ký ức, bộ đếm hành động
+  game/growth.js       Cảnh tiến hoá, thẻ loài
+  game/audio.js        sfx()/music(): chỗ trống để làm âm thanh (game đã gọi sẵn)
+  game/dom.js          $, esc, clamp dùng chung
   game/home.js         Nhà: chế độ trang trí, cửa hàng, tủ đồ, nhiệm vụ, phản ứng của thú
   game/decor3d.js      Dựng mô hình toon cho đồ trang trí + trang phục (thủ tục, không cần file 3D)
   game/species.ts      50 loài, độ hiếm, luật lớn lên theo tuổi và dáng trưởng thành (+ test SQL so khớp)

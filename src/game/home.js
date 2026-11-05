@@ -4,6 +4,7 @@ import { activeSets, buyable, canPlace, cellsOf, comfortLevel, comfortScore, foo
 import { makeDecor } from './decor3d.js';
 import { disposePet } from './pet3d.js';
 import { makeFitter } from './fit.js';
+import { sfx } from './audio.js';
 import { FORMS, RARITIES, REGIONS, SPECIES, SPECIES_BY_ID, STAGES } from './species';
 import { viError } from '../lib/errors';
 
@@ -244,14 +245,14 @@ export function initHome(ctx) {
       confirmId = ''; b.disabled = true;
       const err = await store.buy(id);
       if (err) { ctx.toast(viError(err)); renderShop(); return; }
-      const it = BY_ID[id]; ctx.buzz(12); ctx.toast(`Đã mua ${it.name}.`); ctx.popText('-' + it.price + ' xu', '#a8742e'); reactTo(it, it.kind);
+      const it = BY_ID[id]; sfx('buy'); ctx.buzz(12); ctx.toast(`Đã mua ${it.name}.`); ctx.popText('-' + it.price + ' xu', '#a8742e'); reactTo(it, it.kind);
       renderShop();
       if (pendingPreview === id) { pendingPreview = ''; }
       return;
     }
     const tr = e.target.closest('[data-try]'); if (tr) { closeAll(); enterEdit(tr.dataset.try); return; }
     const cc = e.target.closest('[data-claim-col]');
-    if (cc) { cc.disabled = true; const err = await store.claimCollection(cc.dataset.claimCol); if (err) ctx.toast(viError(err)); else { ctx.popText('+150 xu', '#a8742e'); ctx.startAction('dance'); ctx.toast('Hoàn thành một trang sổ sưu tập!'); } renderShop(); }
+    if (cc) { cc.disabled = true; const err = await store.claimCollection(cc.dataset.claimCol); if (err) ctx.toast(viError(err)); else { sfx('coin'); ctx.popText('+150 xu', '#a8742e'); ctx.startAction('dance'); ctx.toast('Hoàn thành một trang sổ sưu tập!'); } renderShop(); }
   });
 
   /* ---------- Tủ đồ ---------- */
@@ -295,7 +296,7 @@ export function initHome(ctx) {
   app.addEventListener('click', async e => {
     const b = e.target.closest('[data-quest]'); if (!b) return;
     b.disabled = true; const err = await store.claimQuest(+b.dataset.quest);
-    if (err) ctx.toast(viError(err)); else { ctx.popText('+30 xu', '#a8742e'); ctx.buzz(12); ctx.startAction('hop'); }
+    if (err) ctx.toast(viError(err)); else { sfx('coin'); ctx.popText('+30 xu', '#a8742e'); ctx.buzz(12); ctx.startAction('hop'); }
     renderQuests();
   });
 
@@ -454,7 +455,7 @@ export function initHome(ctx) {
       if (c) { placing.p.c = c.c; placing.p.r = c.r; }
       const err = canPlace(work, placing.p);
       if (err) { ctx.toast(REASON[err]); ctx.buzz(20); showCells(placing.p, false); return; }
-      pushUndo(); work.items.push(clone(placing.p)); stopPlacing(); sel = work.items.length - 1; ctx.buzz(10); ctx.addTrauma(0.05);
+      pushUndo(); work.items.push(clone(placing.p)); stopPlacing(); sel = work.items.length - 1; sfx('place'); ctx.buzz(10); ctx.addTrauma(0.05);
       refreshEdit(); showCells(work.items[sel], true);
       if ((S.owned[it.id] || 0) >= placedCount(work)[it.id]) reactTo(it, 'decor');
       return;
@@ -508,7 +509,7 @@ export function initHome(ctx) {
       case 'e-buy': {
         const p = work.items[sel]; if (!p) break;
         const err = await store.buy(p.id);
-        if (err) ctx.toast(viError(err)); else { ctx.toast(`Đã mua ${BY_ID[p.id].name}.`); ctx.popText('-' + BY_ID[p.id].price + ' xu', '#a8742e'); reactTo(BY_ID[p.id], 'decor'); pendingPreview = ''; }
+        if (err) ctx.toast(viError(err)); else { sfx('buy'); ctx.toast(`Đã mua ${BY_ID[p.id].name}.`); ctx.popText('-' + BY_ID[p.id].price + ' xu', '#a8742e'); reactTo(BY_ID[p.id], 'decor'); pendingPreview = ''; }
         refreshEdit(); break;
       }
     }
