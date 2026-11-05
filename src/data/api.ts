@@ -1,6 +1,6 @@
 import { supabase, isConfigured } from '../lib/supabase';
 import * as demo from './demo-api';
-import type { ActionResult, DayLogRow, Economy, MemoryRow, Outfit, PetAction, PetRow, QuestRow, SeenRow } from './types';
+import type { ActionResult, DayLogRow, Economy, MemoryRow, Outfit, PetAction, PetRow, QuestBoard, SeenRow } from './types';
 import type { Layout } from '../game/catalog';
 
 /** Chưa cấu hình Supabase thì chạy chế độ Chơi thử (dữ liệu trong trình duyệt). */
@@ -41,7 +41,7 @@ export const listMemories = async (petId: string) =>
 export const deleteMemory = async (id: number) => { if (isDemo) return demo.deleteMemory(id); unwrap(await supabase.from('memories').delete().eq('id', id)); };
 
 export const listDayLogs = async (petId: string) =>
-  isDemo ? demo.listDayLogs() : unwrap(await supabase.from('day_logs').select('day, fed, foods, bath, ball, pet, talk, sleep').eq('pet_id', petId).order('day', { ascending: false }).limit(30)) as DayLogRow[];
+  isDemo ? demo.listDayLogs() : unwrap(await supabase.from('day_logs').select('day, fed, foods, fgroups, bath, ball, pet, talk, sleep').eq('pet_id', petId).order('day', { ascending: false }).limit(30)) as DayLogRow[];
 
 /* ---------- Trang trí, trang phục, xu, nhiệm vụ ---------- */
 const rpc = async <T>(fn: string, args?: Record<string, unknown>) => unwrap(await supabase.rpc(fn, args)) as T;
@@ -69,8 +69,14 @@ export const saveLayout = (slot: number, layout: Layout, activate = true) =>
 export const equipOutfit = (o: Outfit) => (isDemo ? demo.equipOutfit(o) : rpc<Outfit>('equip_outfit', { p_outfit: o }));
 export const saveOutfitPreset = async (i: number, o: Outfit) => { if (isDemo) return demo.saveOutfitPreset(i, o); await rpc('save_outfit_preset', { p_idx: i, p_outfit: o }); };
 
-export const getQuests = () => (isDemo ? demo.getQuests() : rpc<QuestRow[]>('get_quests'));
-export const claimQuest = (i: number) => (isDemo ? demo.claimQuest(i) : rpc<{ coins: number }>('claim_quest', { p_idx: i }));
+export const getQuests = () => (isDemo ? demo.getQuests() : rpc<QuestBoard>('get_quests'));
+export const claimQuest = (i: number) => (isDemo ? demo.claimQuest(i) : rpc<{ coins: number; reward: number }>('claim_quest', { p_idx: i }));
+export const claimQuestBonus = () => (isDemo ? demo.claimQuestBonus() : rpc<{ coins: number; reward: number }>('claim_quest_bonus'));
+export const claimWeeklyQuest = (i: number) => (isDemo ? demo.claimWeeklyQuest(i) : rpc<{ coins: number; reward: number }>('claim_weekly_quest', { p_idx: i }));
+
+/* ---------- Thức ăn ---------- */
+export const buyFood = (id: string, qty: number) => (isDemo ? demo.buyFood(id, qty) : rpc<{ coins: number; qty: number }>('buy_food', { p_item: id, p_qty: qty }));
+export const claimRation = () => (isDemo ? demo.claimRation() : rpc<{ item: string; qty: number }>('claim_ration'));
 export const claimCollection = (t: string) => (isDemo ? demo.claimCollection(t) : rpc<{ coins: number }>('claim_collection', { p_theme: t }));
 export async function listCollectionClaims(): Promise<string[]> {
   if (isDemo) return demo.listCollectionClaims();

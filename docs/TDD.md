@@ -45,7 +45,7 @@ src/
   game/store.ts        Trạng thái thú, xu, đồ sở hữu, bố cục, trang phục, đồng bộ định kỳ
   game/game.js         Cảnh 3D, vòng lặp, camera, khu vực, hành vi rảnh (nối các mảng bên dưới)
   game/face.js         Mặt và biểu cảm (EXPR, drawFace)
-  game/food.js         Thức ăn, khay, cho ăn
+  game/food.js         Thức ăn, khay theo kho, cho ăn (số liệu món: catalog.ts; ăn cân bằng: nutrition.ts)
   game/chat.js         Trò chuyện (bản mẫu, sau này nối AI)
   game/diary.js        Nhật ký ngày, Ký ức, bộ đếm hành động
   game/growth.js       Cảnh tiến hoá, thẻ loài
@@ -96,7 +96,7 @@ Khoá 15 phút sau 5 lần sai hiện chỉ có ở phía máy (trải nghiệm)
 | `species` | 50 loài: tên, miền, độ hiếm, trọng số | đọc |
 | `species_seen` | Sổ loài: loài đã từng nuôi, các dáng đã đạt | đọc của mình |
 | `room_layouts` | 3 ô bố cục phòng (jsonb), `profiles.active_layout` chọn ô đang dùng | đọc của mình |
-| `quest_claims`, `collection_claims` | Đã nhận thưởng nhiệm vụ ngày / bộ sưu tập | đọc của mình |
+| `quest_claims`, `weekly_claims`, `ration_claims`, `collection_claims` | Đã nhận thưởng nhiệm vụ ngày (idx 5 = thưởng cả ngày) / nhiệm vụ tuần / suất ăn / bộ sưu tập | đọc của mình |
 | `memories` | Ký ức, `first_key` để "lần đầu" chỉ ghi một lần | đọc, xoá của mình |
 | `day_logs` | Bộ đếm theo ngày → nhật ký | đọc |
 | `diary_entries` | Trang nhật ký do AI viết (giai đoạn sau) | đọc |
@@ -109,15 +109,18 @@ Khoá 15 phút sau 5 lần sai hiện chỉ có ở phía máy (trải nghiệm)
 | `get_my_pet()` | | thú hiện tại, đã áp giảm chỉ số tới giờ server | `not_authenticated` |
 | `create_pet(name, family, egg)` | tên 1–16 ký tự, trứng 0–2 | thú mới; tạo bí mật, đồ khởi đầu, ký ức "gặp nhau" | `pet_exists`, `invalid_name`, `invalid_egg` |
 | `rename_pet(name)` | | | `invalid_name` |
-| `pet_action(action, item?, count?)` | `feed`, `pet`, `bath_scrub`, `bath_rinse`, `play_ball`, `play_spin`, `talk`, `sleep`, `wake` | `{ pet, refused, fav, new_memory }` | `unknown_action`, `unknown_item`, `not_owned`, `rate_limited`, `no_pet` |
+| `pet_action(action, item?, count?)` | `feed`, `pet`, `bath_scrub`, `bath_rinse`, `play_ball`, `play_spin`, `talk`, `sleep`, `wake` (`feed` trừ 1 phần trong kho) | `{ pet, refused, fav, new_memory, earned, coins, stock, balanced }` | `unknown_action`, `unknown_item`, `not_owned`, `rate_limited`, `no_pet` |
 | `add_talk_memory(text)` | 4–120 ký tự, tối đa 20/ngày | | `no_pet` |
 | `get_my_pet()` (cập nhật) | | áp giảm chỉ số rồi `grow_pet`: đổi giai đoạn theo tuổi, chốt dáng khi trưởng thành, ghi ký ức | |
 | `create_pet(name, family, egg)` (cập nhật) | trứng = miền 0–4 | bốc loài theo độ hiếm trên server, ghi Sổ loài | `invalid_egg` |
-| `get_economy()` | | xu, xu hôm nay, 6 món tiệm hôm nay, cuối tuần? | |
+| `get_economy()` | | xu, xu hôm nay, 6 món tiệm hôm nay, cuối tuần?, đã nhận suất ăn chưa | |
+| `buy_food(item, qty)` | qty 1–10, kho tối đa 30 phần mỗi món | `{ coins, qty }` | `unknown_item`, `invalid_qty`, `stock_full`, `not_enough_coins` |
+| `claim_ration()` | 3 Cơm nắm miễn phí, mỗi ngày một lần | `{ item, qty }` | `already_claimed` |
 | `buy_item(item)` | | `{ coins, owned }` | `not_for_sale`, `already_owned`, `not_enough_coins` |
 | `save_room_layout(slot, layout, activate)` | ô 0–2 | `{ comfort_level }` | `invalid_layout`, `not_owned` |
 | `equip_outfit(outfit)` / `save_outfit_preset(slot, outfit)` | `{ head, face, neck, back }` | | `invalid_outfit`, `not_owned` |
-| `get_quests()` / `claim_quest(key)` | | 3 nhiệm vụ ngày + tiến độ / `{ coins }` | `invalid_quest`, `quest_not_done`, `already_claimed` |
+| `get_quests()` | | `{ day, quests[5], bonus, week, weekly[3] }`, mỗi nhiệm vụ có tiến độ, mục tiêu, thưởng | |
+| `claim_quest(idx)` / `claim_quest_bonus()` / `claim_weekly_quest(idx)` | nhiệm vụ ngày 0–4, thưởng làm đủ cả ngày, nhiệm vụ tuần 0–2 | `{ coins, reward }` | `invalid_quest`, `quest_not_done`, `already_claimed` |
 | `claim_collection(theme)` | | +150 xu, ký ức | `invalid_theme`, `collection_incomplete`, `already_claimed` |
 
 `pet_action` với hành động chăm sóc trả thêm `earned` và `coins` (+5 xu, tối đa 50 xu/ngày).
@@ -138,9 +141,9 @@ Khoá 15 phút sau 5 lần sai hiện chỉ có ở phía máy (trải nghiệm)
 - **Thoải mái:** cộng điểm thoải mái từng món (mỗi món tính tối đa 2 cái). ≥6 → cấp 2, ≥12 → 3, ≥20 → 4, ≥30 → 5. Mỗi cấp trên 1 giảm 5% tốc độ tụt Vui và Năng lượng, tăng 5% hồi khi ngủ. Áp ở cả `rules.decayStats` và `private.decay_pet`.
 - **Bộ chủ đề:** ≥5 món khác nhau cùng chủ đề → thú thỉnh thoảng nói câu riêng của bộ. Sưu tập đủ một bộ → nhận 150 xu + ký ức.
 - **Sở thích:** gen có 2 nhãn thích + 1 nhãn ghét. Đặt/mặc món hợp nhãn → thả tim; ghét → dỗi. Thú tự đi tới đồ yêu thích khi rảnh.
-- **Kinh tế (chỉ xu, không gacha):** bắt đầu 300 xu. Chăm sóc +5 xu (tối đa 50/ngày), 3 nhiệm vụ/ngày × 30 xu. Chợ bán cố định; Tiệm hôm nay xoay 6 món theo ngày; Chợ cuối tuần mở T7–CN; Quầy trả phí hiển thị "sắp mở".
+- **Kinh tế (chỉ xu, không gacha):** bắt đầu 300 xu. Chăm sóc +5 xu (tối đa 50/ngày), 5 nhiệm vụ/ngày (20–45 xu mỗi cái, làm đủ thêm 50 xu), 3 nhiệm vụ/tuần (100–110 xu). Thức ăn mua bằng xu (12–32 xu một phần), có suất ăn miễn phí mỗi ngày. Chợ bán cố định; Tiệm hôm nay xoay 6 món theo ngày; Chợ cuối tuần mở T7–CN; Quầy trả phí hiển thị "sắp mở".
 - **Trang phục:** 4 ô (đầu, mặt, cổ, lưng), 3 bộ phối lưu sẵn.
-- Hằng số và công thức xoay vòng/nhiệm vụ nằm ở `layout.ts` và migration `20261105000000_decor_cosmetics.sql` — test `decor.test.ts` so khớp hai bên.
+- Hằng số và công thức xoay vòng/nhiệm vụ nằm ở `layout.ts` và các migration `20261105000000_decor_cosmetics.sql`, `20261114000000_food_economy.sql` — test `decor.test.ts`, `food.test.ts` so khớp hai bên.
 
 ## 7c. Loài và lớn lên
 

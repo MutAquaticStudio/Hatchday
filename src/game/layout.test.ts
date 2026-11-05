@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { BY_ID, DEFAULT_LAYOUT, ITEMS, THEMES, type Layout } from './catalog';
-import { activeSets, buyable, canPlace, comfortLevel, comfortScore, questsForDay, rotationForDay } from './layout';
+import { activeSets, buyable, canPlace, comfortLevel, comfortScore, QUEST_POOL, questsForDay, rotationForDay, weekStart, WEEKLY_POOL, weeklyForDay } from './layout';
 import { decayStats } from './rules';
 
 const L = (items: Layout['items'] = []): Layout => ({ wallpaper: 'giay-cham-hong', flooring: 'san-go', items });
@@ -72,8 +72,35 @@ describe('cửa hàng & nhiệm vụ', () => {
     expect(buyable(BY_ID['o-rom'], '2026-11-07')).toBe(false);
     expect(buyable(BY_ID['ghe-dau'], '2026-11-05')).toBe(true);
   });
-  it('3 nhiệm vụ khác nhau mỗi ngày', () => {
-    const q = questsForDay('2026-11-05');
-    expect(new Set(q).size).toBe(3);
+  it('5 nhiệm vụ khác nhau mỗi ngày, ngày nào cũng có đủ 5 trong cả năm', () => {
+    for (let n = 0; n < 400; n++) {
+      const day = new Date(Date.UTC(2026, 0, 1) + n * 86400000).toISOString().slice(0, 10), q = questsForDay(day);
+      expect(q).toHaveLength(5);
+      expect(new Set(q).size).toBe(5);
+      for (const i of q) expect(QUEST_POOL[i]).toBeDefined();
+    }
+  });
+  it('mọi nhiệm vụ trong kho đều xuất hiện, thưởng tăng theo độ khó', () => {
+    const seen = new Set<number>();
+    for (let n = 0; n < 12; n++) questsForDay(new Date(Date.UTC(2026, 10, 1) + n * 86400000).toISOString().slice(0, 10)).forEach(i => seen.add(i));
+    expect(seen.size).toBe(QUEST_POOL.length);
+    for (const key of new Set(QUEST_POOL.map(q => q.key))) {
+      const same = QUEST_POOL.filter(q => q.key === key).sort((x, y) => x.target - y.target);
+      same.slice(1).forEach((q, i) => expect(q.reward).toBeGreaterThan(same[i].reward)); // làm nhiều hơn thì thưởng nhiều hơn
+    }
+  });
+  it('tuần bắt đầu thứ Hai, 3 nhiệm vụ tuần không đổi trong tuần và khác nhau', () => {
+    expect(weekStart('2026-11-05')).toBe('2026-11-02'); // thứ Năm
+    expect(weekStart('2026-11-02')).toBe('2026-11-02'); // thứ Hai
+    expect(weekStart('2026-11-08')).toBe('2026-11-02'); // Chủ nhật
+    expect(weekStart('2026-11-09')).toBe('2026-11-09');
+    const w = weeklyForDay('2026-11-02');
+    expect(weeklyForDay('2026-11-08')).toEqual(w);
+    expect(weeklyForDay('2026-11-09')).not.toEqual(w);
+    for (let n = 0; n < 60; n++) {
+      const q = weeklyForDay(new Date(Date.UTC(2026, 0, 5) + n * 7 * 86400000).toISOString().slice(0, 10));
+      expect(new Set(q).size).toBe(3);
+      q.forEach(i => expect(WEEKLY_POOL[i]).toBeDefined());
+    }
   });
 });

@@ -3,8 +3,8 @@ import { PGlite } from '@electric-sql/pglite';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { DEFAULT_LAYOUT, ITEMS } from '../../src/game/catalog';
-import { comfortLevel, comfortScore, isWeekend, questsForDay, rotationForDay } from '../../src/game/layout';
+import { DEFAULT_LAYOUT, FOODS, ITEMS } from '../../src/game/catalog';
+import { comfortLevel, comfortScore, isWeekend, QUEST_POOL, questsForDay, rotationForDay } from '../../src/game/layout';
 
 const U = '33333333-3333-3333-3333-333333333333';
 let db: PGlite;
@@ -39,14 +39,14 @@ describe('đồng bộ với client', () => {
     }
     expect(await one('select private.comfort_level($1::jsonb)', [JSON.stringify(DEFAULT_LAYOUT)])).toBe(comfortLevel(comfortScore(DEFAULT_LAYOUT)));
     const qs = await one('select get_quests()');
-    expect(qs.map((x: any) => x.quest)).toEqual(questsForDay(await today()));
+    expect(qs.quests.map((x: any) => x.quest)).toEqual(questsForDay(await today()));
   });
 });
 
 describe('tạo thú', () => {
   it('có ví 300 xu, đồ khởi đầu, bố cục mặc định, sở thích', async () => {
     expect(await coins()).toBe(300);
-    expect(await one("select count(*)::int from entitlements where source = 'starter'")).toBe(ITEMS.filter(i => i.source === 'starter').length + 4);
+    expect(await one("select count(*)::int from entitlements where source = 'starter'")).toBe(ITEMS.filter(i => i.source === 'starter').length + FOODS.length);
     expect((await one('select layout from room_layouts where slot = 0')).items).toHaveLength(4);
     const g = await one('select genes from pets');
     expect(g.likes).toHaveLength(2);
@@ -123,12 +123,12 @@ describe('xu, nhiệm vụ, sổ sưu tập', () => {
     expect(await coins()).toBe(50);
     expect((await one("select pet_action('talk')")).earned).toBe(0);
   });
-  it('nhiệm vụ chưa xong không nhận được, xong thì nhận 30 xu một lần', async () => {
-    await db.exec(`update day_logs set fed = 0, bath = 0, ball = 0, pet = 0, talk = 0, sleep = 0`);
+  it('nhiệm vụ chưa xong không nhận được, xong thì nhận đúng thưởng của nhiệm vụ một lần', async () => {
+    await db.exec(`update day_logs set fed = 0, bath = 0, ball = 0, pet = 0, talk = 0, sleep = 0, foods = '{}', fgroups = '{}'`);
     await expect(q('select claim_quest(0)')).rejects.toThrow(/quest_not_done/);
     await db.exec(`update day_logs set fed = 9, bath = 9, ball = 9, pet = 99, talk = 9, sleep = 9`);
-    const before = await coins();
-    expect((await one('select claim_quest(0)')).coins).toBe(before + 30);
+    const before = await coins(), first = QUEST_POOL[questsForDay(await today())[0]];
+    expect((await one('select claim_quest(0)')).coins).toBe(before + first.reward);
     await expect(q('select claim_quest(0)')).rejects.toThrow(/already_claimed/);
   });
   it('sổ sưu tập: thiếu món thì chưa nhận, đủ bộ thì nhận 150 xu và ghi ký ức', async () => {

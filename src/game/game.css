@@ -76,6 +76,7 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline
 .food svg{width:40px;height:40px;pointer-events:none}
 .food small{font-weight:700;color:var(--ink-soft);font-size:11px}
 .food:hover{border-color:var(--candy-edge)}
+.food.more{color:#a8742e;border-style:dashed;border-color:#e8b34a}
 .tray-hint{align-self:center;font-size:12px;font-weight:700;color:var(--ink-soft);width:84px;flex:none}
 .drag-ghost{position:fixed;left:0;top:0;width:52px;height:52px;pointer-events:none;transform:translate(-50%,-50%);z-index:20;transition:none}
 .drag-ghost.fly{transition:left .45s cubic-bezier(.5,-.3,.6,1),top .45s cubic-bezier(.5,-.3,.6,1),transform .45s,opacity .45s}
@@ -206,6 +207,18 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline
 .book-row>div,.quests li>div{flex:1;min-width:0}
 .book-row span,.quests li span{font-size:12px;font-weight:700;color:var(--ink-soft)}
 .quests{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.qh{margin:14px 0 8px;font-size:15px;font-weight:800}.qh:first-child{margin-top:2px}.qh small{font-size:12px;font-weight:700;color:var(--ink-soft);margin-left:6px}
+.quest-bonus{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:10px;background:#fff8e0;border:2px dashed #e8b34a;border-radius:16px;padding:10px 14px}
+.quest-bonus>div{flex:1;min-width:0}.quest-bonus b{display:block}.quest-bonus span{font-size:12px;font-weight:700;color:var(--ink-soft)}
+.quest-bonus.ready{background:#fff1b8;border-style:solid}
+.ration,.nutri{background:#fff;border:2px solid var(--candy-edge);border-radius:16px;padding:10px 14px;margin-bottom:10px}
+.ration{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.ration>div,.nutri{font-size:13px}.ration b,.nutri b{display:block;font-size:14px}
+.ration span,.nutri>span{font-size:12px;font-weight:700;color:var(--ink-soft)}
+.chips-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.gchip{font-size:12px;font-weight:800;color:var(--ink-soft);background:#f6dce8;border-radius:999px;padding:3px 10px}
+.gchip.on{background:#e3f7ea;color:#3f9a63}
+.food-ic svg{width:56px;height:56px}
 .presets{display:grid;gap:8px}
 .preset{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;align-items:center;background:#fff;border:2px solid var(--candy-edge);border-radius:14px;padding:8px 12px}
 .preset span{font-size:12px;font-weight:700;color:var(--ink-soft);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}

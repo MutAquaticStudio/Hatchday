@@ -22,7 +22,9 @@ const RPC: Record<string, string> = {
   already_claimed: 'Bạn đã nhận phần thưởng này rồi.',
   quest_not_done: 'Nhiệm vụ chưa xong.',
   collection_incomplete: 'Bộ sưu tập chưa đủ món.',
-  not_owned: 'Bạn chưa có món này.',
+  not_owned: 'Bạn chưa có món này (hoặc đã hết phần).',
+  stock_full: 'Kho món này đã đầy (tối đa 30 phần).',
+  invalid_qty: 'Số lượng chưa hợp lệ.',
   invalid_layout: 'Bố cục chưa hợp lệ.',
 };
 

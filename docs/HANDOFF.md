@@ -12,7 +12,9 @@ Bản chơi thử (chế độ demo, dữ liệu lưu trong trình duyệt): htt
 | Tài khoản (đăng nhập, đăng ký, quên/đặt lại mật khẩu) | Xong, đã thử với Supabase giả lập |
 | Thú: 4 chỉ số, biểu cảm, hành vi rảnh, chuyển cảnh ăn/tắm/chơi/ngủ | Xong |
 | Nhật ký ngày, Ký ức | Xong (nhật ký ghép tự động, chưa dùng AI) |
-| Trang trí phòng, tủ đồ, cửa hàng bằng xu, nhiệm vụ ngày, sổ sưu tập | Xong |
+| Trang trí phòng, tủ đồ, cửa hàng bằng xu, sổ sưu tập | Xong |
+| Thức ăn: 12 món, 5 nhóm dinh dưỡng, kho (mua bằng xu, ăn là hết một phần), suất ăn miễn phí mỗi ngày, ăn cân bằng | Xong |
+| Nhiệm vụ kiếm xu: 5 nhiệm vụ ngày (12 loại), thưởng làm đủ cả ngày, 3 nhiệm vụ tuần | Xong |
 | 50 loài, 5 miền × 4 độ hiếm, lớn lên theo tuổi, 4 dáng trưởng thành, Sổ loài | Xong |
 | Đồ mặc ôm theo mọi dáng, không lẹm | Xong, có script kiểm tra tự động |
 | Âm thanh: 12 tiếng hiệu ứng, nhạc nền tự sinh theo phòng/đêm/lúc ngủ, nút Tiếng/Nhạc/Âm lượng | Xong (Web Audio, không cần file âm thanh) |
@@ -25,7 +27,7 @@ Bản chơi thử (chế độ demo, dữ liệu lưu trong trình duyệt): htt
 ```bash
 npm install                 # có .npmrc legacy-peer-deps=true (lỗi arborist)
 npm run dev                 # không có .env thì tự vào chế độ Chơi thử
-npm test                    # 87 test: luật chơi + toàn bộ RPC trên Postgres thật (PGlite)
+npm test                    # 119 test: luật chơi + toàn bộ RPC trên Postgres thật (PGlite)
 npm run build               # typecheck + build
 node scripts/smoke.mjs      # sau build: chạy thật trên trình duyệt (ăn, nói chuyện, tắm, ngủ, lớn lên…)
 node scripts/fit-check.mjs  # sau build: thử 3.900 tổ hợp loài × dáng × đồ mặc, phải ra 0 lẹm
@@ -46,7 +48,8 @@ src/main.ts               điều hướng: tài khoản → tạo thú → game
 src/data/api.ts           gọi RPC; isDemo thì chuyển sang demo-api.ts (mô phỏng RPC bằng localStorage)
 src/game/store.ts         trạng thái thú, xu, đồ, bố cục, loài; gộp lô hành động
 src/game/rules.ts         luật thuần: giảm chỉ số, nhật ký       (song song với private.decay_pet trong SQL)
-src/game/layout.ts        đặt đồ, thoải mái, nhiệm vụ, tiệm xoay   (song song với SQL)
+src/game/layout.ts        đặt đồ, thoải mái, nhiệm vụ ngày/tuần, tiệm xoay   (song song với SQL)
+src/game/nutrition.ts     ăn cân bằng: 3 nhóm lành mạnh trong 3 ngày thì mỗi bữa Vui +3   (song song với SQL)
 src/game/personality.ts   cá tính 5 trục: bốc, dịch theo cách chăm (song song với SQL), hành vi, câu nói
 src/game/species.ts       50 loài, độ hiếm, giai đoạn, dáng        (song song với SQL, scripts/gen-seed.ts)
 src/game/catalog.ts       danh mục vật phẩm (nguồn của seed SQL)
@@ -56,12 +59,12 @@ src/game/decor3d.js       mô hình đồ trang trí + đồ mặc (dựng bằn
 src/game/home.js          nhà: trang trí, cửa hàng, tủ đồ, nhiệm vụ, Sổ loài
 src/game/game.js          cảnh 3D, vòng lặp, camera, khu vực (~820 dòng, nối các mảng dưới đây)
 src/game/face.js          mặt và biểu cảm
-src/game/food.js          thức ăn + khay + cho ăn
+src/game/food.js          khay thức ăn theo kho + cho ăn + biểu tượng 12 món (số liệu từng món ở catalog.ts: FOODS)
 src/game/chat.js          trò chuyện (bản mẫu)
 src/game/diary.js         nhật ký, ký ức, bộ đếm hành động trong ngày
 src/game/growth.js        cảnh tiến hoá + thẻ loài
 src/game/audio.js         sfx()/music() tổng hợp bằng Web Audio; cài đặt trong bảng Chỉ số
-supabase/migrations/      4 migration; supabase/tests/ test RPC
+supabase/migrations/      5 migration; supabase/tests/ test RPC
 ```
 
 **Quy tắc quan trọng khi sửa:**
@@ -70,13 +73,15 @@ supabase/migrations/      4 migration; supabase/tests/ test RPC
 - Thêm đồ mặc mới: dựng trong `decor3d.js`, thêm quy tắc đặt vào `fit.js` nếu cần, rồi chạy `fit-check`.
 - Tuổi thọ thú (30–60 ngày) và món tủ chỉ server biết (`pet_secrets`), không đưa xuống client.
 - Cá tính chạy bằng trigger, không nằm trong `create_pet`/`pet_action`: thú mới có cá tính toàn 0 thì được bốc ngẫu nhiên; mỗi dòng `action_log` dịch cá tính theo `private.personality_drift`. Thêm hành động mới thì thêm độ dịch ở cả `DRIFT` (personality.ts) và hàm SQL đó. Làm vòng đời: truyền sẵn cá tính thừa hưởng khi insert thú đời sau, trigger sẽ giữ nguyên.
+- Thức ăn và nhiệm vụ chạy bằng `FOODS`/`FOOD_STOCK` (catalog.ts), `QUEST_POOL`/`WEEKLY_POOL` (layout.ts) và migration `20261114000000_food_economy.sql`. Món ăn là hàng tồn kho trong `entitlements` (qty); `buy_item` không bán thức ăn, dùng `buy_food`. Kho bé mới được tặng bằng trigger, `create_pet` không bị viết lại. Muốn thêm món: sửa `FOODS`, thêm biểu tượng trong `food.js` (FOOD_SVG), chạy `gen-seed.ts`, dán vào migration mới.
+- Giá và thưởng (xu) là con số mình tự cân, chưa chơi thử dài ngày: bé đói khoảng 54 điểm No mỗi giờ thức, một bữa 15–32 xu; thu nhập tối đa mỗi ngày khoảng 240–270 xu (chăm sóc 50 + 5 nhiệm vụ 140–170 + thưởng cả ngày 50), mỗi tuần thêm khoảng 300 xu từ nhiệm vụ tuần. Cần chỉnh khi có người chơi thật.
 - Thiết kế 5 trục cá tính (tên nét, độ dịch) chưa đối chiếu với GDD. Cần xem lại cho khớp.
 
 ## Việc chưa làm, theo thứ tự đề xuất
 
 **Ưu tiên cao**
 1. **Vòng đời và gia phả.** Hiện bé dừng ở tuổi Xế chiều, không bao giờ mất. Cần: chia tay khi hết tuổi thọ, trang tưởng niệm, trứng đời sau mang tên dòng họ và thừa hưởng một phần gen, cây gia phả. (`pets.stage = 'departed'` và `generation` đã có trong schema.)
-2. **Thức ăn.** Mới có 4 món, ăn miễn phí không giới hạn. GDD có nhóm dinh dưỡng cân bằng 3 ngày, khẩu vị, trồng trọt, nấu ăn, bảo quản, khoảng 12 món mẫu.
+2. **Thức ăn, phần nâng cao.** Đã có 12 món, kho, mua bằng xu, ăn cân bằng. Còn lại theo GDD: khẩu vị riêng từng bé, trồng trọt, nấu ăn, bảo quản (thức ăn hỏng).
 
 **Ưu tiên vừa**
 3. Cấp Gắn bó (1–10) và mở thêm không gian (hiện chỉ có phòng khách trang trí được).
@@ -94,7 +99,7 @@ supabase/migrations/      4 migration; supabase/tests/ test RPC
 13. Bán cosmetic thật: cổng thanh toán, Edge Function xác minh giao dịch, rồi bật `PAID_SHOP_ENABLED`.
 
 **Đưa lên chạy thật (chưa ai làm)**
-- Tạo dự án Supabase (region Singapore), `npx supabase link`, `npx supabase db push` (4 migration), điền `.env` theo `.env.example`.
+- Tạo dự án Supabase (region Singapore), `npx supabase link`, `npx supabase db push` (5 migration), điền `.env` theo `.env.example`.
 - Dashboard Authentication: Site URL và Redirect URLs, mật khẩu tối thiểu 8, rate limit, CAPTCHA, bật Google, viết lại mẫu email tiếng Việt (chi tiết TDD mục 4).
 - Host tĩnh thư mục `dist/` (Vercel, Netlify hoặc Cloudflare Pages).
 - Thú tạo trước migration loài sẽ được gán loài tự động theo quả trứng cũ.

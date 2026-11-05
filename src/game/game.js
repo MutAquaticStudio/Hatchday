@@ -1,7 +1,7 @@
 // Lớp hiển thị & tương tác 3D (chuyển từ bản mẫu). Sẽ tách nhỏ và chuyển sang TypeScript dần.
 import * as THREE from 'three';
 import { S, save, act, actBatched, addTalkMemory, renamePet, onSync, onSyncError, onTraitShift, startPeriodicSync,
-  buy, saveLayout, equip, savePreset, claimQuest, claimCollection, refreshQuests, activeLayout, previewComfort } from './store';
+  buy, saveLayout, equip, savePreset, claimQuest, claimQuestBonus, claimWeeklyQuest, claimCollection, buyFood, claimRation, nutritionNow, refreshQuests, activeLayout, previewComfort } from './store';
 import { initHome } from './home.js';
 import { decayStats, localDay } from './rules';
 import { makePetBuilder, disposePet } from './pet3d.js';
@@ -546,7 +546,7 @@ $('pet-name').value = S.name;
 $('pet-name').addEventListener('input', e => { const v = e.target.value.trim().slice(0, 16); if (v) renamePet(v); });
 
 initDiary();
-const food = initFood({ petRoot, camera, canvas, reduce, hitPet, hideHint, say, setTemp, popText, impulse, spawn, renderStats, shake: () => { shake = 1; } });
+const food = initFood({ petRoot, camera, canvas, reduce, hitPet, hideHint, say, setTemp, popText, impulse, spawn, renderStats, shake: () => { shake = 1; }, openShop: () => home && home.openShop('food') });
 initChat({ reduce, hideHint, say, setTemp, spawn });
 
 /* ---------------- hành vi rảnh rỗi & hoạt cảnh ---------------- */
@@ -736,7 +736,7 @@ initAudio();
 home = initHome({
   THREE, scene, camera, canvas, renderer, room, toon, add, canvasTex, grad, $, reduce,
   homeFloor, homeWalls: [homeWall, homeWall2], pivot, petBase, petBuilder, getPetParts: () => petParts,
-  store: { S, buy, saveLayout, equip, savePreset, claimQuest, claimCollection, refreshQuests, activeLayout, previewComfort, onSync, today: () => localDay() },
+  store: { S, buy, saveLayout, equip, savePreset, claimQuest, claimQuestBonus, claimWeeklyQuest, claimCollection, buyFood, claimRation, nutritionNow, refreshQuests, activeLayout, previewComfort, onSync, today: () => localDay() },
   say, setTemp, spawn, popText, impulse, startAction, addTrauma, buzz, toast, hideHint, applyShadows, ndcFrom,
   getArea: () => area, goTo, isIdle: () => !busy(performance.now()), isNight: () => period === 'dem',
   setZoom: z => { zoomExtra = z; },

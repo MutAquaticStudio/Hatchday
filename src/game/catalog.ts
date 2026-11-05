@@ -104,6 +104,39 @@ export const TAGS: Record<Tag, string> = { mem: 'đồ êm', sach: 'sách vở',
 export const SLOTS: Record<Slot, string> = { head: 'Đầu', face: 'Mặt', neck: 'Cổ', back: 'Lưng' };
 export const RARITY: Record<Rarity, string> = { thuong: 'Thường', dep: 'Đẹp', hiem: 'Hiếm', 'ky-niem': 'Kỷ niệm' };
 
+/* ---------- Thức ăn ----------
+ * Mua bằng xu ở tab "Thức ăn" trong cửa hàng, mỗi lần cho ăn dùng hết một phần.
+ * Seed SQL (bảng items, kind = 'food') phải khớp: supabase/migrations/20261114000000_food_economy.sql, test kiểm tra. */
+export type FoodGroup = 'tinhbot' | 'rau' | 'dam' | 'traicay' | 'ngot';
+/** `healthy`: tính vào "ăn cân bằng" (xem nutrition.ts). Đồ ngọt thì không. */
+export const FOOD_GROUPS: Record<FoodGroup, { name: string; healthy: boolean }> = {
+  tinhbot: { name: 'Tinh bột', healthy: true }, rau: { name: 'Rau củ', healthy: true }, dam: { name: 'Đạm', healthy: true },
+  traicay: { name: 'Trái cây', healthy: true }, ngot: { name: 'Đồ ngọt', healthy: false },
+};
+export interface Food { id: string; name: string; group: FoodGroup; no: number; vui: number; price: number; line: string }
+const F = (id: string, name: string, group: FoodGroup, no: number, vui: number, price: number, line: string): Food => ({ id, name, group, no, vui, price, line });
+export const FOODS: Food[] = [
+  F('comnam', 'Cơm nắm', 'tinhbot', 25, 3, 15, 'No bụng ghê, cảm ơn nha!'),
+  F('bap-nuong', 'Bắp nướng', 'tinhbot', 22, 7, 22, 'Thơm lừng mùi bơ!'),
+  F('banh-mi', 'Bánh mì', 'tinhbot', 28, 6, 32, 'Giòn tan, ngon ghê!'),
+  F('carot', 'Cà rốt', 'rau', 10, 2, 12, 'Giòn giòn ngọt ngọt!'),
+  F('canh-rau', 'Canh rau', 'rau', 16, 3, 18, 'Ấm bụng ghê!'),
+  F('trung-op', 'Trứng ốp la', 'dam', 20, 4, 24, 'Béo béo thơm thơm!'),
+  F('ca-vien', 'Cá viên chiên', 'dam', 14, 12, 30, 'Giòn rụm, nóng hổi!'),
+  F('sua-chua', 'Sữa chua', 'dam', 12, 9, 20, 'Chua chua ngọt ngọt!'),
+  F('chuoi', 'Chuối', 'traicay', 12, 5, 14, 'Chuối thơm quá trời!'),
+  F('dua-hau', 'Dưa hấu', 'traicay', 14, 8, 20, 'Mát rượi, ngọt lịm!'),
+  F('kem', 'Kem que', 'ngot', 5, 15, 22, 'Mát lạnh luôn!'),
+  F('che', 'Chè đậu', 'ngot', 15, 12, 28, 'Ngọt lịm tim!'),
+];
+export const FOOD_BY_ID: Record<string, Food> = Object.fromEntries(FOODS.map(f => [f.id, f]));
+export const FOOD_STOCK = {
+  start: 2,            // mỗi món bé mới được tặng 2 phần để thử và tìm món tủ
+  max: 30,             // giữ tối đa 30 phần mỗi món
+  packMax: 10,         // mua tối đa 10 phần một lần
+  rationId: 'comnam', ration: 3, // suất ăn miễn phí mỗi ngày: 3 Cơm nắm, để bé không bao giờ đói vì hết xu
+} as const;
+
 /* ---------- Lưới phòng ---------- */
 export const GRID = { cols: 8, rows: 6, cell: 1, x0: -4, z0: -3.3, wallRows: 3, wallY0: 1.0 } as const;
 /** Ô dành cho thú (không đặt nội thất), lối ra phía trước là hàng cuối. */

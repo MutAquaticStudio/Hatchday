@@ -3,21 +3,20 @@
  * Mô phỏng đúng luật của các RPC trong supabase/migrations (để xem trước, không dùng cho bản chính thức).
  */
 import { clamp, decayStats, localDay } from '../game/rules';
-import { BY_ID, DEFAULT_LAYOUT, ITEMS, STARTER_ITEMS, type Layout } from '../game/catalog';
-import { buyable, COIN, comfortLevel, comfortScore, QUEST_POOL, QUEST_REWARD, questsForDay, rotationForDay, isWeekend } from '../game/layout';
-import type { ActionResult, DayLogRow, Economy, MemoryRow, Outfit, PetAction, PetRow, QuestRow, SeenRow } from './types';
+import { BY_ID, DEFAULT_LAYOUT, FOOD_BY_ID, FOOD_STOCK, FOODS, ITEMS, STARTER_ITEMS, type Layout } from '../game/catalog';
+import { BALANCED_BONUS, isBalanced } from '../game/nutrition';
+import { buyable, COIN, comfortLevel, comfortScore, dayNumber, QUEST_BONUS, QUEST_POOL, questsForDay, rotationForDay, isWeekend, weekStart, WEEKLY_POOL, weeklyForDay } from '../game/layout';
+import type { ActionResult, DayLogRow, Economy, MemoryRow, Outfit, PetAction, PetRow, QuestBoard, QuestRow, SeenRow } from './types';
 import { applyDrift, isBlank, normalize, rollPersonality } from '../game/personality';
 import { formFromCare, pickSpecies, stageForAge, REGIONS, GROW_MEMORY } from '../game/species';
 
 const KEY = 'hatchday-demo';
-const FOOD: Record<string, { name: string; no: number; vui: number }> = {
-  carot: { name: 'Cà rốt', no: 10, vui: 2 }, comnam: { name: 'Cơm nắm', no: 25, vui: 3 },
-  kem: { name: 'Kem que', no: 5, vui: 15 }, che: { name: 'Chè đậu', no: 15, vui: 12 },
-};
 interface DB {
   pet: PetRow | null; mem: MemoryRow[]; days: Record<string, DayLogRow>; fav: string; dis: string; firsts: string[]; nextId: number;
   coins: number; earnedDay: string; earnedToday: number; owned: Record<string, number>; layouts: (Layout | null)[]; active: number;
   quests: string[]; collections: string[]; life?: number; seen?: SeenRow[];
+  /** Ngày đã nhận suất ăn, tuần:idx đã nhận nhiệm vụ tuần, đã bù kho thức ăn cho bản lưu cũ. */
+  ration?: string[]; weekly?: string[]; foodStock?: boolean;
 }
 
 function load(): DB {
@@ -28,6 +27,9 @@ function load(): DB {
       if (d.pet && !d.pet.species) { const sp = pickSpecies(0, Math.random()); d.pet.species = sp.id; d.pet.form = null; d.pet.genes = { ...d.pet.genes, region: 0, hue: 0 }; }
       if (d.pet && !d.life) d.life = 30 + Math.floor(Math.random() * 31);
       d.seen ||= d.pet ? [{ species_id: d.pet.species, first_at: d.pet.born_at, forms: [] }] : [];
+      // bản lưu cũ (trước khi có kho thức ăn): tặng đủ phần ban đầu, đúng một lần
+      if (d.pet && !d.foodStock) { for (const f of FOODS) d.owned[f.id] = Math.max(d.owned[f.id] || 0, FOOD_STOCK.start); d.foodStock = true; }
+      d.ration ||= []; d.weekly ||= [];
       return d;
     }
   } catch { /* bỏ qua */ }
@@ -50,7 +52,7 @@ function grow(db: DB) {
   first(db, 'grow-' + st, 'milestone', GROW_MEMORY(st, p.form));
 }
 const fresh = (): DB => ({ pet: null, mem: [], days: {}, fav: '', dis: '', firsts: [], nextId: 1, coins: COIN.start, earnedDay: '', earnedToday: 0,
-  owned: {}, layouts: [null, null, null], active: 0, quests: [], collections: [] });
+  owned: {}, layouts: [null, null, null], active: 0, quests: [], collections: [], ration: [], weekly: [], foodStock: true });
 function earn(db: DB, n: number, capped: boolean): number {
   const d = localDay(); if (db.earnedDay !== d) { db.earnedDay = d; db.earnedToday = 0; }
   const got = capped ? Math.max(0, Math.min(n, COIN.careDailyCap - db.earnedToday)) : n;
@@ -64,7 +66,7 @@ function decay(db: DB) {
 }
 function day(db: DB): DayLogRow {
   const d = localDay();
-  return (db.days[d] ||= { day: d, fed: 0, foods: [], bath: 0, ball: 0, pet: 0, talk: 0, sleep: 0 });
+  return (db.days[d] ||= { day: d, fed: 0, foods: [], fgroups: [], bath: 0, ball: 0, pet: 0, talk: 0, sleep: 0 });
 }
 function first(db: DB, key: string, kind: string, body: string): boolean {
   if (db.firsts.includes(key)) return false;
@@ -88,7 +90,7 @@ export async function demoAge(days: number): Promise<PetRow | null> {
 export async function createPet(name: string, family: string, egg: number): Promise<PetRow> {
   const db = load();
   if (db.pet) throw new Error('pet_exists');
-  const ids = Object.keys(FOOD).sort(() => Math.random() - 0.5);
+  const ids = FOODS.map(f => f.id).sort(() => Math.random() - 0.5);
   const now = new Date().toISOString();
   if (!(egg >= 0 && egg < REGIONS.length)) throw new Error('invalid_egg');
   const sp = pickSpecies(egg, Math.random());
@@ -100,7 +102,8 @@ export async function createPet(name: string, family: string, egg: number): Prom
   const tags = ['mem', 'sach', 'cay', 'choi', 'sang', 'retro'].sort(() => Math.random() - 0.5);
   db.pet.genes.likes = [tags[0], tags[1]]; db.pet.genes.dislike = tags[2];
   db.pet.outfit = {}; db.pet.outfit_presets = [{}, {}, {}];
-  for (const id of [...STARTER_ITEMS, ...Object.keys(FOOD)]) db.owned[id] = Math.max(db.owned[id] || 0, 1);
+  for (const id of STARTER_ITEMS) db.owned[id] = Math.max(db.owned[id] || 0, 1);
+  for (const f of FOODS) db.owned[f.id] = Math.max(db.owned[f.id] || 0, FOOD_STOCK.start);
   db.layouts[0] = structuredClone(DEFAULT_LAYOUT); db.active = 0;
   db.pet.comfort_level = comfortLevel(comfortScore(DEFAULT_LAYOUT));
   first(db, 'meet', 'meet', `Ngày đầu tiên gặp bạn. Mình là một bé ${sp.name}, bạn đặt tên mình là ${name}.`);
@@ -114,15 +117,18 @@ export async function petAction(action: PetAction, item?: string, count = 1): Pr
   const db = load(); if (!db.pet) throw new Error('no_pet');
   decay(db);
   const p = db.pet, d = day(db), n = Math.max(1, Math.min(count, 20));
-  let refused: ActionResult['refused'] = null, fav = false, newMem = false;
+  let refused: ActionResult['refused'] = null, fav = false, newMem = false, balanced = false, stock: number | null = null;
   if (p.asleep && action !== 'wake' && action !== 'pet') refused = 'asleep';
   else if (action === 'feed') {
-    const f = FOOD[item || '']; if (!f) throw new Error('unknown_item');
+    const f = FOOD_BY_ID[item || '']; if (!f) throw new Error('unknown_item');
+    if (!(db.owned[f.id] >= 1)) throw new Error('not_owned');
     if (p.no >= 90) refused = 'full';
     else {
       fav = item === db.fav;
-      p.no = clamp(p.no + f.no); p.vui = clamp(p.vui + f.vui + (fav ? 10 : 0) - (item === db.dis ? 6 : 0)); p.sach = clamp(p.sach - 2);
-      d.fed++; d.foods.push(f.name);
+      d.fed++; d.foods.push(f.name); (d.fgroups ||= []).push(f.group);
+      balanced = isBalanced(Object.values(db.days).map(x => ({ d: x.day, groups: x.fgroups || [] })), localDay());
+      p.no = clamp(p.no + f.no); p.vui = clamp(p.vui + f.vui + (fav ? 10 : 0) - (item === db.dis ? 6 : 0) + (balanced ? BALANCED_BONUS : 0)); p.sach = clamp(p.sach - 2);
+      stock = --db.owned[f.id];
       newMem = first(db, 'food-' + item, 'food', fav ? `Lần đầu ăn ${f.name}, hoá ra là món tủ của mình!` : `Lần đầu được ăn ${f.name}.`);
     }
   } else if (action === 'pet') { p.vui = clamp(p.vui + 1.6 * n); d.pet += n; }
@@ -140,7 +146,7 @@ export async function petAction(action: PetAction, item?: string, count = 1): Pr
   if (!refused) p.personality = applyDrift(normalize(p.personality), action); // giống trigger trên action_log
   const earned = !refused && ['feed', 'bath_rinse', 'play_ball', 'play_spin', 'talk', 'sleep'].includes(action) ? earn(db, COIN.careReward, true) : 0;
   store(db);
-  return { pet: { ...p }, refused, fav, new_memory: newMem, earned, coins: db.coins };
+  return { pet: { ...p }, refused, fav, new_memory: newMem, earned, coins: db.coins, stock, balanced };
 }
 
 export async function addTalkMemory(text: string) {
@@ -155,7 +161,7 @@ export function resetDemo() { try { localStorage.removeItem(KEY); } catch { /* b
 /* ---------- Trang trí, trang phục, xu, nhiệm vụ (mô phỏng RPC) ---------- */
 export async function getEconomy(): Promise<Economy> {
   const db = load(), d = localDay();
-  return { coins: db.coins, earned_today: db.earnedDay === d ? db.earnedToday : 0, day: d, rotation: rotationForDay(d), weekend: isWeekend(d) };
+  return { coins: db.coins, earned_today: db.earnedDay === d ? db.earnedToday : 0, day: d, rotation: rotationForDay(d), weekend: isWeekend(d), ration_claimed: !!db.ration?.includes(d) };
 }
 export async function buyItem(id: string): Promise<{ coins: number; qty: number }> {
   const db = load(), it = BY_ID[id];
@@ -188,16 +194,53 @@ export async function saveOutfitPreset(i: number, o: Outfit) {
   const db = load(); if (!db.pet) return;
   const p = db.pet.outfit_presets || [{}, {}, {}]; p[i] = Object.fromEntries(Object.entries(o).filter(([, v]) => v)); db.pet.outfit_presets = p; store(db);
 }
-export async function getQuests(): Promise<QuestRow[]> {
-  const db = load(), d = localDay(), log = db.days[d];
-  return questsForDay(d).map((q, i) => ({ idx: i, quest: q, target: QUEST_POOL[q].target,
-    progress: log ? Number((log as unknown as Record<string, number>)[QUEST_POOL[q].key]) || 0 : 0, claimed: db.quests.includes(d + ':' + i) }));
+function dayProgress(log: DayLogRow | undefined, key: string): number {
+  if (!log) return 0;
+  if (key === 'foods_distinct') return new Set(log.foods).size;
+  if (key === 'groups_distinct') return new Set(log.fgroups || []).size;
+  return Number((log as unknown as Record<string, number>)[key]) || 0;
+}
+export async function getQuests(): Promise<QuestBoard> {
+  const db = load(), d = localDay(), log = db.days[d], ws = weekStart(d), w0 = dayNumber(ws);
+  const quests: QuestRow[] = questsForDay(d).map((q, i) => ({ idx: i, quest: q, target: QUEST_POOL[q].target, reward: QUEST_POOL[q].reward,
+    progress: dayProgress(log, QUEST_POOL[q].key), claimed: db.quests.includes(d + ':' + i) }));
+  const weekly: QuestRow[] = weeklyForDay(d).map((q, i) => ({ idx: i, quest: q, target: WEEKLY_POOL[q].target, reward: WEEKLY_POOL[q].reward,
+    progress: Object.values(db.days).filter(x => dayNumber(x.day) >= w0 && dayNumber(x.day) <= w0 + 6).reduce((s, x) => s + dayProgress(x, WEEKLY_POOL[q].key), 0),
+    claimed: !!db.weekly?.includes(ws + ':' + i) }));
+  return { day: d, quests, week: ws, weekly, bonus: { reward: QUEST_BONUS, ready: quests.every(q => q.claimed), claimed: db.quests.includes(d + ':5') } };
 }
 export async function claimQuest(i: number) {
-  const q = (await getQuests())[i]; if (!q) throw new Error('invalid_quest');
+  const q = (await getQuests()).quests[i]; if (!(i >= 0 && i <= 4) || !q) throw new Error('invalid_quest');
   if (q.progress < q.target) throw new Error('quest_not_done');
   const db = load(), k = localDay() + ':' + i; if (db.quests.includes(k)) throw new Error('already_claimed');
-  db.quests.push(k); earn(db, QUEST_REWARD, false); store(db); return { coins: db.coins };
+  db.quests.push(k); earn(db, q.reward, false); store(db); return { coins: db.coins, reward: q.reward };
+}
+export async function claimQuestBonus() {
+  const b = await getQuests(); if (!b.bonus.ready) throw new Error('quest_not_done');
+  const db = load(), k = localDay() + ':5'; if (db.quests.includes(k)) throw new Error('already_claimed');
+  db.quests.push(k); earn(db, QUEST_BONUS, false); store(db); return { coins: db.coins, reward: QUEST_BONUS };
+}
+export async function claimWeeklyQuest(i: number) {
+  const b = await getQuests(), q = b.weekly[i]; if (!(i >= 0 && i <= 2) || !q) throw new Error('invalid_quest');
+  if (q.progress < q.target) throw new Error('quest_not_done');
+  const db = load(), k = b.week + ':' + i; if (db.weekly?.includes(k)) throw new Error('already_claimed');
+  (db.weekly ||= []).push(k); earn(db, q.reward, false); store(db); return { coins: db.coins, reward: q.reward };
+}
+
+/* ---------- Thức ăn ---------- */
+export async function buyFood(id: string, qty: number) {
+  const db = load(), f = FOOD_BY_ID[id]; if (!f) throw new Error('unknown_item');
+  if (!(qty >= 1 && qty <= FOOD_STOCK.packMax)) throw new Error('invalid_qty');
+  if ((db.owned[id] || 0) + qty > FOOD_STOCK.max) throw new Error('stock_full');
+  if (db.coins < f.price * qty) throw new Error('not_enough_coins');
+  db.coins -= f.price * qty; db.owned[id] = (db.owned[id] || 0) + qty; store(db);
+  return { coins: db.coins, qty: db.owned[id] };
+}
+export async function claimRation() {
+  const db = load(), d = localDay(); if (db.ration?.includes(d)) throw new Error('already_claimed');
+  (db.ration ||= []).push(d);
+  db.owned[FOOD_STOCK.rationId] = Math.min(FOOD_STOCK.max, (db.owned[FOOD_STOCK.rationId] || 0) + FOOD_STOCK.ration); store(db);
+  return { item: FOOD_STOCK.rationId, qty: db.owned[FOOD_STOCK.rationId] };
 }
 export async function claimCollection(t: string) {
   const db = load();

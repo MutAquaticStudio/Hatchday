@@ -31,6 +31,7 @@ const before=(await demo()).pet.no;
 await p.click('#tray .food[data-id="kem"]');await p.waitForTimeout(3500);
 await p.click('#a-eat').catch(()=>{});await p.waitForTimeout(100);
 const d1=await demo();ok('cho ăn gửi lên server (demo)',d1.days[Object.keys(d1.days)[0]]?.fed>=1,'fed='+d1.days[Object.keys(d1.days)[0]]?.fed);
+ok('cho ăn dùng hết một phần trong kho',d1.owned.kem===1,'kem='+d1.owned.kem);
 // về nhà, nói chuyện
 await p.evaluate(()=>{});
 await p.click('#a-talk');await p.fill('#chat-input','Chào bé, hôm nay tôi hơi mệt vì deadline');await p.press('#chat-input','Enter');await p.waitForTimeout(1200);
@@ -69,7 +70,22 @@ await p.click('#a-sleep');await p.waitForTimeout(3000);ok('dậy',(await demo())
 await p.click('#a-house');await p.click('.tile[data-go="dex"]');await p.waitForTimeout(2500);ok('sổ loài mở',await p.isVisible('#dex'));
 await p.click('.hsheet:not([hidden]) [data-close]');await p.waitForTimeout(300);
 await p.click('#a-house');await p.click('.tile[data-go="shop"]');await p.waitForTimeout(800);
-const tabs=await p.$$eval('#shop .tabs-row button',x=>x.map(y=>y.textContent));ok('4 tab cửa hàng',tabs.length===4,JSON.stringify(tabs));
+const tabs=await p.$$eval('#shop .tabs-row button',x=>x.map(y=>y.textContent));ok('5 tab cửa hàng, tab Thức ăn đứng đầu',tabs.length===5&&tabs[0]==='Thức ăn',JSON.stringify(tabs));
+// tab Thức ăn: 12 món, suất ăn miễn phí, mua thức ăn bằng xu
+await p.click('[data-shop-tab="food"]');await p.waitForTimeout(300);
+ok('12 món thức ăn trong cửa hàng',(await p.$$('#shop .grid-items .card-item')).length===12);
+let dm=await demo();const c0=dm.coins,m0=dm.owned.comnam;
+await p.click('[data-ration]');await p.waitForTimeout(400);dm=await demo();
+ok('nhận suất ăn miễn phí +3 Cơm nắm, chỉ một lần',dm.owned.comnam===m0+3&&(await p.$$('[data-ration]')).length===0&&dm.ration.length===1,'comnam='+dm.owned.comnam);
+await p.click('[data-buyfood="chuoi"][data-qty="5"]');await p.waitForTimeout(400);dm=await demo();
+ok('mua 5 Chuối: trừ 70 xu, thêm 5 phần',dm.coins===c0-70&&dm.owned.chuoi===7,'coins='+dm.coins+' chuoi='+dm.owned.chuoi);
+await p.click('.hsheet:not([hidden]) [data-close]');await p.waitForTimeout(300);
+// nhiệm vụ: 5 nhiệm vụ ngày, thưởng cả ngày, 3 nhiệm vụ tuần
+await p.click('#a-house');await p.click('.tile[data-go="quests"]');await p.waitForTimeout(500);
+const counts=await p.$$eval('#quests .quests',u=>u.map(x=>x.children.length));
+ok('bảng nhiệm vụ: 5 ngày, 3 tuần, có thưởng cả ngày',counts.join()==='5,3'&&await p.isVisible('#quests .quest-bonus'),JSON.stringify(counts));
+await p.click('.hsheet:not([hidden]) [data-close]');await p.waitForTimeout(300);
+await p.click('#a-house');await p.click('.tile[data-go="shop"]');await p.waitForTimeout(300);
 await p.click('.hsheet:not([hidden]) [data-close]');await p.waitForTimeout(300);
 // âm thanh: nhạc theo buổi, nút tắt nhạc lưu lại
 ok('nhạc ban ngày/đêm',['day','night'].includes((await au()).mood),JSON.stringify(await au()));

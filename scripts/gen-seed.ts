@@ -1,5 +1,5 @@
 // Sinh câu lệnh seed SQL từ src/game/catalog.ts. Chạy: node --experimental-strip-types scripts/gen-seed.ts
-import { ITEMS, DEFAULT_LAYOUT } from '../src/game/catalog.ts';
+import { ITEMS, DEFAULT_LAYOUT, FOODS } from '../src/game/catalog.ts';
 const q = (v: unknown) => v == null ? 'null' : typeof v === 'number' ? String(v) : `'${String(v).replace(/'/g, "''")}'`;
 const arr = (a?: string[]) => `'{${(a || []).join(',')}}'`;
 const rows = ITEMS.map(i => `  (${q(i.id)}, ${q(i.kind)}, ${q(i.name)}, ${q(i.layer)}, ${q(i.slot)}, ${q(i.w ?? null)}, ${q(i.d ?? null)}, ${q(i.comfort ?? 0)}, ${q(i.theme ?? null)}, ${arr(i.tags)}, ${q(i.price)}, ${q(i.source)}, ${q(i.rarity)})`);
@@ -8,3 +8,6 @@ console.log(`-- DEFAULT_LAYOUT\n${JSON.stringify(DEFAULT_LAYOUT)}`);
 // Loài thú (src/game/species.ts) — dán vào migration 20261112000000_species_growth.sql
 import { SPECIES, RARITIES } from '../src/game/species.ts';
 console.log(`-- SPECIES\ninsert into public.species (id, name, region, rarity, weight) values\n${SPECIES.map(s => `  (${q(s.id)}, ${q(s.name)}, ${s.region}, ${q(s.rarity)}, ${RARITIES[s.rarity].weight})`).join(',\n')};`);
+
+// Thức ăn (src/game/catalog.ts) — dán vào migration 20261114000000_food_economy.sql
+console.log(`-- FOODS\ninsert into public.items (id, kind, name, effects, price_coins, source, rarity) values\n${FOODS.map(f => `  (${q(f.id)}, 'food', ${q(f.name)}, '${JSON.stringify({ no: f.no, vui: f.vui, group: f.group })}', ${f.price}, 'market', 'thuong')`).join(',\n')}\non conflict (id) do update set name = excluded.name, effects = excluded.effects, price_coins = excluded.price_coins, source = excluded.source, rarity = excluded.rarity;`);

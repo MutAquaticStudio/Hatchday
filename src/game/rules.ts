@@ -40,9 +40,9 @@ export function deriveExpression(s: Stats): ExprKey {
 
 export const levelLabel = (v: number) => (v >= 75 ? 'Đầy' : v >= 45 ? 'Ổn' : v >= 25 ? 'Hơi thấp' : 'Thấp');
 
-export interface DayLog { d: string; fed: number; foods: string[]; bath: number; ball: number; pet: number; talk: number; sleep: number }
+export interface DayLog { d: string; fed: number; foods: string[]; groups: string[]; bath: number; ball: number; pet: number; talk: number; sleep: number }
 
-export const emptyDay = (d: string): DayLog => ({ d, fed: 0, foods: [], bath: 0, ball: 0, pet: 0, talk: 0, sleep: 0 });
+export const emptyDay = (d: string): DayLog => ({ d, fed: 0, foods: [], groups: [], bath: 0, ball: 0, pet: 0, talk: 0, sleep: 0 });
 
 /** Trang nhật ký ghép từ mẫu câu (sẽ thay bằng AI ở giai đoạn sau). */
 export function writeDiary(d: DayLog): string {

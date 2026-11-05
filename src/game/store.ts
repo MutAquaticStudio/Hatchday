@@ -5,12 +5,14 @@
  * - Vuốt ve và kỳ cọ được gộp theo lô 2 giây để không gửi quá nhiều yêu cầu.
  */
 import * as api from '../data/api';
-import type { ActionResult, Outfit, PetAction, PetRow, QuestRow, SeenRow } from '../data/types';
+import type { ActionResult, Outfit, PetAction, PetRow, QuestBoard, QuestRow, SeenRow } from '../data/types';
 import type { CareSums, Form, Stage } from './species';
 import { emptyDay, localDay, writeDiary, type DayLog } from './rules';
 import { DEFAULT_LAYOUT, type Layout } from './catalog';
 import { comfortLevel, comfortScore } from './layout';
 import { normalize, topTraits, type Personality } from './personality';
+import { recentGroups, type DayGroups } from './nutrition';
+import type { FoodGroup } from './catalog';
 
 export interface Memory { id?: number; t: number; type: string; text: string }
 
@@ -23,6 +25,7 @@ export interface PetState {
   owned: Record<string, number>; layouts: (Layout | null)[]; activeLayout: number; comfort: number;
   outfit: Outfit; presets: Outfit[]; likes: string[]; dislike: string; quests: QuestRow[]; collections: string[];
   personality: Personality;
+  weekly: QuestRow[]; questBonus: QuestBoard['bonus']; rationDay: string; groupLog: DayGroups[];
 }
 
 export const S: PetState = {
@@ -31,6 +34,7 @@ export const S: PetState = {
   coins: 0, earnedToday: 0, rotation: [], weekend: false, owned: {}, layouts: [null, null, null], activeLayout: 0, comfort: 1,
   outfit: {}, presets: [{}, {}, {}], likes: [], dislike: '', quests: [], collections: [],
   personality: normalize(null),
+  weekly: [], questBonus: { reward: 0, ready: false, claimed: false }, rationDay: '', groupLog: [],
 };
 /** Bố cục đang dùng (luôn có giá trị). */
 export const activeLayout = (): Layout => S.layouts[S.activeLayout] || S.layouts[0] || DEFAULT_LAYOUT;
@@ -88,7 +92,7 @@ export async function hydrate(): Promise<void> {
 
 export async function refreshEconomy(): Promise<void> {
   const e = await api.getEconomy();
-  S.coins = e.coins; S.earnedToday = e.earned_today; S.rotation = e.rotation; S.weekend = e.weekend; emit();
+  S.coins = e.coins; S.earnedToday = e.earned_today; S.rotation = e.rotation; S.weekend = e.weekend; S.rationDay = e.ration_claimed ? e.day : ''; emit();
 }
 export async function refreshOwned(): Promise<void> {
   S.owned = await api.listOwned();
@@ -97,7 +101,7 @@ export async function refreshOwned(): Promise<void> {
 export async function refreshLayouts(): Promise<void> {
   const r = await api.getLayouts(); S.layouts = r.layouts; S.activeLayout = r.active; emit();
 }
-export async function refreshQuests(): Promise<void> { S.quests = await api.getQuests(); emit(); }
+export async function refreshQuests(): Promise<void> { const b = await api.getQuests(); S.quests = b.quests; S.weekly = b.weekly; S.questBonus = b.bonus; emit(); }
 
 /** Mua một món bằng xu. Trả về thông báo lỗi tiếng Việt nếu thất bại (null = thành công). */
 export async function buy(id: string): Promise<unknown> {
@@ -120,8 +124,29 @@ export async function savePreset(i: number): Promise<void> {
   S.presets = S.presets.map((p, k) => (k === i ? { ...S.outfit } : p)); emit();
   try { await api.saveOutfitPreset(i, S.outfit); } catch (e) { errListeners.forEach(fn => fn(e)); }
 }
-export async function claimQuest(i: number): Promise<unknown> {
-  try { const r = await api.claimQuest(i); S.coins = r.coins; await refreshQuests(); return null; } catch (e) { return e; }
+/** Nhận thưởng nhiệm vụ ngày. Trả về { reward } nếu được, hoặc lỗi. */
+export async function claimQuest(i: number): Promise<{ reward: number } | { error: unknown }> {
+  try { const r = await api.claimQuest(i); S.coins = r.coins; await refreshQuests(); return { reward: r.reward }; } catch (error) { return { error }; }
+}
+export async function claimQuestBonus(): Promise<{ reward: number } | { error: unknown }> {
+  try { const r = await api.claimQuestBonus(); S.coins = r.coins; await refreshQuests(); return { reward: r.reward }; } catch (error) { return { error }; }
+}
+export async function claimWeeklyQuest(i: number): Promise<{ reward: number } | { error: unknown }> {
+  try { const r = await api.claimWeeklyQuest(i); S.coins = r.coins; await refreshQuests(); return { reward: r.reward }; } catch (error) { return { error }; }
+}
+
+/** Mua thức ăn (qty phần). Trả về lỗi nếu thất bại, null nếu thành công. */
+export async function buyFood(id: string, qty: number): Promise<unknown> {
+  try { const r = await api.buyFood(id, qty); S.coins = r.coins; S.owned = { ...S.owned, [id]: r.qty }; emit(); return null; } catch (e) { return e; }
+}
+/** Nhận suất ăn miễn phí của ngày. */
+export async function claimRation(): Promise<unknown> {
+  try { const r = await api.claimRation(); S.owned = { ...S.owned, [r.item]: r.qty }; S.rationDay = localDay(); emit(); return null; } catch (e) { return e; }
+}
+/** Các nhóm lành mạnh bé đã ăn trong 3 ngày gần nhất (tính cả bữa vừa cho ăn trên máy). */
+export function nutritionNow(): FoodGroup[] {
+  const today = localDay();
+  return recentGroups([...S.groupLog.filter(l => l.d !== today), { d: today, groups: S.day?.groups || [] }], today);
 }
 export async function claimCollection(t: string): Promise<unknown> {
   try { const r = await api.claimCollection(t); S.coins = r.coins; S.collections = [...S.collections, t]; scheduleMemRefresh(); emit(); return null; } catch (e) { return e; }
@@ -139,10 +164,11 @@ export async function refreshMemories(): Promise<void> {
 export async function refreshDays(): Promise<void> {
   const rows = await api.listDayLogs(S.id);
   const today = localDay();
-  S.diary = {}; S.care = { fed: 0, ball: 0, pet: 0, talk: 0, bath: 0 };
+  S.diary = {}; S.groupLog = []; S.care = { fed: 0, ball: 0, pet: 0, talk: 0, bath: 0 };
   for (const r of rows) {
     S.care.fed += r.fed; S.care.ball += r.ball; S.care.pet += r.pet; S.care.talk += r.talk; S.care.bath += r.bath;
-    const log: DayLog = { d: r.day, fed: r.fed, foods: r.foods, bath: r.bath, ball: r.ball, pet: r.pet, talk: r.talk, sleep: r.sleep };
+    S.groupLog.push({ d: r.day, groups: r.fgroups || [] });
+    const log: DayLog = { d: r.day, fed: r.fed, foods: r.foods, groups: r.fgroups || [], bath: r.bath, ball: r.ball, pet: r.pet, talk: r.talk, sleep: r.sleep };
     if (r.day === today) S.day = log; else S.diary[r.day] = writeDiary(log);
   }
   if (!S.day || S.day.d !== today) S.day = emptyDay(today);
@@ -163,6 +189,7 @@ export async function act(action: PetAction, item?: string, count = 1): Promise<
   try {
     const r = await api.petAction(action, item, count);
     applyRow(r.pet);
+    if (action === 'feed' && item && typeof r.stock === 'number') S.owned = { ...S.owned, [item]: r.stock };
     if (typeof r.coins === 'number') S.coins = r.coins;
     if (r.earned) S.earnedToday += r.earned;
     if (r.new_memory) scheduleMemRefresh();
@@ -210,7 +237,7 @@ export function renamePet(name: string): void {
 /** Đồng bộ lại định kỳ để chỉ số không lệch khỏi server. */
 export function startPeriodicSync(ms = 60_000): () => void {
   const id = window.setInterval(async () => {
-    try { const p = await api.getMyPet(); if (p) { applyRow(p); emit(); } } catch { /* thử lại lần sau */ }
+    try { const p = await api.getMyPet(); if (p) { applyRow(p); emit(); } await refreshOwned(); } catch { /* thử lại lần sau */ }
   }, ms);
   addEventListener('pagehide', () => { flushBatch(); });
   return () => clearInterval(id);
