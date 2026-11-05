@@ -55,8 +55,9 @@ export function initHome(ctx) {
     outfitRoot.clear();
     Object.values(o || {}).forEach(id => {
       const it = BY_ID[id]; if (!it) return;
-      const g = D.buildOutfit(id), [dy, dz] = off[it.slot] || [0, 0];
-      g.position.y += dy; g.position.z += dz; outfitRoot.add(g);
+      const g = D.buildOutfit(id), o = off[it.slot];
+      if (o) { const p0 = g.position.clone(); g.scale.multiplyScalar(o.k); g.position.set(o.c[0] + p0.x * o.k, o.c[1] + (p0.y - 0.98) * o.k, o.c[2] + p0.z * o.k); }
+      outfitRoot.add(g);
     });
   }
 
@@ -136,7 +137,7 @@ export function initHome(ctx) {
       if (id.startsWith('pet:')) { const [, species, stage, form] = id.split(':'); g = new THREE.Group(); ctx.petBuilder.build(g, { species, stage, form: form || null, genes: {}, face: true }); }
       else { const it = BY_ID[id]; g = it.kind === 'outfit' ? D.buildOutfit(id) : it.layer === 'wallpaper' || it.layer === 'flooring' ? swatch(it) : D.build(id); if (it.kind === 'outfit') g.position.set(0, 0, 0); }
       thumbR.s.add(g);
-      if (id.startsWith('pet:')) { const st = id.split(':')[2], k = { baby: 0.78, child: 0.86, teen: 0.94 }[st] || 1; g.scale.setScalar(k); thumbR.c.position.set(1.2, 1.9, 5.0); thumbR.c.lookAt(0, 1.2, 0); }
+      if (id.startsWith('pet:')) { const st = id.split(':')[2], k = { baby: 0.78, child: 0.86, teen: 0.94 }[st] || 1; g.scale.setScalar(k); thumbR.c.position.set(3.0, 1.9, 4.1); thumbR.c.lookAt(0, 1.15, -0.15); }
       else {
         const box = new THREE.Box3().setFromObject(g), c = box.getCenter(new THREE.Vector3()), size = box.getSize(new THREE.Vector3()).length();
         thumbR.c.position.copy(c).add(new THREE.Vector3(0.9, 0.75, 1.6).normalize().multiplyScalar(size * 1.75)); thumbR.c.lookAt(c);

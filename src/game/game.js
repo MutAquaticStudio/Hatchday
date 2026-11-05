@@ -321,7 +321,7 @@ function updateArea(dt, t) {
     const dx = goal.x - petOff.x, dz = goal.z - petOff.z, d = Math.hypot(dx, dz), step = 3.6 * dt;
     if (d > 0.05) { petOff.x += dx / d * Math.min(step, d); petOff.z += dz / d * Math.min(step, d); moveYaw = Math.atan2(dx, dz); }
     setTemp('excited', 250);
-    if (f.phase === 'back') { petRoot.localToWorld(ball.position.set(0, 2.45, 0.2)); }
+    if (f.phase === 'back') { petRoot.localToWorld(ball.position.set(0, (petParts.headY + 0.5) * grow.scale.y, 0.2)); }
     if (d < 0.08) {
       if (f.phase === 'run') { f.phase = 'back'; spawn('sparkle'); impulse(-2); }
       else {
@@ -557,7 +557,7 @@ const bubbleEl = $('bubble'); let bubbleUntil = 0;
 function say(text, ms = 3600) { bubbleEl.textContent = text; bubbleEl.hidden = false; bubbleUntil = performance.now() + ms; bubbleEl.classList.remove('pop'); void bubbleEl.offsetWidth; bubbleEl.classList.add('pop'); }
 const pv = new THREE.Vector3();
 function placeBubble() {
-  petRoot.localToWorld(pv.set(0, 2.55, 0)); pv.project(camera);
+  petRoot.localToWorld(pv.set(0, (petParts.headY + 0.62) * grow.scale.y, 0)); pv.project(camera);
   const r = canvas.getBoundingClientRect();
   bubbleEl.style.left = `${(pv.x + 1) / 2 * r.width}px`; bubbleEl.style.top = `${(1 - pv.y) / 2 * r.height}px`;
 }
@@ -828,7 +828,7 @@ function animStep(dt, t, now, key) {
   });
   tail.position.x = (S.vui > 55 && key !== 'sleep' ? Math.sin(t * 10) : Math.sin(t * 2) * 0.3) * 0.09;
   if (key === 'chew' && now > chompAt) {
-    chompAt = now + 280; impulse(-1.1); petRoot.localToWorld(mouthW.set(0, 0.75, 1.0));
+    chompAt = now + 280; impulse(-1.1); petRoot.localToWorld(mouthW.fromArray(petParts.mouth).multiplyScalar(grow.scale.y));
     spawnAt('crumb', mouthW.x + (Math.random() - 0.5) * 0.3, mouthW.y, mouthW.z, { vx: (Math.random() - 0.5) * 1.2, vy: 1.2, g: 7, scale: 0.12, max: 0.6 });
   }
   return o;
@@ -859,7 +859,7 @@ function updateCamera(dt, t) {
 /* ---------------- phản hồi: số bay lên, rung tay, thông báo ---------------- */
 const popsEl = $('pops');
 function popText(text, color = '#ff5c9a') {
-  petRoot.localToWorld(pv.set(0, 2.25, 0)); pv.project(camera);
+  petRoot.localToWorld(pv.set(0, (petParts.headY + 0.32) * grow.scale.y, 0)); pv.project(camera);
   const r = canvas.getBoundingClientRect(), el = document.createElement('span');
   el.className = 'pop-text'; el.textContent = text; el.style.color = color;
   el.style.left = `${(pv.x + 1) / 2 * r.width + (Math.random() - 0.5) * 50}px`; el.style.top = `${(1 - pv.y) / 2 * r.height}px`;
@@ -1057,7 +1057,9 @@ function tick(now, dt) {
   shadow.position.set(petRoot.position.x, 0.075, petRoot.position.z + 0.05); shadow.visible = area !== 'bath' && area !== 'bedroom';
   updateArea(dt, t);
   /* nhìn theo con trỏ, quay đi khi dỗi */
-  const wantYaw = moveYaw !== null ? moveYaw : key === 'sulky' ? 0.75 : sleeping ? 0 : pointerNdc.x * 0.45;
+  /* dáng bốn chân / bay lượn đứng hơi nghiêng 3/4 để thấy cả thân */
+  const side = petParts && (petParts.plan === 'thu4' || petParts.plan === 'ran') ? 0.42 : 0;
+  const wantYaw = moveYaw !== null ? moveYaw : key === 'sulky' ? 0.75 : sleeping ? side * 0.5 : pointerNdc.x * 0.45 + side;
   yaw += (wantYaw - yaw) * Math.min(1, dt * 4);
   petRoot.rotation.y = yaw + spinY;
   petRoot.rotation.z = roll;

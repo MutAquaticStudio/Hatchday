@@ -138,7 +138,8 @@ Khoá 15 phút sau 5 lần sai hiện chỉ có ở phía máy (trải nghiệm)
 ## 7c. Loài và lớn lên
 
 - **50 loài** = 5 miền (Đồng Nội, Sông Nước, Mây Trời, Rừng Đêm, Góc Bếp) × (4 Thường, 3 Hiếm, 2 Quý, 1 Huyền thoại). Trọng số 8/4/2/1 → mỗi miền: Thường ≈65%, Hiếm ≈24%, Quý ≈8%, Huyền thoại ≈2%.
-- **Không giống game khác:** chung một dáng "bánh dẻo" chibi; loài khác nhau ở tai, chỏm đầu, đuôi, hoa văn, phụ kiện, màu; cảm hứng Việt Nam (món ăn, cây cỏ, dân gian). Không có hệ, không đánh nhau, không bắt thú, không mua trứng bằng tiền.
+- **Dáng cơ thể (5 kiểu):** bánh dẻo tròn (15 loài), bốn chân (13), đứng hai chân (11), chim (6), bay lượn thân khúc (8). Sơ sinh loài nào cũng tròn và đội vỏ trứng; từ Nhí mới hiện dáng riêng, đầu to → cân đối dần tới Trưởng thành. Đồ mặc bám theo đầu/thân của từng dáng (`offsets` trong `pet3d.js`).
+- **Khác Pokémon:** thiết kế, tên, màu đều tự làm, cảm hứng Việt Nam (món ăn, cây cỏ, dân gian); mặt anime chung một phong cách. Không có hệ, không đánh nhau, không bắt thú, không mua trứng bằng tiền.
 - **Ấp trứng:** người chơi chọn 1 trong 3 quả trứng (3 miền ngẫu nhiên). Server bốc loài (`private.pick_species`), client không chọn được. Gen `hue` (lệch sắc độ), `scale`, `ear` để không bé nào giống bé nào.
 - **Giai đoạn theo ngày tuổi:** Sơ sinh (0–2, đội vỏ trứng) → Nhí (2–7, có chỏm, đuôi, hoa văn) → Thiếu niên (7–14, có phụ kiện) → Trưởng thành (14+, hào quang cho Huyền thoại) → Xế chiều (5 ngày cuối tuổi thọ, màu nhạt, tóc bạc). Tuổi thọ vẫn chỉ server biết.
 - **Dáng trưởng thành** chốt lúc vào Trưởng thành, theo tổng `day_logs`: ăn → Phúng Phính, chơi bóng → Lanh Lợi, vuốt + nói → Tình Cảm, tắm → Lấp Lánh. Thiếu niên được báo "đang nghiêng về dáng…" để người chơi chủ động.

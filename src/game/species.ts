@@ -14,6 +14,8 @@ export type Top = 'none' | 'mam' | 'hoa' | 'may' | 'sao' | 'nam' | 'lua' | 'giot
 export type Tail = 'none' | 'tron' | 'xu' | 'xoan' | 'ca' | 'la' | 'sao' | 'may';
 export type Pattern = 'none' | 'bung' | 'dom' | 'soc' | 'ma' | 'cauvong';
 export type Extra = 'canh' | 'vay' | 'mai' | 'oc' | 'bom' | 'gai' | 'coan' | 'hao' | 'ria' | 'tua';
+/** Dáng cơ thể: bánh dẻo tròn, bốn chân, đứng hai chân, chim, bay lượn (cá/rồng/đuôi dài). */
+export type Plan = 'banh' | 'thu4' | 'dung' | 'chim' | 'ran';
 export type Stage = 'baby' | 'child' | 'teen' | 'adult' | 'elder';
 export type Form = 'tron' | 'nhanh' | 'thuong' | 'sang';
 
@@ -21,7 +23,7 @@ export interface Palette { body: string; deep: string; ink: string; inner: strin
 export interface Species {
   id: string; name: string; region: number; rarity: Rarity;
   body: Body; ears: Ears; top: Top; tail: Tail; pattern: Pattern; extra: Extra[];
-  pal: Palette; blurb: string;
+  pal: Palette; blurb: string; plan: Plan;
 }
 
 export const REGIONS = [
@@ -41,7 +43,16 @@ export const RARITIES: Record<Rarity, { name: string; weight: number; color: str
 
 const P = (body: string, deep: string, ink: string, inner = '#ffb3c9', accent = deep): Palette => ({ body, deep, ink, inner, accent });
 const s = (id: string, name: string, region: number, rarity: Rarity, body: Body, ears: Ears, top: Top, tail: Tail, pattern: Pattern, extra: Extra[], pal: Palette, blurb: string): Species =>
-  ({ id, name, region, rarity, body, ears, top, tail, pattern, extra, pal, blurb });
+  ({ id, name, region, rarity, body, ears, top, tail, pattern, extra, pal, blurb, plan: PLAN[id] || 'banh' });
+
+/** Dáng cơ thể của từng loài (loài không có tên ở đây là bánh dẻo tròn). Sơ sinh thì loài nào cũng tròn. */
+const PLAN: Record<string, Plan> = {
+  'mam-xanh': 'dung', 'bong-lua': 'thu4', 'co-may': 'dung', 'hoa-mai': 'thu4', 'chuon-chuon': 'ran', 'de-co': 'thu4', 'sen-hong': 'dung', 'nai-co': 'thu4', 'lan-vang': 'thu4',
+  'ca-bong': 'ran', 'tom-tit': 'ran', 'rua-dam': 'thu4', 'rai-ca': 'thu4', 'ca-heo-hong': 'ran', 'long-thuy': 'ran',
+  'se-nau': 'chim', 'dieu-giay': 'ran', 'gio-nhe': 'dung', 'cau-vong': 'thu4', 'hai-au': 'chim', 'hac-trang': 'chim', 'chim-lac': 'chim',
+  'nam-ngu': 'dung', 'cu-meo': 'chim', 'doi-nho': 'chim', 'trang-khuyet': 'thu4', 'cao-bac': 'thu4', 'meo-muop': 'thu4', 'ma-troi': 'ran', 'huou-sao': 'thu4', 'tho-ngoc': 'dung',
+  'xoi-gac': 'dung', 'che-ba-mau': 'dung', 'tra-sua': 'dung', 'lua-bep': 'dung',
+};
 
 export const SPECIES: Species[] = [
   // ---- Đồng Nội ----

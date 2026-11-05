@@ -29,10 +29,52 @@ export function makePetBuilder(K) {
   const glow = (c, k = 0.45) => new THREE.MeshToonMaterial({ color: c, gradientMap: K.grad, emissive: c, emissiveIntensity: k });
   /** Đặt vật lên bề mặt thân (ellipsoid) theo hướng (theta từ đỉnh, phi quanh trục y; phi = 0 là mặt trước). */
   const onBody = (b, theta, phi, lift = 0) => new THREE.Vector3(
-    Math.sin(theta) * Math.sin(phi) * (b.sx + lift), b.cy + Math.cos(theta) * (b.sy + lift), Math.sin(theta) * Math.cos(phi) * (b.sz + lift));
+    Math.sin(theta) * Math.sin(phi) * (b.sx + lift), (b.y ?? b.cy) + Math.cos(theta) * (b.sy + lift), Math.sin(theta) * Math.cos(phi) * (b.sz + lift));
 
   /**
    * look = { species, stage, form, genes } → dựng vào `into` (Group rỗng). Trả về các bộ phận để game.js làm hoạt ảnh.
+   * stage: baby | child | teen | adult | elder. form chỉ có tác dụng từ adult.
+   */
+  /** Bố trí đầu (H) và thân (B) theo dáng cơ thể + giai đoạn. Sơ sinh luôn là bánh dẻo tròn. */
+  function layout(sp, lvl, form) {
+    const fat = form === 'tron' ? 1.1 : 1, quick = form === 'nhanh';
+    if (lvl === 0 || sp.plan === 'banh' || !sp.plan) {
+      const b = { ...BODY[sp.body] };
+      if (form === 'tron') { b.sx *= 1.08; b.sz *= 1.06; b.sy *= 0.98; b.cy -= 0.02; }
+      if (quick) { b.sy *= 1.05; b.cy += 0.04; b.sx *= 0.97; }
+      const E = { y: b.cy, z: 0, sx: b.sx, sy: b.sy, sz: b.sz };
+      return { kind: 'banh', H: E, B: E, sep: false, legs: 'stub', legL: 0, arms: true, hover: 0, segs: [] };
+    }
+    const t = lvl === 1 ? 0 : lvl === 2 ? 0.5 : 1, L = (a, b) => a + (b - a) * t;
+    const hr = L(0.8, 0.67), H = { sx: hr * 1.06, sy: hr * 0.97, sz: hr }, g = L(0.84, 1);
+    if (sp.plan === 'thu4') {
+      const legL = L(0.2, 0.36) * (quick ? 1.25 : 1);
+      const B = { sx: 0.74 * fat * g, sy: 0.56 * g, sz: (quick ? 1.08 : 1) * g * 0.98 };
+      B.y = legL + B.sy * 0.85; B.z = -0.22; H.y = B.y + B.sy * 0.55 + H.sy * 0.52; H.z = B.z + B.sz * 0.78;
+      return { kind: 'thu4', H, B, sep: true, legs: 'thu4', legL, arms: false, hover: 0, segs: [] };
+    }
+    if (sp.plan === 'dung') {
+      const legL = L(0.1, 0.18) * (quick ? 1.35 : 1);
+      const B = { sx: 0.66 * fat * g, sy: L(0.5, 0.6), sz: 0.6 * fat * g };
+      B.y = legL + B.sy * 0.92; B.z = 0; H.y = B.y + B.sy * 0.78 + H.sy * 0.62; H.z = 0.04;
+      return { kind: 'dung', H, B, sep: true, legs: 'stub', legL, arms: true, hover: 0, segs: [] };
+    }
+    if (sp.plan === 'chim') {
+      const legL = L(0.16, 0.3) * (quick ? 1.3 : 1) * (sp.id === 'hac-trang' ? 1.5 : 1);
+      const B = { sx: 0.62 * fat * g, sy: L(0.52, 0.62), sz: 0.62 * fat * g };
+      B.y = legL + B.sy * 0.9; B.z = -0.06; H.y = B.y + B.sy * 0.7 + H.sy * 0.62; H.z = 0.08;
+      return { kind: 'chim', H, B, sep: true, legs: 'chim', legL, arms: false, hover: 0, segs: [] };
+    }
+    /* ran: bay lơ lửng, thân là chuỗi khúc tròn nhỏ dần về đuôi */
+    const B = { sx: 0.52 * fat * g, sy: 0.46 * g, sz: 0.52 * fat * g, y: 0.62, z: -0.42 };
+    H.y = 1.05; H.z = 0.22;
+    const n = lvl === 1 ? 2 : lvl === 2 ? 3 : 4, segs = [];
+    for (let i = 0; i < n; i++) { const k = (i + 1) / 4; segs.push({ y: 0.6 + Math.sin(k * 2.6) * 0.18 + (quick ? k * 0.15 : 0), z: B.z - 0.42 * (i + 1) * g, r: 0.42 * g * (1 - k * 0.62) }); }
+    return { kind: 'ran', H, B, sep: true, legs: 'none', legL: 0, arms: false, hover: 0.32, segs };
+  }
+
+  /**
+   * look = { species, stage, form, genes, face? } → dựng vào `into` (Group rỗng). Trả về các bộ phận để game.js làm hoạt ảnh.
    * stage: baby | child | teen | adult | elder. form chỉ có tác dụng từ adult.
    */
   function build(into, look) {
@@ -50,47 +92,55 @@ export function makePetBuilder(K) {
     const INK = pal.ink;
     const bodyMat = petToon(pal.body), deepMat = petToon(pal.deep), accMat = toon(pal.accent), innerMat = toon(pal.inner);
 
-    /* thân */
-    const b = { ...BODY[sp.body] };
-    if (form === 'tron') { b.sx *= 1.08; b.sz *= 1.06; b.sy *= 0.98; b.cy -= 0.02; }
-    if (form === 'nhanh') { b.sy *= 1.05; b.cy += 0.04; b.sx *= 0.97; }
-    const body = add(into, S(1, 56, 40), bodyMat, 0, b.cy, 0, INK, 0.035);
-    body.scale.set(b.sx, b.sy, b.sz);
-    if (sp.body === 'le') { const bl = add(into, S(0.86, 40, 28), bodyMat, 0, b.cy - 0.42, 0.02, INK, 0.035); bl.scale.set(1.36, 0.78, 1.22); }
-    if (sp.body === 'giot') add(into, Cone(0.42, 0.62, 28), bodyMat, 0, b.cy + b.sy * 0.93, -0.04, INK, 0.03).rotation.x = -0.12;
-    const top = b.cy + b.sy;
+    const Lo = layout(sp, lvl, form), { H, B, sep } = Lo;
+    const root = new THREE.Group(); root.position.y = Lo.hover; into.add(root);
+    const kH = H.sx / BASE.sx, kB = B.sx / BASE.sx;
+    const outward = (m, E) => m.lookAt(m.position.clone().sub(new THREE.Vector3(0, E.y, E.z)).multiplyScalar(2).add(new THREE.Vector3(0, E.y, E.z)));
+
+    /* đầu (mang khuôn mặt) và thân */
+    const head = add(root, S(1, 56, 40), bodyMat, 0, H.y, H.z, INK, 0.035);
+    head.scale.set(H.sx, H.sy, H.sz);
+    let bodyM = head;
+    if (sep) { bodyM = add(root, S(1, 40, 28), bodyMat, 0, B.y, B.z, INK, 0.035 / Math.max(kB, 0.5)); bodyM.scale.set(B.sx, B.sy, B.sz); }
+    if (!sep && sp.body === 'le') { const bl = add(root, S(0.86, 40, 28), bodyMat, 0, B.y - 0.42, 0.02, INK, 0.035); bl.scale.set(1.36, 0.78, 1.22); }
+    if (!sep && sp.body === 'giot') add(root, Cone(0.42, 0.62, 28), bodyMat, 0, B.y + B.sy * 0.93, -0.04, INK, 0.03).rotation.x = -0.12;
+    Lo.segs.forEach((g, i) => add(root, S(g.r, 24, 18), i % 2 ? deepMat : bodyMat, 0, g.y, g.z, INK, 0.03));
+    if (Lo.kind === 'thu4') { const nk = add(root, S(0.36 * kH * 1.06, 20, 14), bodyMat, 0, (H.y + B.y) / 2 + 0.05, (H.z + B.z) / 2 + 0.12, INK, 0.03); nk.scale.set(1, 1.2, 1); }
+    if (Lo.kind === 'chim') add(root, Cone(0.1 * kH, 0.2 * kH, 12), toon('#ffb84a'), 0, H.y - H.sy * 0.32, H.z + H.sz * 0.97, '#a8742e', 0.012).rotation.x = Math.PI / 2;
+    const headTop = H.y + H.sy;
 
     /* hoa văn (xuất hiện từ Nhí) */
     if (lvl >= 1) {
-      if (sp.pattern === 'bung') { const m = add(into, S(0.5, 28, 20), toon(lighten(pal.body, 0.55)), 0, b.cy - b.sy * 0.5, b.sz * 0.66, null); m.scale.set(1.25, 0.9, 0.45); }
+      if (sp.pattern === 'bung') { const m = add(root, S(0.5 * kB, 28, 20), toon(lighten(pal.body, 0.55)), 0, 0, 0, null); m.position.copy(onBody(B, Lo.kind === 'thu4' ? 1.55 : 2.05, 0, -0.08 * kB)); m.position.z += B.z; m.scale.set(1.25, 0.9, 0.45); outward(m, B); }
       if (sp.pattern === 'dom') [[1.15, 2.3], [1.5, 2.9], [0.9, 3.4], [1.35, 3.9], [1.7, 2.0], [1.0, 4.3], [0.7, 2.7]].forEach(([th, ph], i) => {
         if (lvl < 2 && i > 3) return;
-        const m = add(into, S(0.11 + (i % 3) * 0.025, 14, 10), toon(pal.accent), 0, 0, 0, null); m.position.copy(onBody(b, th, ph, -0.03)); m.scale.set(1, 1, 0.35); m.lookAt(m.position.clone().multiplyScalar(2).setY(m.position.y * 2 - b.cy));
+        const m = add(root, S((0.11 + (i % 3) * 0.025) * Math.max(kB, 0.7), 14, 10), toon(pal.accent), 0, 0, 0, null); m.position.copy(onBody(B, th, ph, -0.03)); m.position.z += B.z; m.scale.set(1, 1, 0.35); outward(m, B);
       });
       if (sp.pattern === 'soc') [0.75, 1.15, 1.55].forEach(th => [-1, 1].forEach(sg => {
-        const m = add(into, S(0.32, 16, 10), toon(pal.deep === pal.body ? pal.accent : pal.deep), 0, 0, 0, null);
-        m.position.copy(onBody(b, th, Math.PI + sg * 0.55, -0.04)); m.scale.set(0.95, 0.2, 0.3); m.lookAt(m.position.clone().multiplyScalar(2).setY(m.position.y * 2 - b.cy)); m.rotateZ(sg * 0.5);
+        const m = add(root, S(0.32 * Math.max(kB, 0.7), 16, 10), toon(pal.deep === pal.body ? pal.accent : pal.deep), 0, 0, 0, null);
+        m.position.copy(onBody(B, th, Math.PI + sg * 0.55, -0.04)); m.position.z += B.z; m.scale.set(0.95, 0.2, 0.3); outward(m, B); m.rotateZ(sg * 0.5);
       }));
-      if (sp.pattern === 'ma') { const m = new THREE.Mesh(new THREE.SphereGeometry(1.012, 48, 16, 0, Math.PI * 2, 0, 0.72), petToon(pal.deep)); m.position.y = b.cy; m.scale.set(b.sx, b.sy, b.sz); into.add(m); }
+      const cap = (E, a, b, c) => { const m = new THREE.Mesh(new THREE.SphereGeometry(1.012, 48, 8, 0, Math.PI * 2, a, b), toon(c)); m.position.set(0, E.y, E.z); m.scale.set(E.sx, E.sy, E.sz); root.add(m); };
+      if (sp.pattern === 'ma') { const m = new THREE.Mesh(new THREE.SphereGeometry(1.012, 48, 16, 0, Math.PI * 2, 0, 0.72), petToon(pal.deep)); m.position.set(0, H.y, H.z); m.scale.set(H.sx, H.sy, H.sz); root.add(m); }
       if (sp.pattern === 'cauvong') {
         const cols = ['#ffa6c9', '#ffe08a', '#a8ecc4', '#a8d4ff'];
-        cols.forEach((c, i) => { const m = new THREE.Mesh(new THREE.SphereGeometry(1.012, 48, 6, 0, Math.PI * 2, 0.18 + i * 0.15, 0.15), toon(c)); m.position.y = b.cy; m.scale.set(b.sx, b.sy, b.sz); into.add(m); });
-        if (sp.body !== 'tron') cols.slice(0, 3).forEach((c, i) => { const m = new THREE.Mesh(new THREE.SphereGeometry(1.012, 48, 6, 0, Math.PI * 2, 2.25 + i * 0.22, 0.22), toon(c)); m.position.y = b.cy; m.scale.set(b.sx, b.sy, b.sz); into.add(m); });
+        cols.forEach((c, i) => cap(H, 0.18 + i * 0.15, 0.15, c));
+        if (sep || sp.body !== 'tron') cols.slice(0, 3).forEach((c, i) => cap(B, 2.25 + i * 0.22, 0.22, c));
       }
     }
 
     /* tai: nhóm ngoài để game.js lắc (rotation.z quanh -s·0.38), nhóm trong mang góc riêng của từng kiểu */
-    const earScale = (0.9 + (genes.ear || 0) * 0.07) * [0.72, 0.85, 0.95, 1, 1][lvl] * (form === 'nhanh' ? 1.18 : 1);
+    const earScale = (0.9 + (genes.ear || 0) * 0.07) * [0.72, 0.85, 0.95, 1, 1][lvl] * (form === 'nhanh' ? 1.18 : 1) * kH;
     const ears = [-1, 1].map(s => {
-      const eg = new THREE.Group(); eg.userData.s = s; eg.rotation.z = -s * 0.38; into.add(eg);
+      const eg = new THREE.Group(); eg.userData.s = s; eg.rotation.z = -s * 0.38; root.add(eg);
       const ig = new THREE.Group(); eg.add(ig); ig.scale.setScalar(earScale);
-      eg.position.set(s * 0.5 * b.sx / BASE.sx, b.cy + 0.55 * b.sy, -0.03);
+      eg.position.set(s * 0.5 * H.sx / BASE.sx, H.y + 0.55 * H.sy, H.z - 0.03);
       const e = sp.ears;
       if (e === 'meo') { const c = add(ig, Cone(0.3, 0.6, 20), bodyMat, 0, 0.28, 0, INK, 0.03); c.scale.z = 0.6; const i2 = add(ig, Cone(0.17, 0.36, 16), innerMat, 0, 0.25, 0.09, null); i2.scale.z = 0.4; }
       if (e === 'tho') { ig.rotation.z = s * 0.22; const c = add(ig, S(0.3, 24, 18), bodyMat, 0, 0.62, -0.02, INK, 0.03); c.scale.set(0.55, 1.9, 0.45); const i2 = add(ig, S(0.18), innerMat, 0, 0.6, 0.1, null); i2.scale.set(0.5, 2.3, 0.3); }
       if (e === 'gau') { const c = add(ig, S(0.27, 22, 16), bodyMat, 0, 0.14, -0.02, INK, 0.03); c.scale.z = 0.7; const i2 = add(ig, S(0.15), innerMat, 0, 0.14, 0.12, null); i2.scale.z = 0.35; }
       if (e === 'cup') { ig.rotation.z = -s * 1.55; ig.position.y = -0.12; const c = add(ig, S(0.3, 22, 16), deepMat, 0, 0.36, -0.02, INK, 0.03); c.scale.set(0.62, 1.35, 0.45); }
-      if (e === 'vay') { eg.position.y = b.cy + 0.15 * b.sy; eg.position.x = s * (b.sx * 0.93); ig.rotation.z = -s * 1.1; const c = add(ig, Cone(0.24, 0.62, 3), accMat, 0, 0.26, 0, INK, 0.02); c.scale.z = 0.3; }
+      if (e === 'vay') { eg.position.y = H.y + 0.15 * H.sy; eg.position.x = s * (H.sx * 0.93); ig.rotation.z = -s * 1.1; const c = add(ig, Cone(0.24, 0.62, 3), accMat, 0, 0.26, 0, INK, 0.02); c.scale.z = 0.3; }
       if (e === 'sung') { ig.rotation.z = s * 0.15; add(ig, Cone(0.1, 0.42, 14), toon(pal.accent), 0, 0.2, 0, INK, 0.02); if (sp.rarity === 'huyen' && lvl >= 3) { const br = add(ig, Cone(0.06, 0.22, 10), toon(pal.accent), s * 0.1, 0.24, 0, INK, 0.015); br.rotation.z = -s * 0.9; } }
       if (e === 'ang') { ig.rotation.z = s * 0.1; add(ig, Cy(0.022, 0.03, 0.5, 8), toon(pal.ink), 0, 0.25, 0, null); add(ig, S(0.09, 14, 10), lvl >= 2 && sp.id === 'dom-dom' ? glow(pal.accent) : accMat, 0, 0.52, 0, INK, 0.015); }
       if (e === 'la') { const c = add(ig, S(0.28, 20, 14), toon(pal.deep), 0, 0.34, 0, INK, 0.025); c.scale.set(0.5, 1.3, 0.16); add(ig, Cy(0.012, 0.012, 0.5, 6), toon(pal.ink), 0, 0.34, 0.05, null); }
@@ -99,7 +149,7 @@ export function makePetBuilder(K) {
     });
 
     /* chỏm đầu: Sơ sinh đội vỏ trứng, từ Nhí mới có chỏm riêng của loài */
-    const topG = new THREE.Group(); topG.position.set(0, top - 0.07, 0); into.add(topG);
+    const topG = new THREE.Group(); topG.position.set(0, headTop - 0.07 * kH, H.z); topG.scale.setScalar(kH); root.add(topG);
     const topScale = [0.6, 0.75, 0.9, 1, 1][lvl];
     if (lvl === 0) {
       const rc = REGIONS[sp.region] || REGIONS[0];
@@ -114,25 +164,45 @@ export function makePetBuilder(K) {
       if (t === 'hoa') { const petal = sp.id === 'hoa-mai' ? '#ffd23e' : sp.id === 'sen-hong' ? '#ff9fc4' : pal.accent; for (let i = 0; i < 5; i++) { const a = i / 5 * Math.PI * 2; const p = add(g, S(0.14, 14, 10), toon(petal), Math.cos(a) * 0.17, 0.1, Math.sin(a) * 0.17, INK, 0.015); p.scale.set(1.2, 0.4, 0.8); p.rotation.y = -a; } add(g, S(0.09, 12, 10), toon('#ffb84a'), 0, 0.15, 0, INK, 0.015); }
       if (t === 'may') [[0, 0.12, 0, 0.2], [-0.2, 0.06, 0.05, 0.15], [0.2, 0.07, -0.02, 0.16]].forEach(([x, y, z, r]) => add(g, S(r), toon(sp.id === 'keo-bong-gon' ? pal.accent : '#ffffff'), x, y, z, '#a8a0c8', 0.02));
       if (t === 'sao') { const st = add(g, starGeo(0.24), glow(pal.accent, 0.35), 0, 0.22, 0, INK, 0.015); st.userData.spin = 1; }
-      if (t === 'nam') { const cap = add(g, new THREE.SphereGeometry(0.62, 32, 14, 0, Math.PI * 2, 0, 1.4), toon(pal.accent), 0, -0.12, 0, INK, 0.03); cap.scale.y = 0.75; [[0.3, 0.25, 0.2], [-0.32, 0.22, 0.15], [0, 0.38, -0.25], [0.05, 0.3, 0.4], [-0.15, 0.2, -0.45]].forEach(([x, y, z]) => { const d = add(g, S(0.08, 10, 8), toon('#ffffff'), x, y - 0.06, z, null); d.scale.y = 0.5; }); }
+      if (t === 'nam') { const cp = add(g, new THREE.SphereGeometry(0.62, 32, 14, 0, Math.PI * 2, 0, 1.4), toon(pal.accent), 0, -0.12, 0, INK, 0.03); cp.scale.y = 0.75; [[0.3, 0.25, 0.2], [-0.32, 0.22, 0.15], [0, 0.38, -0.25], [0.05, 0.3, 0.4], [-0.15, 0.2, -0.45]].forEach(([x, y, z]) => { const d = add(g, S(0.08, 10, 8), toon('#ffffff'), x, y - 0.06, z, null); d.scale.y = 0.5; }); }
       if (t === 'lua') { const f = add(g, S(0.2, 18, 14), glow(pal.accent, 0.6), 0, 0.14, 0, INK, 0.015); f.scale.y = 1.1; add(g, Cone(0.15, 0.32, 14), glow(pal.accent, 0.6), 0, 0.38, 0, INK, 0.015); add(g, S(0.09, 10, 8), glow('#fff6c8', 0.7), 0, 0.12, 0.1, null); g.userData.flicker = 1; }
       if (t === 'giot') { const c = sp.id === 'ngoc-trai' ? '#fffaff' : '#8fd3ff'; add(g, S(0.16, 18, 14), toon(c), 0, 0.14, 0, INK, 0.015); add(g, Cone(0.13, 0.22, 16), toon(c), 0, 0.33, 0, INK, 0.015); }
       if (t === 'trang') { const m = add(g, new THREE.TorusGeometry(0.2, 0.07, 10, 24, Math.PI * 1.3), glow(pal.accent, 0.4), 0, 0.26, 0, INK, 0.015); m.rotation.z = -Math.PI * 0.15; }
       if (t === 'xoay') { [0.22, 0.16, 0.1].forEach((r, i) => { const tr = add(g, new THREE.TorusGeometry(r, 0.07, 10, 24), toon(sp.id === 'banh-bao' ? '#fffaf2' : '#fff6e8'), 0, 0.05 + i * 0.11, 0, INK, 0.015); tr.rotation.x = Math.PI / 2; }); add(g, Cone(0.06, 0.14, 10), toon(pal.accent), 0, 0.38, 0, INK, 0.01); }
       if (t === 'chom') [-0.4, 0, 0.4].forEach((a, k) => { const f = add(g, S(0.1, 12, 10), toon(pal.accent), Math.sin(a) * 0.1, 0.2, -k * 0.05, INK, 0.015); f.scale.set(0.6, 2.2, 0.6); f.rotation.z = -a; });
-      if (stage === 'elder') [[-0.16, 0.02], [0.16, 0.0]].forEach(([x, z]) => add(into, S(0.11, 12, 10), toon('#ffffff'), x, top - 0.12, 0.45 + z, '#a8a0c8', 0.015).scale.set(1.3, 0.5, 0.7));
+      if (stage === 'elder') [[-0.16, 0.02], [0.16, 0.0]].forEach(([x, z]) => add(root, S(0.11 * kH, 12, 10), toon('#ffffff'), x * kH, headTop - 0.12 * kH, H.z + 0.45 * kH + z, '#a8a0c8', 0.015).scale.set(1.3, 0.5, 0.7));
     }
 
-    /* tay, chân: tay nằm trong khung co giãn theo bề ngang thân để hoạt ảnh cũ (x = ±0.98) vẫn đúng */
-    const armRig = new THREE.Group(); armRig.scale.x = b.sx / BASE.sx; armRig.position.y = b.cy - BASE.cy; into.add(armRig);
-    const arms = [-1, 1].map(s => { const a = add(armRig, S(0.2, 18, 14), bodyMat, s * 0.98, 0.78, 0.22, INK); a.scale.set(0.8, 1, 0.8); return a; });
-    const feet = [-1, 1].map(s => { const f = add(into, S(0.27, 20, 14), deepMat, s * 0.42 * Math.min(1.15, b.sx / BASE.sx), 0.1, 0.38, INK); f.scale.set(1, 0.5, 1.2); return f; });
+    /* tay: khung co giãn theo thân để hoạt ảnh cũ (x = ±0.98, y = 0.78) vẫn đúng chỗ */
+    const armRig = new THREE.Group(); root.add(armRig);
+    armRig.scale.set(B.sx / BASE.sx, B.sy / BASE.sy, B.sz / BASE.sz); armRig.position.set(0, B.y - BASE.cy * B.sy / BASE.sy, B.z);
+    armRig.visible = Lo.arms;
+    const arms = [-1, 1].map(s => { const a = add(armRig, S(0.2, 18, 14), bodyMat, s * 0.98, 0.78, 0.22, INK); const k = sep ? 1.45 : 1; a.scale.set(0.8 * k, 1 * k, 0.8 * k); return a; });
 
-    /* đuôi (từ Nhí) */
-    const tail = new THREE.Group(); tail.position.set(0, b.cy - 0.48, -0.98 * b.sz); into.add(tail);
-    const tailScale = [0.7, 0.85, 0.95, 1, 1][lvl] * (form === 'nhanh' ? 1.25 : 1);
+    /* chân: game.js đặt y = 0.1 (+ nhấc), z = 0.38 (+ bước). Nhóm `legRig` dời tới đúng chỗ của từng dáng. */
+    const legRig = new THREE.Group(); root.add(legRig);
+    const frontZ = Lo.kind === 'thu4' ? B.z + B.sz * 0.55 : sep ? B.z + B.sz * 0.42 : 0.38;
+    legRig.position.z = frontZ - 0.38;
+    const footX = Lo.kind === 'thu4' ? 0.42 * B.sx : sep ? 0.44 * B.sx : 0.42 * Math.min(1.15, B.sx / BASE.sx);
+    const legTop = sep ? B.y - B.sy * 0.55 : 0;
+    const makeLeg = (g, front) => {
+      if (Lo.legs === 'stub') { const f = add(g, S(sep ? 0.22 : 0.27, 20, 14), deepMat, 0, 0, 0, INK); f.scale.set(1, 0.5, 1.2); if (sep && Lo.legL > 0.05) add(g, Cy(0.11, 0.13, Lo.legL + 0.1, 12), bodyMat, 0, (Lo.legL + 0.1) / 2, -0.04, INK, 0.02); }
+      if (Lo.legs === 'thu4') { const h = legTop - 0.1 + 0.08; add(g, Cy(0.13 * kB / 0.74, 0.12 * kB / 0.74, h, 14), front ? bodyMat : deepMat, 0, h / 2 - 0.02, 0, INK, 0.02); const pad = add(g, S(0.15 * kB / 0.74, 16, 12), deepMat, 0, -0.03, 0.05, INK, 0.02); pad.scale.set(1, 0.55, 1.2); }
+      if (Lo.legs === 'chim') { const h = legTop - 0.1 + 0.08; add(g, Cy(0.035, 0.035, h, 8), toon('#ffb84a'), 0, h / 2, 0, '#a8742e', 0.01); [-0.5, 0, 0.5].forEach(a => { const toe = add(g, S(0.06, 10, 8), toon('#ffb84a'), Math.sin(a) * 0.08, -0.07, Math.cos(a) * 0.08, '#a8742e', 0.01); toe.scale.set(0.7, 0.45, 1.6); toe.rotation.y = a; }); }
+    };
+    const feet = [-1, 1].map(s => { const g = new THREE.Group(); g.position.set(s * footX, 0.1, 0.38); legRig.add(g); makeLeg(g, true); return g; });
+    const backLegs = Lo.legs === 'thu4' ? [-1, 1].map(s => { const g = new THREE.Group(); g.position.set(s * footX, 0.1, B.z - B.sz * 0.55); root.add(g); makeLeg(g, false); return g; }) : [];
+
+    /* đuôi */
+    const tail = new THREE.Group(); root.add(tail);
+    const last = Lo.segs[Lo.segs.length - 1];
+    if (last) tail.position.set(0, last.y, last.z - last.r * 0.8);
+    else if (Lo.kind === 'thu4') tail.position.set(0, B.y + 0.15 * B.sy, B.z - 0.95 * B.sz);
+    else tail.position.set(0, B.y - 0.5 * B.sy, B.z - 0.98 * B.sz);
+    const tailScale = [0.7, 0.85, 0.95, 1, 1][lvl] * (form === 'nhanh' ? 1.25 : 1) * (sep ? 0.9 : 1);
     const tg = new THREE.Group(); tg.scale.setScalar(tailScale); tail.add(tg);
-    const tt = lvl === 0 ? (sp.tail === 'none' ? 'none' : 'tron') : sp.tail;
+    if (Lo.kind === 'thu4') tg.rotation.x = -0.5;
+    const tt = lvl === 0 ? (sp.tail === 'none' ? 'none' : 'tron') : sp.tail === 'none' && Lo.kind === 'chim' ? 'ca' : sp.tail;
     if (tt === 'tron') add(tg, S(0.22, 18, 14), deepMat, 0, 0, 0, INK);
     if (tt === 'xu') { const m = add(tg, S(0.32, 20, 14), deepMat, 0, 0.18, -0.14, INK); m.scale.set(0.8, 1.3, 0.8); m.rotation.x = -0.6; add(tg, S(0.16, 14, 10), toon(lighten(pal.body, 0.6)), 0, 0.5, -0.36, INK, 0.02); }
     if (tt === 'xoan') { const m = add(tg, new THREE.TorusGeometry(0.17, 0.07, 10, 24, Math.PI * 1.6), deepMat, 0, 0.12, -0.08, INK, 0.02); m.rotation.y = Math.PI / 2; }
@@ -141,48 +211,61 @@ export function makePetBuilder(K) {
     if (tt === 'sao') { add(tg, Cy(0.025, 0.025, 0.4, 6), toon(pal.ink), 0, 0.15, -0.1, null).rotation.x = -0.5; add(tg, starGeo(0.15), glow(pal.accent, 0.5), 0, 0.34, -0.22, INK, 0.012); }
     if (tt === 'may') [[0, 0.06, 0, 0.2], [0, 0.22, -0.16, 0.15]].forEach(([x, y, z, r]) => add(tg, S(r), toon(sp.id === 'keo-bong-gon' ? pal.accent : '#ffffff'), x, y, z, '#a8a0c8', 0.02));
 
-    /* phụ kiện của loài: má phúng phính và ria có từ Nhí, các thứ khác từ Thiếu niên, hào quang chỉ khi trưởng thành */
-    const anim = { wings: [], halo: null, orbit: [], tent: [], spin: [] };
+    /* phụ kiện của loài: má phúng phính và ria có từ Nhí, các thứ khác từ Thiếu niên (cánh chim có từ Nhí), hào quang chỉ khi trưởng thành */
+    const anim = { wings: [], halo: null, orbit: [], tent: [], spin: [], backLegs, feet, segs: [] };
     const extras = new Set(sp.extra);
     if (form === 'tron') extras.add('bom');
+    if (Lo.kind === 'chim') extras.add('canh');
     const exScale = lvl >= 3 ? 1 : 0.75;
     for (const ex of extras) {
-      if (ex === 'bom' && lvl >= 1) [-1, 1].forEach(s => { const m = add(into, S(0.26, 18, 14), bodyMat, s * 0.74 * b.sx, b.cy - 0.22, 0.5 * b.sz, INK, 0.025); m.scale.set(0.8, 0.75, 0.7); });
-      if (ex === 'ria' && lvl >= 1) [-1, 1].forEach(s => [-0.06, 0.04].forEach(dy => { const w = add(into, Cy(0.012, 0.012, 0.42, 5), toon(INK), s * 0.92 * b.sx, b.cy - 0.06 + dy, 0.48 * b.sz, null); w.rotation.z = Math.PI / 2 + s * dy * 3; w.rotation.y = s * 0.5; }));
-      if (lvl < 2) continue;
-      if (ex === 'canh') [-1, 1].forEach(s => {
-        const w = new THREE.Group(); w.position.set(s * 0.5 * b.sx, b.cy + 0.15, -0.72 * b.sz); w.userData.s = s; into.add(w);
+      if (ex === 'bom' && lvl >= 1) [-1, 1].forEach(s => { const m = add(root, S(0.26 * kH, 18, 14), bodyMat, s * 0.74 * H.sx, H.y - 0.22 * H.sy, H.z + 0.5 * H.sz, INK, 0.025); m.scale.set(0.8, 0.75, 0.7); });
+      if (ex === 'ria' && lvl >= 1) [-1, 1].forEach(s => [-0.06, 0.04].forEach(dy => { const w = add(root, Cy(0.012, 0.012, 0.42 * kH, 5), toon(INK), s * 0.92 * H.sx, H.y - 0.06 * H.sy + dy * kH, H.z + 0.48 * H.sz, null); w.rotation.z = Math.PI / 2 + s * dy * 3; w.rotation.y = s * 0.5; }));
+      if (ex === 'canh' && (lvl >= 2 || (Lo.kind === 'chim' && lvl >= 1))) [-1, 1].forEach(s => {
+        const w = new THREE.Group(); w.userData.s = s; root.add(w);
         const bat = sp.id === 'doi-nho', bug = sp.id === 'chuon-chuon' || sp.id === 'ong-mat' || sp.id === 'dom-dom';
-        const mat = bug ? new THREE.MeshToonMaterial({ color: '#e8f6ff', gradientMap: K.grad, transparent: true, opacity: 0.75 }) : toon(bat ? pal.deep : lvl >= 3 ? '#ffffff' : lighten(pal.body, 0.5));
-        const n = bug ? 2 : 1;
-        for (let k = 0; k < n; k++) { const m = add(w, S(0.3, 18, 12), mat, s * 0.32, 0.12 - k * 0.22, 0, bug ? '#9ab8d8' : INK, 0.02); m.scale.set(1.35 * exScale, (bug ? 0.45 : 0.8) * exScale, 0.18); m.rotation.z = s * (0.5 - k * 0.6); }
+        const mat = bug ? new THREE.MeshToonMaterial({ color: '#e8f6ff', gradientMap: K.grad, transparent: true, opacity: 0.75 }) : toon(bat ? pal.deep : Lo.kind === 'chim' ? pal.deep : lvl >= 3 ? '#ffffff' : lighten(pal.body, 0.5));
+        if (Lo.kind === 'chim') {
+          w.position.set(s * B.sx * 0.9, B.y + 0.08 * B.sy, B.z); w.userData.side = true;
+          const m = add(w, S(0.34, 18, 12), mat, s * 0.06, -0.05, -0.05, INK, 0.02); m.scale.set(0.35, 1.05 * exScale, 0.85 * exScale); m.rotation.z = s * 0.2;
+          const tip = add(w, S(0.16, 12, 10), toon(pal.accent), s * 0.1, -0.32 * exScale, -0.2, INK, 0.015); tip.scale.set(0.4, 1.1, 0.8);
+        } else {
+          w.position.set(s * 0.5 * B.sx, B.y + 0.15 * B.sy, B.z - 0.72 * B.sz);
+          const n = bug ? 2 : 1, ws = sep ? 1.25 : 1;
+          for (let k = 0; k < n; k++) { const m = add(w, S(0.3, 18, 12), mat, s * 0.32 * ws, 0.12 - k * 0.22, 0, bug ? '#9ab8d8' : INK, 0.02); m.scale.set(1.35 * exScale * ws, (bug ? 0.45 : 0.8) * exScale * ws, 0.18); m.rotation.z = s * (0.5 - k * 0.6); }
+        }
         anim.wings.push(w);
       });
-      if (ex === 'vay') { const f = add(into, Cone(0.28 * exScale, 0.6 * exScale, 3), accMat, 0, b.cy + 0.55 * b.sy, -0.72 * b.sz, INK, 0.02); f.scale.z = 0.35; f.rotation.x = -0.5; }
-      if (ex === 'mai') { const m = add(into, new THREE.SphereGeometry(0.9, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2), toon(pal.accent), 0, b.cy - 0.1, -0.42 * b.sz, INK, 0.03); m.rotation.x = -Math.PI / 2 + 0.25; m.scale.set(exScale, exScale, 0.75 * exScale); for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2; const d = add(m, new THREE.CircleGeometry(0.16, 6), toon(lighten(pal.accent, 0.35)), Math.cos(a) * 0.45, Math.sin(a) * 0.45, 0.8, null); d.lookAt(Math.cos(a) * 1.4, Math.sin(a) * 1.4, 2.4); } }
-      if (ex === 'oc') { const g = new THREE.Group(); g.position.set(0, b.cy + 0.15, -0.78 * b.sz); g.scale.setScalar(exScale); into.add(g); add(g, S(0.5, 24, 18), toon(pal.accent), 0, 0, -0.1, INK, 0.03); [0.36, 0.24, 0.12].forEach((r, i) => { const tr = add(g, new THREE.TorusGeometry(r, 0.05, 8, 24), toon(lighten(pal.accent, 0.3)), 0, 0, 0.32 + i * 0.06, null); tr.rotation.y = 0; }); }
-      if (ex === 'gai') [0.6, 0.95, 1.3, 1.65].forEach(th => { const c = add(into, Cone(0.11 * exScale, 0.26 * exScale, 10), toon(pal.deep), 0, 0, 0, INK, 0.015); c.position.copy(onBody(b, th, Math.PI, -0.02)); c.lookAt(c.position.clone().multiplyScalar(2).setY(c.position.y * 2 - b.cy)); c.rotateX(Math.PI / 2); });
-      if (ex === 'coan') for (let i = 0; i < 9; i++) { const a = i / 9 * Math.PI * 2; const p = add(into, S(0.2, 12, 10), toon(pal.accent), Math.sin(a) * 0.82 * b.sx, b.cy - 0.62 * b.sy, Math.cos(a) * 0.78 * b.sz, INK, 0.015); p.scale.set(1.1 * exScale, 0.35, 0.7 * exScale); p.rotation.y = a; }
-      if (ex === 'tua') for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2 + 0.3; const t = add(into, Cy(0.05, 0.03, 0.42 * exScale, 8), toon(pal.deep), Math.sin(a) * 0.6 * b.sx, 0.22, Math.cos(a) * 0.55 * b.sz - 0.1, INK, 0.012); t.userData.ph = i; anim.tent.push(t); }
-      if (ex === 'hao' && lvl >= 3) { const h = add(into, new THREE.TorusGeometry(0.42, 0.045, 10, 40), glow('#ffe58a', 0.7), 0, top + 0.42, -0.1, '#b88a2a', 0.012); h.rotation.x = Math.PI / 2 - 0.25; anim.halo = h; }
+      if (lvl < 2) continue;
+      if (ex === 'vay') { const f = add(root, Cone(0.28 * exScale, 0.6 * exScale, 3), accMat, 0, B.y + 0.6 * B.sy, B.z - 0.55 * B.sz, INK, 0.02); f.scale.z = 0.35; f.rotation.x = -0.5; Lo.segs.forEach((g, i) => { if (i < 2) { const f2 = add(root, Cone(0.18 * exScale, 0.4 * exScale, 3), accMat, 0, g.y + g.r * 0.9, g.z, INK, 0.015); f2.scale.z = 0.35; f2.rotation.x = -0.5; } }); }
+      if (ex === 'mai') {
+        const m = add(root, new THREE.SphereGeometry(0.9, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2), toon(pal.accent), 0, 0, 0, INK, 0.03);
+        if (Lo.kind === 'thu4') { m.position.set(0, B.y + 0.05, B.z); m.scale.set(B.sx * 1.25 * exScale, 0.75 * exScale, B.sz * 1.15 * exScale); }
+        else { m.position.set(0, B.y - 0.1, B.z - 0.42 * B.sz); m.rotation.x = -Math.PI / 2 + 0.25; m.scale.set(exScale * kB, exScale * kB, 0.75 * exScale); }
+        for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2; const d = add(m, new THREE.CircleGeometry(0.16, 6), toon(lighten(pal.accent, 0.35)), Math.cos(a) * 0.45, 0.8, Math.sin(a) * 0.45, null); d.lookAt(Math.cos(a) * 1.4, 2.4, Math.sin(a) * 1.4); if (Lo.kind !== 'thu4') { d.position.set(Math.cos(a) * 0.45, Math.sin(a) * 0.45, 0.8); d.lookAt(Math.cos(a) * 1.4, Math.sin(a) * 1.4, 2.4); } }
+      }
+      if (ex === 'oc') { const g = new THREE.Group(); g.position.set(0, B.y + 0.15, B.z - 0.78 * B.sz); g.scale.setScalar(exScale * Math.max(kB, 0.8)); root.add(g); add(g, S(0.5, 24, 18), toon(pal.accent), 0, 0, -0.1, INK, 0.03); [0.36, 0.24, 0.12].forEach((r, i) => add(g, new THREE.TorusGeometry(r, 0.05, 8, 24), toon(lighten(pal.accent, 0.3)), 0, 0, 0.32 + i * 0.06, null)); }
+      if (ex === 'gai') [0.6, 0.95, 1.3, 1.65].forEach(th => { const c = add(root, Cone(0.11 * exScale, 0.26 * exScale, 10), toon(pal.deep), 0, 0, 0, INK, 0.015); c.position.copy(onBody(B, Lo.kind === 'thu4' ? th * 0.6 : th, Math.PI, -0.02)); c.position.z += B.z; outward(c, B); c.rotateX(Math.PI / 2); });
+      if (ex === 'coan') { const cy = sep ? H.y - H.sy * 0.8 : B.y - 0.62 * B.sy, cz = sep ? H.z * 0.7 + B.z * 0.3 : 0, rx = sep ? H.sx * 0.78 : 0.82 * B.sx, rz = sep ? H.sz * 0.72 : 0.78 * B.sz; for (let i = 0; i < 9; i++) { const a = i / 9 * Math.PI * 2; const p = add(root, S(0.2 * Math.max(kH, 0.8), 12, 10), toon(pal.accent), Math.sin(a) * rx, cy, cz + Math.cos(a) * rz, INK, 0.015); p.scale.set(1.1 * exScale, 0.35, 0.7 * exScale); p.rotation.y = a; } }
+      if (ex === 'tua') for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2 + 0.3; const t = add(root, Cy(0.05, 0.03, 0.42 * exScale, 8), toon(pal.deep), Math.sin(a) * 0.6 * B.sx, 0.22, B.z + Math.cos(a) * 0.55 * B.sz - 0.1, INK, 0.012); t.userData.ph = i; anim.tent.push(t); }
+      if (ex === 'hao' && lvl >= 3) { const h = add(root, new THREE.TorusGeometry(0.42 * Math.max(kH, 0.8), 0.045, 10, 40), glow('#ffe58a', 0.7), 0, headTop + 0.42, H.z - 0.1, '#b88a2a', 0.012); h.rotation.x = Math.PI / 2 - 0.25; h.userData.y = headTop + 0.42; anim.halo = h; }
     }
 
     /* dáng trưởng thành */
-    if (form === 'thuong') { const h = add(into, heartGeo(0.16), toon('#ff7aa8'), 0, b.cy - b.sy * 0.55, b.sz * 0.83, '#a83a62', 0.015); h.rotation.x = -0.35; }
-    if (form === 'sang') for (let i = 0; i < 3; i++) { const st = add(into, starGeo(0.1, 0.04), glow('#fff2a8', 0.8), 0, 0, 0, '#b88a2a', 0.01); st.userData.ph = i * Math.PI * 2 / 3; anim.orbit.push(st); }
+    if (form === 'thuong') { const h = add(root, heartGeo(0.16 * Math.max(kB, 0.75)), toon('#ff7aa8'), 0, 0, 0, '#a83a62', 0.015); h.position.copy(onBody(B, Lo.kind === 'thu4' ? 1.5 : sep ? 1.85 : 2.12, 0, 0.0)); h.position.z += B.z; h.rotation.x = Lo.kind === 'thu4' ? 0 : -0.35; }
+    if (form === 'sang') for (let i = 0; i < 3; i++) { const st = add(root, starGeo(0.1, 0.04), glow('#fff2a8', 0.8), 0, 0, 0, '#b88a2a', 0.01); st.userData.ph = i * Math.PI * 2 / 3; anim.orbit.push(st); }
     topG.traverse(o => { if (o.userData.spin) anim.spin.push(o); });
+    anim.root = root; anim.hover = Lo.hover; anim.legRigZ = legRig.position.z;
 
-    const h = (top - (BASE.cy + BASE.sy));
-    const offsets = {
-      head: [h, 0], face: [(b.cy + 0.18 * b.sy) - (BASE.cy + 0.18 * BASE.sy), b.sz - BASE.sz],
-      neck: [(b.cy - 0.4 * b.sy) - (BASE.cy - 0.4 * BASE.sy), 0], back: [b.cy - BASE.cy, -(b.sz - BASE.sz)],
-    };
     if (look.face) {
       const f = new THREE.Mesh(new THREE.SphereGeometry(1.006, 48, 30, Math.PI / 2 - 0.75, 1.5, Math.PI / 2 - 0.78, 1.24),
         new THREE.MeshBasicMaterial({ map: simpleFace(), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }));
-      body.add(f);
+      head.add(f);
     }
-    return { body, ears, top: topG, tail, arms, feet, anim, offsets, flicker: !!topG.children[0]?.userData.flicker, headY: top, stage, species: sp };
+    const hv = Lo.hover;
+    /* đồ mặc: đầu/mặt/cổ theo đầu, đồ lưng theo thân (tâm + hệ số co) */
+    const offsets = { head: { c: [0, H.y + hv, H.z], k: kH }, face: { c: [0, H.y + hv, H.z], k: kH }, neck: sep ? { c: [0, H.y - 0.82 * H.sy + 0.38 * kH * 1.1 + hv, H.z * 0.8 + B.z * 0.2], k: kH * 1.1 } : { c: [0, H.y + hv, H.z], k: kH }, back: { c: [0, B.y + hv, B.z], k: Math.max(kB, 0.7) } };
+    return { body: head, ears, top: topG, tail, arms, feet, anim, offsets, flicker: !!topG.children[0]?.userData?.flicker, headY: headTop + hv,
+      mouth: [0, H.y - 0.35 * H.sy + hv, H.z + 0.95 * H.sz], center: [0, (H.y + B.y) / 2 + hv, (H.z + B.z) / 2], plan: Lo.kind, stage, species: sp };
   }
 
   /** Mặt tĩnh cho ảnh thu nhỏ (trong game, mặt do game.js vẽ và đổi theo cảm xúc). */
@@ -207,9 +290,12 @@ export function makePetBuilder(K) {
   function animate(parts, t, reduce) {
     if (!parts || reduce) return;
     const a = parts.anim;
-    a.wings.forEach(w => { w.rotation.y = w.userData.s * (0.25 + Math.sin(t * 9) * 0.25); });
-    if (a.halo) { a.halo.rotation.z = t * 0.8; a.halo.position.y = parts.headY + 0.42 + Math.sin(t * 2) * 0.04; }
-    a.orbit.forEach(s => { const p = t * 1.2 + s.userData.ph; s.position.set(Math.cos(p) * 1.35, 1.1 + Math.sin(p * 2) * 0.35, Math.sin(p) * 1.0); s.rotation.y = t * 2; });
+    a.wings.forEach(w => { if (w.userData.side) w.rotation.z = w.userData.s * (0.1 + Math.max(0, Math.sin(t * 3.2)) * 0.25); else w.rotation.y = w.userData.s * (0.25 + Math.sin(t * 9) * 0.25); });
+    if (a.halo) { a.halo.rotation.z = t * 0.8; a.halo.position.y = a.halo.userData.y + Math.sin(t * 2) * 0.04; }
+    const cx = parts.center;
+    a.orbit.forEach(s => { const p = t * 1.2 + s.userData.ph; s.position.set(Math.cos(p) * 1.35, cx[1] + Math.sin(p * 2) * 0.35 - a.hover, cx[2] + Math.sin(p) * 1.0); s.rotation.y = t * 2; });
+    if (a.hover) a.root.position.y = a.hover + Math.sin(t * 2.1) * 0.07;
+    a.backLegs.forEach((g, i) => { const f = a.feet[1 - i]; if (g.userData.z0 === undefined) g.userData.z0 = g.position.z; g.position.y = f.position.y; g.position.z = g.userData.z0 + (f.position.z - 0.38); });
     a.tent.forEach(o => { o.rotation.x = Math.sin(t * 2.5 + o.userData.ph) * 0.25; o.rotation.z = Math.cos(t * 2 + o.userData.ph) * 0.15; });
     a.spin.forEach(o => { o.rotation.y = t * 1.5; });
     if (parts.flicker) { const g = parts.top.children[0]; g.scale.y = 1 + Math.sin(t * 13) * 0.06; }
