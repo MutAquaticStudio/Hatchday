@@ -22,6 +22,9 @@ Bản chơi thử (chế độ demo, dữ liệu lưu trong trình duyệt): htt
 | Hướng dẫn lần đầu chơi (5 bước ~30 giây, bỏ qua được, xem lại trong Chỉ số) | Xong (`tour.js`, chỉ phía giao diện) |
 | Vòng đời và gia phả: bé sống 30–60 ngày rồi ra đi, trang tưởng niệm, trứng đời sau thừa hưởng họ, cá tính, tai, sở thích, món tủ; cây gia phả | Xong |
 | Thức ăn nâng cao: khẩu vị riêng (món tủ/món ghét lộ dần), vườn rau 4 ô (đợi giờ thật), nấu ăn 16 món từ 2 nguyên liệu, tủ lạnh 3 cấp và thức ăn tươi bị hỏng | Xong |
+| Vườn rau 3D trong cảnh Vườn: luống đất, cây lớn dần theo giờ thật, chạm luống để gieo/tưới/hái với hoạt ảnh; tưới nước rút ngắn 10% thời gian chín (tối đa 3 lần, cách nhau 30 phút) | Xong (`garden3d.js`) |
+| Mảnh đất: mỗi mảnh 3 ô, nâng cấp lên 6 rồi 9 ô (300 và 600 xu), đủ 9 ô mới mua mảnh mới (1.000 và 2.000 xu), tối đa 3 mảnh (27 ô) | Xong |
+| Tự điều khiển thú trong vườn: chạm đất, giữ và kéo, phím mũi tên/WASD; thú tự đi tới luống khi trồng/tưới/hái. Dùng được trên điện thoại cảm ứng | Xong (mới ở cảnh Vườn) |
 | Quầy trả phí | Đã ẩn (`PAID_SHOP_ENABLED = false` trong `src/game/catalog.ts`) |
 | Chạy trên Supabase thật | Chưa. Mọi thứ mới thử ở chế độ demo hoặc PGlite |
 
@@ -30,10 +33,11 @@ Bản chơi thử (chế độ demo, dữ liệu lưu trong trình duyệt): htt
 ```bash
 npm install                 # có .npmrc legacy-peer-deps=true (lỗi arborist)
 npm run dev                 # không có .env thì tự vào chế độ Chơi thử
-npm test                    # 165 test: luật chơi + toàn bộ RPC trên Postgres thật (PGlite)
+npm test                    # 174 test: luật chơi + toàn bộ RPC trên Postgres thật (PGlite)
 npm run build               # typecheck + build
 node scripts/smoke.mjs      # sau build: chạy thật trên trình duyệt (ăn, nói chuyện, tắm, ngủ, lớn lên…)
 node scripts/fit-check.mjs  # sau build: thử 3.900 tổ hợp loài × dáng × đồ mặc, phải ra 0 lẹm
+node scripts/mobile-check.mjs # sau build: giả lập iPhone với sự kiện chạm và kéo thật
 ```
 
 - `?dev` trên URL: bảng duyệt biểu cảm, tua nhanh thời gian, và `window.__petXY()` (vị trí thú trên màn hình, để script kiểm tra nhắm cú vuốt).
@@ -70,7 +74,7 @@ src/game/tour.js          hướng dẫn lần đầu chơi (5 bước, chờ ng
 src/game/diary.js         nhật ký, ký ức, bộ đếm hành động trong ngày
 src/game/growth.js        cảnh tiến hoá + thẻ loài
 src/game/audio.js         sfx()/music() tổng hợp bằng Web Audio; cài đặt trong bảng Chỉ số
-supabase/migrations/      8 migration; supabase/tests/ test RPC
+supabase/migrations/      10 migration; supabase/tests/ test RPC
 ```
 
 **Quy tắc quan trọng khi sửa:**
@@ -80,6 +84,7 @@ supabase/migrations/      8 migration; supabase/tests/ test RPC
 - Tuổi thọ thú (30–60 ngày) và món tủ chỉ server biết (`pet_secrets`), không đưa xuống client.
 - Cá tính chạy bằng trigger, không nằm trong `create_pet`/`pet_action`: thú mới có cá tính toàn 0 thì được bốc ngẫu nhiên; mỗi dòng `action_log` dịch cá tính theo `private.personality_drift`. Thêm hành động mới thì thêm độ dịch ở cả `DRIFT` (personality.ts) và hàm SQL đó. Làm vòng đời: truyền sẵn cá tính thừa hưởng khi insert thú đời sau, trigger sẽ giữ nguyên.
 - Vòng đời chạy trong `private.grow_pet` (hết tuổi thọ thì `stage = 'departed'`, ghi `departed_at`, `lived_days`; `get_my_pet` trả về bé vừa đi đúng một lần rồi trả null). Đón thú đời sau bằng `hatch_heir`, không dùng `create_pet` (trigger `heir_required` chặn). Gia phả đọc thẳng từ bảng `pets` (RLS), nối nhau qua `parent_id`. Muốn đổi cách thừa hưởng: sửa `lineage.ts` và `20261115000000_lifecycle.sql` cùng lúc, `lifecycle.test.ts` so khớp. Ở bản thử, nhật ký ngày và nhiệm vụ tuần tính lại từ đầu cho bé đời sau.
+- Vườn rau: số ô toàn cục = mảnh × 9 + ô trong mảnh. Luật nâng cấp/mua đất ở `GARDEN_LAND`, `PARCEL` (catalog.ts) và `20261119000000_garden_expand.sql`; luật tưới nước ở `WATER`, `readyAtMs` và `20261118000000_garden_water.sql`. Cảnh 3D và hoạt ảnh ở `garden3d.js` (module riêng, được `game.js` nối vào); thú tự đi bằng `walkPetTo`/`steerTo` trong `game.js`. Màn hình cảm ứng: bấm popover phải bỏ qua cú "click" giả trong 450ms đầu (trình duyệt bắn click vào chỗ menu vừa hiện), nút tối thiểu 40px (`@media (pointer: coarse)`).
 - Thức ăn nâng cao chạy bằng `DISHES`/`RECIPES`/`CROPS`/`FRIDGE`/`spoilLoss` (catalog.ts) và migration `20261116000000_food_advanced.sql`. Món nấu là `items.kind = 'dish'` (không bán, không làm món tủ/món ghét của bé). Thức ăn tươi (`effects.fresh`) mỗi ngày hỏng 1/4 phần vượt mức tủ lạnh giữ được; việc tính hỏng làm lười ở `get_economy` (client gọi lúc mở game và mỗi 60 giây), tối đa 7 ngày dồn. Vườn rau tính giờ bằng giờ server (`get_garden` trả `now`). Khẩu vị đọc qua `get_tastes`, món tủ/món ghét chỉ lộ sau khi bé đã được ăn thử món đó. Thêm món nấu: sửa `DISHES`/`RECIPES`, thêm biểu tượng trong `food.js`, chạy `gen-seed.ts` và dán vào migration mới.
 - Thức ăn và nhiệm vụ chạy bằng `FOODS`/`FOOD_STOCK` (catalog.ts), `QUEST_POOL`/`WEEKLY_POOL` (layout.ts) và migration `20261114000000_food_economy.sql`. Món ăn là hàng tồn kho trong `entitlements` (qty); `buy_item` không bán thức ăn, dùng `buy_food`. Kho bé mới được tặng bằng trigger, `create_pet` không bị viết lại. Muốn thêm món: sửa `FOODS`, thêm biểu tượng trong `food.js` (FOOD_SVG), chạy `gen-seed.ts`, dán vào migration mới.
 - Giá và thưởng (xu) là con số mình tự cân, chưa chơi thử dài ngày: bé đói khoảng 54 điểm No mỗi giờ thức, một bữa 15–32 xu; thu nhập tối đa mỗi ngày khoảng 240–270 xu (chăm sóc 50 + 5 nhiệm vụ 140–170 + thưởng cả ngày 50), mỗi tuần thêm khoảng 300 xu từ nhiệm vụ tuần. Cần chỉnh khi có người chơi thật.
@@ -102,7 +107,7 @@ supabase/migrations/      8 migration; supabase/tests/ test RPC
 10. Bán cosmetic thật: cổng thanh toán, Edge Function xác minh giao dịch, rồi bật `PAID_SHOP_ENABLED`.
 
 **Đưa lên chạy thật (chưa ai làm)**
-- Tạo dự án Supabase (region Singapore), `npx supabase link`, `npx supabase db push` (8 migration), điền `.env` theo `.env.example`.
+- Tạo dự án Supabase (region Singapore), `npx supabase link`, `npx supabase db push` (10 migration), điền `.env` theo `.env.example`.
 - Dashboard Authentication: Site URL và Redirect URLs, mật khẩu tối thiểu 8, rate limit, CAPTCHA, bật Google, viết lại mẫu email tiếng Việt (chi tiết TDD mục 4).
 - Host tĩnh thư mục `dist/` (Vercel, Netlify hoặc Cloudflare Pages).
 - Thú tạo trước migration loài sẽ được gán loài tự động theo quả trứng cũ.

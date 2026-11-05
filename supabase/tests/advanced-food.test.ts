@@ -3,7 +3,7 @@ import { PGlite } from '@electric-sql/pglite';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { CROPS, DISHES, FOOD_BY_ID, FOODS, FRIDGE, readyAtMs, RECIPES, spoilLoss, WATER } from '../../src/game/catalog';
+import { CROPS, DISHES, FOOD_BY_ID, FOODS, FRIDGE, GARDEN_LAND, PARCEL, readyAtMs, RECIPES, spoilLoss, WATER } from '../../src/game/catalog';
 
 const U = 'cccccccc-cccc-cccc-cccc-cccccccccccc';
 let db: PGlite;
@@ -135,7 +135,8 @@ describe('vườn rau', () => {
     expect(await one("select plant_crop(0, 'carot')")).toEqual({ coins: 100 - CROPS[0].seed });
     expect((await plot(0)).crop).toBe('carot');
     await expect(q("select plant_crop(0, 'chuoi')")).rejects.toThrow(/plot_busy/);
-    await expect(q("select plant_crop(4, 'chuoi')")).rejects.toThrow(/invalid_plot/);
+    await expect(q("select plant_crop(27, 'chuoi')")).rejects.toThrow(/invalid_plot/);
+    await expect(q("select plant_crop(3, 'chuoi')")).rejects.toThrow(/plot_locked/); // đất mới có 3 ô
     await expect(q("select plant_crop(-1, 'chuoi')")).rejects.toThrow(/invalid_plot/);
     await expect(q("select plant_crop(1, 'comnam')")).rejects.toThrow(/unknown_crop/);
     await setCoins(1);
@@ -296,6 +297,59 @@ describe('tưới nước', () => {
     expect(await one("select has_function_privilege('anon', 'public.water_crop(int)', 'execute')")).toBe(false);
     await db.exec('reset request.uid');
     await expect(q('select water_crop(0)')).rejects.toThrow(/not_authenticated/);
+    await as(U);
+  });
+});
+
+describe('mảnh đất: nâng cấp và mua thêm', () => {
+  const garden = async () => one('select get_garden()');
+  const reset = async () => { await db.exec('delete from garden_plots; delete from garden_parcels'); await setCoins(5000); };
+  it('mảnh đầu có sẵn với 3 ô; nâng cấp 300 xu thành 6 ô, 600 xu thành 9 ô, đủ 9 ô thì từ chối', async () => {
+    await reset();
+    expect((await garden()).parcels).toEqual([{ parcel: 0, level: 0, size: 3 }]);
+    await setCoins(100);
+    await expect(q('select upgrade_parcel(0)')).rejects.toThrow(/not_enough_coins/);
+    await setCoins(5000);
+    expect(await one('select upgrade_parcel(0)')).toEqual({ coins: 5000 - GARDEN_LAND[1].price, parcel: 0, level: 1, size: 6 });
+    expect(await one('select upgrade_parcel(0)')).toEqual({ coins: 5000 - GARDEN_LAND[1].price - GARDEN_LAND[2].price, parcel: 0, level: 2, size: 9 });
+    await expect(q('select upgrade_parcel(0)')).rejects.toThrow(/max_land/);
+    await expect(q('select upgrade_parcel(1)')).rejects.toThrow(/plot_locked/); // chưa có mảnh 2
+    expect(GARDEN_LAND.map(l => l.plots)).toEqual([3, 6, 9]);
+  });
+  it('chỉ mua được mảnh mới khi mảnh cuối đã đủ 9 ô; giá 1.000 rồi 2.000 xu; tối đa 3 mảnh', async () => {
+    await reset();
+    await expect(q('select buy_parcel()')).rejects.toThrow(/parcel_not_full/);
+    await q('select upgrade_parcel(0)');
+    await expect(q('select buy_parcel()')).rejects.toThrow(/parcel_not_full/); // mới 6 ô
+    await q('select upgrade_parcel(0)');
+    await setCoins(500);
+    await expect(q('select buy_parcel()')).rejects.toThrow(/not_enough_coins/);
+    await setCoins(5000);
+    expect(await one('select buy_parcel()')).toEqual({ coins: 5000 - PARCEL.prices[1], parcel: 1 });
+    await expect(q('select buy_parcel()')).rejects.toThrow(/parcel_not_full/); // mảnh 2 mới có 3 ô
+    await q('select upgrade_parcel(1)'); await q('select upgrade_parcel(1)');
+    expect(await one('select buy_parcel()')).toEqual({ coins: 5000 - PARCEL.prices[1] - GARDEN_LAND[1].price - GARDEN_LAND[2].price - PARCEL.prices[2], parcel: 2 });
+    await q('select upgrade_parcel(2)'); await q('select upgrade_parcel(2)');
+    await expect(q('select buy_parcel()')).rejects.toThrow(/max_parcels/);
+    expect((await garden()).parcels.map((x: any) => x.size)).toEqual([9, 9, 9]);
+    expect(PARCEL).toEqual({ plots: 9, max: 3, prices: [0, 1000, 2000] });
+  });
+  it('gieo theo ô toàn cục: ô chưa nâng cấp hoặc mảnh chưa mua thì bị khoá', async () => {
+    await reset();
+    await expect(q("select plant_crop(3, 'carot')")).rejects.toThrow(/plot_locked/); // mảnh 1 mới có 3 ô (0–2)
+    await expect(q("select plant_crop(9, 'carot')")).rejects.toThrow(/plot_locked/); // chưa có mảnh 2
+    await expect(q("select plant_crop(27, 'carot')")).rejects.toThrow(/invalid_plot/);
+    await q('select upgrade_parcel(0)'); await q("select plant_crop(5, 'carot')");
+    await expect(q("select plant_crop(6, 'carot')")).rejects.toThrow(/plot_locked/);
+    await q('select upgrade_parcel(0)'); await q('select buy_parcel()'); await q("select plant_crop(9, 'carot')"); await q("select plant_crop(11, 'carot')");
+    await expect(q("select plant_crop(12, 'carot')")).rejects.toThrow(/plot_locked/); // mảnh 2 mới có 3 ô (9–11)
+    expect((await garden()).plots.map((p: any) => p.plot)).toEqual([5, 9, 11]);
+  });
+  it('anon không gọi được, chưa đăng nhập thì từ chối', async () => {
+    expect(await one("select has_function_privilege('anon', 'public.upgrade_parcel(int)', 'execute')")).toBe(false);
+    expect(await one("select has_function_privilege('anon', 'public.buy_parcel()', 'execute')")).toBe(false);
+    await db.exec('reset request.uid');
+    await expect(q('select buy_parcel()')).rejects.toThrow(/not_authenticated/);
     await as(U);
   });
 });

@@ -170,6 +170,14 @@ export async function upgradeFridge(): Promise<unknown> {
 export async function plantCrop(plot: number, crop: string): Promise<unknown> {
   try { const r = await api.plantCrop(plot, crop); S.coins = r.coins; await refreshGarden(); return null; } catch (e) { return e; }
 }
+/** Nâng cấp một mảnh đất (thêm 3 ô). */
+export async function upgradeParcel(parcel: number): Promise<unknown> {
+  try { const r = await api.upgradeParcel(parcel); S.coins = r.coins; await refreshGarden(); return null; } catch (e) { return e; }
+}
+/** Mua thêm một mảnh đất mới (khi mảnh cuối đã đủ 9 ô). Trả về số thứ tự mảnh mới hoặc lỗi. */
+export async function buyParcel(): Promise<{ parcel: number } | { error: unknown }> {
+  try { const r = await api.buyParcel(); S.coins = r.coins; await refreshGarden(); return { parcel: r.parcel }; } catch (error) { return { error }; }
+}
 export async function waterCrop(plot: number): Promise<unknown> {
   try { await api.waterCrop(plot); await refreshGarden(); return null; } catch (e) { return e; }
 }

@@ -186,7 +186,13 @@ export const CROPS: Crop[] = [
   { id: 'chuoi', hours: 8, seed: 8, yield: 3 },
   { id: 'dua-hau', hours: 10, seed: 10, yield: 3 },
 ];
-export const GARDEN_PLOTS = 4;
+/** Nâng cấp một mảnh đất: 3 ô → 6 ô (300 xu) → 9 ô (600 xu). Giống public.upgrade_parcel(). */
+export const GARDEN_LAND = [{ plots: 3, price: 0 }, { plots: 6, price: 300 }, { plots: 9, price: 600 }] as const;
+/** Mua thêm mảnh đất khi mảnh cuối đã đủ 9 ô: mảnh thứ hai 1.000 xu, mảnh thứ ba 2.000 xu, tối đa 3 mảnh. Giống public.buy_parcel(). */
+export const PARCEL = { plots: 9, max: 3, prices: [0, 1000, 2000] } as const;
+/** Số thứ tự ô toàn cục = mảnh × 9 + ô trong mảnh. */
+export const plotIndex = (parcel: number, slot: number) => parcel * PARCEL.plots + slot;
+export const GARDEN_PLOTS = PARCEL.plots * PARCEL.max; // số ô tối đa (27)
 /** Tưới nước: mỗi lần rút ngắn `cut` tổng thời gian chín, tối đa `max` lần mỗi cây, hai lần tưới cách nhau ít nhất `gapMinutes`. */
 export const WATER = { max: 3, cut: 0.1, gapMinutes: 30 } as const;
 /** Giờ cây chín (ms). Giống private.plot_ready_at(). */

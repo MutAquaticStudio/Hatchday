@@ -21,7 +21,7 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
   display:flex;gap:10px;align-items:flex-start;justify-content:space-between;pointer-events:none}
 .top > *{pointer-events:auto}
-.lcd{display:flex;align-items:center;gap:10px;min-width:0;max-width:440px;background:var(--lcd);color:var(--lcd-ink);
+.lcd{display:flex;align-items:center;gap:10px;min-width:var(--lcd-min,112px);overflow:hidden;max-width:440px;background:var(--lcd);color:var(--lcd-ink);
   border:3px solid var(--lcd-edge);border-radius:18px 18px 18px 6px;padding:7px 14px 7px 10px;
   box-shadow:inset 0 0 0 2px rgba(255,255,255,.35),0 3px 0 var(--lcd-edge);font-weight:800;font-size:14px}
 .lcd .egg{width:22px;height:26px;flex:none;border-radius:50% 50% 46% 46%/58% 58% 42% 42%;background:#fff3c4;border:2px solid var(--lcd-edge)}
@@ -98,7 +98,8 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline
 .runner::before{left:6px;transform:rotate(-22deg)}
 .runner::after{right:6px;transform:rotate(22deg)}
 @keyframes wipe-run{from{transform:translateY(0) rotate(-7deg)}to{transform:translateY(-16px) rotate(7deg)}}
-.top-btns{display:flex;gap:8px;flex:none}
+.top-btns{display:flex;gap:8px;flex:0 1 auto;min-width:0}
+.top-btns .pill{flex:0 0 auto}
 .diary{top:calc(env(safe-area-inset-top,0px) + 66px);right:max(16px,env(safe-area-inset-right,0px));width:min(360px,calc(100% - 32px));max-height:min(62vh,520px);
   display:flex;flex-direction:column;overflow:hidden;background-color:#fffdf5}
 .diary .tabs{display:flex;gap:6px;padding:12px 14px 10px;border-bottom:2px dashed var(--candy-edge);flex:none}
@@ -124,6 +125,18 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline
 .hint.gone{opacity:0}
 #err{position:absolute;inset:0;display:grid;place-items:center;padding:24px;text-align:center;font-weight:800;background:#ffe9f2}
 @media (max-width:480px){.act{min-width:52px;padding:6px 4px 4px;font-size:12px}.lcd{font-size:13px}.hint{font-size:12px}}
+/* Màn hình hẹp: nhường chỗ để đồng hồ không bị nút xu đè lên (đồng hồ có bề rộng tối thiểu, ẩn quả trứng nhỏ, thu gọn nút) */
+@media (max-width:430px){
+  .top{gap:6px}.top-btns{gap:6px}
+  .top-btns .pill{padding:8px 11px;font-size:13px}
+  .pill.coins{gap:4px}.pill.coins svg{width:18px;height:18px}
+  .lcd{--lcd-min:70px;padding:7px 10px;gap:6px}.lcd .egg{display:none}
+}
+@media (max-width:360px){
+  .top{padding-left:max(8px,env(safe-area-inset-left,0px));padding-right:max(8px,env(safe-area-inset-right,0px))}
+  .top-btns .pill{padding:8px 9px;font-size:12.5px}
+  .lcd{--lcd-min:64px;padding:7px 8px}
+}
 @media (prefers-reduced-motion:reduce){.drag-ghost.fly{transition:none}#sky,#dim{transition:none}#wipe.in,#wipe.out{transition:none}.runner{animation:none}}
 
 /* ===== Polish UX/UI (skill game-ui-ux + game-feel) ===== */
@@ -353,3 +366,23 @@ body.editing .top,body.editing .scene-tag,body.editing .bottom,body.editing #hin
 .pm-crop svg{width:34px;height:34px}.pm-crop small{font-size:10.5px;color:var(--ink-soft);font-weight:700}
 .pm-crop:disabled{opacity:.45}
 @media (prefers-reduced-motion:reduce){.plot-menu{animation:none}}
+
+/* Cảm ứng: vùng chạm tối thiểu 40px cho nút bấm */
+@media (pointer:coarse){
+  .pill,.chip,.qbtn,.tab,.btn-sm,.ctx-btn{min-height:40px}
+  .btn-sm{padding:8px 16px}
+  .pill{padding-top:9px;padding-bottom:9px}
+  .chip{padding:8px 14px}
+}
+
+/* Thanh chọn mảnh đất trong vườn */
+.parcel-bar{position:absolute;z-index:24;left:max(16px,env(safe-area-inset-left,0px));top:calc(env(safe-area-inset-top,0px) + 148px);display:flex;flex-direction:column;align-items:flex-start;gap:6px}
+.parcel-bar .chip{font-size:12.5px;padding:5px 12px}
+.parcel-bar .chip.buy{background:#fff1b8;border-color:#e8b34a}
+.parcel-bar .chip:disabled{opacity:.5}
+
+/* Thanh chọn mảnh đất trong vườn */
+.parcel-bar{position:absolute;z-index:24;left:max(16px,env(safe-area-inset-left,0px));top:calc(env(safe-area-inset-top,0px) + 148px);display:flex;flex-direction:column;align-items:flex-start;gap:6px}
+.parcel-bar .chip{font-size:12.5px;padding:5px 12px}
+.parcel-bar .chip.buy{background:#fff1b8;border-color:#e8b34a}
+.parcel-bar .chip:disabled{opacity:.5}

@@ -1,5 +1,5 @@
 // Nhà của bé: bố cục phòng, chế độ trang trí, cửa hàng, tủ đồ, nhiệm vụ ngày (theo GDD).
-import { BY_ID, DEFAULT_LAYOUT, FOOD_BY_ID, FOOD_GROUPS, FOOD_STOCK, FOODS, FRIDGE, GARDEN_PLOTS, GRID, ITEMS, PAID_SHOP_ENABLED, PET_ZONE, RARITY, RECIPES, SET_LINES, SLOTS, TAGS, THEMES, WINDOW_CELLS } from './catalog';
+import { BY_ID, DEFAULT_LAYOUT, FOOD_BY_ID, FOOD_GROUPS, FOOD_STOCK, FOODS, FRIDGE, GRID, ITEMS, PAID_SHOP_ENABLED, PET_ZONE, RARITY, RECIPES, SET_LINES, SLOTS, TAGS, THEMES, WINDOW_CELLS } from './catalog';
 import { BALANCED_BONUS, BALANCED_GROUPS, tastesLine } from './nutrition';
 import { FOOD_SVG } from './food.js';
 import { activeSets, buyable, canPlace, cellsOf, comfortLevel, comfortScore, footprint, placedCount, QUEST_BONUS, QUEST_POOL, WEEKLY_POOL } from './layout';
@@ -119,7 +119,7 @@ export function initHome(ctx) {
       <button type="button" class="tile" data-go="shop"><b>Cửa hàng</b><span>Thức ăn, đồ trang trí, trang phục</span></button>
       <button type="button" class="tile" data-go="wardrobe"><b>Tủ đồ</b><span>Trang phục cho bé</span></button>
       <button type="button" class="tile${questReady() ? ' ready' : ''}" data-go="quests"><b>Nhiệm vụ</b><span>${S.quests.filter(q => q.claimed).length}/${S.quests.length} hôm nay · ${S.weekly.filter(q => q.claimed).length}/${S.weekly.length} tuần này</span></button>
-      <button type="button" class="tile${S.garden?.plots.some(p => p.ready) ? ' ready' : ''}" data-go="garden"><b>Vườn rau</b><span>${S.garden ? `Ra vườn · ${S.garden.plots.length}/${GARDEN_PLOTS} ô đang trồng` : 'Ra vườn trồng rau'}</span></button>
+      <button type="button" class="tile${S.garden?.plots.some(p => p.ready) ? ' ready' : ''}" data-go="garden"><b>Vườn rau</b><span>${S.garden ? `Ra vườn · ${S.garden.plots.length}/${S.garden.parcels.reduce((n, p) => n + p.size, 0)} ô đang trồng` : 'Ra vườn trồng rau'}</span></button>
       <button type="button" class="tile" data-go="cooking"><b>Nấu ăn</b><span>${RECIPES.length} công thức</span></button>
       <button type="button" class="tile" data-go="family"><b>Gia phả</b><span>${S.lineage.length > 1 ? `${S.lineage.length} đời của ${esc(S.family)}` : `Đời ${S.generation} của ${esc(S.family)}`}</span></button>
       <button type="button" class="tile" data-go="dex"><b>Sổ loài</b><span>Đã gặp ${S.seen.length}/${SPECIES.length} loài</span></button></div>`;

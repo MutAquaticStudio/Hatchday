@@ -28,6 +28,7 @@ npm test                       # luật chơi + toàn bộ migration/RPC trên P
 npm run build                  # typecheck + build
 node scripts/smoke.mjs         # chạy thật trên trình duyệt: ăn, nói chuyện, tắm, ngủ, lớn lên… (cần Playwright)
 node scripts/fit-check.mjs     # chỉ khi đụng thú hoặc đồ mặc (cần Playwright)
+node scripts/mobile-check.mjs  # khi đụng giao diện hoặc điều khiển: giả lập điện thoại cảm ứng (cần Playwright)
 ```
 
 Hai script trình duyệt cần `npm run build` trước và Playwright (`npm i --no-save playwright` rồi `npx playwright install chromium`). Tuỳ máy mà chạy chậm, đừng đo FPS bằng chúng.

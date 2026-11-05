@@ -3,7 +3,7 @@
  * Mô phỏng đúng luật của các RPC trong supabase/migrations (để xem trước, không dùng cho bản chính thức).
  */
 import { clamp, decayStats, localDay } from '../game/rules';
-import { BY_ID, CROPS, readyAtMs, WATER, DEFAULT_LAYOUT, EDIBLES, FOOD_BY_ID, FOOD_STOCK, FOODS, FRIDGE, GARDEN_PLOTS, ITEMS, RECIPES, spoilLoss, STARTER_ITEMS, type Layout } from '../game/catalog';
+import { BY_ID, CROPS, readyAtMs, WATER, DEFAULT_LAYOUT, EDIBLES, FOOD_BY_ID, FOOD_STOCK, FOODS, FRIDGE, GARDEN_LAND, GARDEN_PLOTS, PARCEL, ITEMS, RECIPES, spoilLoss, STARTER_ITEMS, type Layout } from '../game/catalog';
 import { BALANCED_BONUS, isBalanced } from '../game/nutrition';
 import { buyable, COIN, comfortLevel, comfortScore, dayNumber, QUEST_BONUS, QUEST_POOL, questsForDay, rotationForDay, isWeekend, weekStart, WEEKLY_POOL, weeklyForDay } from '../game/layout';
 import type { ActionResult, DayLogRow, Economy, Garden, MemoryRow, Outfit, PetAction, PetRow, QuestBoard, QuestRow, SeenRow, Tastes } from './types';
@@ -21,7 +21,8 @@ interface DB {
   /** Gia phả: các bé đã ra đi (cũ trước) và ký ức của họ. Ở bản thử, nhật ký ngày và nhiệm vụ tuần tính lại từ đầu cho bé đời sau. */
   family?: PetRow[]; oldMem?: Record<string, MemoryRow[]>;
   /** Tủ lạnh (cấp 0–2), ngày đã tính thức ăn hỏng lần cuối, vườn rau (ô → cây và giờ gieo). */
-  fridge?: number; spoilDay?: string; garden?: Record<string, { crop: string; planted_at: string; waters?: number; watered_at?: string }>;
+  /** Mức nâng cấp của từng mảnh đất (0–2), mảnh đầu có sẵn. */
+  parcels?: number[]; fridge?: number; spoilDay?: string; garden?: Record<string, { crop: string; planted_at: string; waters?: number; watered_at?: string }>;
 }
 
 function load(): DB {
@@ -300,14 +301,32 @@ export async function getGarden(): Promise<Garden> {
     return { plot: +k, crop: g.crop, planted_at: g.planted_at, ready_at: new Date(ready).toISOString(), ready: now >= ready,
       waters, watered_at: g.watered_at || null, can_water: waters < WATER.max && now < ready && gapOk };
   }).sort((a, b) => a.plot - b.plot);
-  return { now: new Date(now).toISOString(), plots };
+  const parcels = (db.parcels || [0]).map((level, parcel) => ({ parcel, level, size: GARDEN_LAND[level].plots }));
+  return { now: new Date(now).toISOString(), parcels, plots };
 }
 export async function plantCrop(plot: number, crop: string) {
   const db = load(); if (!(plot >= 0 && plot < GARDEN_PLOTS)) throw new Error('invalid_plot');
+  const lvl = (db.parcels || [0])[Math.floor(plot / PARCEL.plots)];
+  if (lvl === undefined || plot % PARCEL.plots >= GARDEN_LAND[lvl].plots) throw new Error('plot_locked');
   const c = CROPS.find(x => x.id === crop); if (!c) throw new Error('unknown_crop');
   if (db.garden?.[plot]) throw new Error('plot_busy');
   if (db.coins < c.seed) throw new Error('not_enough_coins');
   db.coins -= c.seed; (db.garden ||= {})[plot] = { crop, planted_at: new Date().toISOString() }; store(db); return { coins: db.coins };
+}
+export async function upgradeParcel(parcel: number) {
+  const db = load(), levels = db.parcels || [0]; if (!(parcel in levels)) throw new Error('plot_locked');
+  const lvl = levels[parcel]; if (lvl >= GARDEN_LAND.length - 1) throw new Error('max_land');
+  const cost = GARDEN_LAND[lvl + 1].price; if (db.coins < cost) throw new Error('not_enough_coins');
+  db.coins -= cost; levels[parcel] = lvl + 1; db.parcels = levels; store(db);
+  return { coins: db.coins, parcel, level: lvl + 1, size: GARDEN_LAND[lvl + 1].plots };
+}
+export async function buyParcel() {
+  const db = load(), levels = db.parcels || [0], n = levels.length;
+  if (n >= PARCEL.max) throw new Error('max_parcels');
+  if (levels[n - 1] < GARDEN_LAND.length - 1) throw new Error('parcel_not_full');
+  const cost = PARCEL.prices[n]; if (db.coins < cost) throw new Error('not_enough_coins');
+  db.coins -= cost; levels.push(0); db.parcels = levels; store(db);
+  return { coins: db.coins, parcel: n };
 }
 export async function waterCrop(plot: number) {
   const db = load(), g = db.garden?.[plot]; if (!g) throw new Error('plot_empty');
