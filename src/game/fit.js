@@ -167,6 +167,10 @@ export function makeFitter(THREE) {
     else if (item.slot === 'neck') fitNeck(outer, inner, sk, item.id);
     else if (item.slot === 'back') fitBack(outer, inner, sk, item.id);
     outer.userData.fit = res;
+    // Còn lún vào đầu thì nâng lên đúng phần lún (tối đa hai lần), để không có món nào cắm vào đầu
+    if ((item.slot === 'head' && !WRAP[item.id]) || item.slot === 'face') {
+      for (let i = 0; i < 2; i++) { const r = check(outer, item, sk); if (r.sink <= 0.012) break; outer.position.y += r.sink + 0.004; }
+    }
     return outer;
   }
 

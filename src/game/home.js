@@ -737,14 +737,14 @@ export function initHome(ctx) {
     return { neck: parts.sockets.neck, head: parts.sockets.head, body: parts.sockets.body, kinds: parts.sockets.keepOut.map(k => k.kind + ':' + k.r.toFixed(2) + '@' + k.c.map(x => x.toFixed(2)).join(',')), fit: o.userData.fit, check: fitter.check(o, it, parts.sockets) };
   };
   if (/[?&]fitcheck\b/.test(location.search)) window.__thumb = thumb;
-  if (/[?&]fitcheck\b/.test(location.search)) window.__fitCheck = () => {
+  if (/[?&]fitcheck\b/.test(location.search)) window.__fitCheck = (kt = 0.02, st = 0.03) => {
     const outfits = ITEMS.filter(i => i.kind === 'outfit'), bad = []; let n = 0;
     const looks = [['baby', null], ['child', null], ['teen', null], ['adult', 'tron'], ['adult', 'nhanh'], ['adult', 'thuong']];
     for (const sp of SPECIES) for (const [stage, form] of looks) {
       const g = new THREE.Group(), parts = ctx.petBuilder.build(g, { species: sp.id, stage, form, genes: {} });
       for (const it of outfits) {
         const o = fitter.fit(D.buildOutfit(it.id), it, parts.sockets), r = fitter.check(o, it, parts.sockets); n++;
-        if (r.keepOut > 0.04 || r.sink > 0.06) bad.push({ sp: sp.id, stage, form, item: it.id, keepOut: +r.keepOut.toFixed(3), sink: +r.sink.toFixed(3), place: o.userData.fit?.t });
+        if (r.keepOut > kt || r.sink > st) bad.push({ sp: sp.id, stage, form, item: it.id, keepOut: +r.keepOut.toFixed(3), sink: +r.sink.toFixed(3), place: o.userData.fit?.t });
       }
       disposePet(g);
     }

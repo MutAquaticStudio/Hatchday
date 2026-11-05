@@ -171,6 +171,21 @@ const out = []; const ok = (n, c, x = '') => { out.push((c ? 'OK  ' : 'FAIL') + 
   ok('chạm Quầy thuốc bằng ngón tay: thú đi tới rồi mở Sổ sức khoẻ', await until(() => p.isVisible('#clinic'), 15000));
   await tap('.hsheet:not([hidden]) [data-close]'); await p.waitForTimeout(300);
 
+  // ---- không tràn ngang ở các cỡ màn hình hẹp, mọi bảng của menu Nhà ----
+  for (const w of [320, 360, 390, 430]) {
+    await p.setViewportSize({ width: w, height: 700 }); await p.waitForTimeout(300);
+    const bad = [];
+    for (const id of ['map', 'clinic', 'shop', 'wardrobe', 'quests', 'family', 'dex', 'cooking']) {
+      await p.evaluate(() => { const h = document.getElementById('house'); if (!h || h.hidden) document.getElementById('a-house').click(); }); await p.waitForTimeout(250);
+      await p.evaluate(g => document.querySelector(`.tile[data-go="${g}"]`).click(), id); await p.waitForTimeout(350);
+      const m = await p.evaluate(sid => { const el = document.getElementById(sid); return el && !el.hidden ? { sw: el.scrollWidth, cw: el.clientWidth, doc: document.documentElement.scrollWidth <= innerWidth + 1 } : null; }, id);
+      if (!m || m.sw > m.cw + 1 || !m.doc) bad.push(id + ':' + JSON.stringify(m));
+      await p.evaluate(() => document.querySelector('.hsheet:not([hidden]) [data-close]')?.click()); await p.waitForTimeout(150);
+    }
+    ok(`không tràn ngang ở ${w}px: Bản đồ, Sức khoẻ, Cửa hàng, Tủ đồ, Nhiệm vụ, Gia phả, Sổ loài, Nấu ăn`, bad.length === 0, bad.join(' '));
+  }
+  await p.setViewportSize({ width: 390, height: 664 });
+
   console.log(out.join('\n')); console.log('errors:', JSON.stringify(errs));
   await b.close(); srv.close(); process.exitCode = (out.some(l => l.startsWith('FAIL')) || errs.length) ? 1 : 0;
 })().catch(e => { console.log(out.join('\n')); console.error(e); srv.close(); process.exit(1); });

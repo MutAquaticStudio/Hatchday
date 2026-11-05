@@ -10,7 +10,7 @@ Bản chơi thử (chế độ demo, dữ liệu lưu trong trình duyệt): htt
 | Mục | Trạng thái |
 | --- | --- |
 | Tài khoản (đăng nhập, đăng ký, quên/đặt lại mật khẩu) | Xong, đã thử với Supabase giả lập |
-| Thú: 4 chỉ số, biểu cảm, hành vi rảnh, chuyển cảnh ăn/tắm/chơi/ngủ | Xong |
+| Thú: 4 chỉ số, hành vi rảnh, chuyển cảnh ăn/tắm/chơi/ngủ. **Biểu cảm tự suy ra** (không có nút chọn) từ chỉ số, giờ khuya/sáng sớm, nơi đang ở, cá tính, Gắn bó, lần chăm cuối và số lần chơi gần đây (`deriveExpression` + `EXPR_RULES` trong `rules.ts`, có test) | Xong |
 | Nhật ký ngày, Ký ức | Xong (nhật ký ghép tự động, chưa dùng AI) |
 | Trang trí phòng, tủ đồ, cửa hàng bằng xu, sổ sưu tập | Xong |
 | Thức ăn: 12 món, 5 nhóm dinh dưỡng, kho (mua bằng xu, ăn là hết một phần), suất ăn miễn phí mỗi ngày, ăn cân bằng | Xong |
@@ -47,7 +47,7 @@ node scripts/fit-check.mjs  # sau build: thử 3.900 tổ hợp loài × dáng �
 node scripts/mobile-check.mjs # sau build: giả lập iPhone với sự kiện chạm và kéo thật
 ```
 
-- `?dev` trên URL: bảng duyệt biểu cảm, tua nhanh thời gian, và `window.__petXY()` (vị trí thú trên màn hình, để script kiểm tra nhắm cú vuốt).
+- `?dev` trên URL: tua nhanh thời gian, `window.__expr(khoá)` (ép một biểu cảm để kiểm thử) và `window.__petXY()` (vị trí thú trên màn hình, để script kiểm tra nhắm cú vuốt).
 - `?fitcheck` chỉ để script kiểm tra đồ mặc dùng (mở `window.__fitCheck`, `window.__thumb`).
 - Chế độ Chơi thử có nút **Tua 1 ngày** trong bảng Chỉ số để xem lớn lên và tiến hoá.
 - Playwright dùng swiftshader nên FPS đo trong headless không có ý nghĩa.

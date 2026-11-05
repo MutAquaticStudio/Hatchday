@@ -171,6 +171,11 @@ ok('có thông báo thức ăn bị hỏng',(await p.textContent('#toast').catch
 // sức khoẻ: bỏ bê 30 phút → ốm → mua thuốc → cho uống → khỏi; chặn chơi khi ốm; phòng khám; cảnh báo sắp ốm
 const setDemo=(fn)=>p.evaluate((f)=>{const d=JSON.parse(localStorage.getItem('hatchday-demo'));new Function('d',f)(d);localStorage.setItem('hatchday-demo',JSON.stringify(d));},fn);
 const reload=async()=>{await p.goto(`http://localhost:${PORT}/?dev`);await p.waitForTimeout(800);await p.click('#demo');await p.waitForTimeout(2200);};
+// biểu cảm tự suy ra từ chỉ số, không còn nút chọn
+ok('không còn nút/hàng chọn biểu cảm',!(await p.$('#chips'))&&!(await p.$('.review'))&&!(await p.textContent('body')).includes('Duyệt biểu cảm'));
+await setDemo("d.pet.no=20;d.pet.illness=null;d.pet.critical_since=null;d.pet.stats_at=new Date().toISOString();");
+await reload();
+ok('đói (no=20) → thanh LCD tự báo "hơi đói"',(await p.textContent('#lcdmsg')).includes('hơi đói'),await p.textContent('#lcdmsg'));
 await setDemo("d.coins=1000;d.pet.no=0;d.pet.stats_at=new Date().toISOString();d.pet.critical_since=new Date(Date.now()-31*60000).toISOString();d.pet.illness=null;");
 await reload();
 dm=await demo();

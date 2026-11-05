@@ -31,6 +31,40 @@ describe('deriveExpression', () => {
     expect(deriveExpression({ ...base, vui: 10 })).toBe('sad');
     expect(deriveExpression(base)).toBe('vui');
   });
+  it('không có ngữ cảnh thì giữ hành vi cũ', () => {
+    expect(deriveExpression({ ...base, vui: 95 })).toBe('vui');
+  });
+  it('khuya mà còn thức và hơi mệt thì buồn ngủ; ban ngày thì không', () => {
+    const s = { ...base, nl: 50 };
+    expect(deriveExpression(s, { hour: 23 })).toBe('sleepy');
+    expect(deriveExpression(s, { hour: 2 })).toBe('sleepy');
+    expect(deriveExpression(s, { hour: 14 })).toBe('vui');
+    expect(deriveExpression({ ...base, nl: 65 }, { hour: 7 })).toBe('sleepy');
+    expect(deriveExpression({ ...base, nl: 90 }, { hour: 7 })).toBe('vui');
+  });
+  it('bị bỏ rơi lâu: bé hiếu động dỗi, bé trầm buồn; chăm thường xuyên thì không', () => {
+    const s = { ...base, vui: 60 };
+    const lau = 61 * 60000;
+    expect(deriveExpression(s, { hour: 14, sinceCareMs: lau, energy: 20 })).toBe('sulky');
+    expect(deriveExpression(s, { hour: 14, sinceCareMs: lau, energy: -20 })).toBe('sad');
+    expect(deriveExpression(s, { hour: 14, sinceCareMs: 5 * 60000, energy: 20 })).toBe('vui');
+    // bé quấn người chịu được ít hơn
+    expect(deriveExpression(s, { hour: 14, sinceCareMs: 31 * 60000, affection: 30, energy: 20 })).toBe('sulky');
+    expect(deriveExpression(s, { hour: 14, sinceCareMs: 31 * 60000, affection: 0, energy: 20 })).toBe('vui');
+  });
+  it('âu yếm khi gắn bó cao, đang vui và vừa được chăm', () => {
+    expect(deriveExpression({ ...base, vui: 90 }, { hour: 14, bondLevel: 5, sinceCareMs: 30000 })).toBe('love');
+    expect(deriveExpression({ ...base, vui: 90 }, { hour: 14, bondLevel: 3, sinceCareMs: 30000 })).toBe('vui');
+    expect(deriveExpression({ ...base, vui: 90 }, { hour: 14, bondLevel: 5, sinceCareMs: 600000 })).not.toBe('love');
+  });
+  it('phấn khích ở nơi ngoài trời hoặc khi vừa chơi nhiều', () => {
+    const s = { ...base, vui: 90 };
+    expect(deriveExpression(s, { hour: 14, area: 'park' })).toBe('excited');
+    expect(deriveExpression(s, { hour: 14, area: 'home' })).toBe('vui');
+    expect(deriveExpression(s, { hour: 14, area: 'home', energy: 30 })).toBe('excited');
+    expect(deriveExpression({ ...base, vui: 72 }, { hour: 14, area: 'home', playsRecent: 2 })).toBe('excited');
+    expect(deriveExpression({ ...s, nl: 40 }, { hour: 14, area: 'park' })).not.toBe('excited');
+  });
 });
 
 describe('writeDiary', () => {

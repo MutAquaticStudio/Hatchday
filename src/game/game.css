@@ -58,10 +58,6 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
   display:flex;flex-direction:column;align-items:center;gap:10px;pointer-events:none}
 .bottom > *{pointer-events:auto}
-.review{width:100%;max-width:640px;display:flex;align-items:center;gap:8px;min-width:0}
-.review-label{flex:none;font-size:12px;font-weight:800;color:var(--ink);background:rgba(255,255,255,.75);border-radius:999px;padding:4px 10px}
-.chips{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;min-width:0;padding:2px}
-.chips::-webkit-scrollbar{display:none}
 .chip{flex:none;border:2px solid var(--candy-edge);background:rgba(255,255,255,.85);border-radius:999px;padding:4px 11px;font-size:13px;font-weight:800}
 .chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent-deep);color:#fff}
 

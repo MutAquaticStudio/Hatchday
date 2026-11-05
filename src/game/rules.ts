@@ -32,14 +32,42 @@ export function decayStats<T extends Stats>(s: T, mins: number, comfort = 1): T 
 
 export type ExprKey = 'vui' | 'excited' | 'hungry' | 'sleepy' | 'sleep' | 'sick' | 'sulky' | 'sad' | 'love' | 'chew' | 'yawn';
 
-/** Biểu cảm mặc định suy ra từ chỉ số (khi không có biểu cảm tạm thời). */
-export function deriveExpression(s: Stats): ExprKey {
+/** Ngữ cảnh để suy ra biểu cảm (đều tuỳ chọn): giờ địa phương, nơi đang ở, cá tính, Gắn bó, và việc chăm gần đây. */
+export interface ExprContext {
+  hour?: number; area?: string;
+  /** Trục cá tính −50..50. */
+  energy?: number; affection?: number;
+  bondLevel?: number;
+  /** Số mili giây từ lần chăm cuối (vuốt ve, cho ăn, tắm, chơi, nói chuyện) trong lúc đang mở game. */
+  sinceCareMs?: number;
+  /** Số lần chơi đồ chơi trong 30 phút gần đây. */
+  playsRecent?: number;
+}
+/** Nơi ngoài trời, rộng rãi: bé dễ phấn khích. */
+export const LIVELY_AREAS = ['garden', 'market', 'plaza', 'park'];
+export const EXPR_RULES = { neglectMin: 60, neglectNeedyMin: 30, lateFrom: 23, lateTo: 5, morningTo: 8 } as const;
+
+/**
+ * Biểu cảm mặc định của bé, tự suy ra (không cần bấm). Thứ tự ưu tiên:
+ * 1. Cần thiết: ngủ, ốm hoặc bẩn, đói (kèm buồn thì dỗi), buồn ngủ, buồn.
+ * 2. Ngữ cảnh khi bé ổn: khuya mà còn thức thì buồn ngủ; sáng sớm chưa tỉnh hẳn thì buồn ngủ; bị bỏ rơi lâu thì dỗi (bé hiếu động) hoặc buồn;
+ *    gắn bó cao, đang vui, vừa được chăm thì âu yếm; ở nơi ngoài trời hoặc vừa chơi nhiều hoặc hiếu động thì phấn khích.
+ * 3. Còn lại: vui.
+ */
+export function deriveExpression(s: Stats, c: ExprContext = {}): ExprKey {
   if (s.asleep) return 'sleep';
   if (s.illness || s.sach < 20) return 'sick';
   if (s.no < 30 && s.vui < 40) return 'sulky';
   if (s.no < 30) return 'hungry';
   if (s.nl < 22) return 'sleepy';
   if (s.vui < 28) return 'sad';
+  const h = c.hour, R = EXPR_RULES;
+  if (h !== undefined && (h >= R.lateFrom || h < R.lateTo) && s.nl < 55) return 'sleepy';
+  if (h !== undefined && h >= R.lateTo && h < R.morningTo && s.nl < 70) return 'sleepy';
+  const since = c.sinceCareMs;
+  if (since !== undefined && s.vui < 65 && since > ((c.affection ?? 0) > 20 ? R.neglectNeedyMin : R.neglectMin) * 60000) return (c.energy ?? 0) > 0 ? 'sulky' : 'sad';
+  if ((c.bondLevel ?? 1) >= 5 && s.vui >= 80 && since !== undefined && since < 120000) return 'love';
+  if (s.nl >= 50 && ((s.vui >= 85 && (LIVELY_AREAS.includes(c.area ?? '') || (c.energy ?? 0) >= 15)) || ((c.playsRecent ?? 0) >= 2 && s.vui >= 70))) return 'excited';
   return 'vui';
 }
 

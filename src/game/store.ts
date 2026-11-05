@@ -39,6 +39,8 @@ export interface PetState {
   bondXp: number; bondClaims: number[];
   /** Xu đã bán nông sản hôm nay ở Chợ (trần mỗi ngày). */
   soldToday: number;
+  /** Lần chăm cuối và các lần chơi gần đây (ms), chỉ để suy ra biểu cảm. */
+  lastCare: number; plays: number[];
 }
 
 export const S: PetState = {
@@ -50,7 +52,7 @@ export const S: PetState = {
   weekly: [], questBonus: { reward: 0, ready: false, claimed: false }, rationDay: '', groupLog: [], lineage: [],
   fridge: 0, garden: null, tastes: { fav: null, dis: null, tried: 0, total: 0 }, farm: [],
   illness: null, sickSince: null, criticalSince: null, recoverAt: null,
-  bondXp: 0, bondClaims: [], soldToday: 0,
+  bondXp: 0, bondClaims: [], soldToday: 0, lastCare: Date.now(), plays: [],
 };
 /** Bố cục đang dùng (luôn có giá trị). */
 export const activeLayout = (): Layout => S.layouts[S.activeLayout] || S.layouts[0] || DEFAULT_LAYOUT;
@@ -286,6 +288,7 @@ const scheduleMemRefresh = () => { clearTimeout(memTimer); memTimer = window.set
 
 /** Gửi một hành động. Trả về kết quả server (hoặc null nếu lỗi mạng — client giữ bản dự đoán). */
 export async function act(action: PetAction, item?: string, count = 1): Promise<ActionResult | null> {
+  S.lastCare = Date.now(); if (action.startsWith('play_')) S.plays = [...S.plays.filter(t => S.lastCare - t < 1800000), S.lastCare];
   try {
     const r = await api.petAction(action, item, count);
     applyRow(r.pet);
@@ -309,6 +312,7 @@ const batch: Partial<Record<PetAction, number>> = {};
 let batchTimer = 0;
 /** Gộp các hành động lặp nhanh (vuốt ve, kỳ cọ) rồi gửi theo lô. */
 export function actBatched(action: 'pet' | 'bath_scrub'): void {
+  S.lastCare = Date.now();
   batch[action] = (batch[action] || 0) + 1;
   if (batchTimer) return;
   batchTimer = window.setTimeout(flushBatch, 2000);

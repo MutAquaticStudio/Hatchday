@@ -8,7 +8,7 @@ import { HEALTH, ILLNESS_BY_ID, isSevere, minutesToSick, STAT_NOUN } from './hea
 import { blockedNow, minutesVi } from './clinic.js';
 import { initHome } from './home.js';
 import { viError } from '../lib/errors';
-import { decayStats, localDay } from './rules';
+import { decayStats, deriveExpression, localDay } from './rules';
 import { makePetBuilder, disposePet } from './pet3d.js';
 import { makeFace } from './face.js';
 import { dayRec, count, renderDiary, initDiary } from './diary.js';
@@ -490,14 +490,12 @@ function applyPeriod() {
 
 /* ---------------- biểu cảm hiện tại ---------------- */
 let override = null, temp = null;
+/* Biểu cảm tự suy ra từ chỉ số và ngữ cảnh (luật ở rules.ts: deriveExpression), không có nút chọn */
+let hourNow = new Date().getHours();
 function derived() {
-  if (S.asleep) return 'sleep';
-  if (S.illness || S.sach < 20) return 'sick';
-  if (S.no < 30 && S.vui < 40) return 'sulky';
-  if (S.no < 30) return 'hungry';
-  if (S.nl < 22) return 'sleepy';
-  if (S.vui < 28) return 'sad';
-  return 'vui';
+  const now = Date.now();
+  return deriveExpression(S, { hour: hourNow, area, energy: S.personality.energy, affection: S.personality.affection, bondLevel: bondLevel(S.bondXp),
+    sinceCareMs: now - S.lastCare, playsRecent: S.plays.filter(t => now - t < 1800000).length });
 }
 function setTemp(key, ms) { temp = { key, until: performance.now() + ms }; }
 function current(now) { if (override) return override; if (temp && now < temp.until) return temp.key; temp = null; return derived(); }
@@ -586,16 +584,6 @@ $('ctx').addEventListener('click', e => {
 /* Nhạc nền: lúc ngủ > ban đêm > theo khu vực */
 function updateMusic() { music(S.asleep ? 'sleep' : period === 'dem' ? 'night' : area); }
 function applySleep() { updateMusic(); $('dim').classList.toggle('on', S.asleep); $('sleep-label').textContent = S.asleep ? 'Thức dậy' : 'Ngủ'; $('a-sleep').setAttribute('aria-pressed', String(S.asleep)); }
-
-/* ---------------- duyệt biểu cảm ---------------- */
-const chipKeys = [['auto', 'Tự động'], ...['vui', 'excited', 'hungry', 'sleepy', 'sleep', 'sick', 'sulky', 'sad', 'love'].map(k => [k, EXPR[k].label])];
-$('chips').innerHTML = chipKeys.map(([k, l]) => `<button class="chip" type="button" data-k="${k}" aria-pressed="${k === 'auto'}">${l}</button>`).join('');
-$('chips').addEventListener('click', e => {
-  const b = e.target.closest('.chip'); if (!b) return;
-  override = b.dataset.k === 'auto' ? null : b.dataset.k;
-  [...$('chips').children].forEach(c => c.setAttribute('aria-pressed', String(c === b)));
-  hideHint();
-});
 
 /* ---------------- bảng chỉ số ---------------- */
 const STAT = [['no', 'No', '#ffb35c'], ['vui', 'Vui', '#ff6fa8'], ['nl', 'Năng lượng', '#8f7cff'], ['sach', 'Sạch sẽ', '#4fc3f7']];
@@ -934,7 +922,7 @@ dayRec();
 const growth = initGrowth({ evoGlow, reduce, buildLook, cancelMotion: () => { action = null; wander = null; anim = null; }, say, setTemp, spawn, impulse, addTrauma, toast, popText, buzz, getHome: () => home });
 onSync(() => { gardenFx.sync(); if (placeInst[area] && placeInst[area].sync) placeInst[area].sync(); renderStats(); applySleep(); updateHealth(performance.now()); if (!$('diary').hidden) renderDiary(); if (!growth.isEvolving()) buildLook(); if (!$('stats').hidden) growth.renderSpecies(); });
 startPeriodicSync();
-if (new URLSearchParams(location.search).has('dev')) { document.querySelector('.review').hidden = false; const f = $('fast'); if (f) f.closest('label').hidden = false; }
+if (new URLSearchParams(location.search).has('dev')) { const f = $('fast'); if (f) f.closest('label').hidden = false; window.__expr = k => { override = k || null; }; } // chỉ để kiểm thử: ép một biểu cảm
 const DEV = new URLSearchParams(location.search).has('dev'), devhud = $('devhud');
 if (DEV) devhud.hidden = false;
 let blinkAt = performance.now() + 2500, blinkUntil = 0, fxAt = 0, saveAt = 0, clockAt = 0, lastKey = '', fpsN = 0, fpsAt = 0;
@@ -945,7 +933,7 @@ function tick(now, dt) {
   /* chỉ số theo thời gian */
   decay(S, (dt / 60) * ($('fast')?.checked ? 60 : 1));
   if (now > saveAt) { saveAt = now + 5000; save(); if (!$('stats').hidden) renderStats(); }
-  if (now > clockAt) { clockAt = now + 1000; const d = new Date(); $('clock').textContent = d.toTimeString().slice(0, 5); applyPeriod(); updateNeeds(); }
+  if (now > clockAt) { clockAt = now + 1000; const d = new Date(); hourNow = d.getHours(); $('clock').textContent = d.toTimeString().slice(0, 5); applyPeriod(); updateNeeds(); }
   const key = current(now), e = EXPR[key];
   if (key !== lastKey) { if (lastKey) impulse(-1.3); lastKey = key; }
   $('lcdmsg').textContent = S.illness && key === 'sick' ? `${S.name} bị ${ILLNESS_BY_ID[S.illness].name.toLowerCase()}` : `${S.name} ${e.msg}`;
