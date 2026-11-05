@@ -5,13 +5,21 @@
 ## Quy trình
 
 1. Chọn một việc trong mục "Việc chưa làm" của HANDOFF, báo lại để người khác không làm trùng.
-2. Tạo nhánh từ `main`: `feat/<ten>` hoặc `fix/<ten>` (ví dụ `feat/lifecycle`, `feat/audio`).
+2. Tạo nhánh từ `main`, tên có **tên người làm** để biết nhánh của ai: `feat/<nguoi>/<viec>` hoặc `fix/<nguoi>/<viec>` (ví dụ `feat/an/audio`, `feat/binh/lifecycle`). Mỗi nhánh chỉ một người đẩy lên.
 3. Làm, chạy kiểm tra (bên dưới), commit nhỏ và rõ.
 4. **Trước khi mở PR: rebase lên `main` mới nhất** (`git fetch && git rebase origin/main`) rồi chạy lại kiểm tra.
 5. Mở Pull Request vào `main`. CI phải xanh. Không đẩy thẳng `main`.
 6. Gộp từng PR một. PR nào có migration thì gộp xong mới gộp PR migration tiếp theo.
 
 Mỗi người đặt `git config user.name` và `user.email` của riêng mình.
+
+### Khi nhiều người dùng chung một tài khoản GitHub
+
+- Nhánh khác nhau thì làm song song bình thường, không cần mời thêm ai vào repo.
+- Vì PR đều do cùng một tài khoản mở, GitHub không cho tài khoản tự duyệt PR của chính nó. Khi bật bảo vệ `main`, chọn **bắt buộc PR + CI xanh, nhưng để số người duyệt bằng 0**. Người kia xem PR rồi tự bấm gộp.
+- GitHub sẽ không phân biệt được ai là ai, nên **tên người nằm ở `git config user.name`/`user.email`, ở tên nhánh, và ở đầu mô tả PR** (ví dụ "[An] Thêm âm thanh").
+- Đừng cùng lúc đẩy lên một nhánh. Nếu cần làm chung một việc, một người đẩy, người kia `git pull` rồi mới làm tiếp.
+- Mật khẩu, mã xác thực hai bước hay token của tài khoản chỉ chia sẻ qua kênh an toàn, không dán vào chat hay commit. Nếu sau này đông người, mỗi người một tài khoản GitHub riêng (miễn phí) sẽ an toàn và dễ theo dõi hơn.
 
 ## Kiểm tra trước khi mở PR
 
