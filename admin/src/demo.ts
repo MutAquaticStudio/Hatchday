@@ -10,6 +10,11 @@ const players = [
   { user_id: 'u3', name: 'Mây', code: 'MAYXANH2', species: 'co-may', bond_level: 8, email: 'may@example.com' },
 ];
 const S = {
+  chat: [
+    { id: 3, at: now(), user_id: 'u2', topic: 'plaza:1', body: 'ai chơi bóng không', name: 'Nắng' },
+    { id: 2, at: now(), user_id: 'u1', topic: 'plaza:1', body: 'chào cả nhà', name: 'Bánh Bò' },
+    { id: 1, at: now(), user_id: 'u3', topic: 'tea:1', body: 'trà hôm nay thơm quá', name: 'Mây' },
+  ] as any[],
   audit: [] as any[], ann: [] as any[], events: [] as any[], campaigns: [] as any[], sanctions: [] as any[], words: [] as any[],
   reports: [{ id: 1, kind: 'player', reason: 'harassment', detail: 'nhắn tin làm phiền', status: 'open', at: now(), reporter: 'Bánh Bò', target_id: 'u2', target: 'Nắng', target_open_reports: 1 }] as any[],
   flags: { 'chat.public.enabled': false, 'campaign.approval': { users: 50, coins: 500 } } as Record<string, unknown>,
@@ -51,6 +56,10 @@ export async function demoRpc(fn: string, a: Record<string, any>): Promise<any> 
       r.status = a.p_action === 'dismiss' ? 'dismissed' : 'resolved'; if (a.p_action !== 'dismiss') S.sanctions.unshift({ id: ++nid, user_id: r.target_id, name: r.target, kind: a.p_action, until: now(), reason: a.p_reason, auto: false }); audit('report_' + a.p_action, String(r.id), null, a.p_reason); return null; }
     case 'admin_list_sanctions': need('sanction'); return S.sanctions;
     case 'admin_lift_sanction': { need('sanction'); why(a.p_reason); const i = S.sanctions.findIndex(x => x.id === a.p_id); if (i < 0) throw new Error('not_found'); S.sanctions.splice(i, 1); audit('sanction_lift', String(a.p_id), null, a.p_reason); return null; }
+    case 'admin_chat_log': { need('report'); const q = String(a.p_q || '').toLowerCase().replace(/[%_]/g, ''); audit('view_chat_log', a.p_user ?? null, { q }, null);
+      return S.chat.filter(m => (!a.p_user || m.user_id === a.p_user) && (!q || m.body.toLowerCase().includes(q))).slice(0, Math.min(Math.max(a.p_limit || 100, 1), 200)).map(m => ({ ...m, sanctioned: S.sanctions.some(s => s.user_id === m.user_id) })); }
+    case 'admin_chat_filter_stats': need('report'); return { messages_24h: S.chat.length, senders_24h: new Set(S.chat.map(m => m.user_id)).size, blocked: { link: 4, phone: 2, filtered: 3 }, auto_mutes_24h: S.sanctions.filter(s => s.auto).length, words: S.words.length };
+    case 'admin_sanction': { need('sanction'); why(a.p_reason); if (!(a.p_hours > 0)) throw new Error('invalid_sanction'); const p = players.find(x => x.user_id === a.p_user); S.sanctions.unshift({ id: ++nid, user_id: a.p_user, name: p?.name ?? '—', kind: a.p_kind, until: new Date(Date.now() + a.p_hours * 3600000).toISOString(), reason: a.p_reason, auto: false }); audit('sanction', a.p_user, { kind: a.p_kind, hours: a.p_hours }, a.p_reason); return ++nid; }
     case 'admin_list_words': need('word'); return S.words;
     case 'admin_upsert_word': { need('word'); why(a.p_reason); if (String(a.p_term || '').trim().length < 2) throw new Error('invalid_word'); S.words = S.words.filter(w => w.term !== a.p_term.toLowerCase()); S.words.push({ term: a.p_term.toLowerCase(), match: a.p_match, action: a.p_action }); audit('word_upsert', a.p_term, null, a.p_reason); return null; }
     case 'admin_delete_word': { need('word'); why(a.p_reason); S.words = S.words.filter(w => w.term !== a.p_term); audit('word_delete', a.p_term, null, a.p_reason); return null; }

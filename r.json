@@ -1,1 +1,1 @@
-{"query": "select count(*) from supabase_migrations.schema_migrations"}
+{"query": "select proname from pg_proc where proname in ('admin_chat_log','admin_chat_filter_stats')"}
