@@ -248,7 +248,7 @@ ok('chạm chip khu vực: mở Bản đồ với 9 ghim',await p.isVisible('#ma
 await p.click('#map [data-pin="market"]');await p.waitForTimeout(200);
 ok('Chợ bị khoá ở Gắn bó cấp 1: thẻ báo cần cấp 2, không có nút Đi tới',(await p.textContent('#map .map-card')).includes('cấp 2')&&!(await p.$('#map [data-go-place]')));
 await p.click('#map [data-pin="plaza"]');await p.waitForTimeout(200);
-ok('Quảng trường chưa mở: báo "sắp mở"',(await p.textContent('#map .map-card')).includes('sắp mở'));
+ok('Quảng trường khoá ở Gắn bó cấp 1: thẻ báo cần cấp 2',(await p.textContent('#map .map-card')).includes('cấp 2')&&!(await p.$('#map [data-go-place]')));
 await p.click('#map [data-pin="hospital"]');await p.click('#map [data-go-place="hospital"]');
 ok('đi tới Bệnh viện: chip đổi tên và hiện các điểm chạm',await until(async()=>(await p.textContent('#scene-tag')).includes('Bệnh viện')&&await p.isVisible('.hot[data-hot="desk"]'),12000));
 await p.click('.hot[data-hot="desk"]');
@@ -280,6 +280,24 @@ ok('chạm kệ Sổ loài: mở Sổ loài',await until(()=>p.isVisible('#dex')
 await p.click('.hsheet:not([hidden]) [data-close]');await p.waitForTimeout(300);
 await goPlace('home');
 ok('về Nhà bằng Bản đồ: chip về Phòng khách, nhãn địa điểm ẩn',await until(async()=>(await p.textContent('#scene-tag')).includes('Phòng khách')&&!(await p.isVisible('.hot')),12000));
+// nơi chung (mô phỏng nhiều người): Quảng trường, Tiệm trà, Công viên
+await setDemo("d.pet.bond_xp=300;d.pet.no=70;d.pet.sach=70;d.pet.vui=70;d.pet.nl=90;d.pet.stats_at=new Date().toISOString();");
+await reload();
+await goPlace('plaza');
+ok('đi tới Quảng trường: chip đổi tên, thanh emote và nhãn Bảng tin hiện',await until(async()=>(await p.textContent('#scene-tag')).includes('Quảng trường')&&await p.isVisible('.emote-bar')&&await p.isVisible('.hot[data-hot="news"]'),15000));
+ok('bạn ảo vào kênh: thấy ít nhất 2 thú khác và đếm người',await until(()=>p.evaluate(()=>document.querySelectorAll('.actor').length>=2),15000)&&/\d+\/12 người/.test(await p.textContent('#eb-count')),await p.textContent('#eb-count'));
+await p.click('.eb[data-emote="heart"]');
+ok('bấm emote: bé nói biểu tượng',await until(async()=>(await p.textContent('#bubble')).includes('❤️'),4000));
+await p.click('.hot[data-hot="news"]');
+ok('chạm Bảng tin: mở mục Tin tức',await until(async()=>await p.isVisible('#social')&&(await p.textContent('#social')).includes('Tin tức'),15000));
+await p.click('.hsheet:not([hidden]) [data-close]');await p.waitForTimeout(300);
+await goPlace('tea');
+ok('đi tới Tiệm trà: có bàn và thanh emote',await until(async()=>(await p.textContent('#scene-tag')).includes('Tiệm trà')&&await p.isVisible('.hot[data-hot="table0"]')&&await p.isVisible('.emote-bar'),15000));
+ok('rời Quảng trường: không còn nhãn tên thú nào của kênh cũ',await until(()=>p.evaluate(()=>document.querySelectorAll('.actor').length<=3),6000));
+await goPlace('park');
+ok('đi tới Công viên: có xích đu',await until(async()=>(await p.textContent('#scene-tag')).includes('Công viên')&&await p.isVisible('.hot[data-hot="swing"]'),15000));
+await goPlace('home');
+ok('về Nhà: thanh emote và nhãn tên biến mất',await until(async()=>(await p.textContent('#scene-tag')).includes('Phòng khách')&&!(await p.isVisible('.emote-bar'))&&!(await p.isVisible('.actor-layer')),12000));
 // vòng đời: tua tuổi cho bé hết tuổi thọ, mở lại game → trang tưởng niệm → đón trứng đời sau → gia phả 2 đời
 const prev=await demo();
 await p.evaluate(()=>{const d=JSON.parse(localStorage.getItem('hatchday-demo'));d.life=40;d.pet.born_at=new Date(Date.now()-41*86400000).toISOString();localStorage.setItem('hatchday-demo',JSON.stringify(d));});

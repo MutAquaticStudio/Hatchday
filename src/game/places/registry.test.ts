@@ -25,11 +25,14 @@ describe('địa điểm', () => {
     expect(enterBlock('tailor', { bondLevel: 1, asleep: true })).toBe('asleep');
     expect(enterBlock('home', { bondLevel: 1, asleep: true })).toBeNull();
   });
-  it('khoá theo Gắn bó: Chợ và Thư viện cấp 2; nơi chưa làm xong báo "sắp mở"', () => {
+  it('khoá theo Gắn bó: Chợ và Thư viện cấp 2; nơi chung theo cấp riêng; nơi không có báo "sắp mở"', () => {
     expect(enterBlock('market', { bondLevel: 1, asleep: false })).toBe('locked');
     expect(enterBlock('market', { bondLevel: 2, asleep: false })).toBeNull();
     expect(enterBlock('library', { bondLevel: 2, asleep: false })).toBeNull();
-    expect(enterBlock('plaza', { bondLevel: 10, asleep: false })).toBe('soon');
+    expect(enterBlock('plaza', { bondLevel: 1, asleep: false })).toBe('locked');
+    expect(enterBlock('plaza', { bondLevel: 2, asleep: false })).toBeNull();
+    expect(enterBlock('tea', { bondLevel: 2, asleep: false })).toBe('locked');
+    expect(enterBlock('park', { bondLevel: 4, asleep: false })).toBeNull();
     expect(enterBlock('nowhere', { bondLevel: 10, asleep: false })).toBe('soon');
     expect(BLOCK_TEXT.locked(MAP_NODES.find(n => n.id === 'market'))).toContain('cấp 2');
   });

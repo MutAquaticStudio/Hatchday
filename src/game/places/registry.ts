@@ -50,13 +50,13 @@ export const PLACES: PlaceDef[] = [
     walk: { x: [-3.4, 3.4], z: [-1.2, 2.6] }, ctx: BACK, enterLine: 'Suỵt… ở đây phải nói nhỏ thôi nha.', map: { x: 50, y: 10 }, cap: 1, ready: true,
     blurb: 'Sổ loài, nhật ký, gia phả và bảng tin cập nhật.' },
   { id: 'plaza', name: 'Quảng trường Mầm', short: 'Quảng trường', kind: 'shared', outdoor: true, unlock: 2, pet: [0, 0, 1.6], cam: OUTDOOR_CAM,
-    walk: { x: [-5, 5], z: [-1.5, 3.6] }, ctx: BACK, enterLine: 'Quảng trường đông vui quá! Mình chào mọi người nhé.', map: { x: 50, y: 45 }, cap: 12, ready: false,
+    walk: { x: [-5, 5], z: [-1.5, 3.6] }, ctx: BACK, enterLine: 'Quảng trường đông vui quá! Mình chào mọi người nhé.', map: { x: 50, y: 45 }, cap: 12, ready: true,
     blurb: 'Khu gặp gỡ: gặp người chơi khác, nhắn tin, kết bạn.' },
   { id: 'tea', name: 'Tiệm trà Gió', short: 'Tiệm trà', kind: 'shared', outdoor: false, unlock: 3, pet: [0, 0, 1.2], cam: INDOOR_CAM,
-    walk: { x: [-3.4, 3.4], z: [-1.2, 2.6] }, ctx: BACK, enterLine: 'Thơm mùi trà quá~ Mình ngồi một chút nhé.', map: { x: 84, y: 62 }, cap: 16, ready: false,
+    walk: { x: [-3.4, 3.4], z: [-1.2, 2.6] }, ctx: BACK, enterLine: 'Thơm mùi trà quá~ Mình ngồi một chút nhé.', map: { x: 84, y: 62 }, cap: 16, ready: true,
     blurb: 'Bàn bốn chỗ, ngồi nhâm nhi và trò chuyện cùng bạn.' },
   { id: 'park', name: 'Công viên Cỏ Non', short: 'Công viên', kind: 'shared', outdoor: true, unlock: 4, pet: [0, 0, 1.4], cam: OUTDOOR_CAM,
-    walk: { x: [-5, 5], z: [-1.5, 3.6] }, ctx: BACK, enterLine: 'Công viên rộng ghê! Mình chạy thử nha.', map: { x: 16, y: 62 }, cap: 16, ready: false,
+    walk: { x: [-5, 5], z: [-1.5, 3.6] }, ctx: BACK, enterLine: 'Công viên rộng ghê! Mình chạy thử nha.', map: { x: 16, y: 62 }, cap: 16, ready: true,
     blurb: 'Sân chơi, ao vịt, bóng chung và chơi cùng bạn.' },
 ];
 export const PLACE_BY_ID: Record<string, PlaceDef> = Object.fromEntries(PLACES.map(p => [p.id, p]));

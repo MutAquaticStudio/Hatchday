@@ -155,3 +155,4 @@ export const strokeFriend = (who: string) => (isDemo ? demoSocial.strokeFriend(w
 export const waterFriendCrop = (who: string, plot: number) => (isDemo ? demoSocial.waterFriendCrop(who, plot) : rpc<{ waters: number; got: number }>('water_friend_crop', { p_who: who, p_plot: plot }));
 export const leaveGuestbook = async (who: string, emote: string) => { if (isDemo) return demoSocial.leaveGuestbook(who, emote); await rpc('leave_guestbook', { p_who: who, p_emote: emote }); };
 export const getGuestbook = () => (isDemo ? demoSocial.getGuestbook() : rpc<{ from: string; kind: string; emote: string | null; at: string }[]>('get_guestbook'));
+export const reportUser = async (who: string, reason: 'harassment' | 'spam' | 'inappropriate_name' | 'cheating' | 'other', detail = '') => { if (isDemo) return; await rpc('report_user', { p_who: who, p_reason: reason, p_detail: detail }); };

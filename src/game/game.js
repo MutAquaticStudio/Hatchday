@@ -301,15 +301,18 @@ const PLACE_LOADERS = {
   market: () => import('./places/market.js').then(m => m.initMarket),
   tailor: () => import('./places/tailor.js').then(m => m.initTailor),
   library: () => import('./places/library.js').then(m => m.initLibrary),
+  plaza: () => import('./places/plaza.js').then(m => m.initPlaza),
+  tea: () => import('./places/tea.js').then(m => m.initTea),
+  park: () => import('./places/park.js').then(m => m.initPark),
 };
 const placeOpen = {
   clinic: sec => home.openClinic(sec), shop: (t, k) => home.openShop(t, k), wardrobe: () => home.openWardrobe(), dex: () => home.openDex(), family: () => home.openFamily(), sell: () => home.openSell(),
-  news: () => (home.openNews ? home.openNews() : toast('Chưa có tin mới.')), ai: () => toast('Thủ thư AI sắp có. Đợi chút nhé!'),
+  news: () => (home.openNews ? home.openNews() : toast('Chưa có tin mới.')), mail: () => (home.openMail ? home.openMail() : toast('Chưa có thư mới.')), ai: () => toast('Thủ thư AI sắp có. Đợi chút nhé!'),
 };
 function loadPlace(name) {
   if (placeInst[name]) return Promise.resolve(placeInst[name]);
   return placeLoading[name] || (placeLoading[name] = PLACE_LOADERS[name]().then(init => {
-    const inst = init({ THREE, add, toon, canvasTex, shell, windowOn, scene, camera, canvas, ray, ndcFrom, walkPetTo, say, startAction, toast, sfx, spawn, hideHint, getArea: () => area, state: S, open: placeOpen });
+    const inst = init({ THREE, add, toon, canvasTex, shell, windowOn, scene, camera, canvas, ray, ndcFrom, walkPetTo, say, startAction, toast, sfx, spawn, hideHint, getArea: () => area, state: S, open: placeOpen, goTo, setTemp, petBuilder, bondLevel: () => bondLevel(S.bondXp), getPetXZ: () => [petBase.x + petOff.x, petBase.z + petOff.z] });
     inst.group.visible = false; areas[name] = inst.group; applyShadows(inst.group); placeInst[name] = inst; return inst;
   }));
 }
