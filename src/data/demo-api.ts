@@ -10,6 +10,7 @@ import type { ActionResult, CureResult, DayLogRow, Economy, FarmItem, Garden, Me
 import { applyDrift, isBlank, normalize, rollPersonality } from '../game/personality';
 import { blendPersonality, HEIR_FAV_INHERIT, pickHeirSpecies } from '../game/lineage';
 import { BOND, bondLevel } from '../game/bond';
+import { boostedReward, eventBoost, type ActiveEvent } from '../game/events';
 import { clinicPrice, healthStep, HEALTH, ILLNESS_BY_ID, isNightHour, isSevere, MEDICINE_BY_ID, type HealthCtx } from '../game/health';
 import { formFromCare, pickSpecies, SPECIES_BY_ID, stageForAge, REGIONS, GROW_MEMORY } from '../game/species';
 
@@ -316,18 +317,18 @@ export async function claimQuest(i: number) {
   const q = (await getQuests()).quests[i]; if (!(i >= 0 && i <= 4) || !q) throw new Error('invalid_quest');
   if (q.progress < q.target) throw new Error('quest_not_done');
   const db = load(), k = localDay() + ':' + i; if (db.quests.includes(k)) throw new Error('already_claimed');
-  db.quests.push(k); earn(db, q.reward, false); store(db); return { coins: db.coins, reward: q.reward };
+  const r = boostedReward(q.reward, demoBoost()); db.quests.push(k); earn(db, r, false); store(db); return { coins: db.coins, reward: r };
 }
 export async function claimQuestBonus() {
   const b = await getQuests(); if (!b.bonus.ready) throw new Error('quest_not_done');
   const db = load(), k = localDay() + ':5'; if (db.quests.includes(k)) throw new Error('already_claimed');
-  db.quests.push(k); earn(db, QUEST_BONUS, false); store(db); return { coins: db.coins, reward: QUEST_BONUS };
+  const r = boostedReward(QUEST_BONUS, demoBoost()); db.quests.push(k); earn(db, r, false); store(db); return { coins: db.coins, reward: r };
 }
 export async function claimWeeklyQuest(i: number) {
   const b = await getQuests(), q = b.weekly[i]; if (!(i >= 0 && i <= 2) || !q) throw new Error('invalid_quest');
   if (q.progress < q.target) throw new Error('quest_not_done');
   const db = load(), k = b.week + ':' + i; if (db.weekly?.includes(k)) throw new Error('already_claimed');
-  (db.weekly ||= []).push(k); earn(db, q.reward, false); store(db); return { coins: db.coins, reward: q.reward };
+  const r = boostedReward(q.reward, demoBoost()); (db.weekly ||= []).push(k); earn(db, r, false); store(db); return { coins: db.coins, reward: r };
 }
 
 /* ---------- Thức ăn nâng cao: tủ lạnh, vườn rau, nấu ăn, khẩu vị ---------- */
@@ -511,3 +512,11 @@ export type DemoDB = DB;
 export function withDB<T>(fn: (db: DB, earnCoins: (n: number) => number) => T): T {
   const db = load(); const r = fn(db, n => earn(db, n, false)); store(db); return r;
 }
+
+/* ---------- Sự kiện (mô phỏng get_active_events): thêm ?event=boost vào địa chỉ để xem thử ---------- */
+export function demoEvents(): ActiveEvent[] {
+  let on = false; try { on = new URLSearchParams(location.search).get('event') === 'boost'; } catch { /* không có location */ }
+  return on ? [{ id: 1, title: 'Tuần lễ nhiệm vụ', body: 'Hoàn thành nhiệm vụ để nhận thêm xu.', kind: 'limited', starts_at: new Date(Date.now() - 3600000).toISOString(), ends_at: new Date(Date.now() + 6 * 86400000).toISOString(),
+    config: { banner: 'Tuần lễ nhiệm vụ: xu thưởng nhiệm vụ nhân 1,5!', coin_boost: 1.5, plaza_decor: 'trung-thu' } }] : [];
+}
+const demoBoost = () => eventBoost(demoEvents());

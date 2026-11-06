@@ -10,6 +10,7 @@ import { sfx } from './audio.js';
 import { clinicBody } from './clinic.js';
 import { initMap } from './places/map.js';
 import { initSocial } from './social-ui.js';
+import { SPACES } from './places/registry';
 import { bondLevel } from './bond';
 import { ILLNESS_BY_ID, MEDICINE_BY_ID } from './health';
 import { FORMS, RARITIES, REGIONS, SPECIES, SPECIES_BY_ID, STAGES } from './species';
@@ -109,7 +110,7 @@ export function initHome(ctx) {
     if (!el) { el = document.createElement('section'); el.id = id; el.className = 'sheet hsheet ' + cls; el.hidden = true; el.setAttribute('aria-label', id); app.appendChild(el); }
     return el;
   }
-  const sheets = ['house', 'shop', 'wardrobe', 'quests', 'dex', 'family', 'cooking', 'clinic', 'map', 'sell', 'social', 'visit', 'gift'];
+  const sheets = ['house', 'shop', 'wardrobe', 'quests', 'dex', 'family', 'cooking', 'clinic', 'map', 'sell', 'social', 'visit', 'gift', 'spaces'];
   function closeAll(except) { sheets.forEach(s => { if (s !== except && $(s)) $(s).hidden = true; }); ctx.setZoom(0); $('a-house').setAttribute('aria-pressed', 'false'); }
   function open(id) { ctx.closeGameSheets(); closeAll(id); const el = sheet(id); el.hidden = false; $('a-house').setAttribute('aria-pressed', String(id !== 'none')); el.querySelector('button, input')?.focus({ preventScroll: true }); return el; }
   const head = (title, sub = '') => `<header class="hs-head"><div><h2>${title}</h2>${sub ? `<p>${sub}</p>` : ''}</div><button type="button" class="hs-close" data-close aria-label="Đóng">✕</button></header>`;
@@ -122,6 +123,7 @@ export function initHome(ctx) {
     el.innerHTML = head('Nhà của bé', `Thoải mái cấp ${S.comfort} · ${S.coins.toLocaleString('vi-VN')} xu`) + `<div class="tiles">
       <button type="button" class="tile${S.illness ? ' ready' : ''}" data-go="map"><b>Bản đồ</b><span>Chợ, bệnh viện, tiệm may, thư viện…</span></button>
       <button type="button" class="tile${social.badge() ? ' ready' : ''}" data-go="social"><b>Bạn bè &amp; thư</b><span>${esc(social.tileText())}</span></button>
+      <button type="button" class="tile${SPACES.some(p => bondLevel(S.bondXp) >= p.unlock) ? ' ready' : ''}" data-go="spaces"><b>Không gian của bé</b><span>${SPACES.filter(p => bondLevel(S.bondXp) >= p.unlock).length}/${SPACES.length} nơi đã mở</span></button>
       <button type="button" class="tile" data-go="decor"><b>Trang trí phòng</b><span>Đặt, xoay, cất đồ</span></button>
       <button type="button" class="tile" data-go="shop"><b>Cửa hàng</b><span>Thức ăn, đồ trang trí, trang phục</span></button>
       <button type="button" class="tile" data-go="wardrobe"><b>Tủ đồ</b><span>Trang phục cho bé</span></button>
@@ -135,7 +137,7 @@ export function initHome(ctx) {
   $('a-house').addEventListener('click', () => { ctx.hideHint(); const hs = $('house'); if (hs && !hs.hidden) { closeAll(); return; } openHouse(); });
   app.addEventListener('click', e => {
     const b = e.target.closest('.tile'); if (!b) return;
-    ({ decor: () => enterEdit(), shop: () => openShop('market'), wardrobe: openWardrobe, quests: openQuests, dex: () => openDex(), family: openFamily, garden: () => { closeAll(); ctx.goTo('garden'); }, cooking: openCooking, clinic: () => openClinic(), map: () => worldMap.open(), social: () => social.open() })[b.dataset.go]();
+    ({ decor: () => enterEdit(), shop: () => openShop('market'), wardrobe: openWardrobe, quests: openQuests, dex: () => openDex(), family: openFamily, garden: () => { closeAll(); ctx.goTo('garden'); }, cooking: openCooking, clinic: () => openClinic(), map: () => worldMap.open(), social: () => social.open(), spaces: () => openSpaces() })[b.dataset.go]();
   });
 
   /* ---------- Ảnh thu nhỏ 3D ---------- */
@@ -204,6 +206,14 @@ export function initHome(ctx) {
     }
     if (!$('clinic').hidden) renderClinic();
   });
+
+
+  /* ---------- Không gian của bé: mở theo cấp Gắn bó ---------- */
+  function openSpaces() {
+    const el = open('spaces'), lvl = bondLevel(S.bondXp);
+    el.innerHTML = head('Không gian của bé', 'Mở thêm khi tăng cấp Gắn bó') + `<div class="hs-body"><ul class="soc-list">${SPACES.map(p => `<li class="soc-row"><div class="soc-info"><b>${esc(p.name)}</b><small>${esc(p.blurb)}</small></div><div class="soc-act">${lvl >= p.unlock ? `<button type="button" class="btn-sm" data-space="${p.id}">Đi tới</button>` : `<span class="pill-ok" style="background:#eee;color:#666">Gắn bó cấp ${p.unlock}</span>`}</div></li>`).join('')}</ul></div>`;
+  }
+  app.addEventListener('click', e => { const b = e.target.closest('[data-space]'); if (b) { closeAll(); ctx.goTo(b.dataset.space); } });
 
   /* ---------- Thu mua nông sản (Chợ) ---------- */
   function openSell() { open('sell'); renderSell(); store.refreshSell().then(() => { if (!$('sell').hidden) renderSell(); }).catch(() => {}); }
@@ -448,7 +458,8 @@ export function initHome(ctx) {
   function weekDaysLeft() { const [y, m, d] = store.today().split('-').map(Number), dow = new Date(y, m - 1, d).getDay(); return 7 - ((dow + 6) % 7); }
   function renderQuests(el = $('quests')) {
     const b = S.questBonus, n = S.quests.filter(q => q.claimed).length, left = weekDaysLeft();
-    el.innerHTML = head('Nhiệm vụ', `${COIN_SVG}<b class="coin-inline">${S.coins.toLocaleString('vi-VN')}</b> xu · chăm sóc hằng ngày cho thêm tối đa 50 xu`) + `<div class="hs-body">
+    const boost = ctx.events ? ctx.events.boost() : 1;
+    el.innerHTML = head('Nhiệm vụ', `${COIN_SVG}<b class="coin-inline">${S.coins.toLocaleString('vi-VN')}</b> xu · chăm sóc hằng ngày cho thêm tối đa 50 xu`) + `<div class="hs-body">${boost > 1 ? `<p class="hs-note">🎉 Sự kiện: thưởng nhiệm vụ nhân ${String(boost).replace('.', ',')} lần!</p>` : ''}
       <h3 class="qh">Hôm nay <small>${n}/${S.quests.length} đã nhận</small></h3>
       <ul class="quests">${S.quests.map(q => questRow(q, QUEST_POOL[q.quest], 'data-quest')).join('')}</ul>
       <div class="quest-bonus${b.ready && !b.claimed ? ' ready' : ''}"><div><b>Thưởng cả ngày</b><span>Nhận đủ ${S.quests.length} nhiệm vụ hôm nay</span></div>

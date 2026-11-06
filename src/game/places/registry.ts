@@ -30,6 +30,8 @@ export interface PlaceDef {
   cap: number;
   /** false: đã có chỗ trên Bản đồ nhưng chưa mở (sẽ bật khi làm xong). */
   ready: boolean;
+  /** true: không có ghim trên Bản đồ (không gian của nhà, mở từ menu Nhà theo cấp Gắn bó). */
+  hidden?: boolean;
 }
 
 const INDOOR_CAM: [CamPreset, CamPreset] = [[30, 0, 3.2, 9.6, 0, 0.75, 0], [44, 0, 3.6, 11.5, 0, 0.35, 0]];
@@ -59,14 +61,25 @@ export const PLACES: PlaceDef[] = [
     walk: { x: [-5, 5], z: [-1.5, 3.6] }, ctx: BACK, enterLine: 'Công viên rộng ghê! Mình chạy thử nha.', map: { x: 16, y: 62 }, cap: 16, ready: true,
     blurb: 'Sân chơi, ao vịt, bóng chung và chơi cùng bạn.' },
 ];
+const HOME_BACK: [string, string][] = [['home', 'Về phòng']];
+/** Không gian của nhà, mở theo cấp Gắn bó (ban công 3, phòng chơi 5, sân thượng 7). Mỗi nơi có đồ chơi riêng (dùng hành động chơi có sẵn). */
+PLACES.push(
+  { id: 'balcony', name: 'Ban công Nắng', short: 'Ban công', kind: 'solo', outdoor: true, unlock: 3, pet: [0, 0, 0.8], cam: INDOOR_CAM, walk: { x: [-2.6, 2.6], z: [-0.8, 1.8] }, ctx: HOME_BACK,
+    enterLine: 'Ban công có nắng và gió. Thổi bong bóng nha!', map: { x: 0, y: 0 }, cap: 1, ready: true, hidden: true, blurb: 'Thổi bong bóng, nằm võng, ngắm phố.' },
+  { id: 'playroom', name: 'Phòng chơi Cầu Vồng', short: 'Phòng chơi', kind: 'solo', outdoor: false, unlock: 5, pet: [0, 0, 1.0], cam: INDOOR_CAM, walk: { x: [-3.2, 3.2], z: [-1.0, 2.4] }, ctx: HOME_BACK,
+    enterLine: 'Phòng chơi nhiều đồ chơi quá! Chơi cái nào trước đây?', map: { x: 0, y: 0 }, cap: 1, ready: true, hidden: true, blurb: 'Tàu hoả đồ chơi, hồ bóng, xếp hình.' },
+  { id: 'rooftop', name: 'Sân thượng Sao', short: 'Sân thượng', kind: 'solo', outdoor: true, unlock: 7, pet: [0, 0, 1.2], cam: OUTDOOR_CAM, walk: { x: [-3.6, 3.6], z: [-0.8, 3.0] }, ctx: HOME_BACK,
+    enterLine: 'Sân thượng cao ghê! Thả diều thôi.', map: { x: 0, y: 0 }, cap: 1, ready: true, hidden: true, blurb: 'Thả diều, ngắm sao bằng kính thiên văn.' },
+);
+export const SPACES = PLACES.filter(p => p.hidden);
 export const PLACE_BY_ID: Record<string, PlaceDef> = Object.fromEntries(PLACES.map(p => [p.id, p]));
 
 /** Ghim trên Bản đồ: các nơi có sẵn (Nhà, Vườn nhà) cộng các địa điểm. */
-export interface MapNode { id: string; name: string; blurb: string; map: { x: number; y: number }; unlock: number; ready: boolean; place: boolean }
+export interface MapNode { id: string; name: string; blurb: string; map: { x: number; y: number }; unlock: number; ready: boolean; place: boolean; hidden?: boolean }
 export const MAP_NODES: MapNode[] = [
   { id: 'home', name: 'Nhà', blurb: 'Phòng khách, bếp, phòng tắm và phòng ngủ của bé.', map: { x: 22, y: 91 }, unlock: 0, ready: true, place: false },
   { id: 'garden', name: 'Vườn nhà', blurb: 'Trồng rau, tưới nước, trang trí nông trại.', map: { x: 78, y: 91 }, unlock: 0, ready: true, place: false },
-  ...PLACES.map(p => ({ id: p.id, name: p.name, blurb: p.blurb, map: p.map, unlock: p.unlock, ready: p.ready, place: true })),
+  ...PLACES.map(p => ({ id: p.id, name: p.name, blurb: p.blurb, map: p.map, unlock: p.unlock, ready: p.ready, place: true, hidden: p.hidden })),
 ];
 
 export const isUnlocked = (unlock: number, bondLevel: number) => bondLevel >= unlock;

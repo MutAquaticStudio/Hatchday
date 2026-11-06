@@ -17,10 +17,10 @@ const LOCK = '<svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"
 /** h: { $, esc, head, sheet, open, closeAll, S, bondLevel(), goTo, toast, getArea, alerts() → {id: true} } */
 export function initMap(h) {
   let sel = '';
-  const roads = MAP_NODES.filter(n => n.id !== 'plaza').map(n => `<path d="M50 45 L${n.map.x} ${n.map.y}" />`).join('');
+  const roads = MAP_NODES.filter(n => n.id !== 'plaza' && !n.hidden).map(n => `<path d="M50 45 L${n.map.x} ${n.map.y}" />`).join('');
   function render(el = h.$('map')) {
     const level = h.bondLevel(), here = h.getArea(), alerts = h.alerts(), node = MAP_NODES.find(n => n.id === sel);
-    const pins = MAP_NODES.map(n => {
+    const pins = MAP_NODES.filter(n => !n.hidden).map(n => {
       const locked = !n.ready || level < n.unlock, soon = !n.ready;
       return `<button type="button" class="pin${locked ? ' locked' : ''}${sel === n.id ? ' on' : ''}${here === n.id ? ' here' : ''}${alerts[n.id] ? ' alert' : ''}" data-pin="${n.id}" style="left:${n.map.x}%;top:${n.map.y}%" aria-label="${h.esc(n.name)}">
         <span class="pin-ic"><svg viewBox="0 0 24 24" aria-hidden="true">${ICON[n.id] || ''}</svg></span><b>${h.esc(PLACE_BY_ID[n.id]?.short || n.name)}</b>${soon ? '<small>Sắp mở</small>' : locked ? `<small>${LOCK} Cấp ${n.unlock}</small>` : ''}</button>`;

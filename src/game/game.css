@@ -528,3 +528,6 @@ body.editing .hot-layer,.farm-editing .hot-layer{display:none}
 .dm-list{display:flex;flex-direction:column;gap:6px;max-height:42vh;overflow:auto;padding:4px 2px}
 .dm-msg{align-self:flex-start;max-width:85%;background:#fff;border:2px solid var(--candy-edge);border-radius:16px;padding:6px 12px;font-size:14px;font-weight:700;display:flex;flex-direction:column;gap:1px;overflow-wrap:anywhere}
 .dm-msg small{font-size:10px;color:var(--ink-soft);font-weight:700}.dm-msg.mine{align-self:flex-end;background:#ffe9f1}
+
+.event-banner{position:absolute;left:16px;right:16px;top:calc(env(safe-area-inset-top,0px) + 112px);z-index:6;display:flex;align-items:center;justify-content:space-between;gap:8px;background:#fff3c4;border:2.5px solid #e8c25a;border-radius:16px;padding:6px 12px;font-size:13px;font-weight:800;color:#6a4a0a;box-shadow:0 3px 0 #e8c25a}
+.event-banner[hidden]{display:none}.event-banner button{border:0;background:transparent;font-size:16px;color:#6a4a0a;min-width:28px;min-height:28px}

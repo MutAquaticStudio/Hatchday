@@ -1,6 +1,7 @@
 import { supabase, isConfigured } from '../lib/supabase';
 import * as demo from './demo-api';
 import * as demoSocial from './demo-social';
+import type { ActiveEvent } from '../game/events';
 import type { ChatReply, DmMsg, DmThread, MailRow, NewsRow, PublicProfile, SocialState, SocialSummary, VisitData } from '../game/social';
 import type { ActionResult, CureResult, DayLogRow, Economy, FarmItem, Garden, MemoryRow, Outfit, PetAction, PetRow, QuestBoard, SeenRow, Tastes } from './types';
 import type { Layout } from '../game/catalog';
@@ -167,3 +168,6 @@ export const listDmThreads = () => (isDemo ? demoSocial.listDmThreads() : rpc<Dm
 export const listDm = (who: string, before?: number) => (isDemo ? demoSocial.listDm(who) : rpc<DmMsg[]>('list_dm', { p_who: who, p_before: before ?? null }));
 export const markDmRead = async (who: string) => { if (isDemo) return demoSocial.markDmRead(who); await rpc('mark_dm_read', { p_who: who }); };
 export const dmUnread = () => (isDemo ? demoSocial.dmUnread() : rpc<number>('dm_unread'));
+
+/* ---------- Sự kiện đang chạy ---------- */
+export const getActiveEvents = (): Promise<ActiveEvent[]> => (isDemo ? Promise.resolve(demo.demoEvents()) : rpc<ActiveEvent[]>('get_active_events'));

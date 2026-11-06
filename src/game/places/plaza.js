@@ -1,6 +1,7 @@
 // Quảng trường "Mầm": khu gặp gỡ. Đài phun nước, ghế đá, cây, bảng tin, bưu điện, biển chỉ đường; thú của người chơi khác (shared.js).
 import { makeKit } from './kit.js';
 import { makeShared } from './shared.js';
+import { festival } from './festival.js';
 
 export function initPlaza(c) {
   const { THREE, add, toon, canvasTex, scene } = c, kit = makeKit(c);
@@ -48,9 +49,16 @@ export function initPlaza(c) {
     kit.hotspot({ id: 'go-' + id, label: name, at: [x, 2.0, z], stand: [x, Math.min(3, z + 1.1)], act: () => c.goTo(id) }, s);
   });
 
+  let decor = { theme: null, group: null };
+  function applyDecor() {
+    const th = (c.events && c.events.decor()) || null;
+    if (th === decor.theme) return;
+    if (decor.group) { g.remove(decor.group); decor.group = null; }
+    decor.theme = th; if (th) { decor.group = festival(c, th); g.add(decor.group); }
+  }
   return {
     group: g,
-    enter() { kit.show(true); shared.enter(); setTimeout(() => { if (c.getArea() === 'plaza') c.say('Chạm vào bạn khác để chào hỏi và kết bạn nhé!', 3200); }, 900); },
+    enter() { applyDecor(); kit.show(true); shared.enter(); setTimeout(() => { if (c.getArea() === 'plaza') c.say('Chạm vào bạn khác để chào hỏi và kết bạn nhé!', 3200); }, 900); },
     leave() { kit.show(false); shared.leave(); },
     update(dt, now) {
       kit.tick(now); const t = now / 1000;

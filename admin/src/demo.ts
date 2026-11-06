@@ -43,7 +43,7 @@ export async function demoRpc(fn: string, a: Record<string, any>): Promise<any> 
       const i = S.ann.findIndex(x => x.id === row.id); if (i >= 0) S.ann[i] = row; else S.ann.unshift(row); audit('announce_' + (a.p_id ? 'update' : 'create'), String(row.id), { title: a.p_title }, a.p_reason); return row.id; }
     case 'admin_delete_announcement': { need('announce'); why(a.p_reason); const i = S.ann.findIndex(x => x.id === a.p_id); if (i < 0) throw new Error('not_found'); S.ann.splice(i, 1); audit('announce_delete', String(a.p_id), null, a.p_reason); return null; }
     case 'admin_list_events': need('event'); return S.events;
-    case 'admin_upsert_event': { need('event'); why(a.p_reason); for (const k of Object.keys(a.p_config || {})) if (!['banner', 'plaza_decor'].includes(k)) throw new Error('invalid_event_config');
+    case 'admin_upsert_event': { need('event'); why(a.p_reason); for (const k of Object.keys(a.p_config || {})) if (!['banner', 'plaza_decor', 'coin_boost'].includes(k)) throw new Error('invalid_event_config');
       const row = { id: a.p_id ?? ++nid, title: a.p_title, body: a.p_body, kind: a.p_kind, starts_at: a.p_starts, ends_at: a.p_ends, enabled: true, config: a.p_config || {} }; S.events.unshift(row); audit('event_create', String(row.id), { title: a.p_title }, a.p_reason); return row.id; }
     case 'admin_set_event_enabled': { need('event'); why(a.p_reason); const e = S.events.find(x => x.id === a.p_id); if (!e) throw new Error('not_found'); e.enabled = a.p_enabled; audit('event_enabled', String(a.p_id), a.p_enabled, a.p_reason); return null; }
     case 'admin_list_reports': need('report'); return S.reports.filter(r => r.status === a.p_status);
