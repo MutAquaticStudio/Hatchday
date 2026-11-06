@@ -125,6 +125,12 @@ supabase/migrations/      13 migration; supabase/tests/ test RPC
 9. Thông báo đẩy, service worker (đã có `manifest.webmanifest`).
 10. Bán cosmetic thật: cổng thanh toán, Edge Function xác minh giao dịch, rồi bật `PAID_SHOP_ENABLED`.
 
+**Tên miền và hạ tầng thật (2026-11-06)**
+- Game: `https://hatchday.noxelis.co` (`wrangler.jsonc`, Worker `hatchday`). Admin: `https://admin.noxelis.co` (`wrangler.admin.jsonc`, Worker `hatchday-admin`). Zone `noxelis.co` nằm trong cùng tài khoản Cloudflare.
+- Biến build (Cloudflare Workers Builds hoặc build tay): `VITE_SUPABASE_URL=https://ngumfhweushmoeiplyte.supabase.co`, `VITE_SUPABASE_PUBLISHABLE_KEY` (khoá publishable của dự án), `VITE_TURNSTILE_SITE_KEY` (khi bật CAPTCHA).
+- Supabase Auth đã đặt: Site URL `https://hatchday.noxelis.co`, danh sách chuyển hướng gồm hai tên miền trên và `localhost:5173/5174`, mật khẩu tối thiểu 8. TOTP đã bật. Còn lại: bật CAPTCHA Turnstile (cần widget, secret nhập ở Authentication > Bot and Abuse Protection), SMTP riêng (thư mặc định của Supabase giới hạn 2 thư/giờ), Google OAuth, mẫu email tiếng Việt.
+- Chưa triển khai: token Cloudflare hiện thiếu quyền Workers Scripts:Edit và Turnstile:Edit.
+
 **Đưa lên chạy thật (chưa ai làm)**
 - Tạo dự án Supabase (region Singapore), `npx supabase link`, `npx supabase db push` (13 migration), điền `.env` theo `.env.example`.
 - Dashboard Authentication: Site URL và Redirect URLs, mật khẩu tối thiểu 8, rate limit, CAPTCHA, bật Google, viết lại mẫu email tiếng Việt (chi tiết TDD mục 4).

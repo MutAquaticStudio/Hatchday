@@ -1,7 +1,9 @@
-// Trang quản trị (thư mục dist-admin), Worker riêng, tên miền riêng.
+// Trang quản trị (thư mục dist-admin) tại https://admin.noxelis.co, Worker riêng, tên miền riêng.
 // Triển khai: `npm run build` rồi `npx wrangler deploy -c wrangler.admin.jsonc`.
+// Nên đặt thêm Cloudflare Access (Zero Trust) trước tên miền này; xem docs/HANDOFF.md.
 {
   "name": "hatchday-admin",
   "compatibility_date": "2026-11-05",
-  "assets": { "directory": "./dist-admin", "not_found_handling": "single-page-application" }
+  "assets": { "directory": "./dist-admin", "not_found_handling": "single-page-application" },
+  "routes": [{ "pattern": "admin.noxelis.co", "custom_domain": true }]
 }
