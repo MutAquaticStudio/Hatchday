@@ -8,6 +8,8 @@ import { bondLevel } from '../game/bond';
 import { MEDICINES } from '../game/health';
 import { localDay } from '../game/rules';
 import { friendCap, GIFT_NOTES, GUESTBOOK, isGiftable, SOCIAL, stockCap, type MailRow, type NewsRow, type PublicProfile, type SocialState, type SocialSummary, type VisitData } from '../game/social';
+import { filterChat } from '../net/moderation';
+import type { ChatReply, DmMsg, DmThread } from '../game/social';
 import { withDB } from './demo-api';
 
 const KEY = 'hatchday-demo-social';
@@ -30,6 +32,8 @@ interface SD {
   mail: Stored[]; nextMail: number; read: number[];
   visits: { pid: string; kind: 'stroke' | 'water' | 'note'; plot?: number; emote?: string; day: string }[];
   gifts: { to: string; day: string }[]; botPlots: Record<string, { waters: number; at: number }>;
+  /** Chat riêng với bạn ảo, và lúc bạn ảo sẽ trả lời. */
+  dms?: Record<string, DmMsg[]>; dmDue?: Record<string, number>;
 }
 
 function seed(): SD {
@@ -44,10 +48,11 @@ function seed(): SD {
     ],
     nextMail: 3, read: [],
     visits: [],
-    gifts: [], botPlots: {},
+    gifts: [], botPlots: {}, dms: welcomeDm(), dmDue: {},
   };
 }
-const load = (): SD => { try { const d = JSON.parse(localStorage.getItem(KEY) || 'null') as SD | null; if (d) return d; } catch { /* bỏ qua */ } const s = seed(); save(s); return s; };
+const welcomeDm = (): Record<string, DmMsg[]> => ({ [DEMO_BOTS[0].pid]: [{ id: 1, mine: false, body: 'Chào bạn mới! Ghé nhà mình chơi nhé.', at: new Date(Date.now() - 1800000).toISOString(), read: false }] });
+const load = (): SD => { try { const d = JSON.parse(localStorage.getItem(KEY) || 'null') as SD | null; if (d) { d.dms ||= welcomeDm(); d.dmDue ||= {}; return d; } } catch { /* bỏ qua */ } const s = seed(); save(s); return s; };
 const save = (d: SD) => { try { localStorage.setItem(KEY, JSON.stringify(d)); } catch { /* bỏ qua */ } };
 const fail = (code: string): never => { throw new Error(code); };
 
@@ -231,4 +236,33 @@ export async function leaveGuestbook(who: string, emote: string) {
 export async function getGuestbook() {
   const d = load(); void d;
   return [{ from: DEMO_BOTS[0].name, kind: 'note', emote: 'flower', at: new Date(Date.now() - 5 * 3600000).toISOString() }];
+}
+
+/* ---------- Chat riêng với bạn ảo ---------- */
+const DM_REPLIES = ['Chào bạn!', 'Hihi mình cũng vậy', 'Ghé nhà mình chơi nha', 'Cảm ơn bạn nhé 😊', 'Bé nhà bạn dễ thương quá'];
+function settleDm(d: SD) {
+  const now = Date.now(), due = d.dmDue ?? {};
+  for (const [pid, at] of Object.entries(due)) if (now >= at) { const list = (d.dms![pid] ||= []); list.push({ id: list.length + 1, mine: false, body: DM_REPLIES[list.length % DM_REPLIES.length], at: new Date().toISOString(), read: false }); delete due[pid]; }
+}
+export async function sendDm(who: string, text: string): Promise<ChatReply> {
+  const d = load(), b = friendOrFail(d, who);
+  const f = filterChat(text);
+  if (!f.ok) return { ok: false, reason: f.reason ?? 'filtered' };
+  settleDm(d); const list = (d.dms![b.pid] ||= []);
+  const m: DmMsg = { id: list.length + 1, mine: true, body: f.text, at: new Date().toISOString(), read: true };
+  list.push(m); d.dmDue![b.pid] = Date.now() + 4000; save(d);
+  return { ok: true, id: m.id, text: f.text };
+}
+export async function listDmThreads(): Promise<DmThread[]> {
+  const d = load(); settleDm(d); save(d);
+  return DEMO_BOTS.filter(b => isFriend(d, b.pid) && (d.dms![b.pid] || []).length).map(b => {
+    const list = d.dms![b.pid], last = list[list.length - 1];
+    return { with: profile(b), last: last.body, at: last.at, mine: last.mine, unread: list.filter(x => !x.mine && !x.read).length };
+  }).sort((a, b) => b.at.localeCompare(a.at));
+}
+export async function listDm(who: string): Promise<DmMsg[]> { const d = load(), b = friendOrFail(d, who); settleDm(d); save(d); return [...(d.dms![b.pid] || [])]; }
+export async function markDmRead(who: string) { const d = load(), b = friendOrFail(d, who); (d.dms![b.pid] || []).forEach(m => { if (!m.mine) m.read = true; }); save(d); }
+export async function dmUnread(): Promise<number> {
+  const d = load(); settleDm(d); save(d);
+  return DEMO_BOTS.filter(b => isFriend(d, b.pid) && !d.blocks.includes(b.pid)).reduce((n, b) => n + (d.dms![b.pid] || []).filter(m => !m.mine && !m.read).length, 0);
 }

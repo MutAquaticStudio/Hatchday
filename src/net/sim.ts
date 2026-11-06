@@ -3,6 +3,8 @@
  * Dùng ở chế độ Chơi thử và trong test. `?bots=N` trên URL đổi số bạn ảo (mặc định 3, 0 để tắt).
  */
 import { EMOTES, PROTO, makeLimiter, parseMsg, type EmoteId, type Peer, type PeerLook } from './protocol';
+import { CHAT, filterChat, CHAT_REASON_TEXT } from './moderation';
+import type { ChatMsg, ChatReply } from '../game/social';
 import { Emitter, throttles, type Room, type Transport } from './transport';
 
 const BOT_LOOKS: (PeerLook & { pid: string })[] = [
@@ -10,24 +12,26 @@ const BOT_LOOKS: (PeerLook & { pid: string })[] = [
   { pid: 'b0000000-0000-4000-8000-000000000002', name: 'Nấm Ngủ', family: 'Nhà Nấm', species: 'nam-ngu', stage: 'teen', form: null, genes: { hue: 0.3, ear: 2, scale: 1, region: 3 }, outfit: {}, bond_level: 3 },
   { pid: 'b0000000-0000-4000-8000-000000000003', name: 'Mây Xanh', family: 'Nhà Mây', species: 'bong-may', stage: 'child', form: null, genes: { hue: -0.2, ear: 0, scale: 1, region: 2 }, outfit: {}, bond_level: 2 },
 ];
+const BOT_LINES = ['Chào cả nhà!', 'Hôm nay bé nhà mình vui lắm', 'Ai muốn kết bạn không?', 'Bé của mình thích ăn cà rốt', 'Trời đẹp quá ha', 'Mình mới lên cấp Gắn bó nè', 'Cho vịt ăn thử đi mọi người', 'Hihi 😊', 'Quán trà thơm lắm đó'];
 const rnd = (a: number, b: number) => a + Math.random() * (b - a);
 const sessionPid = (): string => {
   const mk = () => 'a' + crypto.randomUUID().slice(1);
   try { const k = 'hatchday-sim-pid'; return sessionStorage.getItem(k) || (sessionStorage.setItem(k, mk()), sessionStorage.getItem(k)!); } catch { return mk(); }
 };
 
+const rooms = new Map<string, SimRoom>();
 interface SimOpts { bots?: number; botMs?: number; pid?: string }
 type Wire = { t: 'hello'; peer: Peer } | { t: 'bye'; pid: string } | { t: 'ask'; pid: string } | { t: string; pid?: string };
 
 export class SimRoom extends Emitter implements Room {
-  readonly cap: number; readonly pid: string;
+  readonly cap: number; readonly pid: string; readonly topic: string;
   private map = new Map<string, Peer & { seen: number; bot?: boolean }>();
   private chan: BroadcastChannel | null; private me: Peer; private timers: ReturnType<typeof setInterval>[] = []; private timeouts: ReturnType<typeof setTimeout>[] = [];
   private th = throttles(); private limit = makeLimiter(); private closed = false;
 
   constructor(place: string, me: PeerLook & { x: number; z: number }, cap: number, o: SimOpts = {}) {
     super();
-    this.cap = cap; this.pid = o.pid ?? sessionPid(); this.me = { ...me, pid: this.pid };
+    this.cap = cap; this.pid = o.pid ?? sessionPid(); this.me = { ...me, pid: this.pid }; this.topic = place + ':1'; rooms.set(this.topic, this);
     this.chan = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('hatchday-sim:' + place) : null;
     if (this.chan) this.chan.onmessage = ev => this.recv(ev.data as Wire);
     this.post({ t: 'hello', peer: this.me }); this.post({ t: 'ask', pid: this.pid });
@@ -51,6 +55,7 @@ export class SimRoom extends Emitter implements Room {
       if (!known) this.emit('join', this.strip(p.pid));
       return;
     }
+    if (m.t === 'chat') { const c = (m as unknown as { msg: ChatMsg }).msg; if (c && typeof c.text === 'string' && c.text.length <= CHAT.maxLen && typeof c.name === 'string' && typeof c.pid === 'string' && c.pid !== this.pid && this.map.has(c.pid)) this.emit('chat', { id: +c.id || Date.now(), pid: c.pid, name: c.name.slice(0, 24), text: c.text }); return; }
     const msg = parseMsg(m); if (!msg || msg.pid === this.pid) return;
     const peer = this.map.get(msg.pid); if (!peer || !this.limit(msg.pid)) return;
     peer.seen = Date.now();
@@ -64,19 +69,23 @@ export class SimRoom extends Emitter implements Room {
     if (this.closed || this.map.has(look.pid) || this.map.size + 1 >= this.cap) return;
     this.map.set(look.pid, { ...look, x: rnd(-4, 4), z: rnd(-1.5, 1.6), seen: Date.now(), bot: true });
     this.emit('join', this.strip(look.pid));
-    let nextEmote = Date.now() + rnd(8000, 30000);
+    let nextEmote = Date.now() + rnd(8000, 30000), nextChat = Date.now() + rnd(10000, 30000);
     this.timers.push(setInterval(() => {
       const b = this.map.get(look.pid); if (!b || this.closed) return;
       if (Math.random() < 0.6) { b.x = rnd(-4.5, 4.5); b.z = rnd(-1.5, 1.8); this.emit('intent', look.pid, b.x, b.z); }
       if (Date.now() > nextEmote) { nextEmote = Date.now() + rnd(20000, 60000); this.emit('emote', look.pid, EMOTES[Math.floor(Math.random() * EMOTES.length)].id); }
+      if (Date.now() > nextChat) { nextChat = Date.now() + rnd(25000, 70000); this.emit('chat', { id: Date.now(), pid: look.pid, name: look.name, text: BOT_LINES[Math.floor(Math.random() * BOT_LINES.length)] }); }
     }, every));
   }
+
+  /** Chat của chính mình (bản mô phỏng của post_chat): hiện ở tab này và gửi sang các tab khác cùng nơi. */
+  chat(text: string) { const m: ChatMsg = { id: Date.now(), pid: this.pid, name: this.me.name, text }; this.emit('chat', m); this.post({ t: 'chat', pid: this.pid, msg: m } as unknown as Wire); return m; }
 
   sendIntent(x: number, z: number) { this.me.x = x; this.me.z = z; if (this.th.intent()) this.post({ t: 'intent', pid: this.pid, x, z } as Wire); }
   sendEmote(id: EmoteId) { if (this.th.emote()) this.post({ t: 'emote', pid: this.pid, id } as Wire); }
   async leave() {
     if (this.closed) return; this.closed = true;
-    this.post({ t: 'bye', pid: this.pid }); this.chan?.close();
+    this.post({ t: 'bye', pid: this.pid }); this.chan?.close(); if (rooms.get(this.topic) === this) rooms.delete(this.topic);
     this.timers.forEach(clearInterval); this.timeouts.forEach(clearTimeout); this.map.clear();
   }
 }
@@ -88,3 +97,15 @@ export const simTransport: Transport = {
     return new SimRoom(place, me, CAPS[place] ?? 12, { bots });
   },
 };
+
+/** Bản mô phỏng của RPC post_chat: lọc như máy chủ (không có từ khoá), giãn cách 2 giây, rồi phát vào kênh. */
+let lastChatAt = 0;
+export async function simPostChat(topic: string, text: string): Promise<ChatReply> {
+  const room = rooms.get(topic); if (!room) throw new Error('not_in_place');
+  const f = filterChat(text);
+  if (!f.ok) return { ok: false, reason: f.reason ?? 'filtered' };
+  if (Date.now() - lastChatAt < 700) throw new Error('rate_limited');
+  lastChatAt = Date.now(); const m = room.chat(f.text);
+  return { ok: true, id: m.id, text: f.text };
+}
+export { CHAT_REASON_TEXT };

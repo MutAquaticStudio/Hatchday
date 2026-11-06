@@ -5,6 +5,7 @@
  * Không bật Realtime ở bản thật thì dùng SoloTransport: vào nơi chung nhưng chỉ có mình bạn.
  */
 import { isDemo } from '../data/api';
+import type { ChatMsg } from '../game/social';
 import { PROTO, type EmoteId, type Peer, type PeerLook } from './protocol';
 
 export interface RoomEvents {
@@ -12,12 +13,16 @@ export interface RoomEvents {
   leave: (pid: string) => void;
   intent: (pid: string, x: number, z: number) => void;
   emote: (pid: string, id: EmoteId) => void;
+  /** Tin chat công khai của kênh (người gửi do máy chủ đóng dấu). */
+  chat: (m: ChatMsg) => void;
 }
 export interface Room {
   /** Sức chứa của kênh. */
   readonly cap: number;
   /** Mã công khai của mình trong kênh. */
   readonly pid: string;
+  /** Tên kênh (dùng cho post_chat). */
+  readonly topic: string;
   peers(): Peer[];
   on<K extends keyof RoomEvents>(ev: K, fn: RoomEvents[K]): () => void;
   /** Gửi ý định đi tới (x, z). Tự giãn cách theo PROTO.intentMinMs; gọi nhiều cũng được. */
@@ -29,7 +34,7 @@ export interface Transport { join(place: string, me: PeerLook & { x: number; z: 
 
 /** Bộ phát sự kiện nhỏ dùng chung cho các Room. */
 export class Emitter {
-  private fns: { [K in keyof RoomEvents]: Set<RoomEvents[K]> } = { join: new Set(), leave: new Set(), intent: new Set(), emote: new Set() };
+  private fns: { [K in keyof RoomEvents]: Set<RoomEvents[K]> } = { join: new Set(), leave: new Set(), intent: new Set(), emote: new Set(), chat: new Set() };
   on<K extends keyof RoomEvents>(ev: K, fn: RoomEvents[K]) { (this.fns[ev] as Set<RoomEvents[K]>).add(fn); return () => { (this.fns[ev] as Set<RoomEvents[K]>).delete(fn); }; }
   emit<K extends keyof RoomEvents>(ev: K, ...a: Parameters<RoomEvents[K]>) { for (const f of this.fns[ev] as Set<(...x: Parameters<RoomEvents[K]>) => void>) f(...a); }
 }
@@ -42,7 +47,7 @@ export function makeThrottle(ms: number, now: () => number = Date.now) {
 export const throttles = () => ({ intent: makeThrottle(PROTO.intentMinMs), emote: makeThrottle(PROTO.emoteMinMs) });
 
 class SoloRoom extends Emitter implements Room {
-  readonly cap = 1; readonly pid = 'solo';
+  readonly cap = 1; readonly pid = 'solo'; readonly topic = 'solo';
   peers() { return []; }
   sendIntent() {} sendEmote() {}
   async leave() {}

@@ -46,7 +46,7 @@ const RPC: Record<string, string> = {
   invalid_egg: 'Quả trứng này chưa hợp lệ.',
   invalid_layout: 'Bố cục chưa hợp lệ.',
   sell_cap: 'Hôm nay bạn đã bán đủ mức tối đa ở chợ. Mai bán tiếp nhé.',
-  bond_too_low: 'Gắn bó chưa đủ cấp để nhận quà này.',
+  bond_too_low: 'Gắn bó chưa đủ cấp để làm việc này.',
   invalid_level: 'Cấp gắn bó này chưa hợp lệ.',
   not_sick: 'Bé đang khoẻ, không cần chữa.',
   wrong_medicine: 'Thuốc này không chữa được bệnh của bé. Xem Sổ bệnh để biết thuốc nào đúng nhé.',
@@ -62,7 +62,7 @@ const RPC: Record<string, string> = {
   too_many_requests: 'Bạn đang có quá nhiều lời mời chờ trả lời (tối đa 20).',
   not_friends: 'Chỉ bạn bè mới làm được việc này.',
   too_new_friend: 'Hai bạn mới kết bạn, đợi đủ 3 ngày mới tặng quà được.',
-  account_too_new: 'Tài khoản cần từ 3 ngày tuổi mới tặng quà được.',
+  account_too_new: 'Tài khoản còn mới nên chưa dùng được tính năng này, đợi thêm chút nhé.',
   invalid_note: 'Lời nhắn này không hợp lệ.',
   invalid_items: 'Quà chưa hợp lệ (1 đến 5 phần).',
   not_giftable: 'Món này không tặng được.',
@@ -73,6 +73,14 @@ const RPC: Record<string, string> = {
   invalid_emote: 'Dấu vết này không hợp lệ.',
   invalid_privacy: 'Cài đặt riêng tư này không hợp lệ.',
   blocked: 'Bạn không thể làm việc này với người này.',
+  muted: 'Bạn đang bị tạm khoá chat. Thử lại sau nhé.',
+  chat_disabled: 'Chat đang tạm tắt.',
+  duplicate: 'Bạn vừa gửi tin này rồi.',
+  not_in_place: 'Bạn chưa ở trong kênh này.',
+  place_full: 'Nơi này đang đầy người, thử lại sau nhé.',
+  place_closed: 'Các nơi chung đang tạm đóng. Quay lại sau nhé.',
+  already_reported: 'Bạn đã báo cáo rồi, đội ngũ sẽ xem xét.',
+  invalid_reason: 'Lý do báo cáo chưa hợp lệ.',
 };
 
 export function viError(err: unknown): string {

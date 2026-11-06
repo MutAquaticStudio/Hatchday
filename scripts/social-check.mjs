@@ -69,6 +69,21 @@ const until = async (p, fn, ms = 8000, arg) => { const t = Date.now(); while (Da
   await noOverflow('tab Tin tức');
   ok('mở Tin tức: huy hiệu tin chưa đọc biến mất', await until(p, () => !document.querySelector('[data-soc-tab="news"] .soc-badge')));
 
+  // Tin nhắn riêng với Lúa Mạch (bạn ảo trả lời sau ~4 giây)
+  ok('tab Tin nhắn có huy hiệu tin chưa đọc', !!(await p.$('[data-soc-tab="dm"] .soc-badge')));
+  await p.click('[data-soc-tab="dm"]'); await p.waitForSelector('#social [data-soc="dm"]');
+  await noOverflow('tab Tin nhắn');
+  await p.click('#social [data-soc="dm"]'); await p.waitForSelector('#dm-in');
+  ok('mở hội thoại: thấy lời chào của bạn', (await text('#social')).includes('Ghé nhà mình chơi'));
+  await p.fill('#dm-in', 'Chào Lúa Mạch'); await p.click('#social .chat-box button');
+  ok('gửi tin: hiện bên mình', await until(p, () => document.querySelectorAll('#dm-list .dm-msg.mine').length === 1));
+  ok('bạn ảo trả lời sau vài giây', await until(p, () => document.querySelectorAll('#dm-list .dm-msg').length === 3, 12000));
+  await noOverflow('hội thoại');
+  await p.fill('#dm-in', 'gọi 0912345678 nhé'); await p.click('#social .chat-box button');
+  ok('tin có số điện thoại bị từ chối kèm lý do', await until(p, () => /số điện thoại/.test(document.getElementById('toast')?.textContent || '')), await text('#toast'));
+  await p.click('[data-soc="dmback"]'); await p.waitForSelector('#social .soc-list');
+  ok('đã đọc: huy hiệu tin nhắn biến mất', await until(p, () => !document.querySelector('[data-soc-tab="dm"] .soc-badge')));
+
   // Tặng quà cho Lúa Mạch (bạn từ 10 ngày trước)
   await p.click('[data-soc-tab="friends"]'); await p.waitForSelector('[data-soc="gift"]');
   const LUA = 'b0000000-0000-4000-8000-000000000001', NAM = 'b0000000-0000-4000-8000-000000000002';

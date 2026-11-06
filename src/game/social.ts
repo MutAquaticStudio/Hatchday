@@ -56,3 +56,9 @@ export interface VisitData {
   plots: { plot: number; crop: string; ready: boolean; waters: number; can_help: boolean }[];
   today: { stroked: boolean; noted: boolean; rewarded: number };
 }
+
+/** Tin chat công khai (máy chủ đóng dấu người gửi bằng pid). */
+export interface ChatMsg { id: number; pid: string; name: string; text: string }
+export interface DmMsg { id: number; mine: boolean; body: string; at: string; read: boolean }
+export interface DmThread { with: PublicProfile; last: string; at: string; mine: boolean; unread: number }
+export type ChatReply = { ok: true; id: number; text: string } | { ok: false; reason: string };

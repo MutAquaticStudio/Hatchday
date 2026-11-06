@@ -2,6 +2,7 @@
 // Truyền tin ở src/net (SimTransport khi Chơi thử). Chat gõ chữ không ở đây (đợt chat riêng).
 import { createTransport } from '../../net/transport';
 import { EMOTES, emoteChar } from '../../net/protocol';
+import { CHAT_REASON_TEXT, filterChat } from '../../net/moderation';
 import * as api from '../../data/api';
 import { viError } from '../../lib/errors';
 import { SPECIES_BY_ID } from '../species';
@@ -13,7 +14,8 @@ const SPEED = 1.7;
 const esc = v => String(v).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
 
 /* Giao diện dùng chung cho mọi nơi chung: một thanh emote, một lớp nhãn tên, một thẻ hồ sơ. `cur` là nơi đang mở. */
-let bar = null, labels = null, card = null, countEl = null, cur = null;
+let bar = null, labels = null, card = null, countEl = null, cur = null, chatForm = null, chatLog = null;
+const blocked = new Set(); // pid đã chặn: ẩn chat của họ
 
 export function makeShared(c, { placeId, group }) {
   const { THREE, camera, ray, ndcFrom } = c;
@@ -26,9 +28,11 @@ export function makeShared(c, { placeId, group }) {
     const app = document.getElementById('app');
     labels = document.createElement('div'); labels.className = 'actor-layer'; labels.hidden = true; app.appendChild(labels);
     bar = document.createElement('div'); bar.className = 'emote-bar'; bar.hidden = true;
-    bar.innerHTML = `<span class="eb-count" id="eb-count" role="status"></span><div class="eb-row" role="group" aria-label="Biểu cảm">${EMOTES.map(e => `<button type="button" class="eb" data-emote="${e.id}" title="${e.label}" aria-label="${e.label}">${e.e}</button>`).join('')}</div>`;
+    bar.innerHTML = `<div class="chat-log" id="chat-log" aria-live="polite"></div><form class="chat-box" id="chat-box" autocomplete="off"><input id="chat-in" maxlength="100" placeholder="Nói gì đó với mọi người…" aria-label="Tin nhắn"><button type="submit" class="btn-sm">Gửi</button></form><span class="eb-count" id="eb-count" role="status"></span><div class="eb-row" role="group" aria-label="Biểu cảm">${EMOTES.map(e => `<button type="button" class="eb" data-emote="${e.id}" title="${e.label}" aria-label="${e.label}">${e.e}</button>`).join('')}</div>`;
     const bottom = document.querySelector('.bottom'); bottom.insertBefore(bar, document.getElementById('ctx'));
-    countEl = bar.querySelector('#eb-count');
+    countEl = bar.querySelector('#eb-count'); chatForm = bar.querySelector('#chat-box'); chatLog = bar.querySelector('#chat-log');
+    chatForm.addEventListener('submit', e => { e.preventDefault(); if (cur) cur.sendChat(chatForm.querySelector('input').value); });
+    chatLog.addEventListener('click', e => { const l = e.target.closest('[data-msg]'); if (l && cur) cur.reportLine(l); });
     bar.addEventListener('click', e => { const b = e.target.closest('[data-emote]'); if (b && cur) cur.emote(b.dataset.emote); });
     card = document.createElement('div'); card.className = 'peer-card'; card.hidden = true; app.appendChild(card);
     card.addEventListener('click', e => { if (cur) cur.onCard(e); });
@@ -73,6 +77,36 @@ export function makeShared(c, { placeId, group }) {
     if (id === 'wave' || id === 'cheer') a.hop = performance.now();
   }
 
+
+  /* ---------- Chat công khai (máy chủ lọc và đóng dấu người gửi; ở đây chỉ hiển thị) ---------- */
+  let armed = null;
+  const setChat = on => { if (!chatForm) return; chatForm.hidden = !on; if (!on && chatLog) chatLog.innerHTML = '<span class="chat-off">Chat đang tạm tắt.</span>'; };
+  function onChat(m) {
+    if (!chatLog || blocked.has(m.pid)) return;
+    chatLog.querySelector('.chat-off')?.remove();
+    const mine = room && m.pid === room.pid, line = document.createElement('div');
+    line.className = 'chat-line' + (mine ? ' mine' : ''); line.dataset.msg = m.id; line.dataset.pid = m.pid;
+    line.innerHTML = `<b>${esc(m.name)}</b> ${esc(m.text)}`; chatLog.appendChild(line);
+    while (chatLog.children.length > 4) chatLog.firstChild.remove();
+    setTimeout(() => line.remove(), 16000);
+    const a = actors.get(m.pid);
+    if (a) { const say = a.el.querySelector('.actor-say') || a.el.insertBefore(Object.assign(document.createElement('span'), { className: 'actor-say' }), a.el.firstChild); say.textContent = m.text; a.sayUntil = performance.now() + 5000; a.el.classList.add('has-say'); }
+  }
+  async function sendChat(text) {
+    if (!room || !text.trim()) return;
+    const f = filterChat(text); if (!f.ok) { c.toast(CHAT_REASON_TEXT[f.reason] || 'Chưa gửi được.'); return; }
+    const input = chatForm.querySelector('input'); input.disabled = true;
+    try { const r = await api.postChat(room.topic, text); if (r.ok) input.value = ''; else c.toast(CHAT_REASON_TEXT[r.reason] || 'Chưa gửi được.'); }
+    catch (e) { c.toast(viError(e)); }
+    input.disabled = false; input.focus({ preventScroll: true });
+  }
+  async function reportLine(line) {
+    if (line.classList.contains('mine') || !line.dataset.msg) return;
+    if (armed !== line.dataset.msg) { armed = line.dataset.msg; c.toast('Chạm lần nữa vào tin này để báo cáo.'); setTimeout(() => { if (armed === line.dataset.msg) armed = null; }, 4000); return; }
+    armed = null;
+    try { await api.reportChat(+line.dataset.msg, 'other'); c.toast('Đã gửi báo cáo. Cảm ơn bạn đã giúp Hatchday an toàn.'); line.remove(); } catch (e) { c.toast(viError(e)); }
+  }
+
   /* ---------- Thẻ hồ sơ khi chạm thú của người khác ---------- */
   let cardPid = null;
   function openCard(a) {
@@ -87,23 +121,24 @@ export function makeShared(c, { placeId, group }) {
     b.disabled = true;
     try {
       if (k === 'friend') { const r = await api.sendFriendRequest(pid); c.toast(r.status === 'accepted' ? 'Hai bạn đã là bạn bè!' : 'Đã gửi lời mời kết bạn.'); }
-      else if (k === 'block') { await api.blockUser(pid); c.toast('Đã chặn người này.'); removeActor(pid); card.hidden = true; }
+      else if (k === 'block') { await api.blockUser(pid); blocked.add(pid); c.toast('Đã chặn người này.'); removeActor(pid); card.hidden = true; }
       else if (k === 'report') { await api.reportUser(pid, 'other'); c.toast('Đã gửi báo cáo. Cảm ơn bạn đã giúp Hatchday an toàn.'); card.hidden = true; }
     } catch (err) { c.toast(viError(err)); }
     b.disabled = false;
   }
 
   const inst = {
-    emote, onCard, pagehide: () => { if (room) room.leave(); },
+    emote, onCard, sendChat, reportLine, pagehide: () => { if (room) room.leave(); },
     async enter() {
-      ui(); cur = inst; active = true; const mine = ++token; bar.hidden = false; labels.hidden = false; setCount('Đang vào kênh…');
+      ui(); cur = inst; active = true; const mine = ++token; bar.hidden = false; labels.hidden = false; setCount('Đang vào kênh…'); chatLog.innerHTML = ''; setChat(false);
+      api.getPublicConfig().then(cfg => { if (mine === token) { setChat(cfg.chat_public === true); } }).catch(() => {});
       try {
         const tr = await createTransport(), r = await tr.join(placeId, look());
         if (mine !== token || !active) { await r.leave(); return; }
         room = r;
         r.on('join', addActor); r.on('leave', removeActor);
         r.on('intent', (pid, x, z) => { const a = actors.get(pid); if (a) { a.tx = x; a.tz = z; } });
-        r.on('emote', showEmote);
+        r.on('emote', showEmote); r.on('chat', onChat);
         r.peers().forEach(addActor); updateCount();
       } catch (e) { setCount('Chưa vào được kênh chung'); c.toast(viError(e)); }
     },
@@ -129,6 +164,7 @@ export function makeShared(c, { placeId, group }) {
         a.root.position.set(a.x, (a.moving ? Math.abs(Math.sin(t * 9 + a.ph)) * 0.06 : 0) + hop, a.z);
         if (a.body) { a.body.rotation.y = a.yaw; a.body.scale.setScalar(a.k * (1 + (a.moving ? 0 : Math.sin(t * 2 + a.ph) * 0.012))); }
         if (a.parts) c.petBuilder.animate(a.parts, t, false);
+        if (a.sayUntil && now > a.sayUntil) { a.sayUntil = 0; a.el.classList.remove('has-say'); }
         if (a.emoteUntil && now > a.emoteUntil) { a.emoteUntil = 0; a.el.classList.remove('has-emote'); }
         v.set(a.x, 2.0 * a.k + 0.2, a.z).project(camera);
         const vis = v.z < 1 && Math.abs(v.x) < 1.15;

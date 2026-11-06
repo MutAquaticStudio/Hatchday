@@ -6,16 +6,17 @@
  */
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
+import type { ChatMsg } from '../game/social';
 import { makeLimiter, parseMsg, type EmoteId, type Peer, type PeerLook } from './protocol';
 import { Emitter, throttles, type Room, type Transport } from './transport';
 
 type Roster = (PeerLook & { pid: string })[];
 
 class SupaRoom extends Emitter implements Room {
-  cap: number; pid: string;
-  private ch: RealtimeChannel | null = null; private roster = new Map<string, PeerLook & { pid: string }>(); private live = new Map<string, Peer>();
+  cap: number; pid: string; readonly topic: string;
+  private ch: RealtimeChannel | null = null; private chatCh: RealtimeChannel | null = null; private roster = new Map<string, PeerLook & { pid: string }>(); private live = new Map<string, Peer>();
   private beat: ReturnType<typeof setInterval> | null = null; private lastRoster = 0; private th = throttles(); private limit = makeLimiter(); private me: Peer; private closed = false;
-  constructor(private topic: string, cap: number, pid: string, me: PeerLook & { x: number; z: number }) { super(); this.cap = cap; this.pid = pid; this.me = { ...me, pid }; }
+  constructor(topic: string, cap: number, pid: string, me: PeerLook & { x: number; z: number }) { super(); this.topic = topic; this.cap = cap; this.pid = pid; this.me = { ...me, pid }; }
 
   peers(): Peer[] { return [...this.live.values()]; }
 
@@ -32,6 +33,12 @@ class SupaRoom extends Emitter implements Room {
         else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') { clearTimeout(t); bad(new Error('realtime_' + status)); }
       });
     });
+    // Chat: kênh riêng chỉ nghe (người gửi do máy chủ đóng dấu qua post_chat)
+    this.chatCh = supabase.channel('chat:' + this.topic, { config: { private: true } });
+    this.chatCh.on('broadcast', { event: 'chat' }, ({ payload }) => {
+      const p = payload as Partial<ChatMsg> | null;
+      if (p && typeof p.text === 'string' && typeof p.pid === 'string' && typeof p.name === 'string' && p.text.length <= 100 && p.pid !== this.pid) this.emit('chat', { id: Number(p.id) || 0, pid: p.pid, name: p.name.slice(0, 24), text: p.text });
+    }).subscribe();
     this.beat = setInterval(() => { void supabase.rpc('place_heartbeat'); }, 40000);
   }
   private async refreshRoster() {
@@ -70,7 +77,7 @@ class SupaRoom extends Emitter implements Room {
   async leave() {
     if (this.closed) return; this.closed = true;
     if (this.beat) clearInterval(this.beat);
-    try { await this.ch?.untrack(); await this.ch?.unsubscribe(); } catch { /* bỏ qua */ }
+    try { await this.ch?.untrack(); await this.ch?.unsubscribe(); await this.chatCh?.unsubscribe(); } catch { /* bỏ qua */ }
     try { await supabase.rpc('leave_place'); } catch { /* máy chủ tự dọn sau 120 giây */ }
     this.live.clear();
   }

@@ -288,6 +288,11 @@ ok('đi tới Quảng trường: chip đổi tên, thanh emote và nhãn Bảng 
 ok('bạn ảo vào kênh: thấy ít nhất 2 thú khác và đếm người',await until(()=>p.evaluate(()=>document.querySelectorAll('.actor').length>=2),15000)&&/\d+\/12 người/.test(await p.textContent('#eb-count')),await p.textContent('#eb-count'));
 await p.click('.eb[data-emote="heart"]');
 ok('bấm emote: bé nói biểu tượng',await until(async()=>(await p.textContent('#bubble')).includes('❤️'),4000));
+await p.fill('#chat-in','Xin chào mọi người');await p.click('#chat-box button');
+ok('chat: tin của mình hiện trong nhật ký chat',await until(()=>p.evaluate(()=>!!document.querySelector('.chat-line.mine')),6000));
+await p.fill('#chat-in','gọi 0912345678 nhé');await p.click('#chat-box button');
+ok('chat: số điện thoại bị chặn kèm lý do',await until(async()=>(await p.textContent('#toast')).includes('số điện thoại'),4000),await p.textContent('#toast'));
+await p.fill('#chat-in','');
 await p.click('.hot[data-hot="news"]');
 ok('chạm Bảng tin: mở mục Tin tức',await until(async()=>await p.isVisible('#social')&&(await p.textContent('#social')).includes('Tin tức'),15000));
 await p.click('.hsheet:not([hidden]) [data-close]');await p.waitForTimeout(300);

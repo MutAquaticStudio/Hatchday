@@ -2,6 +2,7 @@
 // Dữ liệu nằm ở máy chủ; ở đây chỉ giữ bản sao ngắn hạn để vẽ. Luật và hạn mức: social.ts.
 import * as api from '../data/api';
 import { viError } from '../lib/errors';
+import { CHAT_REASON_TEXT } from '../net/moderation';
 import { BY_ID, FOODS } from './catalog';
 import { MEDICINES } from './health';
 import { GIFT_NOTES, GUESTBOOK, SOCIAL, isGiftable } from './social';
@@ -13,7 +14,7 @@ const KIND = { update: 'Cập nhật', event: 'Sự kiện', maintenance: 'Bảo
 const POLL_MS = 60000, FOCUS_MIN_MS = 15000;
 
 export function initSocial({ ctx, S, store, esc, head, open, closeAll, thumb, fillThumbs, app, $, onChange = () => {} }) {
-  const D = { tab: 'friends', state: null, friends: [], req: { incoming: [], outgoing: [] }, inbox: [], news: [], sum: { mail_unread: 0, news_unread: 0, requests_in: 0 }, armed: new Set(), busy: false };
+  const D = { tab: 'friends', state: null, friends: [], req: { incoming: [], outgoing: [] }, inbox: [], news: [], sum: { mail_unread: 0, news_unread: 0, requests_in: 0, dm_unread: 0 }, dm: { threads: [], open: null, msgs: [] }, armed: new Set(), busy: false };
   let visit = null, gift = null, lastPoll = 0, lastMail = -1;
 
   const nameOf = id => BY_ID[id]?.name || FOODS.find(f => f.id === id)?.name || MEDICINES.find(m => m.id === id)?.name || id;
@@ -21,20 +22,21 @@ export function initSocial({ ctx, S, store, esc, head, open, closeAll, thumb, fi
   const wear = p => Object.values(p.outfit || {}).join(',');
   const petImg = (p, size = 56) => `<img class="soc-pet" data-thumb="pet:${esc(p.species)}:${esc(p.stage)}:${esc(p.form || '')}:${esc(wear(p))}" alt="" width="${size}" height="${size}">`;
   const itemsText = list => list.map(i => `${esc(nameOf(i.id))} ×${i.qty}`).join(', ');
-  const total = () => D.sum.mail_unread + D.sum.requests_in + D.sum.news_unread;
-  const sub = () => `${D.sum.mail_unread} thư mới · ${D.sum.requests_in} lời mời · ${D.sum.news_unread} tin chưa đọc`;
+  const total = () => D.sum.mail_unread + D.sum.requests_in + D.sum.news_unread + (D.sum.dm_unread || 0);
+  const sub = () => `${D.sum.mail_unread} thư mới · ${D.sum.requests_in} lời mời · ${D.sum.news_unread} tin chưa đọc${D.sum.dm_unread ? ` · ${D.sum.dm_unread} tin nhắn` : ''}`;
   const say = (msg, ms = 2600) => ctx.toast(msg, ms);
 
   /* ---------- Tải dữ liệu ---------- */
   async function loadSummary() {
     try {
-      const s = await api.getSocialSummary(); lastPoll = Date.now(); D.sum = s;
+      const [s, dm] = await Promise.all([api.getSocialSummary(), api.dmUnread().catch(() => 0)]); lastPoll = Date.now(); D.sum = { ...s, dm_unread: dm };
       if (lastMail >= 0 && s.mail_unread > lastMail && !ctx.isBusy?.()) ctx.say?.('Có thư mới trong hộp thư nè!', 3000);
       lastMail = s.mail_unread; onChange();
     } catch { /* mạng chập chờn: lần sau thử lại */ }
   }
   async function loadAll() {
-    const r = await Promise.allSettled([api.getSocialState(), api.listFriends(), api.listRequests(), api.getInbox(), api.getNews(), loadSummary()]);
+    const r = await Promise.allSettled([api.getSocialState(), api.listFriends(), api.listRequests(), api.getInbox(), api.getNews(), loadSummary(), api.listDmThreads()]);
+    if (r[6].status === 'fulfilled') D.dm.threads = r[6].value;
     if (r[0].status === 'fulfilled') D.state = r[0].value;
     if (r[1].status === 'fulfilled') D.friends = r[1].value;
     if (r[2].status === 'fulfilled') D.req = r[2].value;
@@ -51,15 +53,15 @@ export function initSocial({ ctx, S, store, esc, head, open, closeAll, thumb, fi
 
   /* ---------- Sheet chính: Bạn bè · Hộp thư · Tin tức ---------- */
   function openSocial(tab = 'friends') {
-    D.tab = tab; D.armed.clear(); open('social'); render(); loadAll();
+    D.tab = tab; D.armed.clear(); if (tab !== 'dm') D.dm.open = null; open('social'); render(); loadAll();
   }
   function tabs() {
     const t = (id, label, n) => `<button type="button" class="tab" role="tab" data-soc-tab="${id}" aria-selected="${D.tab === id}">${label}${n ? ` <i class="soc-badge">${n}</i>` : ''}</button>`;
-    return `<div class="tabs soc-tabs" role="tablist">${t('friends', 'Bạn bè', D.sum.requests_in)}${t('mail', 'Hộp thư', D.sum.mail_unread)}${t('news', 'Tin tức', D.sum.news_unread)}</div>`;
+    return `<div class="tabs soc-tabs" role="tablist">${t('friends', 'Bạn bè', D.sum.requests_in)}${t('mail', 'Hộp thư', D.sum.mail_unread)}${t('news', 'Tin tức', D.sum.news_unread)}${t('dm', 'Tin nhắn', D.sum.dm_unread)}</div>`;
   }
   function render() {
     const el = $('social'); if (!el) return;
-    el.innerHTML = head('Bạn bè &amp; thư', sub()) + tabs() + `<div class="hs-body soc-body">${({ friends: friendsTab, mail: mailTab, news: newsTab })[D.tab]()}</div>`;
+    el.innerHTML = head('Bạn bè &amp; thư', sub()) + tabs() + `<div class="hs-body soc-body">${({ friends: friendsTab, mail: mailTab, news: newsTab, dm: dmTab })[D.tab]()}</div>`;
     fillThumbs(el);
     if (D.tab === 'news') markNewsRead();
   }
@@ -79,7 +81,7 @@ export function initSocial({ ctx, S, store, esc, head, open, closeAll, thumb, fi
       `<button type="button" class="btn-sm" data-soc="accept" data-who="${esc(p.pid)}">Đồng ý</button><button type="button" class="btn-sm ghost" data-soc="decline" data-who="${esc(p.pid)}">Từ chối</button>`)).join('')}</ul>` : '';
     const out = D.req.outgoing.length ? `<p class="hs-note">Đang chờ ${D.req.outgoing.length} người trả lời lời mời của bạn.</p>` : '';
     const list = D.friends.length ? `<ul class="soc-list">${D.friends.map(p => person(p,
-      `<button type="button" class="btn-sm" data-soc="visit" data-who="${esc(p.pid)}">Ghé thăm</button><button type="button" class="btn-sm ghost" data-soc="gift" data-who="${esc(p.pid)}">Tặng quà</button>${armBtn('remove', 'Bỏ bạn', '', p.pid)}${armBtn('block', 'Chặn', '', p.pid)}`)).join('')}</ul>`
+      `<button type="button" class="btn-sm" data-soc="visit" data-who="${esc(p.pid)}">Ghé thăm</button><button type="button" class="btn-sm ghost" data-soc="gift" data-who="${esc(p.pid)}">Tặng quà</button><button type="button" class="btn-sm ghost" data-soc="dm" data-who="${esc(p.pid)}">Nhắn tin</button>${armBtn('remove', 'Bỏ bạn', '', p.pid)}${armBtn('block', 'Chặn', '', p.pid)}`)).join('')}</ul>`
       : '<p class="hs-note">Chưa có bạn nào. Nhập mã bạn bè của người khác ở trên để kết bạn.</p>';
     return `<section class="soc-card"><div><small>Mã bạn bè của bạn</small><b class="soc-code" id="soc-mycode">${esc(st?.friend_code || '········')}</b></div><button type="button" class="btn-sm ghost" data-soc="copy">Sao chép</button></section>
       <form class="soc-add" data-soc-form="add" autocomplete="off"><input id="soc-code" maxlength="12" inputmode="text" autocapitalize="characters" placeholder="Nhập mã bạn bè (8 ký tự)" aria-label="Mã bạn bè"><button class="btn-sm" type="submit">Kết bạn</button></form>
@@ -109,6 +111,25 @@ export function initSocial({ ctx, S, store, esc, head, open, closeAll, thumb, fi
     const unread = D.news.filter(n => !n.read); if (!unread.length || marking) return; marking = true;
     try { await Promise.all(unread.map(n => api.markNewsRead(n.id))); unread.forEach(n => { n.read = true; }); D.sum.news_unread = 0; await loadSummary(); } catch { /* lần sau */ }
     marking = false; if (!$('social').hidden) render();
+  }
+
+
+  /* ---------- Tin nhắn riêng (chỉ giữa bạn bè) ---------- */
+  const when = iso => new Date(iso).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' });
+  function dmTab() {
+    const o = D.dm.open;
+    if (o) return `<div class="soc-act"><button type="button" class="btn-sm ghost" data-soc="dmback">← Tin nhắn</button><b>${esc(o.name)}</b></div>
+      <div class="dm-list" id="dm-list">${D.dm.msgs.length ? D.dm.msgs.map(m => `<div class="dm-msg${m.mine ? ' mine' : ''}"><span>${esc(m.body)}</span><small>${when(m.at)}</small></div>`).join('') : '<p class="hs-note">Chưa có tin nào. Gửi lời chào đi!</p>'}</div>
+      <form class="chat-box" data-soc-form="dm" autocomplete="off"><input id="dm-in" maxlength="100" placeholder="Nhắn cho ${esc(o.name)}…" aria-label="Tin nhắn"><button class="btn-sm" type="submit">Gửi</button></form>
+      <p class="hs-note">Không gửi liên kết, email hay số điện thoại. Tin giữ 30 ngày.</p>`;
+    if (!D.dm.threads.length) return '<p class="hs-note">Chưa có tin nhắn nào. Mở danh sách bạn bè và bấm "Nhắn tin" để bắt đầu.</p>';
+    return `<ul class="soc-list">${D.dm.threads.map(t => `<li class="soc-row">${petImg(t.with)}<div class="soc-info"><b>${esc(t.with.name)}</b><small>${t.mine ? 'Bạn: ' : ''}${esc(t.last)}</small></div><div class="soc-act"><button type="button" class="btn-sm${t.unread ? '' : ' ghost'}" data-soc="dm" data-who="${esc(t.with.pid)}">${t.unread ? `Mới (${t.unread})` : 'Mở'}</button></div></li>`).join('')}</ul>`;
+  }
+  async function openDm(pid) {
+    const p = D.friends.find(x => x.pid === pid) || D.dm.threads.find(t => t.with.pid === pid)?.with; if (!p) return;
+    D.dm.open = { pid, name: p.name }; D.tab = 'dm'; D.dm.msgs = []; render();
+    try { D.dm.msgs = await api.listDm(pid); await api.markDmRead(pid); D.sum.dm_unread = await api.dmUnread().catch(() => 0); onChange(); } catch (e) { ctx.toast(viError(e)); D.dm.open = null; }
+    render(); const l = $('dm-list'); if (l) l.scrollTop = l.scrollHeight;
   }
 
   /* ---------- Tặng quà ---------- */
@@ -166,7 +187,7 @@ export function initSocial({ ctx, S, store, esc, head, open, closeAll, thumb, fi
 
   app.addEventListener('click', async e => {
     const tab = e.target.closest('[data-soc-tab]');
-    if (tab) { D.tab = tab.dataset.socTab; D.armed.clear(); render(); return; }
+    if (tab) { D.tab = tab.dataset.socTab; D.armed.clear(); if (D.tab !== 'dm') D.dm.open = null; render(); return; }
     const arm = e.target.closest('[data-soc-arm]');
     if (arm) { D.armed.add(arm.dataset.socArm + arm.dataset.who); render(); setTimeout(() => { if (D.armed.delete(arm.dataset.socArm + arm.dataset.who)) { if (!$('social').hidden) render(); } }, 4000); return; }
     const g = e.target.closest('[data-gift]');
@@ -198,6 +219,8 @@ export function initSocial({ ctx, S, store, esc, head, open, closeAll, thumb, fi
     if (k === 'accept' || k === 'decline') { await run(b, () => api.respondFriendRequest(who, k === 'accept'), k === 'accept' ? 'Đã kết bạn!' : 'Đã từ chối.'); await loadAll(); return; }
     if (k === 'remove') { D.armed.delete('remove' + who); await run(b, () => api.removeFriend(who), 'Đã bỏ bạn.'); await loadAll(); return; }
     if (k === 'block') { D.armed.delete('block' + who); await run(b, () => api.blockUser(who), 'Đã chặn người này.'); await loadAll(); return; }
+    if (k === 'dm') { open('social'); openDm(who); return; }
+    if (k === 'dmback') { D.dm.open = null; render(); loadAll(); return; }
     if (k === 'visit') { openVisit(who); return; }
     if (k === 'gift') { openGift(who); return; }
     if (k === 'back') { gift = null; openSocial('friends'); return; }
@@ -206,6 +229,13 @@ export function initSocial({ ctx, S, store, esc, head, open, closeAll, thumb, fi
     if (k === 'delmail') { await run(b, () => api.deleteMail(+b.dataset.id)); await loadAll(); return; }
   });
   app.addEventListener('submit', async e => {
+    const dmf = e.target.closest('[data-soc-form="dm"]');
+    if (dmf && D.dm.open) {
+      e.preventDefault(); const inp = $('dm-in'), text = inp.value.trim(); if (!text) return; inp.disabled = true;
+      try { const r = await api.sendDm(D.dm.open.pid, text); if (r.ok) { D.dm.msgs = await api.listDm(D.dm.open.pid); render(); const l = $('dm-list'); if (l) l.scrollTop = l.scrollHeight; $('dm-in')?.focus({ preventScroll: true }); setTimeout(async () => { if (D.dm.open && D.tab === 'dm') { D.dm.msgs = await api.listDm(D.dm.open.pid).catch(() => D.dm.msgs); if (D.dm.open) { await api.markDmRead(D.dm.open.pid).catch(() => {}); D.sum.dm_unread = await api.dmUnread().catch(() => 0); onChange(); } if (D.dm.open && !$('social').hidden) { render(); const l2 = $('dm-list'); if (l2) l2.scrollTop = l2.scrollHeight; } } }, 4600); } else { ctx.toast(CHAT_REASON_TEXT[r.reason] || 'Chưa gửi được.'); inp.disabled = false; } }
+      catch (err) { ctx.toast(viError(err)); inp.disabled = false; }
+      return;
+    }
     const f = e.target.closest('[data-soc-form="add"]'); if (!f) return; e.preventDefault();
     const code = $('soc-code').value.trim(); if (!code) { say('Bạn chưa nhập mã bạn bè.'); return; }
     const r = await run(f.querySelector('button'), () => api.sendFriendRequest(code), r => (r.status === 'accepted' ? 'Hai bạn đã là bạn bè!' : 'Đã gửi lời mời kết bạn.'));
