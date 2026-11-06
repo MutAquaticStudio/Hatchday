@@ -129,7 +129,9 @@ supabase/migrations/      13 migration; supabase/tests/ test RPC
 - Game: `https://hatchday.noxelis.co` (`wrangler.jsonc`, Worker `hatchday`). Admin: `https://admin.noxelis.co` (`wrangler.admin.jsonc`, Worker `hatchday-admin`). Zone `noxelis.co` nằm trong cùng tài khoản Cloudflare.
 - Biến build (Cloudflare Workers Builds hoặc build tay): `VITE_SUPABASE_URL=https://ngumfhweushmoeiplyte.supabase.co`, `VITE_SUPABASE_PUBLISHABLE_KEY` (khoá publishable của dự án), `VITE_TURNSTILE_SITE_KEY` (khi bật CAPTCHA).
 - Supabase Auth đã đặt: Site URL `https://hatchday.noxelis.co`, danh sách chuyển hướng gồm hai tên miền trên và `localhost:5173/5174`, mật khẩu tối thiểu 8. TOTP đã bật. Còn lại: bật CAPTCHA Turnstile (cần widget, secret nhập ở Authentication > Bot and Abuse Protection), SMTP riêng (thư mặc định của Supabase giới hạn 2 thư/giờ), Google OAuth, mẫu email tiếng Việt.
-- Chưa triển khai: token Cloudflare hiện thiếu quyền Workers Scripts:Edit và Turnstile:Edit.
+- **Đã triển khai (2026-11-06)** cả hai site, bằng cầu nối tạm: tệp tĩnh lưu trong KV (`hatchday-site`, `hatchday-admin-site`) và một Worker nhỏ phục vụ chúng kèm header từ `_headers`. Lý do: `wrangler deploy` tải tài nguyên bằng mã tạm trong header `Authorization`, mà proxy của môi trường phiên Claude luôn ghi đè header đó nên bị 401. Khi nối Workers Builds (hoặc chạy `wrangler deploy` ở máy có token) thì cùng tên Worker và tên miền sẽ được thay bằng bản dùng Static Assets, không cần dọn gì thêm (KV cũ có thể xoá).
+- Turnstile: widget "Hatchday login" (site key `0x4AAAAAAF1qdP31ZTFFb0K_`) cho hai tên miền và localhost; Supabase đã bật CAPTCHA Turnstile. Chạy game ở máy mà thiếu `VITE_TURNSTILE_SITE_KEY` thì đăng nhập bị từ chối.
+- Cloudflare tự chèn Web Analytics beacon và JS Detections vào trang; CSP chặn hai thứ đó nên console có báo lỗi CSP. Vô hại; muốn hết thì tắt hai tính năng đó cho zone hoặc nới CSP.
 
 **Đưa lên chạy thật (chưa ai làm)**
 - Tạo dự án Supabase (region Singapore), `npx supabase link`, `npx supabase db push` (13 migration), điền `.env` theo `.env.example`.
