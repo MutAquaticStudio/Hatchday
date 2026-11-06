@@ -4,6 +4,7 @@
 import { S } from './store';
 import { dayRec } from './diary.js';
 import { $ } from './dom.js';
+import { milestone } from '../lib/telemetry';
 
 const KEY = 'hatchday-tour';
 const read = () => { try { return localStorage.getItem(KEY) === '1'; } catch { return false; } };
@@ -42,7 +43,7 @@ export function initTour(c = {}) {
   }
   $('app').addEventListener('click', e => {
     const b = e.target.closest('[data-tour]');
-    if (b) { stop(true); return; }
+    if (b) { milestone(b.dataset.tour === 'skip' ? 'tour_skipped' : 'tour_done'); stop(true); return; }
     const t = step >= 0 && TOUR_STEPS[step].target;
     if (t && t !== 'tray' && e.target.closest('#' + t)) pressed = true;
   }, true);

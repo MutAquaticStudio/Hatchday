@@ -1,1 +1,1 @@
-{"query": "select proname from pg_proc where proname in ('admin_chat_log','admin_chat_filter_stats')"}
+{"query": "select metric, dim, value from stats_daily order by 1,2"}

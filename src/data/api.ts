@@ -177,3 +177,8 @@ export const getActiveEvents = (): Promise<ActiveEvent[]> => (isDemo ? Promise.r
 export const getAdState = () => (isDemo ? demo.getAdState() : rpc<AdState>('get_ad_state'));
 export const startAdReward = () => (isDemo ? demo.startAdReward() : rpc<AdTicket>('start_ad_reward'));
 export const claimAdReward = (nonce: string) => (isDemo ? demo.claimAdReward(nonce) : rpc<{ coins: number; reward: number; left: number }>('claim_ad_reward', { p_nonce: nonce }));
+
+/* ---------- Đo lường cho dashboard (bản Chơi thử không gửi gì) ---------- */
+export const pingSession = (platform: string, standalone: boolean) => (isDemo ? Promise.resolve(null) : rpc<{ session: number; new: boolean }>('ping_session', { p_platform: platform, p_standalone: standalone }));
+export const setAttribution = (ref: string, medium: string | null) => (isDemo ? Promise.resolve() : rpc<void>('set_attribution', { p_ref: ref, p_medium: medium }));
+export const markMilestone = (key: string) => (isDemo ? Promise.resolve() : rpc<void>('mark_milestone', { p_key: key }));
