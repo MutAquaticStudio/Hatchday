@@ -1,6 +1,5 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
-// @ts-expect-error world.js là JS thuần
 import { makeFireflies, makeWorld } from './world.js';
 
 const toon = (color: string) => new THREE.MeshBasicMaterial({ color });
@@ -22,7 +21,7 @@ describe('world.js: khu dựng dần theo vị trí bé', () => {
     world.update(6, 0); world.update(6, 0); // tới gần khu 'near' (cách 4 < 8): dựng xong sau vài khung
     expect(builtNear).toBe(1); expect(builtFar).toBe(0);
     expect(world.status().find((s: { id: string }) => s.id === 'near')).toMatchObject({ state: 'ready', visible: true });
-    world.update(-20, 0); expect(world.status().find((s: { id: string }) => s.id === 'near').visible).toBe(false); // đi xa thì ẩn, không dựng lại
+    world.update(-20, 0); expect(world.status().find((s: { id: string }) => s.id === 'near')?.visible).toBe(false); // đi xa thì ẩn, không dựng lại
     expect(builtNear).toBe(1); expect(g.children).toHaveLength(3);
   });
   it('việc dựng chia nhỏ: mỗi khung hình chạy trong ngân sách thời gian, xong hết mới đánh dấu ready và áp bóng đổ', () => {
@@ -45,7 +44,7 @@ describe('world.js: scatter (InstancedMesh) và mật độ', () => {
     const { world, g } = setup();
     const m = world.scatter(g, box(), world.toonC('#fff'), [{ x: 0, z: 0 }, { x: 1, z: 1, s: 2 }, { x: 2, z: 2, color: '#ff0000' }], '#000');
     expect(m.isInstancedMesh).toBe(true); expect(m.count).toBe(3); expect(g.children.filter((o: THREE.Object3D) => o.userData.outline)).toHaveLength(1);
-    const before = g.children.length; world.scatter(g, box(), world.toonC('#fff'), [{ x: 0, z: 0 }], null); expect(g.children.length - before).toBe(1);
+    const before = g.children.length; world.scatter(g, box(), world.toonC('#fff'), [{ x: 0, z: 0 }], null as unknown as string); expect(g.children.length - before).toBe(1);
     expect(world.scatter(g, box(), world.toonC('#fff'), [])).toBeNull();
   });
   it('cache dùng chung hình/vật liệu; mật độ giảm một nửa ở chất lượng Thấp', () => {
