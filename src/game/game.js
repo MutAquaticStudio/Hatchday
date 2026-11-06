@@ -1,6 +1,6 @@
 // Lớp hiển thị & tương tác 3D (chuyển từ bản mẫu). Sẽ tách nhỏ và chuyển sang TypeScript dần.
 import * as THREE from 'three';
-import { S, save, act, actBatched, addTalkMemory, renamePet, onSync, onSyncError, onTraitShift, startPeriodicSync,
+import { S, save, act, playToy as playToyStore, actBatched, addTalkMemory, renamePet, onSync, onSyncError, onTraitShift, startPeriodicSync,
   buy, saveLayout, equip, savePreset, claimQuest, claimQuestBonus, claimWeeklyQuest, claimCollection, buyFood, claimRation, nutritionNow, refreshFamily, familyMemories, refreshGarden, plantCrop, waterCrop, harvestCrop, upgradeParcel, buyParcel, saveFarm, cook, upgradeFridge, serverNow, onSpoil, refreshQuests, activeLayout, previewComfort, onIllness, healthNow, buyMedicine, useMedicine, visitClinic, refreshHealth, onBondLevel, claimBond, sellFood, refreshSell, refreshEconomy, refreshOwned } from './store';
 import { BOND, bondLevel, bondProgress, unclaimedLevels } from './bond';
 import { PLACES, PLACE_BY_ID, MAP_NODES, BLOCK_TEXT, enterBlock } from './places/registry';
@@ -10,6 +10,7 @@ import { initHome } from './home.js';
 import { viError } from '../lib/errors';
 import { initEvents } from './events-ui.js';
 import { initNotify } from './notify.js';
+import { TOY_BY_ID, TOY_REFUSAL_TEXT, toyGain } from './toys';
 import { decayStats, deriveExpression, localDay } from './rules';
 import { makePetBuilder, disposePet } from './pet3d.js';
 import { makeFace } from './face.js';
@@ -292,7 +293,7 @@ const CTX = {
   home: [],
   kitchen: [['home', 'Ăn xong, về phòng']],
   bath: [['rinse', 'Xả nước'], ['home', 'Về phòng']],
-  garden: [['ball', 'Ném bóng'], ['spin', 'Xoay vòng'], ['farm', 'Trang trí'], ['home', 'Về phòng']],
+  garden: [['ball', 'Ném bóng'], ['spin', 'Xoay vòng'], ['toys', 'Đồ chơi'], ['farm', 'Trang trí'], ['home', 'Về phòng']],
   bedroom: [['wake', 'Thức dậy']],
 };
 for (const d of PLACES) { AREA_NAME[d.id] = d.name; PET_POS[d.id] = d.pet; CAM[d.id] = d.cam; CTX[d.id] = d.ctx; }
@@ -312,12 +313,12 @@ const PLACE_LOADERS = {
 };
 const placeOpen = {
   clinic: sec => home.openClinic(sec), shop: (t, k) => home.openShop(t, k), wardrobe: () => home.openWardrobe(), dex: () => home.openDex(), family: () => home.openFamily(), sell: () => home.openSell(),
-  news: () => (home.openNews ? home.openNews() : toast('Chưa có tin mới.')), mail: () => (home.openMail ? home.openMail() : toast('Chưa có thư mới.')), ads: () => (home.openAds ? home.openAds() : toast('Chưa có quảng cáo.')), ai: () => toast('Thủ thư AI sắp có. Đợi chút nhé!'),
+  news: () => (home.openNews ? home.openNews() : toast('Chưa có tin mới.')), mail: () => (home.openMail ? home.openMail() : toast('Chưa có thư mới.')), toys: () => (home.openToys ? home.openToys() : toast('Chưa có đồ chơi.')), ads: () => (home.openAds ? home.openAds() : toast('Chưa có quảng cáo.')), ai: () => toast('Thủ thư AI sắp có. Đợi chút nhé!'),
 };
 function loadPlace(name) {
   if (placeInst[name]) return Promise.resolve(placeInst[name]);
   return placeLoading[name] || (placeLoading[name] = PLACE_LOADERS[name]().then(init => {
-    const inst = init({ THREE, add, toon, canvasTex, shell, windowOn, scene, camera, canvas, ray, ndcFrom, walkPetTo, say, startAction, toast, sfx, spawn, hideHint, getArea: () => area, state: S, open: placeOpen, goTo, setTemp, play: spinPlay, grad, events, petBuilder, bondLevel: () => bondLevel(S.bondXp), getPetXZ: () => [petBase.x + petOff.x, petBase.z + petOff.z] });
+    const inst = init({ THREE, add, toon, canvasTex, shell, windowOn, scene, camera, canvas, ray, ndcFrom, walkPetTo, say, startAction, toast, sfx, spawn, hideHint, playToy: toyPlay, getArea: () => area, state: S, open: placeOpen, goTo, setTemp, play: spinPlay, grad, events, petBuilder, bondLevel: () => bondLevel(S.bondXp), getPetXZ: () => [petBase.x + petOff.x, petBase.z + petOff.z] });
     inst.group.visible = false; areas[name] = inst.group; applyShadows(inst.group); placeInst[name] = inst; return inst;
   }));
 }
@@ -373,6 +374,27 @@ function spinPlay() {
   sfx('play'); act('play_spin'); popText('+6 Vui'); S.vui = clamp(S.vui + 6); S.nl = clamp(S.nl - 4); S.no = clamp(S.no - 2);
   anim = { type: 'spin', t: 0, dur: 1.1 }; setTemp('excited', 1600); spawn('note', 2); spawn('sparkle', 2);
   setTimeout(() => say(['Yeah! Thêm vòng nữa!', 'Vui quá đi!', 'Chóng mặt mà vui ghê!'][Math.floor(Math.random() * 3)], 2200), 1100);
+  save(); renderStats();
+}
+/** Chơi một món đồ chơi (đồ cố định ở từng nơi hoặc đồ mang theo). Máy chủ quyết định hiệu ứng, trần ngày và việc bé ốm/ngủ/mệt; ở đây lo lời thoại và hoạt ảnh. */
+const TOY_LINES = { bubbles: 'Bong bóng lấp lánh quá!', kite: 'Diều bay cao quá!', scope: 'Nhìn thấy sao rồi! Lấp lánh quá!', train: 'Tu tu! Tàu hoả chạy rồi!', pit: 'Tùm! Bóng nhiều ghê!', blocks: 'Mình xếp được cái tháp cao này nè!',
+  swing: 'Đưa mình nhẹ thôi nha~ vù vù!', seesaw: 'Lên xuống lên xuống!', slide: 'Wheee! Trượt thêm lần nữa nha!', ducks: 'Cạp cạp! Vịt con ăn ngon nè.', frisbee: 'Bắt được rồi! Ném nữa đi!', puzzle: 'Ghép xong rồi, đẹp ghê!', musicbox: 'Nhạc dễ thương quá~' };
+const TOY_ACTS = { swing: 'hop', seesaw: 'dance', slide: 'hop', pit: 'hop', frisbee: 'hop', train: 'wave', blocks: 'look', puzzle: 'look', musicbox: 'dance', ducks: 'wave', kite: 'wave', bubbles: 'hop', scope: 'look' };
+async function toyPlay(id) {
+  const t = TOY_BY_ID[id]; if (!t) return;
+  if (S.asleep) { say('Zzz… mai chơi tiếp nha…', 2200); return; }
+  if (sickBlocks('play')) return;
+  if (S.nl < 15) { setTemp('sleepy', 1800); say('Mình mệt quá, cho mình nghỉ chút đã…', 2600); return; }
+  const used = S.toys.used[id] || 0;
+  if (used >= t.cap) { toast(TOY_REFUSAL_TEXT.toy_cap); return; }
+  sfx('play');
+  const r = await playToyStore(id);
+  if (r instanceof Error) { toast(viError(r)); return; }
+  if (r.refused) { toast(TOY_REFUSAL_TEXT[r.refused]); return; }
+  const g = toyGain(t, used); popText(`+${Math.round(g.vui * 10) / 10} Vui`);
+  setTemp('excited', 1400); spawn('note', 2); spawn('sparkle', 2); startAction(TOY_ACTS[id] || 'hop');
+  setTimeout(() => say(TOY_LINES[id] || 'Vui quá đi!', 2400), 900);
+  if (r.mult < 1) setTimeout(() => toast('Chơi mãi món này thì bé bớt hứng, thử món khác nhé.'), 1800);
   save(); renderStats();
 }
 const tmpV = new THREE.Vector3();
@@ -587,7 +609,7 @@ function goSleep() { sfx('sleep'); count('sleep'); act('sleep'); S.asleep = true
 function wake() { sfx('wake'); act('wake'); S.asleep = false; applySleep(); goTo('home'); setTimeout(() => { say('Chào buổi sáng! Mình ngủ ngon lắm.', 2600); startAction('stretch'); spawn('sparkle', 2); }, reduce ? 0 : 700); save(); }
 $('ctx').addEventListener('click', e => {
   const b = e.target.closest('.ctx-btn'); if (!b) return; hideHint();
-  ({ home: () => goTo('home'), map: () => home.openMap(), rinse, ball: throwBall, spin: spinPlay, wake, farm: () => gardenFx.startEdit() })[b.dataset.k]();
+  ({ home: () => goTo('home'), map: () => home.openMap(), rinse, ball: throwBall, spin: spinPlay, toys: () => home.openToys(), wake, farm: () => gardenFx.startEdit() })[b.dataset.k]();
 });
 /* Nhạc nền: lúc ngủ > ban đêm > theo khu vực */
 function updateMusic() { music(S.asleep ? 'sleep' : period === 'dem' ? 'night' : area); }
@@ -802,6 +824,8 @@ function popText(text, color = '#ff5c9a') {
 const coarse = matchMedia('(pointer: coarse)').matches;
 function buzz(ms = 8) { if (coarse && navigator.vibrate) navigator.vibrate(ms); }
 const toastEl = $('toast'); let toastTimer = 0, toastAt = 0;
+window.addEventListener('hatchday:toast', e => toast(String(e.detail || '')));
+window.addEventListener('hatchday:infected', () => { refreshHealth().catch(() => {}); toast(`${S.name} bị lây cảm lạnh ở chỗ đông người. Cho bé uống thuốc và nghỉ ngơi nhé.`); });
 function toast(msg) { toastEl.textContent = msg; toastEl.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => { toastEl.hidden = true; }, 3200); }
 addEventListener('offline', () => toast('Mất kết nối mạng. Bé vẫn ở đây, mình sẽ lưu lại khi có mạng.'));
 addEventListener('online', () => toast('Đã có mạng trở lại.'));
@@ -915,7 +939,7 @@ home = initHome({
   events, THREE, scene, camera, canvas, renderer, room, toon, add, canvasTex, grad, $, reduce,
   homeFloor, homeWalls: [homeWall, homeWall2], pivot, petBase, petBuilder, getPetParts: () => petParts,
   store: { S, refreshEconomy, refreshOwned, sellFood, refreshSell, healthNow, buyMedicine, useMedicine, visitClinic, refreshHealth, buy, saveLayout, equip, savePreset, claimQuest, claimQuestBonus, claimWeeklyQuest, claimCollection, buyFood, claimRation, nutritionNow, refreshFamily, familyMemories, refreshGarden, plantCrop, harvestCrop, cook, upgradeFridge, serverNow, refreshQuests, activeLayout, previewComfort, onSync, today: () => localDay() },
-  say, setTemp, spawn, popText, impulse, startAction, addTrauma, buzz, toast, hideHint, applyShadows, ndcFrom,
+  say, setTemp, spawn, popText, impulse, startAction, addTrauma, buzz, toast, hideHint, applyShadows, ndcFrom, playToy: toyPlay, closeAllSheets: () => home.closeAll?.(),
   getArea: () => area, goTo, isIdle: () => !busy(performance.now()), isNight: () => period === 'dem',
   setZoom: z => { zoomExtra = z; },
   closeGameSheets: () => { toggleSheet(null); ['stats', 'diary'].forEach(id => { $(id).hidden = true; }); $('btn-stats').setAttribute('aria-expanded', 'false'); $('btn-diary').setAttribute('aria-expanded', 'false'); },

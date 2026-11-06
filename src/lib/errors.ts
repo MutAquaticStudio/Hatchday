@@ -74,6 +74,8 @@ const RPC: Record<string, string> = {
   invalid_privacy: 'Cài đặt riêng tư này không hợp lệ.',
   blocked: 'Bạn không thể làm việc này với người này.',
   ads_disabled: 'Quảng cáo thưởng đang tạm tắt.',
+  toy_locked: 'Chưa mở khoá đồ chơi này, cần thêm Gắn bó.', toy_not_owned: 'Bạn chưa mua đồ chơi này.', unknown_toy: 'Không có đồ chơi này.', toy_cap: 'Hôm nay bé chơi món này đủ rồi, mai chơi tiếp nhé.',
+  goal_not_found: 'Mục tiêu này không còn nữa.', goal_not_reached: 'Cả cộng đồng chưa đạt mục tiêu.', goal_not_contributed: 'Bạn cần góp ít nhất 5 lượt để nhận thưởng.', isolating: 'Bé đang cách ly vì ốm. Tắt cách ly (ở bảng Sức khoẻ) rồi hãy vào nơi chung nhé.',
   ad_limit: 'Hôm nay bạn đã xem đủ video rồi. Mai xem tiếp nhé.',
   ad_too_soon: 'Đợi vài phút nữa rồi xem video tiếp nhé.',
   ad_invalid: 'Lượt xem này không hợp lệ, thử xem lại nhé.',

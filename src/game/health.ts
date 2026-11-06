@@ -115,6 +115,8 @@ export interface HealthCtx {
   lastMealSweet?: boolean; sweetsToday?: number;
   /** play: số lần chơi trong 1 giờ và số lần chơi lúc khuya trong 2 giờ (tính cả lần này). */
   plays1h?: number; nightPlays2h?: number;
+  /** Mùa cúm: 1 lượt chơi từ 20:00 đã đủ gây cảm lạnh (bình thường 2 lượt từ 22:00). */
+  epidemic?: boolean;
   /** Ăn trong 3 ngày gần nhất (tính cả bữa này): số bữa và số nhóm lành mạnh khác nhau. */
   meals3d: number; healthyGroups3d: number;
 }
@@ -132,7 +134,7 @@ export function criticalStat(s: Pick<HealthState, 'no' | 'sach' | 'vui' | 'nl' |
 /** Bệnh do hành động vừa làm gây ra (null = không). Thứ tự ưu tiên: cảm lạnh, căng cơ, sâu răng, thiếu chất. */
 export function triggeredByAction(c: HealthCtx): string | null {
   if (c.action === 'play') {
-    if ((c.nightPlays2h ?? 0) >= HEALTH.nightPlay.n) return 'cam-lanh';
+    if ((c.nightPlays2h ?? 0) >= (c.epidemic ? 1 : HEALTH.nightPlay.n)) return 'cam-lanh';
     if ((c.plays1h ?? 0) >= HEALTH.overplay.n) return 'cang-co';
   }
   if (c.action === 'feed') {
@@ -143,7 +145,7 @@ export function triggeredByAction(c: HealthCtx): string | null {
 }
 
 /** Khung giờ khuya? (giờ địa phương 0–23) */
-export const isNightHour = (h: number) => h >= HEALTH.nightPlay.from || h < HEALTH.nightPlay.to;
+export const isNightHour = (h: number, epidemic = false) => h >= (epidemic ? 20 : HEALTH.nightPlay.from) || h < HEALTH.nightPlay.to;
 
 export type HealthEvent = 'fell-sick' | 'recovered' | null;
 export interface HealthPatch { illness: string | null; critical_since: string | null; recover_at: string | null; sick_since: string | null; event: HealthEvent }

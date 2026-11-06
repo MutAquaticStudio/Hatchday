@@ -5,7 +5,8 @@
  * - Vuốt ve và kỳ cọ được gộp theo lô 2 giây để không gửi quá nhiều yêu cầu.
  */
 import * as api from '../data/api';
-import type { ActionResult, FarmItem, Garden, Outfit, PetAction, PetRow, QuestBoard, QuestRow, SeenRow, Tastes } from '../data/types';
+import type { EventGoal } from './events';
+import type { ToyResult, ToysState, ActionResult, FarmItem, Garden, Outfit, PetAction, PetRow, QuestBoard, QuestRow, SeenRow, Tastes } from '../data/types';
 import type { CareSums, Form, Stage } from './species';
 import { emptyDay, localDay, writeDiary, type DayLog } from './rules';
 import { DEFAULT_LAYOUT, type Layout } from './catalog';
@@ -41,6 +42,8 @@ export interface PetState {
   soldToday: number;
   /** Lần chăm cuối và các lần chơi gần đây (ms), chỉ để suy ra biểu cảm. */
   lastCare: number; plays: number[];
+  /** Đồ chơi đã mua và số lượt đã dùng hôm nay; mục tiêu cộng đồng; bé đang cách ly (Mùa cúm). */
+  toys: ToysState; goals: EventGoal[]; isolating: boolean;
 }
 
 export const S: PetState = {
@@ -53,6 +56,7 @@ export const S: PetState = {
   fridge: 0, garden: null, tastes: { fav: null, dis: null, tried: 0, total: 0 }, farm: [],
   illness: null, sickSince: null, criticalSince: null, recoverAt: null,
   bondXp: 0, bondClaims: [], soldToday: 0, lastCare: Date.now(), plays: [],
+  toys: { owned: [], used: {} }, goals: [], isolating: false,
 };
 /** Bố cục đang dùng (luôn có giá trị). */
 export const activeLayout = (): Layout => S.layouts[S.activeLayout] || S.layouts[0] || DEFAULT_LAYOUT;
@@ -138,8 +142,36 @@ export async function hydrate(): Promise<void> {
   if (!p) throw new Error('no_pet');
   applyRow(p);
   if (p.stage !== 'departed') { const h = await api.getHealth(); if (h) applyRow(h); }
-  await Promise.all([refreshMemories(), refreshDays(), refreshEconomy(), refreshOwned(), refreshLayouts(), refreshQuests(), refreshSeen(), refreshFamily(), refreshTastes(), refreshGarden(), refreshFarm(), refreshBond()]);
+  await Promise.all([refreshToys().catch(() => {}), refreshGoals().catch(() => {}), refreshIsolation().catch(() => {}), refreshMemories(), refreshDays(), refreshEconomy(), refreshOwned(), refreshLayouts(), refreshQuests(), refreshSeen(), refreshFamily(), refreshTastes(), refreshGarden(), refreshFarm(), refreshBond()]);
   hydrated = true;
+}
+
+export async function refreshToys(): Promise<void> { S.toys = await api.getToys(); emit(); }
+export async function refreshGoals(): Promise<void> { S.goals = await api.getEventGoal(); emit(); }
+export async function refreshIsolation(): Promise<void> { S.isolating = (await api.getIsolation()).isolating; emit(); }
+export async function setIsolation(on: boolean): Promise<unknown> { try { S.isolating = (await api.setIsolation(on)).isolating; emit(); return null; } catch (e) { return e; } }
+export async function claimGoal(id: number): Promise<unknown> {
+  try { const r = await api.claimEventGoal(id); S.coins = r.coins; await refreshGoals(); return r; } catch (e) { return e; }
+}
+export async function buyToy(id: string): Promise<unknown> {
+  try { const r = await api.buyToy(id); S.coins = r.coins; await refreshToys(); return null; } catch (e) { return e; }
+}
+/** Chơi một món đồ chơi: máy chủ quyết định hiệu ứng và trần ngày; trả về kết quả hoặc lỗi (Error). */
+export async function playToy(id: string): Promise<ToyResult | Error> {
+  S.lastCare = Date.now(); S.plays = [...S.plays.filter(t => S.lastCare - t < 1800000), S.lastCare];
+  try {
+    const r = await api.playToy(id);
+    applyRow(r.pet);
+    if (!r.refused) S.toys = { ...S.toys, used: { ...S.toys.used, [id]: (S.toys.used[id] || 0) + 1 } };
+    if (typeof r.coins === 'number') S.coins = r.coins;
+    if (r.earned) S.earnedToday += r.earned;
+    if (r.new_memory) scheduleMemRefresh();
+    if (!r.refused) refreshGoals().catch(() => {});
+    emit(); return r;
+  } catch (e) {
+    if (String((e as Error)?.message ?? e).includes('sick_blocked')) refreshHealth().catch(() => {});
+    return e instanceof Error ? e : new Error(String(e));
+  }
 }
 
 export async function refreshEconomy(): Promise<void> {

@@ -10,7 +10,10 @@ import { sfx } from './audio.js';
 import { clinicBody } from './clinic.js';
 import { initMap } from './places/map.js';
 import { initSocial } from './social-ui.js';
+import { priceOf, salePct } from './pricing';
+import { setIsolation } from './store';
 import { initAds } from './ads-ui.js';
+import { initToys } from './toys-ui.js';
 import { SPACES } from './places/registry';
 import { bondLevel } from './bond';
 import { ILLNESS_BY_ID, MEDICINE_BY_ID } from './health';
@@ -111,7 +114,7 @@ export function initHome(ctx) {
     if (!el) { el = document.createElement('section'); el.id = id; el.className = 'sheet hsheet ' + cls; el.hidden = true; el.setAttribute('aria-label', id); app.appendChild(el); }
     return el;
   }
-  const sheets = ['house', 'shop', 'wardrobe', 'quests', 'dex', 'family', 'cooking', 'clinic', 'map', 'sell', 'social', 'visit', 'gift', 'spaces', 'ads'];
+  const sheets = ['house', 'shop', 'wardrobe', 'quests', 'dex', 'family', 'cooking', 'clinic', 'map', 'sell', 'social', 'visit', 'gift', 'spaces', 'ads', 'toys'];
   function closeAll(except) { sheets.forEach(s => { if (s !== except && $(s)) $(s).hidden = true; }); ctx.setZoom(0); $('a-house').setAttribute('aria-pressed', 'false'); }
   function open(id) { ctx.closeGameSheets(); closeAll(id); const el = sheet(id); el.hidden = false; $('a-house').setAttribute('aria-pressed', String(id !== 'none')); el.querySelector('button, input')?.focus({ preventScroll: true }); return el; }
   const head = (title, sub = '') => `<header class="hs-head"><div><h2>${title}</h2>${sub ? `<p>${sub}</p>` : ''}</div><button type="button" class="hs-close" data-close aria-label="Đóng">✕</button></header>`;
@@ -192,6 +195,8 @@ export function initHome(ctx) {
     el.querySelectorAll('details').forEach((d, i) => { d.open = clinicOpen.has(i); d.addEventListener('toggle', () => { d.open ? clinicOpen.add(i) : clinicOpen.delete(i); }); });
   }
   app.addEventListener('click', async e => {
+    const iso = e.target.closest('[data-iso]');
+    if (iso) { iso.disabled = true; const err = await setIsolation(iso.dataset.iso === '1'); if (err) ctx.toast(viError(err)); else ctx.toast(iso.dataset.iso === '1' ? 'Bé đang cách ly, tạm thời không vào nơi chung.' : 'Đã tắt cách ly.'); renderClinic?.(); return; }
     const buy = e.target.closest('[data-buy-med]'), use = e.target.closest('[data-use-med]'), cl = e.target.closest('[data-clinic]');
     if (!buy && !use && !cl) return;
     (buy || use || cl).disabled = true;
@@ -232,6 +237,7 @@ export function initHome(ctx) {
     renderSell();
   });
   const ads = initAds({ ctx, store, head, open, app, $ });
+  const toys = initToys({ ctx, head, open, app, $ });
   const social = initSocial({ ctx, S, store, esc, head, open, closeAll, thumb, fillThumbs, app, $, onChange: () => sync() });
   const worldMap = initMap({ app, $, esc, head, open, closeAll, S, bondLevel: () => bondLevel(S.bondXp), goTo: ctx.goTo, toast: ctx.toast, getArea: ctx.getArea, alerts: () => ({ hospital: !!S.illness }) });
 
@@ -336,11 +342,11 @@ export function initHome(ctx) {
     return `<div class="ration"><div><b>Suất ăn hôm nay</b><span>Miễn phí ${FOOD_STOCK.ration} ${esc(ration.name)}, mỗi ngày nhận một lần</span></div>${claimed ? '<span class="pill-ok">Đã nhận</span>' : '<button type="button" class="btn-sm" data-ration>Nhận</button>'}</div>
       <div class="ration fridge"><div><b>Tủ lạnh cấp ${S.fridge + 1}</b><span>Giữ tươi tối đa ${FRIDGE[S.fridge].keep} phần mỗi món tươi (rau, trái cây, đạm, món nấu). Phần dư mỗi ngày hỏng 1/4. Tinh bột và đồ ngọt không hỏng.</span></div>${FRIDGE[S.fridge + 1] ? `<button type="button" class="btn-sm" data-fridge ${S.coins >= FRIDGE[S.fridge + 1].price ? '' : 'disabled'}>${COIN_SVG}${FRIDGE[S.fridge + 1].price}</button>` : '<span class="pill-ok">Cấp cao nhất</span>'}</div>
       <div class="nutri"><b>Khẩu vị của bé</b><span>${esc(tastesLine(S.tastes))}. Cho bé ăn thử nhiều món để biết bé thích gì.</span></div>
-      <div class="nutri"><b>Ăn cân bằng</b><span>Trong 3 ngày, cho bé ăn đủ ${BALANCED_GROUPS} nhóm: mỗi bữa bé vui thêm +${BALANCED_BONUS}.</span>
+      ${salePct('food') ? `<div class="sale-note">🏷 Đang giảm giá ${salePct('food')}% thức ăn</div>` : ''}<div class="nutri"><b>Ăn cân bằng</b><span>Trong 3 ngày, cho bé ăn đủ ${BALANCED_GROUPS} nhóm: mỗi bữa bé vui thêm +${BALANCED_BONUS}.</span>
         <div class="chips-row">${healthy.map(([k, g]) => `<span class="gchip${got.has(k) ? ' on' : ''}">${got.has(k) ? '✓ ' : ''}${g.name}</span>`).join('')}</div></div>
       <div class="grid-items">${FOODS.map(f => {
-        const have = S.owned[f.id] || 0, one = f.price, five = f.price * 5;
-        const can = n => S.coins >= f.price * n && have + n <= FOOD_STOCK.max;
+        const have = S.owned[f.id] || 0, one = priceOf('food', f.price), five = one * 5;
+        const can = n => S.coins >= one * n && have + n <= FOOD_STOCK.max;
         return `<article class="card-item"><div class="food-ic">${FOOD_SVG[f.id]}</div><div class="ci-name">${esc(f.name)}</div>
           <div class="ci-meta">${FOOD_GROUPS[f.group].name}${f.fresh ? ' · tươi' : ''} · +${f.no} No · +${f.vui} Vui</div><div class="ci-meta">Đang có ${have}/${FOOD_STOCK.max}</div>
           <div class="ci-act"><button type="button" class="btn-sm buy" data-buyfood="${f.id}" data-qty="1" ${can(1) ? '' : 'disabled'}>${COIN_SVG}${one}</button>
@@ -373,7 +379,7 @@ export function initHome(ctx) {
           const can = !closed && buyable(it, store.today());
           const badge = liked(it) ? '<span class="badge-like">Bé chỉ vào món này</span>' : '';
           const action = single && owned ? '<span class="pill-ok">Đã có</span>'
-            : `<button type="button" class="btn-sm buy" data-buy="${it.id}" ${can && S.coins >= it.price ? '' : 'disabled'}>${confirmId === it.id ? 'Bấm lần nữa để mua' : `${COIN_SVG}${it.price}`}</button>`;
+            : `<button type="button" class="btn-sm buy" data-buy="${it.id}" ${can && S.coins >= priceOf(it.kind === 'outfit' ? 'outfit' : 'decor', it.price) ? '' : 'disabled'}>${confirmId === it.id ? 'Bấm lần nữa để mua' : `${COIN_SVG}${priceOf(it.kind === 'outfit' ? 'outfit' : 'decor', it.price)}`}</button>`;
           const preview = it.kind === 'decor' && ['floor', 'rug', 'wall'].includes(it.layer) && can ? `<button type="button" class="btn-link" data-try="${it.id}">Xem thử</button>` : '';
           return card(it, `${badge}<div class="ci-meta">${RARITY[it.rarity]}${it.theme ? ' · ' + THEMES[it.theme] : ''}${!single && owned ? ` · có ${owned}` : ''}</div><div class="ci-act">${action}${preview}</div>`);
         }).join('') || '<p class="hs-note">Không có món nào trong mục này.</p>'}</div>`;
@@ -392,7 +398,7 @@ export function initHome(ctx) {
       confirmId = ''; b.disabled = true;
       const err = await store.buy(id);
       if (err) { ctx.toast(viError(err)); renderShop(); return; }
-      const it = BY_ID[id]; sfx('buy'); ctx.buzz(12); ctx.toast(`Đã mua ${it.name}.`); ctx.popText('-' + it.price + ' xu', '#a8742e'); reactTo(it, it.kind);
+      const it = BY_ID[id]; sfx('buy'); ctx.buzz(12); ctx.toast(`Đã mua ${it.name}.`); ctx.popText('-' + priceOf(it.kind === 'outfit' ? 'outfit' : 'decor', it.price) + ' xu', '#a8742e'); reactTo(it, it.kind);
       renderShop();
       if (pendingPreview === id) { pendingPreview = ''; }
       return;
@@ -401,7 +407,7 @@ export function initHome(ctx) {
     if (bf) {
       const f = FOOD_BY_ID[bf.dataset.buyfood], n = +bf.dataset.qty; bf.disabled = true;
       const err = await store.buyFood(f.id, n);
-      if (err) ctx.toast(viError(err)); else { sfx('buy'); ctx.buzz(10); ctx.toast(`Đã mua ${n} ${f.name}.`); ctx.popText('-' + f.price * n + ' xu', '#a8742e'); }
+      if (err) ctx.toast(viError(err)); else { sfx('buy'); ctx.buzz(10); ctx.toast(`Đã mua ${n} ${f.name}.`); ctx.popText('-' + priceOf('food', f.price) * n + ' xu', '#a8742e'); }
       renderShop(); return;
     }
     const fr = e.target.closest('[data-fridge]');
@@ -432,7 +438,7 @@ export function initHome(ctx) {
       <div class="hs-body"><div class="grid-items">
         <article class="card-item none ${cur ? '' : 'on'}"><div class="none-ic" aria-hidden="true">∅</div><div class="ci-name">Không đeo</div><div class="ci-act"><button type="button" class="btn-sm ghost" data-wear="" ${cur ? '' : 'disabled'}>Bỏ ra</button></div></article>
         ${items.map(it => { const own = !!S.owned[it.id];
-          return card(it, `<div class="ci-meta">${own ? RARITY[it.rarity] : buyable(it, store.today()) ? `Có bán · ${it.price} xu` : 'Chưa bán hôm nay'}</div><div class="ci-act">${own ? `<button type="button" class="btn-sm ${cur === it.id ? 'on' : ''}" data-wear="${it.id}">${cur === it.id ? 'Đang mặc' : 'Mặc'}</button>` : `<button type="button" class="btn-link" data-shop-for="${it.id}">Đến cửa hàng</button>`}</div>`).replace('card-item', `card-item ${own ? '' : 'locked'} ${cur === it.id ? 'on' : ''}`); }).join('')}
+          return card(it, `<div class="ci-meta">${own ? RARITY[it.rarity] : buyable(it, store.today()) ? `Có bán · ${priceOf(it.kind === 'outfit' ? 'outfit' : 'decor', it.price)} xu` : 'Chưa bán hôm nay'}</div><div class="ci-act">${own ? `<button type="button" class="btn-sm ${cur === it.id ? 'on' : ''}" data-wear="${it.id}">${cur === it.id ? 'Đang mặc' : 'Mặc'}</button>` : `<button type="button" class="btn-link" data-shop-for="${it.id}">Đến cửa hàng</button>`}</div>`).replace('card-item', `card-item ${own ? '' : 'locked'} ${cur === it.id ? 'on' : ''}`); }).join('')}
       </div>
       <h3 class="hs-sub">Bộ phối</h3><div class="presets">${S.presets.map((p, i) => `<div class="preset"><b>Bộ ${i + 1}</b><span>${Object.values(p || {}).map(id => BY_ID[id]?.name).filter(Boolean).join(', ') || 'Trống'}</span><div><button type="button" class="btn-sm ghost" data-preset-wear="${i}" ${Object.keys(p || {}).length ? '' : 'disabled'}>Mặc</button><button type="button" class="btn-sm ghost" data-preset-save="${i}">Lưu bộ đang mặc</button></div></div>`).join('')}</div></div>`;
     fillThumbs(el);
@@ -547,7 +553,7 @@ export function initHome(ctx) {
     bar.hidden = false; $('e-itemname').textContent = it.name;
     bar.style.bottom = `calc(env(safe-area-inset-bottom, 0px) + ${ui.querySelector('.inventory').offsetHeight + 24}px)`;
     $('e-rotate').hidden = it.layer === 'wall';
-    $('e-buy').hidden = !unpaid; $('e-buy').innerHTML = `Mua · ${it.price} xu`; $('e-buy').disabled = S.coins < (it.price || 0);
+    $('e-buy').hidden = !unpaid; $('e-buy').innerHTML = `Mua · ${priceOf(it.kind === 'outfit' ? 'outfit' : 'decor', it.price || 0)} xu`; $('e-buy').disabled = S.coins < priceOf(it.kind === 'outfit' ? 'outfit' : 'decor', it.price || 0);
   }
   function enterEdit(previewId) {
     if (ctx.getArea() !== 'home') { ctx.goTo('home'); setTimeout(() => enterEdit(previewId), 1100); return; }
@@ -687,7 +693,7 @@ export function initHome(ctx) {
       case 'e-buy': {
         const p = work.items[sel]; if (!p) break;
         const err = await store.buy(p.id);
-        if (err) ctx.toast(viError(err)); else { sfx('buy'); ctx.toast(`Đã mua ${BY_ID[p.id].name}.`); ctx.popText('-' + BY_ID[p.id].price + ' xu', '#a8742e'); reactTo(BY_ID[p.id], 'decor'); pendingPreview = ''; }
+        if (err) ctx.toast(viError(err)); else { sfx('buy'); ctx.toast(`Đã mua ${BY_ID[p.id].name}.`); ctx.popText('-' + priceOf(BY_ID[p.id].kind === 'outfit' ? 'outfit' : 'decor', BY_ID[p.id].price) + ' xu', '#a8742e'); reactTo(BY_ID[p.id], 'decor'); pendingPreview = ''; }
         refreshEdit(); break;
       }
     }
@@ -767,5 +773,5 @@ export function initHome(ctx) {
     return { checked: n, bad };
   };
 
-  return { update, pickVisit, thumb, isEditing: () => editing, openShop, openClinic, openSell, openMap: () => worldMap.open(), openSocial: social.open, openAds: ads.open, openMail: social.openMail, openNews: social.openNews, openWardrobe, openFamily, enterEdit, closeAll, openDex, refreshOutfit: () => renderOutfit(S.outfit) };
+  return { update, pickVisit, thumb, isEditing: () => editing, openShop, openClinic, openSell, openMap: () => worldMap.open(), openSocial: social.open, openAds: ads.open, openToys: toys.open, closeAll, openMail: social.openMail, openNews: social.openNews, openWardrobe, openFamily, enterEdit, closeAll, openDex, refreshOutfit: () => renderOutfit(S.outfit) };
 }

@@ -1,5 +1,6 @@
 // Sổ sức khoẻ: tình trạng của bé, cách chữa, tủ thuốc và từ điển 8 bệnh (luật ở health.ts).
 import { BLOCK_LABEL, clinicPrice, effectLines, FAMILY_NAME, healLine, HEALTH, ILLNESS_BY_ID, ILLNESSES, isSevere, MEDICINE_BY_ID, MEDICINES, minutesToRecover, minutesToSick, capFirst, STAT_NOUN } from './health';
+import { epidemicNow, priceOf } from './pricing';
 
 const esc = v => String(v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const FAMILIES = ['bo-be', 'an-uong', 'van-dong', 'moi-truong'];
@@ -32,11 +33,12 @@ function statusCard(S, hs, now, coinSvg) {
     : rec != null ? `Bé đang nghỉ ngơi, còn khoảng ${minutesVi(rec)} nữa là khỏi.` : `${healLine(il)}.`;
   const medBtn = sev ? '' : have
     ? `<button type="button" class="btn-sm" data-use-med="${med.id}">Cho uống ${esc(med.name)} (còn ${have})</button>`
-    : `<button type="button" class="btn-sm" data-buy-med="${med.id}" ${S.coins >= med.price ? '' : 'disabled'}>${coinSvg}${med.price} · Mua ${esc(med.name)}</button>`;
+    : `<button type="button" class="btn-sm" data-buy-med="${med.id}" ${S.coins >= priceOf('medicine', med.price) ? '' : 'disabled'}>${coinSvg}${priceOf('medicine', med.price)} · Mua ${esc(med.name)}</button>`;
   return `<div class="sick-card${sev ? ' severe' : ''}"><div class="sick-head"><b>${esc(S.name)} đang bị ${esc(il.name.toLowerCase())}</b>${sev ? '<span class="sev">Nặng</span>' : ''}<span class="fam">${FAMILY_NAME[il.family]}</span></div>
     <p class="sign">“${esc(il.sign)}”</p>
     <ul class="eff">${effectLines(il).map(t => `<li>${esc(t)}</li>`).join('')}${sev ? '<li>Bệnh nặng: các chỉ số trên tụt nhanh hơn 25% nữa</li>' : ''}</ul>
     <p class="heal">${esc(heal)}</p>
+    ${epidemicNow() ? `<div class="iso-row"><span>Mùa cúm đang diễn ra. Bé ốm có thể cách ly để không vào nơi chung và không lây cho bạn khác.</span><button type="button" class="btn-sm${S.isolating ? '' : ' ghost'}" data-iso="${S.isolating ? 0 : 1}">${S.isolating ? 'Đang cách ly · Tắt' : 'Bật cách ly'}</button></div>` : ''}
     <div class="cure-row">${medBtn}<button type="button" class="btn-sm${sev ? '' : ' ghost'}" data-clinic ${S.coins >= price ? '' : 'disabled'}>${coinSvg}${price} · Phòng khám</button></div>
     <p class="hs-note">Phòng khám chữa khỏi ngay${il.heal.kind === 'stat' ? ` và bồi bổ ${STAT_NOUN[il.heal.stat]} lên ít nhất ${HEALTH.clinicRestore}` : ''}. Bé khỏi bệnh được +${HEALTH.cureBond} gắn bó.</p></div>`;
 }
@@ -45,7 +47,7 @@ function cabinet(S, coinSvg) {
   return `<h3 class="qh">Tủ thuốc <small>mỗi loại tối đa ${HEALTH.medicineMax} liều</small></h3><div class="meds">${MEDICINES.map(m => {
     const have = S.owned[m.id] || 0, il = ILLNESS_BY_ID[m.cures], now = S.illness === m.cures;
     return `<div class="med${now ? ' now' : ''}"><div><b>${esc(m.name)}</b><span>Chữa ${esc(il.name.toLowerCase())} · có ${have}</span></div>
-      <button type="button" class="btn-sm buy" data-buy-med="${m.id}" ${S.coins >= m.price && have < HEALTH.medicineMax ? '' : 'disabled'}>${coinSvg}${m.price}</button></div>`;
+      <button type="button" class="btn-sm buy" data-buy-med="${m.id}" ${S.coins >= priceOf('medicine', m.price) && have < HEALTH.medicineMax ? '' : 'disabled'}>${coinSvg}${priceOf('medicine', m.price)}</button></div>`;
   }).join('')}</div>`;
 }
 

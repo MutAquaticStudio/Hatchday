@@ -67,6 +67,13 @@ export function applyDrift(p: Personality, action: PetAction): Personality {
   return o;
 }
 
+/** Trôi cá tính theo một véc-tơ tuỳ ý (đồ chơi: toys.drift), cùng cách làm tròn với applyDrift. */
+export function applyDriftBy(p: Personality, d: Partial<Personality>): Personality {
+  const o = { ...p };
+  for (const a of AXES) if (d[a]) o[a] = round1(clampAxis(o[a] + d[a]!));
+  return o;
+}
+
 /** Hai nét nổi bật nhất (theo trị tuyệt đối), bỏ qua nét quá nhạt (|v| < 15). */
 export function topTraits(p: Personality, n = 2): { axis: Axis; hi: boolean; name: string; hint: string; v: number }[] {
   return AXES.map(a => ({ axis: a, v: p[a] }))

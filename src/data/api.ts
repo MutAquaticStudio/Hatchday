@@ -1,10 +1,10 @@
 import { supabase, isConfigured } from '../lib/supabase';
 import * as demo from './demo-api';
 import * as demoSocial from './demo-social';
-import type { ActiveEvent } from '../game/events';
+import type { ActiveEvent, EventGoal } from '../game/events';
 import type { AdState, AdTicket } from '../game/ads';
 import type { ChatReply, DmMsg, DmThread, MailRow, NewsRow, PublicProfile, SocialState, SocialSummary, VisitData } from '../game/social';
-import type { ActionResult, CureResult, DayLogRow, Economy, FarmItem, Garden, MemoryRow, Outfit, PetAction, PetRow, QuestBoard, SeenRow, Tastes } from './types';
+import type { ToyResult, ToysState, ActionResult, CureResult, DayLogRow, Economy, FarmItem, Garden, MemoryRow, Outfit, PetAction, PetRow, QuestBoard, SeenRow, Tastes } from './types';
 import type { Layout } from '../game/catalog';
 
 /** Chưa cấu hình Supabase thì chạy chế độ Chơi thử (dữ liệu trong trình duyệt). */
@@ -59,7 +59,7 @@ export const listDayLogs = async (petId: string) =>
 const rpc = async <T>(fn: string, args?: Record<string, unknown>) => unwrap(await supabase.rpc(fn, args)) as T;
 
 export const getEconomy = () => (isDemo ? demo.getEconomy() : rpc<Economy>('get_economy'));
-export const buyItem = (id: string) => (isDemo ? demo.buyItem(id) : rpc<{ coins: number; qty: number }>('buy_item', { p_item: id }));
+export const buyItem = (id: string) => (isDemo ? demo.buyItem(id) : rpc<{ coins: number; qty: number; paid?: number }>('buy_item', { p_item: id }));
 
 export async function listOwned(): Promise<Record<string, number>> {
   if (isDemo) return demo.listOwned();
@@ -182,3 +182,12 @@ export const claimAdReward = (nonce: string) => (isDemo ? demo.claimAdReward(non
 export const pingSession = (platform: string, standalone: boolean) => (isDemo ? Promise.resolve(null) : rpc<{ session: number; new: boolean }>('ping_session', { p_platform: platform, p_standalone: standalone }));
 export const setAttribution = (ref: string, medium: string | null) => (isDemo ? Promise.resolve() : rpc<void>('set_attribution', { p_ref: ref, p_medium: medium }));
 export const markMilestone = (key: string) => (isDemo ? Promise.resolve() : rpc<void>('mark_milestone', { p_key: key }));
+
+/* ---------- Đồ chơi, mục tiêu cộng đồng, cách ly ---------- */
+export const getToys = (): Promise<ToysState> => (isDemo ? demo.getToys() : rpc<ToysState>('get_toys'));
+export const buyToy = (id: string) => (isDemo ? demo.buyToy(id) : rpc<{ coins: number; paid: number }>('buy_toy', { p_toy: id }));
+export const playToy = (id: string): Promise<ToyResult> => (isDemo ? demo.playToy(id) : rpc<ToyResult>('play_toy', { p_toy: id }));
+export const getEventGoal = (): Promise<EventGoal[]> => (isDemo ? demo.getEventGoal() : rpc<EventGoal[]>('get_event_goal'));
+export const claimEventGoal = (id: number) => (isDemo ? demo.claimEventGoal(id) : rpc<{ coins: number; reward: number }>('claim_event_goal', { p_event: id }));
+export const getIsolation = () => (isDemo ? demo.getIsolation() : rpc<{ isolating: boolean }>('get_isolation'));
+export const setIsolation = (on: boolean) => (isDemo ? demo.setIsolation(on) : rpc<{ isolating: boolean }>('set_isolation', { p_on: on }));

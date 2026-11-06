@@ -37,6 +37,10 @@ export function initMarket(c) {
   const video = new THREE.Group(); video.position.set(-4.4, 0, -0.3); g.add(video);
   add(video, new THREE.BoxGeometry(0.1, 1.5, 0.1), toon('#c29a62'), 0, 0.75, 0, '#8a5f3a', 0.02);
   const vs = kit.sign('Video thưởng', 1.3, 0.55, '#e4f6ff', '#2f5a7a', 30); vs.position.set(0, 1.4, 0.08); video.add(vs);
+  // biển Đồ chơi: mua đồ chơi mang theo
+  const toyPost = new THREE.Group(); toyPost.position.set(4.4, 0, -0.3); g.add(toyPost);
+  add(toyPost, new THREE.BoxGeometry(0.1, 1.5, 0.1), toon('#c29a62'), 0, 0.75, 0, '#8a5f3a', 0.02);
+  const ts = kit.sign('Đồ chơi', 1.2, 0.55, '#ffeef6', '#8a3a5a', 32); ts.position.set(0, 1.4, 0.08); toyPost.add(ts);
   const T = 'market';
   kit.hotspot({ id: 'food', label: 'Rau quả', at: [-2.5, 2.7, -3.3], stand: [-2.2, -0.8], act: () => c.open.shop('food') }, food);
   kit.hotspot({ id: 'today', label: 'Tiệm hôm nay', at: [0, 2.7, -3.3], stand: [0, -0.8], act: () => c.open.shop('rotating') }, today);
@@ -45,6 +49,7 @@ export function initMarket(c) {
   kit.hotspot({ id: 'sell', label: 'Thu mua rau', at: [2.65, 2.5, -1.45], stand: [2.2, -0.4], act: () => c.open.sell() }, sell);
   kit.hotspot({ id: 'book', label: 'Sổ sưu tập', at: [0, 2.3, -1.9], stand: [0, -0.5], act: () => c.open.shop('book') }, book);
   kit.hotspot({ id: 'video', label: 'Video thưởng', at: [-4.4, 2.2, -0.2], stand: [-3.6, 1.0], act: () => c.open.ads() }, video);
+  kit.hotspot({ id: 'toys', label: 'Đồ chơi', at: [4.4, 2.2, -0.2], stand: [3.6, 1.0], act: () => c.open.toys() }, toyPost);
   void T;
 
   // chim bồ câu

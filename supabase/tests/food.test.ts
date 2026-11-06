@@ -131,7 +131,7 @@ describe('mua thức ăn', () => {
   it('mua nhiều phần: trừ đúng xu, cộng vào kho', async () => {
     await db.exec(`update wallets set coins = 500; update entitlements set qty = 1 where item_id = 'banh-mi'`);
     const r = await one("select buy_food('banh-mi', 3)");
-    expect(r).toEqual({ coins: 500 - 3 * FOOD_BY_ID['banh-mi'].price, qty: 4 });
+    expect(r).toMatchObject({ coins: 500 - 3 * FOOD_BY_ID['banh-mi'].price, qty: 4 });
     expect(await stock('banh-mi')).toBe(4);
   });
   it('thiếu xu, số lượng sai, kho đầy, món lạ: bị từ chối và không mất xu', async () => {

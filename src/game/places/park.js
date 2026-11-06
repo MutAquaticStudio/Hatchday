@@ -15,7 +15,7 @@ export function initPark(c) {
   const water = add(pond, new THREE.CylinderGeometry(1.9, 1.9, 0.06, 36), toon('#8ed6ff'), 0, 0.03, 0, '#4a90c0', 0.03); water.scale.z = 0.7;
   const rim = add(pond, new THREE.TorusGeometry(1.9, 0.12, 8, 36), toon('#d9d2c4'), 0, 0.06, 0, '#8a8478', 0.02); rim.rotation.x = Math.PI / 2; rim.scale.y = 0.7;
   const ducks = [[-0.5, 0.1], [0.6, -0.2]].map(([x, z], i) => { const d = new THREE.Group(); d.position.set(x, 0.1, z); pond.add(d); add(d, new THREE.SphereGeometry(0.2, 12, 10), toon('#fff3a0'), 0, 0.14, 0, '#c9a84a', 0.02); add(d, new THREE.SphereGeometry(0.12, 10, 8), toon('#fff3a0'), 0.17, 0.3, 0, '#c9a84a', 0.02); add(d, new THREE.ConeGeometry(0.05, 0.1, 6), toon('#ff9a3a'), 0.3, 0.3, 0, null).rotation.z = -Math.PI / 2; return { d, ph: i * 2.4, x, z }; });
-  kit.hotspot({ id: 'duck', label: 'Cho vịt ăn', at: [-4.0, 1.5, -1.8], stand: [-2.6, -0.2], act: () => { c.say('Cạp cạp! Vịt con ăn ngon nè.', 2600); c.spawn('sparkle', 4, 0.8); } }, pond);
+  kit.hotspot({ id: 'duck', label: 'Cho vịt ăn', at: [-4.0, 1.5, -1.8], stand: [-2.6, -0.2], act: () => { c.spawn('sparkle', 4, 0.8); c.playToy('ducks'); } }, pond);
 
   // xích đu
   const swing = new THREE.Group(); swing.position.set(3.8, 0, -2.2); g.add(swing);
@@ -24,13 +24,13 @@ export function initPark(c) {
   const seat = new THREE.Group(); seat.position.set(0, 2.3, 0); swing.add(seat);
   [-0.3, 0.3].forEach(x => add(seat, new THREE.CylinderGeometry(0.012, 0.012, 1.5, 4), toon('#6a4a5a'), x, -0.75, 0, null));
   add(seat, new THREE.BoxGeometry(0.8, 0.07, 0.3), toon('#ffd36e'), 0, -1.5, 0, '#a8742e', 0.02);
-  kit.hotspot({ id: 'swing', label: 'Xích đu', at: [3.8, 2.9, -2.2], stand: [3.8, -0.8], act: () => { c.say('Đưa mình nhẹ thôi nha~ vù vù!', 2600); c.startAction('hop'); } }, swing);
+  kit.hotspot({ id: 'swing', label: 'Xích đu', at: [3.8, 2.9, -2.2], stand: [3.8, -0.8], act: () => c.playToy('swing') }, swing);
 
   // bập bênh
   const see = new THREE.Group(); see.position.set(1.0, 0, 2.4); g.add(see);
   add(see, new THREE.ConeGeometry(0.28, 0.5, 4), toon('#9fd8ff'), 0, 0.25, 0, '#4a7a9a', 0.02);
   const plank = add(see, new THREE.BoxGeometry(2.6, 0.1, 0.4), toon('#ffb347'), 0, 0.55, 0, '#a8742e', 0.02);
-  kit.hotspot({ id: 'seesaw', label: 'Bập bênh', at: [1.0, 1.6, 2.4], stand: [1.0, 1.4], act: () => { c.say('Lên xuống lên xuống!', 2400); c.startAction('dance'); } }, see);
+  kit.hotspot({ id: 'seesaw', label: 'Bập bênh', at: [1.0, 1.6, 2.4], stand: [1.0, 1.4], act: () => c.playToy('seesaw') }, see);
 
   // vườn hoa, cây, bóng
   const bed = new THREE.Group(); bed.position.set(-1.2, 0, -3.8); g.add(bed);

@@ -39,5 +39,6 @@ jobs:
       - run: node scripts/fit-check.mjs    # 3.900 tổ hợp loài × dáng × đồ mặc, phải 0 lẹm
       - run: node scripts/mobile-check.mjs # giả lập iPhone: chạm, kéo thú, trồng rau, trang trí phòng, thanh trên không tràn, bản đồ và địa điểm
       - run: node scripts/social-check.mjs # bạn bè, hộp thư, quà, tin tức, thăm nhà (bạn ảo), 390px không tràn
+      - run: node scripts/hooks-check.mjs  # giảm giá, mục tiêu cộng đồng, đồ chơi, Mùa cúm + cách ly
       - run: node scripts/world-check.mjs  # sự kiện (biểu ngữ, nhân xu), không gian theo Gắn bó (ban công, phòng chơi, sân thượng)
       - run: node scripts/admin-smoke.mjs  # trang quản trị: vai trò, quà, thông báo, sự kiện, kiểm duyệt, nhật ký

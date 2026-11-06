@@ -39,6 +39,10 @@ export type PetAction = 'feed' | 'pet' | 'bath_scrub' | 'bath_rinse' | 'play_bal
 
 export interface ActionResult { pet: PetRow; refused: null | 'asleep' | 'full' | 'tired'; fav: boolean; new_memory: boolean; earned?: number; coins?: number; stock?: number | null; balanced?: boolean; dislike?: boolean }
 
+/** Kết quả chơi một món đồ chơi (RPC play_toy). */
+export interface ToyResult { pet: PetRow; refused: null | 'asleep' | 'tired' | 'toy_cap'; earned: number; coins: number; new_memory: boolean; mult: number; left: number; toy: string }
+export interface ToysState { owned: string[]; used: Record<string, number> }
+
 export interface GardenPlot { plot: number; crop: string; planted_at: string; ready_at: string; ready: boolean; waters: number; watered_at: string | null; can_water: boolean }
 /** `now` là giờ server, để tính giờ còn lại mà không tin đồng hồ máy. */
 /** Một món đồ trang trí nông trại đã đặt: toạ độ trên sân (x, z) và hướng xoay 0–3. */

@@ -6,11 +6,12 @@ import { clamp, decayStats, localDay } from '../game/rules';
 import { BY_ID, CROPS, SELL, sellPrice, readyAtMs, WATER, DEFAULT_LAYOUT, EDIBLES, FOOD_BY_ID, FOOD_STOCK, FOODS, FRIDGE, GARDEN_LAND, GARDEN_PLOTS, PARCEL, ITEMS, RECIPES, spoilLoss, STARTER_ITEMS, type Layout } from '../game/catalog';
 import { BALANCED_BONUS, isBalanced } from '../game/nutrition';
 import { buyable, COIN, comfortLevel, comfortScore, dayNumber, QUEST_BONUS, QUEST_POOL, questsForDay, rotationForDay, isWeekend, weekStart, WEEKLY_POOL, weeklyForDay } from '../game/layout';
-import type { ActionResult, CureResult, DayLogRow, Economy, FarmItem, Garden, MemoryRow, Outfit, PetAction, PetRow, QuestBoard, QuestRow, SeenRow, Tastes } from './types';
-import { applyDrift, isBlank, normalize, rollPersonality } from '../game/personality';
+import type { ToyResult, ToysState, ActionResult, CureResult, DayLogRow, Economy, FarmItem, Garden, MemoryRow, Outfit, PetAction, PetRow, QuestBoard, QuestRow, SeenRow, Tastes } from './types';
+import { applyDrift, applyDriftBy, isBlank, normalize, rollPersonality } from '../game/personality';
+import { TOY_BY_ID, toyGain } from '../game/toys';
 import { blendPersonality, HEIR_FAV_INHERIT, pickHeirSpecies } from '../game/lineage';
 import { BOND, bondLevel } from '../game/bond';
-import { boostedReward, eventBoost, type ActiveEvent } from '../game/events';
+import { boostedReward, discountedPrice, discountPct, eventBoost, goalEvents, isEpidemic, type ActiveEvent, type DiscountScope, type EventGoal, type GoalMetric } from '../game/events';
 import { AD, type AdState, type AdTicket } from '../game/ads';
 import { clinicPrice, healthStep, HEALTH, ILLNESS_BY_ID, isNightHour, isSevere, MEDICINE_BY_ID, type HealthCtx } from '../game/health';
 import { formFromCare, pickSpecies, SPECIES_BY_ID, stageForAge, REGIONS, GROW_MEMORY } from '../game/species';
@@ -18,6 +19,7 @@ import { formFromCare, pickSpecies, SPECIES_BY_ID, stageForAge, REGIONS, GROW_ME
 const KEY = 'hatchday-demo';
 interface DB {
   pet: PetRow | null; mem: MemoryRow[]; days: Record<string, DayLogRow>; fav: string; dis: string; firsts: string[]; nextId: number;
+  toys?: { owned: string[]; day: string; used: Record<string, number> }; goals?: Record<number, { mine: number; claimed: boolean }>; isolating?: boolean;
   coins: number; earnedDay: string; earnedToday: number; owned: Record<string, number>; layouts: (Layout | null)[]; active: number;
   quests: string[]; collections: string[]; life?: number; seen?: SeenRow[];
   /** Ngày đã nhận suất ăn, tuần:idx đã nhận nhiệm vụ tuần, đã bù kho thức ăn cho bản lưu cũ. */
@@ -99,7 +101,7 @@ function healthCtx(db: DB, action?: 'feed' | 'play', lastMealSweet = false): Hea
   return {
     action, lastMealSweet, sweetsToday: (db.days[d]?.fgroups || []).filter(g => g === 'ngot').length,
     meals3d: logs.reduce((a, x) => a + x.fed, 0), healthyGroups3d: new Set(logs.flatMap(x => x.fgroups || []).filter(g => g !== 'ngot')).size,
-    plays1h: plays.filter(t => now - t < 3600000).length, nightPlays2h: plays.filter(t => isNightHour(new Date(t).getHours())).length,
+    plays1h: plays.filter(t => now - t < 3600000).length, nightPlays2h: plays.filter(t => isNightHour(new Date(t).getHours(), isEpidemic(demoEvents()))).length, epidemic: isEpidemic(demoEvents()),
   };
 }
 /** Một bước đánh giá sức khoẻ (giống private.health_step). */
@@ -234,6 +236,7 @@ export async function petAction(action: PetAction, item?: string, count = 1): Pr
     if ((play && blk.includes('play')) || ((action === 'bath_scrub' || action === 'bath_rinse') && blk.includes('bath'))) throw new Error('sick_blocked');
     if (play) db.plays = [...(db.plays || []).filter(t => Date.now() - t < 2 * 3600000), Date.now()];
     p.bond_xp += 1; // giống pet_action
+    if (GOAL_OF[action]) goalAdd(db, GOAL_OF[action]);
     p.personality = applyDrift(normalize(p.personality), action); // giống trigger trên action_log
     tick(db, play ? 'play' : action === 'feed' ? 'feed' : undefined, sweetMeal);
   }
@@ -270,14 +273,15 @@ export async function getEconomy(): Promise<Economy> {
   const db = load(), d = localDay(), spoiled = applySpoilage(db); store(db);
   return { fridge_level: db.fridge || 0, spoiled, coins: db.coins, earned_today: db.earnedDay === d ? db.earnedToday : 0, day: d, rotation: rotationForDay(d), weekend: isWeekend(d), ration_claimed: !!db.ration?.includes(d) };
 }
-export async function buyItem(id: string): Promise<{ coins: number; qty: number }> {
+export async function buyItem(id: string): Promise<{ coins: number; qty: number; paid?: number }> {
   const db = load(), it = BY_ID[id];
   if (!it || it.kind === 'food') throw new Error('unknown_item');
   if (!buyable(it, localDay())) throw new Error('not_for_sale');
   if ((it.kind === 'outfit' || it.layer === 'wallpaper' || it.layer === 'flooring') && db.owned[id]) throw new Error('already_owned');
-  if (db.coins < (it.price || 0)) throw new Error('not_enough_coins');
-  db.coins -= it.price || 0; db.owned[id] = (db.owned[id] || 0) + 1; store(db);
-  return { coins: db.coins, qty: db.owned[id] };
+  const paid = px(it.kind === 'outfit' ? 'outfit' : 'decor', it.price || 0);
+  if (db.coins < paid) throw new Error('not_enough_coins');
+  db.coins -= paid; db.owned[id] = (db.owned[id] || 0) + 1; store(db);
+  return { coins: db.coins, qty: db.owned[id], paid };
 }
 export async function listOwned() { return load().owned; }
 export async function getLayouts() { const db = load(); return { layouts: db.layouts, active: db.active }; }
@@ -425,9 +429,10 @@ export async function buyFood(id: string, qty: number) {
   const db = load(), f = FOOD_BY_ID[id]; if (!f || f.kind !== 'food' || f.price == null) throw new Error('unknown_item');
   if (!(qty >= 1 && qty <= FOOD_STOCK.packMax)) throw new Error('invalid_qty');
   if ((db.owned[id] || 0) + qty > FOOD_STOCK.max) throw new Error('stock_full');
-  if (db.coins < f.price * qty) throw new Error('not_enough_coins');
-  db.coins -= f.price * qty; db.owned[id] = (db.owned[id] || 0) + qty; store(db);
-  return { coins: db.coins, qty: db.owned[id] };
+  const total = px('food', f.price) * qty;
+  if (db.coins < total) throw new Error('not_enough_coins');
+  db.coins -= total; db.owned[id] = (db.owned[id] || 0) + qty; store(db);
+  return { coins: db.coins, qty: db.owned[id], paid: total };
 }
 export async function claimRation() {
   const db = load(), d = localDay(); if (db.ration?.includes(d)) throw new Error('already_claimed');
@@ -456,8 +461,9 @@ export async function buyMedicine(id: string, qty: number) {
   const db = load(), m = MEDICINE_BY_ID[id]; if (!m) throw new Error('unknown_item');
   if (!(qty >= 1 && qty <= 10)) throw new Error('invalid_qty');
   const cur = db.owned[id] || 0; if (cur + qty > HEALTH.medicineMax) throw new Error('stock_full');
-  if (db.coins < m.price * qty) throw new Error('not_enough_coins');
-  db.coins -= m.price * qty; db.owned[id] = cur + qty; store(db); return { coins: db.coins, qty: db.owned[id] };
+  const total = px('medicine', m.price) * qty;
+  if (db.coins < total) throw new Error('not_enough_coins');
+  db.coins -= total; db.owned[id] = cur + qty; store(db); return { coins: db.coins, qty: db.owned[id], paid: total };
 }
 export async function useMedicine(id: string): Promise<CureResult> {
   const db = load(), m = MEDICINE_BY_ID[id]; if (!m) throw new Error('unknown_item');
@@ -518,9 +524,67 @@ export function withDB<T>(fn: (db: DB, earnCoins: (n: number) => number) => T): 
 
 /* ---------- Sự kiện (mô phỏng get_active_events): thêm ?event=boost vào địa chỉ để xem thử ---------- */
 export function demoEvents(): ActiveEvent[] {
-  let on = false; try { on = new URLSearchParams(location.search).get('event') === 'boost'; } catch { /* không có location */ }
-  return on ? [{ id: 1, title: 'Tuần lễ nhiệm vụ', body: 'Hoàn thành nhiệm vụ để nhận thêm xu.', kind: 'limited', starts_at: new Date(Date.now() - 3600000).toISOString(), ends_at: new Date(Date.now() + 6 * 86400000).toISOString(),
-    config: { banner: 'Tuần lễ nhiệm vụ: xu thưởng nhiệm vụ nhân 1,5!', coin_boost: 1.5, plaza_decor: 'trung-thu' } }] : [];
+  let flags: string[] = []; try { flags = (new URLSearchParams(location.search).get('event') || '').split(',').filter(Boolean); } catch { /* không có location */ }
+  const has = (k: string) => flags.includes(k) || flags.includes('all'), t0 = new Date(Date.now() - 3600000).toISOString(), t1 = new Date(Date.now() + 7 * 86400000).toISOString();
+  const out: ActiveEvent[] = [];
+  if (has('boost')) out.push({ id: 1, title: 'Tuần lễ nhiệm vụ', body: 'Hoàn thành nhiệm vụ để nhận thêm xu.', kind: 'limited', starts_at: t0, ends_at: t1, config: { banner: 'Tuần lễ nhiệm vụ: xu thưởng nhiệm vụ nhân 1,5!', coin_boost: 1.5, plaza_decor: 'trung-thu' } });
+  if (has('sale')) out.push({ id: 2, title: 'Chợ giảm giá', body: 'Thức ăn và thuốc giảm giá.', kind: 'limited', starts_at: t0, ends_at: t1, config: { banner: 'Chợ giảm giá: thức ăn -20%, thuốc -30%!', shop_discount: { pct: 20, scope: 'food' } } as ActiveEvent['config'] });
+  if (has('goal')) out.push({ id: 3, title: 'Cả nhà cùng ăn', body: 'Cộng đồng cùng cho bé ăn.', kind: 'limited', starts_at: t0, ends_at: t1, config: { banner: 'Mục tiêu cộng đồng: cùng cho bé ăn!', goal: { metric: 'feed', target: 200, reward_coins: 40 } } as ActiveEvent['config'] });
+  if (has('flu')) out.push({ id: 4, title: 'Mùa cúm', body: 'Trời trở lạnh, bé dễ cảm hơn. Cẩn thận khi đi chỗ đông người.', kind: 'limited', starts_at: t0, ends_at: t1, config: { banner: 'Mùa cúm: giữ ấm cho bé, thuốc ho giảm giá!', epidemic: true, shop_discount: { pct: 30, scope: 'medicine' } } as ActiveEvent['config'] });
+  return out;
+}
+/** Giá sau giảm giá sự kiện (giống private.discounted). */
+const px = (kind: DiscountScope, base: number) => discountedPrice(base, discountPct(demoEvents(), kind));
+
+/* ---------- Đồ chơi (mô phỏng get_toys / buy_toy / play_toy) ---------- */
+const toysOf = (db: DB): { owned: string[]; day: string; used: Record<string, number> } => { const d = localDay(); if (!db.toys || db.toys.day !== d) db.toys = { owned: db.toys?.owned || [], day: d, used: {} }; return db.toys; };
+export async function getToys(): Promise<ToysState> { const db = load(), t = toysOf(db); return { owned: [...t.owned], used: { ...t.used } }; }
+export async function buyToy(id: string): Promise<{ coins: number; paid: number }> {
+  const db = load(), t = TOY_BY_ID[id], ts = toysOf(db); if (!t || t.place !== 'portable' || t.price == null) throw new Error('unknown_toy');
+  if (ts.owned.includes(id)) throw new Error('already_owned');
+  const paid = px('toy', t.price); if (db.coins < paid) throw new Error('not_enough_coins');
+  db.coins -= paid; ts.owned.push(id); store(db); return { coins: db.coins, paid };
+}
+export async function playToy(id: string): Promise<ToyResult> {
+  const db = load(), t = TOY_BY_ID[id]; if (!db.pet) throw new Error('no_pet'); if (!t) throw new Error('unknown_toy');
+  decay(db); const p = db.pet, ts = toysOf(db);
+  if (bondLevel(p.bond_xp) < t.bond) throw new Error('toy_locked');
+  if (t.place === 'portable' && !ts.owned.includes(id)) throw new Error('toy_not_owned');
+  const used = ts.used[id] || 0; let refused: ToyResult['refused'] = null, earned = 0, newMem = false, mult = 1;
+  if (p.asleep) refused = 'asleep'; else if (p.nl < 15) refused = 'tired'; else if (used >= t.cap) refused = 'toy_cap';
+  else {
+    if ((p.illness ? ILLNESS_BY_ID[p.illness]?.block || [] : []).includes('play')) throw new Error('sick_blocked');
+    mult = used >= 2 ? 0.5 : 1; const g = toyGain(t, used);
+    ts.used[id] = used + 1; p.vui = clamp(p.vui + g.vui); p.nl = clamp(p.nl + g.nl); p.no = clamp(p.no + g.no);
+    db.plays = [...(db.plays || []).filter(x => Date.now() - x < 2 * 3600000), Date.now()];
+    p.bond_xp += 1; p.personality = applyDriftBy(normalize(p.personality), t.drift); tick(db, 'play');
+    earned = earn(db, COIN.careReward, true); newMem = first(db, 'toy-' + id, 'play', t.memory); goalAdd(db, 'play');
+  }
+  store(db);
+  return { pet: { ...p }, refused, earned, coins: db.coins, new_memory: newMem, mult, left: Math.max(0, t.cap - used - (refused ? 0 : 1)), toy: id };
+}
+
+/* ---------- Mục tiêu cộng đồng (mô phỏng): người khác góp sẵn khoảng 40% mục tiêu ---------- */
+const GOAL_OF: Record<string, GoalMetric> = { feed: 'feed', play_ball: 'play', play_spin: 'play', pet: 'pet', bath_rinse: 'bath', talk: 'talk' };
+function goalAdd(db: DB, metric: GoalMetric) {
+  for (const e of goalEvents(demoEvents())) { const g = (e.config as { goal?: { metric: GoalMetric } }).goal!; if (g.metric === metric) { const m = ((db.goals ||= {})[e.id] ||= { mine: 0, claimed: false }); m.mine++; } }
+}
+export async function getEventGoal(): Promise<EventGoal[]> {
+  const db = load();
+  return goalEvents(demoEvents()).map(e => { const g = (e.config as unknown as { goal: { metric: GoalMetric; target: number; reward_coins: number } }).goal, m = db.goals?.[e.id] || { mine: 0, claimed: false }, count = Math.min(g.target, Math.round(g.target * 0.4) + m.mine * 20);
+    return { event_id: e.id, title: e.title, metric: g.metric, target: g.target, reward_coins: g.reward_coins, count, mine: m.mine, reached: count >= g.target, claimed: m.claimed, active: true, min_mine: 5 }; });
+}
+export async function claimEventGoal(id: number): Promise<{ coins: number; reward: number }> {
+  const db = load(), g = (await getEventGoal()).find(x => x.event_id === id); if (!g) throw new Error('goal_not_found');
+  if (!g.reached) throw new Error('goal_not_reached'); if (g.mine < g.min_mine) throw new Error('goal_not_contributed'); if (g.claimed) throw new Error('already_claimed');
+  (db.goals ||= {})[id].claimed = true; earn(db, g.reward_coins, false); store(db); return { coins: db.coins, reward: g.reward_coins };
+}
+
+/* ---------- Cách ly (Mùa cúm) ---------- */
+export async function getIsolation(): Promise<{ isolating: boolean }> { const db = load(); return { isolating: !!db.isolating && !!db.pet?.illness }; }
+export async function setIsolation(on: boolean): Promise<{ isolating: boolean }> {
+  const db = load(); if (!db.pet) throw new Error('no_pet'); if (on && !db.pet.illness) throw new Error('not_sick');
+  db.isolating = on; store(db); return { isolating: on };
 }
 const demoBoost = () => eventBoost(demoEvents());
 

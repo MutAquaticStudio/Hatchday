@@ -39,7 +39,7 @@ class SupaRoom extends Emitter implements Room {
       const p = payload as Partial<ChatMsg> | null;
       if (p && typeof p.text === 'string' && typeof p.pid === 'string' && typeof p.name === 'string' && p.text.length <= 100 && p.pid !== this.pid) this.emit('chat', { id: Number(p.id) || 0, pid: p.pid, name: p.name.slice(0, 24), text: p.text });
     }).subscribe();
-    this.beat = setInterval(() => { void supabase.rpc('place_heartbeat'); }, 40000);
+    this.beat = setInterval(() => { void supabase.rpc('place_heartbeat').then(({ data }) => { if ((data as { infected?: boolean } | null)?.infected) window.dispatchEvent(new CustomEvent('hatchday:infected')); }); }, 40000);
   }
   private async refreshRoster() {
     this.lastRoster = Date.now();

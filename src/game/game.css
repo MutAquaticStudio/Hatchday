@@ -535,3 +535,12 @@ body.editing .hot-layer,.farm-editing .hot-layer{display:none}
 .ad-overlay{position:absolute;inset:0;z-index:50;background:#2a1a3acc;display:flex;align-items:center;justify-content:center;padding:16px}
 .ad-box{background:#fff7fb;border:3px solid var(--candy-edge);border-radius:22px;padding:18px 22px;display:flex;flex-direction:column;align-items:center;gap:10px;max-width:320px;text-align:center}
 .ad-box small{font-size:12px;font-weight:800;color:var(--ink-soft)}.ad-art{font-size:56px}.ad-left{font-family:var(--f-display);font-size:34px}
+
+/* Sự kiện: mục tiêu cộng đồng, giảm giá, Mùa cúm, đồ chơi */
+.event-banner{flex-direction:column;align-items:stretch}.event-banner .ev-row{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.ev-goal{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;font-size:12px;font-weight:700;color:#6a4a0a;margin-top:4px}
+.ev-bar{display:block;flex:1 1 90px;height:8px;border-radius:6px;background:#f5e3a0;overflow:hidden}.ev-bar i{display:block;height:100%;background:#e8a21a;border-radius:6px}
+.sale-note{background:#fff0d4;border:2px solid #f3c36b;border-radius:12px;padding:6px 10px;margin-bottom:8px;font-weight:800;font-size:13px;color:#8a5a0a}
+.toy-row{display:grid;grid-template-columns:36px 1fr auto;gap:8px;align-items:center;padding:8px 0;border-bottom:1px dashed var(--line,#ead9ef)}.toy-ic{font-size:26px;text-align:center}
+.toy-row small{display:block;color:var(--ink-soft);font-weight:600}.toy-row.lock{opacity:.6}
+.iso-row{display:flex;align-items:center;justify-content:space-between;gap:8px;background:#e6f4ff;border:2px solid #9fd0f5;border-radius:12px;padding:8px 10px;margin:8px 0;font-weight:700;font-size:13px}

@@ -11,3 +11,18 @@ export const eventBoost = (events: ActiveEvent[]): number => events.reduce((m, e
 export const boostedReward = (base: number, boost: number): number => Math.round(base * boost);
 export const plazaDecor = (events: ActiveEvent[]): PlazaDecor | null => events.find(e => e.config?.plaza_decor)?.config.plaza_decor ?? null;
 export const bannerOf = (events: ActiveEvent[]): { id: number; text: string } | null => { const e = events.find(x => x.config?.banner) ?? events[0]; return e ? { id: e.id, text: e.config?.banner || e.title } : null; };
+
+/* ---------- Giảm giá cửa hàng, mục tiêu cộng đồng, Mùa cúm (migration 20261215000000_hooks_toys.sql) ---------- */
+export type DiscountScope = 'food' | 'medicine' | 'decor' | 'outfit' | 'toy';
+export type GoalMetric = 'feed' | 'play' | 'pet' | 'bath' | 'talk';
+export interface EventConfigExtra { shop_discount?: { pct: number; scope: DiscountScope | 'all' }; epidemic?: boolean; goal?: { metric: GoalMetric; target: number; reward_coins: number } }
+type Cfg = ActiveEvent['config'] & EventConfigExtra;
+/** Giá sau giảm: làm tròn lên, tối thiểu 1 xu (giống private.discounted). */
+export const discountedPrice = (price: number, pct: number): number => Math.max(1, Math.ceil((price * (100 - pct)) / 100 - 1e-9));
+/** Giảm giá lớn nhất đang chạy cho loại hàng, 0 nếu không có. */
+export const discountPct = (events: ActiveEvent[], kind: DiscountScope): number =>
+  events.reduce((m, e) => { const d = (e.config as Cfg)?.shop_discount; return d && (d.scope === 'all' || d.scope === kind) ? Math.max(m, d.pct) : m; }, 0);
+export const isEpidemic = (events: ActiveEvent[]): boolean => events.some(e => (e.config as Cfg)?.epidemic === true);
+export const goalEvents = (events: ActiveEvent[]) => events.filter(e => (e.config as Cfg)?.goal);
+export const GOAL_METRIC_TEXT: Record<GoalMetric, string> = { feed: 'bữa ăn', play: 'lượt chơi', pet: 'lần vuốt ve', bath: 'lần tắm', talk: 'lần trò chuyện' };
+export interface EventGoal { event_id: number; title: string; metric: GoalMetric; target: number; reward_coins: number; count: number; mine: number; reached: boolean; claimed: boolean; active: boolean; min_mine: number }
