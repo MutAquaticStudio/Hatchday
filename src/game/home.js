@@ -2,6 +2,7 @@
 import { SELL, sellPrice, BY_ID, DEFAULT_LAYOUT, FOOD_BY_ID, FOOD_GROUPS, FOOD_STOCK, FOODS, FRIDGE, GRID, ITEMS, PAID_SHOP_ENABLED, PET_ZONE, RARITY, RECIPES, SET_LINES, SLOTS, TAGS, THEMES, WINDOW_CELLS } from './catalog';
 import { BALANCED_BONUS, BALANCED_GROUPS, tastesLine } from './nutrition';
 import { FOOD_SVG } from './food.js';
+import { BADGE_ICONS } from './badge-icons';
 import { ACTIVITY_LABEL, BADGES, BADGE_BY_ID, EXPLORE_TIERS } from './world-activity';
 import { activeSets, buyable, canPlace, cellsOf, comfortLevel, comfortScore, footprint, placedCount, QUEST_BONUS, QUEST_POOL, WEEKLY_POOL } from './layout';
 import { makeDecor } from './decor3d.js';
@@ -140,6 +141,10 @@ export function initHome(ctx) {
       <button type="button" class="tile" data-go="family"><b>Gia phả</b><span>${S.lineage.length > 1 ? `${S.lineage.length} đời của ${esc(S.family)}` : `Đời ${S.generation} của ${esc(S.family)}`}</span></button>
       <button type="button" class="tile" data-go="dex"><b>Sổ loài</b><span>Đã gặp ${S.seen.length}/${SPECIES.length} loài</span></button></div>`;
   }
+  /* Hàng tab cuộn ngang: mờ dần ở mép còn nội dung để người chơi biết vuốt thêm */
+  const hint = el => { el.classList.toggle('fade-r', el.scrollLeft + el.clientWidth < el.scrollWidth - 4); el.classList.toggle('fade-l', el.scrollLeft > 4); };
+  app.addEventListener('scroll', e => { if (e.target.classList?.contains('tabs-row')) hint(e.target); }, true);
+  new MutationObserver(() => app.querySelectorAll('.tabs-row').forEach(hint)).observe(app, { childList: true, subtree: true });
   $('a-house').addEventListener('click', () => { ctx.hideHint(); const hs = $('house'); if (hs && !hs.hidden) { closeAll(); return; } openHouse(); });
   app.addEventListener('click', e => {
     const b = e.target.closest('.tile'); if (!b) return;
@@ -501,7 +506,7 @@ export function initHome(ctx) {
     const got = w.badges.filter(b => b.claimed).length;
     return `<h3 class="qh">Huy hiệu <small>${got}/${w.badges.length} đã nhận</small></h3>
       <ul class="badges">${w.badges.map(b => { const d = BADGE_BY_ID[b.id], done = b.progress >= b.target || b.claimed, prog = b.claimed ? b.target : b.progress;
-        return `<li class="badge${b.claimed ? ' got' : done ? ' ready' : ''}"><span class="b-ico" aria-hidden="true">${d.icon}</span><b>${d.name}</b><span class="b-desc">${d.desc}</span>
+        return `<li class="badge${b.claimed ? ' got' : done ? ' ready' : ''}"><span class="b-ico" aria-hidden="true">${BADGE_ICONS[b.id] || d.icon}</span><b>${d.name}</b><span class="b-desc">${d.desc}</span>
           <div class="bar-track"><i style="width:${Math.min(100, prog / b.target * 100)}%"></i></div><span class="b-num">${prog}/${b.target}</span>
           ${b.claimed ? '<span class="pill-ok">Đã nhận</span>' : `<button type="button" class="btn-sm" data-badge="${b.id}" ${done ? '' : 'disabled'}>${COIN_SVG}+${b.reward}</button>`}</li>`; }).join('')}</ul>`;
   }

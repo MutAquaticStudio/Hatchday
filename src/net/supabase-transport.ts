@@ -76,6 +76,11 @@ class SupaRoom extends Emitter implements Room {
   }
   sendEmote(id: EmoteId) { if (this.ch && this.th.emote()) void this.ch.send({ type: 'broadcast', event: 'emote', payload: { t: 'emote', pid: this.pid, id } }); }
   sendAct(id: ActId) { if (this.ch && this.th.act()) void this.ch.send({ type: 'broadcast', event: 'act', payload: { t: 'act', pid: this.pid, id } }); }
+  /** Bỏ các kênh đã mở dở (lần vào thất bại) nhưng KHÔNG gọi leave_place, vì còn thử lại. */
+  async abort() {
+    this.closed = true; if (this.beat) clearInterval(this.beat);
+    try { await this.ch?.unsubscribe(); await this.chatCh?.unsubscribe(); } catch { /* bỏ qua */ }
+  }
   async leave() {
     if (this.closed) return; this.closed = true;
     if (this.beat) clearInterval(this.beat);
@@ -91,8 +96,13 @@ export const supabaseTransport: Transport = {
     if (error) throw error;
     const info = data as { topic: string; cap: number; pid: string };
     await supabase.realtime.setAuth();
-    const room = new SupaRoom(info.topic, info.cap, info.pid, me);
-    try { await room.start(); } catch (e) { await room.leave(); throw e; }
-    return room;
+    // Realtime thật thỉnh thoảng báo CHANNEL_ERROR ở lần đầu (kênh khởi động chậm): thử lại tối đa 3 lần trước khi báo lỗi.
+    let last: unknown;
+    for (let i = 0; i < 3; i++) {
+      const room = new SupaRoom(info.topic, info.cap, info.pid, me);
+      try { await room.start(); return room; } catch (e) { last = e; await room.abort(); await new Promise(r => setTimeout(r, 600 * (i + 1))); }
+    }
+    try { await supabase.rpc('leave_place'); } catch { /* máy chủ tự dọn sau 120 giây */ }
+    throw last;
   },
 };

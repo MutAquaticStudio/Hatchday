@@ -275,7 +275,7 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline
 .ex-kinds em{font-size:12px;font-style:normal;font-weight:700;color:var(--ink-soft)}
 .badges{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
 .badge{display:flex;flex-direction:column;align-items:flex-start;gap:4px;background:#fff;border:2px solid var(--candy-edge);border-radius:16px;padding:10px 12px;min-width:0}
-.badge .b-ico{font-size:26px;line-height:1;filter:grayscale(1);opacity:.45}
+.badge .b-ico{display:block;width:34px;height:34px;line-height:0;filter:grayscale(1);opacity:.5}.badge .b-ico svg{width:100%;height:100%}
 .badge.ready .b-ico,.badge.got .b-ico{filter:none;opacity:1}
 .badge b{font-size:13px;line-height:1.2}.badge .b-desc{font-size:11px;font-weight:700;color:var(--ink-soft);line-height:1.3}
 .badge .bar-track{width:100%}.badge .b-num{font-size:11px;font-weight:800;color:var(--ink-soft)}
@@ -637,3 +637,17 @@ body.editing .hot-layer,.farm-editing .hot-layer{display:none}
 .hot.near .hl{display:inline}.hot.near .hd{width:10px;height:10px;border-width:0;box-shadow:none;animation:none}
 .hot:active{filter:brightness(.95)}
 @media (pointer:coarse){.hot.near{min-height:36px}}
+
+.tabs-row.fade-r{-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 34px),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 34px),transparent)}
+.tabs-row.fade-l{-webkit-mask-image:linear-gradient(270deg,#000 calc(100% - 34px),transparent);mask-image:linear-gradient(270deg,#000 calc(100% - 34px),transparent)}
+.tabs-row.fade-l.fade-r{-webkit-mask-image:linear-gradient(90deg,transparent,#000 34px,#000 calc(100% - 34px),transparent);mask-image:linear-gradient(90deg,transparent,#000 34px,#000 calc(100% - 34px),transparent)}
+
+/* ---------- Máy tính (≥ 900px): đừng kéo giãn giao diện kiểu điện thoại ---------- */
+@media (min-width:900px){
+  .event-banner{left:50%;right:auto;transform:translateX(-50%);width:min(560px,calc(100vw - 32px))}
+  /* thanh chat/biểu cảm dời sang góc phải để không đè lên bé ở giữa màn hình */
+  .emote-bar{position:fixed;right:20px;bottom:24px;width:340px;margin:0;padding:10px 12px;align-items:stretch;background:rgba(255,248,252,.92);border:2px solid var(--candy-edge);border-radius:20px;box-shadow:0 4px 0 var(--candy-edge);z-index:9}
+  .emote-bar .eb-line{justify-content:space-between}.emote-bar .eb-row{flex-wrap:wrap}
+  .hot.near{min-height:34px}.eb-toggle{min-height:36px}
+  .tab,.btn-sm{min-height:36px}
+}
