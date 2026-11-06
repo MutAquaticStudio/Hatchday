@@ -200,3 +200,6 @@ export const getPushState = (): Promise<PushState> => (isDemo ? Promise.resolve(
 export const savePushSubscription = (endpoint: string, p256dh: string, auth: string, ua: string) => (isDemo ? Promise.resolve() : rpc<void>('save_push_subscription', { p_endpoint: endpoint, p_p256dh: p256dh, p_auth: auth, p_ua: ua }));
 export const removePushSubscription = (endpoint: string) => (isDemo ? Promise.resolve() : rpc<void>('remove_push_subscription', { p_endpoint: endpoint }));
 export const setPushPrefs = (p: PushPrefs) => (isDemo ? Promise.resolve() : rpc<void>('set_push_prefs', { p_care: p.care, p_events: p.events, p_mail: p.mail, p_quiet_from: p.quiet_from, p_quiet_to: p.quiet_to }));
+
+/* ---------- Bản đồ: số người đang ở các nơi chung (bản Chơi thử: vài bạn ảo) ---------- */
+export const getPlacesSummary = (): Promise<Record<string, number>> => (isDemo ? Promise.resolve({ plaza: 4, tea: 2, park: 3 }) : rpc<Record<string, number>>('places_summary'));

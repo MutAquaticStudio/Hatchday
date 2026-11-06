@@ -435,7 +435,7 @@ body.editing .top,body.editing .scene-tag,body.editing .bottom,body.editing #hin
 /* ---- Bản đồ và địa điểm ---- */
 .scene-tag{pointer-events:auto;cursor:pointer;border:0;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;z-index:8}
 .scene-tag::after{content:" \25BE";opacity:.85}
-.worldmap{position:relative;width:100%;aspect-ratio:360/400;border:3px solid var(--candy-edge);border-radius:20px;overflow:hidden;background:#dff5d6}
+.worldmap{position:relative;width:100%;aspect-ratio:360/340;border:3px solid var(--candy-edge);border-radius:20px;overflow:hidden;background:#dff5d6}
 .wm-bg{position:absolute;inset:0;width:100%;height:100%}
 .pin{position:absolute;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:1px;background:none;border:0;padding:0;min-width:64px;min-height:64px}
 .pin-ic{width:46px;height:46px;border-radius:50%;background:#fff;border:3px solid var(--candy-edge);display:grid;place-items:center;box-shadow:0 3px 0 var(--candy-edge);transition:transform .14s cubic-bezier(.34,1.56,.64,1)}
@@ -544,3 +544,9 @@ body.editing .hot-layer,.farm-editing .hot-layer{display:none}
 .toy-row{display:grid;grid-template-columns:36px 1fr auto;gap:8px;align-items:center;padding:8px 0;border-bottom:1px dashed var(--line,#ead9ef)}.toy-ic{font-size:26px;text-align:center}
 .toy-row small{display:block;color:var(--ink-soft);font-weight:600}.toy-row.lock{opacity:.6}
 .iso-row{display:flex;align-items:center;justify-content:space-between;gap:8px;background:#e6f4ff;border:2px solid #9fd0f5;border-radius:12px;padding:8px 10px;margin:8px 0;font-weight:700;font-size:13px}
+/* Bản đồ minh hoạ: mây trôi, huy hiệu số người, nhãn người đang ở đây */
+.wm-cloud{animation:wmcloud 80s linear infinite}@keyframes wmcloud{from{translate:-40px 0}to{translate:60px 0}}
+@media (prefers-reduced-motion:reduce){.wm-cloud{animation:none}}
+.pin-ic{position:relative}.pin-n{position:absolute;top:-6px;right:-8px;min-width:20px;height:20px;padding:0 5px;border-radius:999px;background:var(--accent);color:#fff;font:800 11px/20px var(--f-body,inherit);font-style:normal;text-align:center;box-shadow:0 0 0 2px #fff}
+.map-who{color:#3f8a55!important}
+.worldmap{box-shadow:inset 0 0 0 2px #fff}

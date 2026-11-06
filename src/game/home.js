@@ -239,7 +239,7 @@ export function initHome(ctx) {
   const ads = initAds({ ctx, store, head, open, app, $ });
   const toys = initToys({ ctx, head, open, app, $ });
   const social = initSocial({ ctx, S, store, esc, head, open, closeAll, thumb, fillThumbs, app, $, onChange: () => sync() });
-  const worldMap = initMap({ app, $, esc, head, open, closeAll, S, bondLevel: () => bondLevel(S.bondXp), goTo: ctx.goTo, toast: ctx.toast, getArea: ctx.getArea, alerts: () => ({ hospital: !!S.illness }) });
+  const worldMap = initMap({ app, $, esc, head, open, closeAll, decor: () => (ctx.events && ctx.events.decor ? ctx.events.decor() : null), S, bondLevel: () => bondLevel(S.bondXp), goTo: ctx.goTo, toast: ctx.toast, getArea: ctx.getArea, alerts: () => ({ hospital: !!S.illness }) });
 
   /* ---------- Nấu ăn: hai nguyên liệu thành một món ngon hơn, thuộc hai nhóm dinh dưỡng ---------- */
   function openCooking() { open('cooking'); renderCooking(); }

@@ -4,7 +4,7 @@
 import { makeKit } from './kit.js';
 import { makeShared } from './shared.js';
 import { festival } from './festival.js';
-import { makeProps, makeWorld } from './world.js';
+import { makeFireflies, makeProps, makeWorld } from './world.js';
 
 export function initPlaza(c) {
   const { THREE, add, toon, canvasTex, scene } = c, kit = makeKit(c);
@@ -16,6 +16,7 @@ export function initPlaza(c) {
   const water = canvasTex(128, 128, d => { d.fillStyle = '#8ed6ff'; d.fillRect(0, 0, 128, 128); d.strokeStyle = 'rgba(255,255,255,.55)'; d.lineWidth = 3; for (let r = 10; r < 90; r += 18) { d.beginPath(); d.arc(64, 64, r, 0, 7); d.stroke(); } }, [1, 1]);
   const dens = world.density();
   let clockHands = null, jets = [], waterMesh = null;
+  const fireflies = makeFireflies(THREE, g, { x0: -16, x1: 16, z0: -6, z1: 8 }, Math.round(18 * dens));
 
   /* ---------- khu lõi (dựng ngay) ---------- */
   world.zone({ id: 'core', core: true, cx: 0, cz: 0, build(z) {
@@ -124,7 +125,7 @@ export function initPlaza(c) {
       if (waterMesh) waterMesh.material.map.offset.set(Math.sin(t * 0.3) * 0.04, t * 0.02);
       if (clockHands) { const d = new Date(); clockHands.m.rotation.z = -(d.getMinutes() + d.getSeconds() / 60) * Math.PI / 30; clockHands.h.rotation.z = -((d.getHours() % 12) + d.getMinutes() / 60) * Math.PI / 6; }
       const cl = (core || g.children[0]).userData.clouds; if (cl) cl.forEach((m, i) => { m.position.x += dt * (0.25 + i * 0.1); if (m.position.x > 26) m.position.x = -26; });
-      props.night(c.isNight ? c.isNight() : false);
+      const night = c.isNight ? c.isNight() : false; props.night(night); fireflies(t, night);
       shared.update(dt, now);
     },
     tap: e => shared.tap(e) || kit.tap(e), sync() {},

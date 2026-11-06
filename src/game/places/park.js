@@ -3,7 +3,7 @@
 // Đồ chơi dùng play_toy (ducks, swing, seesaw, slide). Chi tiết dựng/ẩn theo khu: xem world.js.
 import { makeKit } from './kit.js';
 import { makeShared } from './shared.js';
-import { makeProps, makeWorld } from './world.js';
+import { makeFireflies, makeProps, makeWorld } from './world.js';
 
 export function initPark(c) {
   const { THREE, add, toon, canvasTex, scene } = c, kit = makeKit(c);
@@ -13,6 +13,7 @@ export function initPark(c) {
   const grass = canvasTex(128, 128, d => { d.fillStyle = '#b6e89a'; d.fillRect(0, 0, 128, 128); d.fillStyle = '#9ed97e'; for (let i = 0; i < 50; i++) d.fillRect((i * 41) % 128, (i * 59) % 128, 3, 7); d.fillStyle = '#fff6b0'; for (let i = 0; i < 6; i++) d.fillRect((i * 67) % 128, (i * 43) % 128, 3, 3); }, [14, 10]);
   const pathTex = canvasTex(64, 64, d => { d.fillStyle = '#f3e3c3'; d.fillRect(0, 0, 64, 64); d.fillStyle = '#e4cfa6'; for (let i = 0; i < 14; i++) d.fillRect((i * 23) % 64, (i * 37) % 64, 4, 3); }, [10, 1]);
   const dens = world.density();
+  const fireflies = makeFireflies(THREE, g, { x0: -16, x1: 16, z0: -6, z1: 8 }, Math.round(20 * dens));
   let seats = [], plank = null, ducks = [], pondMat = null, butterflies = [], slideBall = null;
 
   world.zone({ id: 'core', core: true, cx: 0, cz: 0, build(z) {
@@ -127,7 +128,7 @@ export function initPark(c) {
       butterflies.forEach(m => { const u = m.userData; m.position.set(u.cx + Math.sin(t * 0.4 + u.ph) * 3, 0.9 + Math.sin(t * 1.3 + u.ph) * 0.3, u.cz + Math.cos(t * 0.35 + u.ph) * 2); m.rotation.set(-1.2, 0, Math.sin(t * 14 + u.ph) * 0.7); });
       if (slideBall) { const k = (t * 0.35) % 1; slideBall.position.set(0, 2.05 - k * 1.7, 0.2 + k * 2.4); slideBall.visible = k < 0.9; }
       if (pondMat) pondMat.color.setHSL(0.55, 0.9, 0.78 + Math.sin(t * 0.8) * 0.02);
-      props.night(c.isNight ? c.isNight() : false);
+      const night = c.isNight ? c.isNight() : false; props.night(night); fireflies(t, night);
       shared.update(dt, now);
     },
     tap: e => shared.tap(e) || kit.tap(e), sync() {}, world,

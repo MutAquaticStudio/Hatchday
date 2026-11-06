@@ -63,6 +63,17 @@ export function makeWorld(c, group) {
   return { geo, mat, toonC, scatter, zone, update, finishAll, status, density, dispose, THREE };
 }
 
+/** Đom đóm ban đêm: các chấm sáng bay lượn trong hình chữ nhật (x0,x1,z0,z1); ban ngày ẩn. Trả về hàm update(t, night). */
+export function makeFireflies(THREE, parent, box, n = 14) {
+  const m = new THREE.InstancedMesh(new THREE.SphereGeometry(0.06, 6, 5), new THREE.MeshBasicMaterial({ color: '#fff3a0', transparent: true, opacity: 0.9 }), n), d = new THREE.Object3D(), ph = Array.from({ length: n }, (_, i) => ({ a: i * 1.7, x: box.x0 + ((i * 37) % 100) / 100 * (box.x1 - box.x0), z: box.z0 + ((i * 59) % 100) / 100 * (box.z1 - box.z0) }));
+  m.visible = false; m.frustumCulled = false; parent.add(m);
+  return (t, night) => {
+    m.visible = night; if (!night) return;
+    ph.forEach((p, i) => { d.position.set(p.x + Math.sin(t * 0.5 + p.a) * 1.4, 0.7 + Math.sin(t * 0.9 + p.a * 2) * 0.35, p.z + Math.cos(t * 0.4 + p.a) * 1.1); d.scale.setScalar(0.6 + 0.6 * Math.abs(Math.sin(t * 2 + p.a))); d.updateMatrix(); m.setMatrixAt(i, d.matrix); });
+    m.instanceMatrix.needsUpdate = true;
+  };
+}
+
 /** Bộ vật trang trí dùng chung (nhận { THREE, add, toon, canvasTex, kit, world }). Mỗi hàm thêm vào `g` và trả về nhóm. */
 export function makeProps({ THREE, add, toon, canvasTex, kit, world }) {
   const rnd = (seed => () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; });

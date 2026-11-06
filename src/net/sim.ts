@@ -24,7 +24,7 @@ interface SimOpts { bots?: number; botMs?: number; pid?: string }
 type Wire = { t: 'hello'; peer: Peer } | { t: 'bye'; pid: string } | { t: 'ask'; pid: string } | { t: string; pid?: string };
 
 /** Vùng bạn ảo đi lại theo từng nơi (khớp vùng đi của địa điểm trong registry.ts, thu nhỏ một chút). */
-const SIM_AREA: Record<string, { x: [number, number]; z: [number, number] }> = { plaza: { x: [-15, 15], z: [-5, 7] }, park: { x: [-15, 15], z: [-4, 7] }, tea: { x: [-4.5, 4.5], z: [-1.5, 1.8] } };
+const SIM_AREA: Record<string, { x: [number, number]; z: [number, number] }> = { plaza: { x: [-15, 15], z: [-5, 7] }, park: { x: [-15, 15], z: [-4, 7] }, tea: { x: [-4.2, 4.2], z: [-0.8, 3.4] } };
 
 export class SimRoom extends Emitter implements Room {
   readonly cap: number; readonly pid: string; readonly topic: string; private area: { x: [number, number]; z: [number, number] };

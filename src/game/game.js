@@ -332,15 +332,24 @@ function onEnter(name) {
   if (name === 'garden') refreshGarden().then(() => gardenFx.sync()).catch(() => {});
   if (line) setTimeout(() => say(line, 3200), reduce ? 0 : 350);
 }
+/** Ánh sáng đích; updateLights() đưa ánh sáng thật tiến dần tới đó (chuyển giờ/khu mượt thay vì nhảy bậc). */
+const lightT = { hemi: 1.6, sun: 2.0, lamp: 0, sunCol: new THREE.Color('#fff1dc'), lampPos: new THREE.Vector3(-1.5, 3, 2) };
+function updateLights(dt) {
+  const k = Math.min(1, dt * 2.2);
+  hemi.intensity += (lightT.hemi - hemi.intensity) * k; sun.intensity += (lightT.sun - sun.intensity) * k; lamp.intensity += (lightT.lamp - lamp.intensity) * k;
+  sun.color.lerp(lightT.sunCol, k); lamp.position.lerp(lightT.lampPos, k);
+}
 function applyAreaLights() {
   const night = period === 'dem';
   beams.visible = !night;
   rimColor.value.set(area === 'bedroom' || night ? '#b9c4ff' : period === 'chieu' ? '#ffd9b8' : '#fff4e8'); rimStrength.value = area === 'bedroom' ? 0.35 : night ? 0.4 : 0.5;
-  if (area === 'bedroom') { hemi.intensity = 0.75; sun.intensity = 0.35; sun.color.set('#b7b8ff'); lamp.position.set(2.4, 2.2, -0.6); lamp.intensity = 20; return; }
+  if (area === 'bedroom') { lightT.hemi = 0.75; lightT.sun = 0.35; lightT.sunCol.set('#b7b8ff'); lightT.lampPos.set(2.4, 2.2, -0.6); lightT.lamp = 20; if (!lookBooted) snapLights(); return; }
   const outdoor = area === 'garden' || !!(PLACE_BY_ID[area] && PLACE_BY_ID[area].outdoor), moon = night && outdoor;
-  hemi.intensity = moon ? 1.3 : night ? 0.95 : 1.6; sun.intensity = moon ? 1.0 : night ? 0.7 : 2.0; sun.color.set(night ? '#c3c4ff' : (period === 'chieu' ? '#ffd2b0' : '#fff1dc'));
-  lamp.position.set(-1.5, 3, 2); lamp.intensity = night && !outdoor ? 18 : 0;
+  lightT.hemi = moon ? 1.3 : night ? 0.95 : 1.6; lightT.sun = moon ? 1.0 : night ? 0.7 : 2.0; lightT.sunCol.set(night ? '#c3c4ff' : (period === 'chieu' ? '#ffd2b0' : '#fff1dc'));
+  lightT.lampPos.set(-1.5, 3, 2); lightT.lamp = night && !outdoor ? 18 : 0;
+  if (!lookBooted) snapLights();
 }
+function snapLights() { hemi.intensity = lightT.hemi; sun.intensity = lightT.sun; lamp.intensity = lightT.lamp; sun.color.copy(lightT.sunCol); lamp.position.copy(lightT.lampPos); }
 let scrubN = 0;
 function scrub() {
   sfx('bath'); actBatched('bath_scrub'); S.sach = clamp(S.sach + 3); spawn('bubble', 2, 0.9); setTemp('love', 1200); impulse(-0.9); scrubN++;
@@ -1019,7 +1028,7 @@ function tick(now, dt) {
   if (!reduce && key === 'sick') roll += Math.sin(t * 22) * 0.012;
   petRoot.position.set(petBase.x + petOff.x, petBase.y + hop, petBase.z + petOff.z);
   shadow.position.set(petRoot.position.x, 0.075, petRoot.position.z + 0.05); shadow.visible = area !== 'bath' && area !== 'bedroom';
-  updateArea(dt, t);
+  updateArea(dt, t); updateLights(dt);
   /* nhìn theo con trỏ, quay đi khi dỗi */
   /* dáng bốn chân / bay lượn đứng hơi nghiêng 3/4 để thấy cả thân */
   const side = petParts && (petParts.plan === 'thu4' || petParts.plan === 'ran') ? 0.42 : 0;
