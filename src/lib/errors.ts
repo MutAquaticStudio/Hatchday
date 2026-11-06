@@ -9,6 +9,7 @@ const AUTH: Record<string, string> = {
   over_email_send_rate_limit: 'Đã gửi nhiều thư quá. Đợi vài phút rồi thử lại nhé.',
   same_password: 'Mật khẩu mới cần khác mật khẩu cũ.',
   validation_failed: 'Thông tin chưa hợp lệ. Bạn kiểm tra lại email nhé.',
+  captcha_failed: 'Chưa xác minh được bạn là người thật. Tải lại trang và thử lại nhé.',
   session_expired: 'Phiên đăng nhập đã hết hạn. Bạn đăng nhập lại nhé.',
 };
 const RPC: Record<string, string> = {
@@ -44,6 +45,7 @@ const RPC: Record<string, string> = {
   no_parent: 'Chưa có bé nào ra đi để đón thú đời sau.',
   invalid_egg: 'Quả trứng này chưa hợp lệ.',
   invalid_layout: 'Bố cục chưa hợp lệ.',
+  sell_cap: 'Hôm nay bạn đã bán đủ mức tối đa ở chợ. Mai bán tiếp nhé.',
   bond_too_low: 'Gắn bó chưa đủ cấp để nhận quà này.',
   invalid_level: 'Cấp gắn bó này chưa hợp lệ.',
   not_sick: 'Bé đang khoẻ, không cần chữa.',
@@ -57,6 +59,7 @@ export function viError(err: unknown): string {
   if (!e) return 'Có lỗi xảy ra. Bạn thử lại nhé.';
   if (e.code && AUTH[e.code]) return AUTH[e.code];
   const m = e.message || '';
+  if (/captcha_(failed|timeout|load)/.test(m)) return AUTH.captcha_failed;
   for (const k of Object.keys(RPC)) if (m.includes(k)) return RPC[k];
   if (e.status === 0 || /fetch|network/i.test(m)) return 'Không kết nối được máy chủ. Bạn kiểm tra mạng rồi thử lại nhé.';
   return 'Có lỗi xảy ra. Bạn thử lại nhé.';

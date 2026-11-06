@@ -37,6 +37,10 @@ export interface PetState {
   illness: string | null; sickSince: string | null; criticalSince: string | null; recoverAt: string | null;
   /** Gắn bó: điểm hiện tại và các cấp đã nhận quà. */
   bondXp: number; bondClaims: number[];
+  /** Xu đã bán nông sản hôm nay ở Chợ (trần mỗi ngày). */
+  soldToday: number;
+  /** Lần chăm cuối và các lần chơi gần đây (ms), chỉ để suy ra biểu cảm. */
+  lastCare: number; plays: number[];
 }
 
 export const S: PetState = {
@@ -48,7 +52,7 @@ export const S: PetState = {
   weekly: [], questBonus: { reward: 0, ready: false, claimed: false }, rationDay: '', groupLog: [], lineage: [],
   fridge: 0, garden: null, tastes: { fav: null, dis: null, tried: 0, total: 0 }, farm: [],
   illness: null, sickSince: null, criticalSince: null, recoverAt: null,
-  bondXp: 0, bondClaims: [],
+  bondXp: 0, bondClaims: [], soldToday: 0, lastCare: Date.now(), plays: [],
 };
 /** Bố cục đang dùng (luôn có giá trị). */
 export const activeLayout = (): Layout => S.layouts[S.activeLayout] || S.layouts[0] || DEFAULT_LAYOUT;
@@ -194,6 +198,11 @@ export async function refreshBond(): Promise<void> { S.bondClaims = await api.ge
 export async function claimBond(level: number): Promise<{ reward: number } | { error: unknown }> {
   try { const r = await api.claimBond(level); S.coins = r.coins; S.bondClaims = [...S.bondClaims, level]; scheduleMemRefresh(); emit(); return { reward: r.reward }; } catch (error) { return { error }; }
 }
+/** Bán thức ăn thừa ở Chợ. Trả về { got } hoặc lỗi. */
+export async function sellFood(id: string, qty: number): Promise<{ got: number } | { error: unknown }> {
+  try { const r = await api.sellFood(id, qty); S.coins = r.coins; S.owned = { ...S.owned, [id]: r.qty }; S.soldToday = r.today; emit(); return { got: r.got }; } catch (error) { return { error }; }
+}
+export async function refreshSell(): Promise<void> { S.soldToday = (await api.getSellState()).today; emit(); }
 /** Đồng bộ sức khoẻ ngay (xét bệnh bỏ bê và hồi phục). */
 export async function refreshHealth(): Promise<void> { const h = await api.getHealth(); if (h && h.stage !== 'departed') { applyRow(h); emit(); } }
 /** Mua thuốc (qty liều). Trả về lỗi nếu thất bại, null nếu thành công. */
@@ -279,6 +288,7 @@ const scheduleMemRefresh = () => { clearTimeout(memTimer); memTimer = window.set
 
 /** Gửi một hành động. Trả về kết quả server (hoặc null nếu lỗi mạng — client giữ bản dự đoán). */
 export async function act(action: PetAction, item?: string, count = 1): Promise<ActionResult | null> {
+  S.lastCare = Date.now(); if (action.startsWith('play_')) S.plays = [...S.plays.filter(t => S.lastCare - t < 1800000), S.lastCare];
   try {
     const r = await api.petAction(action, item, count);
     applyRow(r.pet);
@@ -302,6 +312,7 @@ const batch: Partial<Record<PetAction, number>> = {};
 let batchTimer = 0;
 /** Gộp các hành động lặp nhanh (vuốt ve, kỳ cọ) rồi gửi theo lô. */
 export function actBatched(action: 'pet' | 'bath_scrub'): void {
+  S.lastCare = Date.now();
   batch[action] = (batch[action] || 0) + 1;
   if (batchTimer) return;
   batchTimer = window.setTimeout(flushBatch, 2000);

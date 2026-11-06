@@ -124,3 +124,7 @@ export const visitClinic = () => (isDemo ? demo.visitClinic() : rpc<CureResult>(
 export const getBondClaims = async (): Promise<number[]> =>
   isDemo ? demo.getBondClaims() : (unwrap(await supabase.from('bond_claims').select('level')) as { level: number }[]).map(r => r.level);
 export const claimBond = (level: number) => (isDemo ? demo.claimBond(level) : rpc<{ coins: number; reward: number }>('claim_bond_reward', { p_level: level }));
+
+/* ---------- Chợ: thu mua nông sản ---------- */
+export const getSellState = () => (isDemo ? demo.getSellState() : rpc<{ today: number; cap: number }>('get_sell_state'));
+export const sellFood = (id: string, qty: number) => (isDemo ? demo.sellFood(id, qty) : rpc<{ coins: number; qty: number; got: number; today: number; cap: number }>('sell_food', { p_item: id, p_qty: qty }));

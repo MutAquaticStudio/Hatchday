@@ -1,5 +1,6 @@
 import { supabase, isConfigured } from '../lib/supabase';
 import { viError } from '../lib/errors';
+import { mountCaptcha } from '../lib/captcha';
 import './auth.css';
 
 export type AuthView = 'gate' | 'login' | 'register' | 'forgot' | 'reset' | 'check-email';
@@ -36,19 +37,19 @@ export function mountAuth(root: HTMLElement, view: AuthView, onSignedIn: () => v
       ${field('email', 'Email', 'email', 'email', 'inputmode="email" required')}
       ${field('password', 'Mật khẩu', 'password', 'current-password', 'required')}
       <div class="row-between"><label class="check"><input type="checkbox" id="remember" checked> Ghi nhớ tôi</label><button type="button" class="link" data-go="forgot">Quên mật khẩu?</button></div>
-      <p class="err" id="form-err" role="alert"></p><button class="btn" type="submit">Đăng nhập</button></form>
+      <div id="captcha"></div><p class="err" id="form-err" role="alert"></p><button class="btn" type="submit">Đăng nhập</button></form>
       <p class="sub">Chưa có tài khoản? <button type="button" class="link" data-go="register">Tạo tài khoản</button></p>`,
     register: `${back}<h1>Tạo tài khoản</h1><form novalidate>
       ${field('email', 'Email', 'email', 'email', 'inputmode="email" required')}
       ${field('password', 'Mật khẩu (ít nhất 8 ký tự)', 'password', 'new-password', 'required minlength="8"')}
       ${field('password2', 'Nhập lại mật khẩu', 'password', 'new-password', 'required')}
       <label class="check"><input type="checkbox" id="terms"> <span>Tôi đồng ý với Điều khoản sử dụng và Chính sách riêng tư</span></label><span class="err" id="terms-err"></span>
-      <p class="err" id="form-err" role="alert"></p><button class="btn" type="submit">Tạo tài khoản</button></form>
+      <div id="captcha"></div><p class="err" id="form-err" role="alert"></p><button class="btn" type="submit">Tạo tài khoản</button></form>
       <p class="sub">Đã có tài khoản? <button type="button" class="link" data-go="login">Đăng nhập</button></p>`,
     forgot: `<button type="button" class="link back" data-go="login">← Quay lại</button><h1>Quên mật khẩu</h1>
       <p class="sub">Nhập email bạn đã đăng ký. Chúng mình sẽ gửi link đặt lại mật khẩu, link có hiệu lực trong 1 giờ.</p>
       ${info ? `<p class="notice" role="status">${esc(info)}</p>` : ''}<form novalidate>${field('email', 'Email', 'email', 'email', 'inputmode="email" required')}
-      <p class="err" id="form-err" role="alert"></p><button class="btn" type="submit">Gửi link đặt lại</button></form>`,
+      <div id="captcha"></div><p class="err" id="form-err" role="alert"></p><button class="btn" type="submit">Gửi link đặt lại</button></form>`,
     reset: `<h1>Đặt mật khẩu mới</h1><form novalidate>
       ${field('password', 'Mật khẩu mới (ít nhất 8 ký tự)', 'password', 'new-password', 'required minlength="8"')}
       ${field('password2', 'Nhập lại mật khẩu mới', 'password', 'new-password', 'required')}
@@ -73,6 +74,7 @@ export function mountAuth(root: HTMLElement, view: AuthView, onSignedIn: () => v
   const form = root.querySelector('form');
   if (!form) return;
   const submit = form.querySelector<HTMLButtonElement>('button[type="submit"]')!;
+  const captcha = mountCaptcha(view === 'reset' ? null : root.querySelector<HTMLElement>('#captcha'));
   const setErr = (id: string, msg: string) => { const e = $(id + '-err'); const i = $(id); if (e) e.textContent = msg; if (i) i.setAttribute('aria-invalid', String(!!msg)); };
   function alertInline(msg: string) { const e = $('form-err'); if (e) e.textContent = msg; }
   const busy = (on: boolean, label: string) => { submit.disabled = on; submit.textContent = label; };
@@ -96,20 +98,20 @@ export function mountAuth(root: HTMLElement, view: AuthView, onSignedIn: () => v
         const lock = lockedMinutes();
         if (lock) { alertInline(`Bạn nhập sai nhiều lần. Thử lại sau ${lock} phút nhé.`); return; }
         busy(true, 'Đang đăng nhập…');
-        const { error } = await supabase.auth.signInWithPassword({ email, password: pw });
+        const { error } = await supabase.auth.signInWithPassword({ email, password: pw, options: { captchaToken: await captcha.token() } });
         if (error) { if (error.code === 'invalid_credentials') addFail(); throw error; }
         clearFails();
         try { localStorage.setItem('hatchday-remember', $('remember')!.checked ? '1' : '0'); sessionStorage.setItem('hatchday-alive', '1'); } catch { /* bỏ qua */ }
         onSignedIn();
       } else if (view === 'register') {
         busy(true, 'Đang tạo…');
-        const { data, error } = await supabase.auth.signUp({ email, password: pw, options: { emailRedirectTo: location.origin + location.pathname } });
+        const { data, error } = await supabase.auth.signUp({ email, password: pw, options: { emailRedirectTo: location.origin + location.pathname, captchaToken: await captcha.token() } });
         if (error) throw error;
         if (data.session) onSignedIn();
         else go('check-email', `Chúng mình đã gửi thư xác minh tới ${email}. Mở thư và bấm vào link để bắt đầu.`);
       } else if (view === 'forgot') {
         busy(true, 'Đang gửi…');
-        await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${location.origin}${location.pathname}?reset=1` });
+        await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${location.origin}${location.pathname}?reset=1`, captchaToken: await captcha.token() });
         go('forgot', 'Nếu email này có tài khoản, bạn sẽ nhận được thư trong vài phút. Nhớ xem cả mục Spam nhé.');
       } else if (view === 'reset') {
         busy(true, 'Đang lưu…');
@@ -120,6 +122,7 @@ export function mountAuth(root: HTMLElement, view: AuthView, onSignedIn: () => v
         onSignedIn();
       }
     } catch (e) {
+      captcha.reset();
       alertInline(viError(e));
       busy(false, { login: 'Đăng nhập', register: 'Tạo tài khoản', forgot: 'Gửi link đặt lại', reset: 'Lưu mật khẩu' }[view as 'login'] ?? 'Thử lại');
     }

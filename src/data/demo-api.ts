@@ -3,7 +3,7 @@
  * Mô phỏng đúng luật của các RPC trong supabase/migrations (để xem trước, không dùng cho bản chính thức).
  */
 import { clamp, decayStats, localDay } from '../game/rules';
-import { BY_ID, CROPS, readyAtMs, WATER, DEFAULT_LAYOUT, EDIBLES, FOOD_BY_ID, FOOD_STOCK, FOODS, FRIDGE, GARDEN_LAND, GARDEN_PLOTS, PARCEL, ITEMS, RECIPES, spoilLoss, STARTER_ITEMS, type Layout } from '../game/catalog';
+import { BY_ID, CROPS, SELL, sellPrice, readyAtMs, WATER, DEFAULT_LAYOUT, EDIBLES, FOOD_BY_ID, FOOD_STOCK, FOODS, FRIDGE, GARDEN_LAND, GARDEN_PLOTS, PARCEL, ITEMS, RECIPES, spoilLoss, STARTER_ITEMS, type Layout } from '../game/catalog';
 import { BALANCED_BONUS, isBalanced } from '../game/nutrition';
 import { buyable, COIN, comfortLevel, comfortScore, dayNumber, QUEST_BONUS, QUEST_POOL, questsForDay, rotationForDay, isWeekend, weekStart, WEEKLY_POOL, weeklyForDay } from '../game/layout';
 import type { ActionResult, CureResult, DayLogRow, Economy, FarmItem, Garden, MemoryRow, Outfit, PetAction, PetRow, QuestBoard, QuestRow, SeenRow, Tastes } from './types';
@@ -28,6 +28,8 @@ interface DB {
   plays?: number[];
   /** Các cấp gắn bó bé hiện tại đã nhận quà. */
   bond?: number[];
+  /** Xu đã bán nông sản theo ngày (trần mỗi ngày). */
+  sold?: Record<string, number>;
   parcels?: number[]; farm?: FarmItem[]; fridge?: number; spoilDay?: string; garden?: Record<string, { crop: string; planted_at: string; waters?: number; watered_at?: string }>;
 }
 
@@ -487,4 +489,19 @@ export async function claimBond(level: number) {
   (db.bond ||= []).push(level); const reward = BOND.rewards[level - 1]; earn(db, reward, false);
   first(db, 'bond-' + level, 'milestone', `Chúng mình thân nhau hơn rồi, đã đạt cấp gắn bó ${level}.`); store(db);
   return { coins: db.coins, reward };
+}
+
+
+/* ---------- Chợ: thu mua nông sản (mô phỏng RPC) ---------- */
+export async function getSellState() { const db = load(); return { today: db.sold?.[localDay()] || 0, cap: SELL.dailyCap }; }
+export async function sellFood(id: string, qty: number) {
+  const db = load(), f = FOODS.find(x => x.id === id);
+  if (!f) throw new Error('unknown_item');
+  if (!(qty >= 1 && qty <= SELL.maxQty)) throw new Error('invalid_qty');
+  if ((db.owned[id] || 0) < qty) throw new Error('not_owned');
+  const d = localDay(), today = db.sold?.[d] || 0, total = sellPrice(f.price) * qty;
+  if (total <= 0) throw new Error('not_for_sale');
+  if (today + total > SELL.dailyCap) throw new Error('sell_cap');
+  db.owned[id] -= qty; earn(db, total, false); (db.sold ||= {})[d] = today + total; store(db);
+  return { coins: db.coins, qty: db.owned[id], got: total, today: today + total, cap: SELL.dailyCap };
 }

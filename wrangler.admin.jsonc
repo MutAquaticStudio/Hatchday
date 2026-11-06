@@ -1,0 +1,7 @@
+// Trang quản trị (thư mục dist-admin), Worker riêng, tên miền riêng.
+// Triển khai: `npm run build` rồi `npx wrangler deploy -c wrangler.admin.jsonc`.
+{
+  "name": "hatchday-admin",
+  "compatibility_date": "2026-11-05",
+  "assets": { "directory": "./dist-admin", "not_found_handling": "single-page-application" }
+}
