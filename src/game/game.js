@@ -57,6 +57,9 @@ const QUALITY = { thap: { pr: 1, shadow: 0 }, vua: { pr: 1.5, shadow: 1024 }, ca
 let quality = 'vua';
 try { const q = localStorage.getItem('hatchday-quality'); if (q && QUALITY[q]) quality = q; } catch (e) { /* bỏ qua */ }
 const scene = new THREE.Scene();
+/** Sương mù chân trời: ngoài trời làm đồi và cây xa nhạt dần về màu trời cho có chiều sâu; trong nhà đẩy ra rất xa (vẫn tồn tại để không phải biên dịch lại shader khi đổi khu). */
+scene.fog = new THREE.Fog('#cfe9ff', 1000, 2000);
+const fogT = { near: 1000, far: 2000, col: new THREE.Color('#cfe9ff') };
 const camera = new THREE.PerspectiveCamera(32, 1, 0.1, 100);
 const look = new THREE.Vector3(0, 1.15, 0);
 
@@ -344,6 +347,7 @@ function onEnter(name) {
 const lightT = { hemi: 1.6, sun: 2.0, lamp: 0, sunCol: new THREE.Color('#fff1dc'), lampPos: new THREE.Vector3(-1.5, 3, 2) };
 function updateLights(dt) {
   const k = Math.min(1, dt * 2.2);
+  scene.fog.near += (fogT.near - scene.fog.near) * k; scene.fog.far += (fogT.far - scene.fog.far) * k; scene.fog.color.lerp(fogT.col, k);
   hemi.intensity += (lightT.hemi - hemi.intensity) * k; sun.intensity += (lightT.sun - sun.intensity) * k; lamp.intensity += (lightT.lamp - lamp.intensity) * k;
   sun.color.lerp(lightT.sunCol, k); lamp.position.lerp(lightT.lampPos, k);
 }
@@ -356,9 +360,10 @@ function applyAreaLights() {
   lightT.hemi = moon ? 1.3 : night ? 0.95 : 1.6; lightT.sun = moon ? 1.0 : night ? 0.7 : 2.0; lightT.sunCol.set(night ? '#c3c4ff' : (period === 'chieu' ? '#ffd2b0' : '#fff1dc'));
   if (outdoor) { const [kh, ks] = SKY_LIGHT[wx.sky]; lightT.hemi *= kh; lightT.sun *= ks; if (wx.sky !== 'clear') lightT.sunCol.lerp(new THREE.Color('#c9d3e6'), wx.sky === 'rain' ? 0.55 : 0.3); }
   lightT.lampPos.set(-1.5, 3, 2); lightT.lamp = night && !outdoor ? 18 : 0;
+  const wide = !!(PLACE_BY_ID[area] && PLACE_BY_ID[area].follow); fogT.near = wide ? 24 : outdoor ? 34 : 1000; fogT.far = wide ? 62 : outdoor ? 90 : 2000;
   if (!lookBooted) snapLights();
 }
-function snapLights() { hemi.intensity = lightT.hemi; sun.intensity = lightT.sun; lamp.intensity = lightT.lamp; sun.color.copy(lightT.sunCol); lamp.position.copy(lightT.lampPos); }
+function snapLights() { scene.fog.near = fogT.near; scene.fog.far = fogT.far; scene.fog.color.copy(fogT.col); hemi.intensity = lightT.hemi; sun.intensity = lightT.sun; lamp.intensity = lightT.lamp; sun.color.copy(lightT.sunCol); lamp.position.copy(lightT.lampPos); }
 let scrubN = 0;
 function scrub() {
   sfx('bath'); actBatched('bath_scrub'); S.sach = clamp(S.sach + 3); spawn('bubble', 2, 0.9); setTemp('love', 1200); impulse(-0.9); scrubN++;
@@ -551,7 +556,7 @@ const isOutdoor = () => area === 'garden' || !!(PLACE_BY_ID[area] && PLACE_BY_ID
 function applyPeriod() {
   const p = periodNow(), w = weatherNow(); if (p === period && w.sky === wx.sky) return;
   const changed = p !== period; wx = w; period = p; if (changed) updateMusic();
-  const [a, b, body] = SKY[p];
+  const [a, b, body] = SKY[p]; fogT.col.set(b); if (wx.sky !== 'clear') fogT.col.lerp(new THREE.Color('#8e9bb3'), wx.sky === 'rain' ? 0.5 : 0.28);
   const gray = wx.sky === 'rain' ? 0.5 : wx.sky === 'cloudy' ? 0.28 : 0;
   $('sky').style.background = (gray ? `linear-gradient(rgba(96,108,128,${gray}), rgba(96,108,128,${gray})), ` : '') + `linear-gradient(${a}, ${b})`;
   const g = winCanvas.getContext('2d'), gr = g.createLinearGradient(0, 0, 0, 192);

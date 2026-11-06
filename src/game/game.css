@@ -467,7 +467,7 @@ body.editing .top,body.editing .scene-tag,body.editing .bottom,body.editing #hin
 .map-card .btn-sm{flex:none;white-space:nowrap}.map-card b{font-family:var(--f-display);font-size:16px}.map-card p{margin:2px 0 0;font-size:12px;font-weight:700;color:var(--ink-soft)}
 .map-block{font-size:12px;font-weight:800;color:#8a5a12;background:#fff7e6;border-radius:12px;padding:6px 10px;max-width:46%}
 .map-hint{margin:0;font-size:13px;font-weight:700;color:var(--ink-soft)}
-.hot-layer{position:absolute;inset:0;z-index:7;pointer-events:none;overflow:hidden}
+.hot-layer{position:absolute;inset:0;z-index:3;pointer-events:none;overflow:hidden}
 .hot-layer[hidden]{display:none}
 .hot{position:absolute;left:0;top:0;visibility:hidden;pointer-events:auto;border:2.5px solid #fff;background:rgba(74,33,64,.88);color:#fff;font-weight:800;font-size:12px;border-radius:999px;padding:6px 12px;min-height:34px;white-space:nowrap;box-shadow:0 3px 8px rgba(0,0,0,.25);animation:hotglow 2.4s ease-in-out infinite}
 .hot:active{background:var(--accent)}
@@ -613,3 +613,27 @@ body.editing .hot-layer,.farm-editing .hot-layer{display:none}
 .mini-hud-bar{position:absolute;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top,0px) + 118px);z-index:58;display:flex;align-items:center;gap:14px;background:#fff8fcf0;border:3px solid var(--candy-edge);border-radius:999px;padding:6px 8px 6px 18px;box-shadow:0 4px 0 var(--candy-edge);font-family:var(--f-display);font-weight:800;font-size:18px;font-variant-numeric:tabular-nums}
 .mini-hud-bar[hidden]{display:none}.mini-hud-bar>*{white-space:nowrap}.mh-time{color:#d9644a;min-width:1.6em;text-align:center}.mini-hud-bar .btn-sm{min-height:40px}
 #app.catching .bottom,#app.catching .hot-layer,#app.catching .emote-bar,#app.catching .actor-layer,#app.catching .scene-tag,#app.catching .sick-chip{display:none!important}
+
+/* ---------- Đợt rà soát UX ---------- */
+/* nơi chung: chat một hàng, biểu cảm gập lại sau nút để nhường chỗ cho cảnh */
+.emote-bar .chat-box{flex-direction:row;flex-wrap:nowrap;align-items:center;width:100%;max-width:420px}.chat-box .btn-sm{flex:none;width:auto;min-width:64px;min-height:40px}
+.eb-line{display:flex;align-items:center;justify-content:center;gap:8px}
+.eb-toggle{border:2px solid var(--candy-edge);background:#fff;border-radius:999px;padding:4px 12px;min-height:34px;font:inherit;font-size:12px;font-weight:800;color:var(--ink)}
+.emote-bar:not(.open) .eb-row{display:none}.emote-bar.open .eb-toggle{background:var(--accent);border-color:var(--accent-deep);color:#fff}
+/* thẻ khu vực đủ chỗ cho tên đầy đủ và cao đủ để chạm */
+.scene-tag{max-width:min(240px,calc(100vw - 32px));min-height:36px;display:inline-flex;align-items:center}
+.hs-close{width:40px;height:40px}
+/* biểu ngữ sự kiện gọn một dòng, nút đóng dễ chạm */
+.event-banner .ev-row>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.event-banner button[data-ev-x]{min-width:40px;min-height:40px;margin:-9px -9px -9px 0;font-size:18px}
+.ev-goal{flex-wrap:nowrap}.ev-goal>span:first-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:0 1 auto}
+.btn-link{min-height:32px;padding:6px 10px}
+
+/* nhãn điểm chạm: mặc định chỉ là chấm nhỏ (vùng chạm 40px), bé lại gần mới hiện nhãn chữ nhỏ gọn */
+.hot{min-width:40px;min-height:40px;padding:0;border:0;background:transparent;box-shadow:none;animation:none;display:flex;align-items:center;justify-content:center;gap:6px;color:var(--ink)}
+.hot .hd{width:16px;height:16px;flex:none;border-radius:50%;background:var(--accent);border:2.5px solid #fff;box-shadow:0 2px 6px rgba(60,20,60,.35);animation:hotglow 2.4s ease-in-out infinite}
+.hot .hl{display:none;font-size:11px;font-weight:800;line-height:1}
+.hot.near{padding:0 10px 0 7px;min-height:30px;border-radius:999px;background:rgba(255,248,252,.94);border:2px solid var(--accent);box-shadow:0 2px 0 var(--accent-deep)}
+.hot.near .hl{display:inline}.hot.near .hd{width:10px;height:10px;border-width:0;box-shadow:none;animation:none}
+.hot:active{filter:brightness(.95)}
+@media (pointer:coarse){.hot.near{min-height:36px}}

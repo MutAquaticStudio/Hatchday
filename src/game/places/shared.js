@@ -28,12 +28,15 @@ export function makeShared(c, { placeId, group }) {
     const app = document.getElementById('app');
     labels = document.createElement('div'); labels.className = 'actor-layer'; labels.hidden = true; app.appendChild(labels);
     bar = document.createElement('div'); bar.className = 'emote-bar'; bar.hidden = true;
-    bar.innerHTML = `<div class="chat-log" id="chat-log" aria-live="polite"></div><form class="chat-box" id="chat-box" autocomplete="off"><input id="chat-in" maxlength="100" placeholder="Nói gì đó với mọi người…" aria-label="Tin nhắn"><button type="submit" class="btn-sm">Gửi</button></form><span class="eb-count" id="eb-count" role="status"></span><div class="eb-row" role="group" aria-label="Biểu cảm">${EMOTES.map(e => `<button type="button" class="eb" data-emote="${e.id}" title="${e.label}" aria-label="${e.label}">${e.e}</button>`).join('')}</div>`;
+    bar.innerHTML = `<div class="chat-log" id="chat-log" aria-live="polite"></div><form class="chat-box" id="chat-box" autocomplete="off"><input id="chat-in" maxlength="100" placeholder="Nói gì đó với mọi người…" aria-label="Tin nhắn"><button type="submit" class="btn-sm">Gửi</button></form><div class="eb-line"><span class="eb-count" id="eb-count" role="status"></span><button type="button" class="eb-toggle" data-eb-toggle aria-expanded="false">😀 Biểu cảm</button></div><div class="eb-row" role="group" aria-label="Biểu cảm">${EMOTES.map(e => `<button type="button" class="eb" data-emote="${e.id}" title="${e.label}" aria-label="${e.label}">${e.e}</button>`).join('')}</div>`;
     const bottom = document.querySelector('.bottom'); bottom.insertBefore(bar, document.getElementById('ctx'));
     countEl = bar.querySelector('#eb-count'); chatForm = bar.querySelector('#chat-box'); chatLog = bar.querySelector('#chat-log');
     chatForm.addEventListener('submit', e => { e.preventDefault(); if (cur) cur.sendChat(chatForm.querySelector('input').value); });
     chatLog.addEventListener('click', e => { const l = e.target.closest('[data-msg]'); if (l && cur) cur.reportLine(l); });
-    bar.addEventListener('click', e => { const b = e.target.closest('[data-emote]'); if (b && cur) cur.emote(b.dataset.emote); });
+    bar.addEventListener('click', e => {
+      const t = e.target.closest('[data-eb-toggle]'); if (t) { const on = bar.classList.toggle('open'); t.setAttribute('aria-expanded', String(on)); return; }
+      const b = e.target.closest('[data-emote]'); if (b && cur) { cur.emote(b.dataset.emote); bar.classList.remove('open'); bar.querySelector('[data-eb-toggle]')?.setAttribute('aria-expanded', 'false'); }
+    });
     card = document.createElement('div'); card.className = 'peer-card'; card.hidden = true; app.appendChild(card);
     card.addEventListener('click', e => { if (cur) cur.onCard(e); });
     window.addEventListener('pagehide', () => { if (cur) cur.pagehide(); });
@@ -85,7 +88,7 @@ export function makeShared(c, { placeId, group }) {
 
   /* ---------- Chat công khai (máy chủ lọc và đóng dấu người gửi; ở đây chỉ hiển thị) ---------- */
   let armed = null;
-  const setChat = on => { if (!chatForm) return; chatForm.hidden = !on; if (!on && chatLog) chatLog.innerHTML = '<span class="chat-off">Chat đang tạm tắt.</span>'; };
+  const setChat = on => { if (!chatForm) return; chatForm.hidden = !on; if (on) chatLog?.querySelector('.chat-off')?.remove(); else if (chatLog) chatLog.innerHTML = '<span class="chat-off">Chat đang tạm tắt.</span>'; };
   function onChat(m) {
     if (!chatLog || blocked.has(m.pid)) return;
     chatLog.querySelector('.chat-off')?.remove();

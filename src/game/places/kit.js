@@ -18,7 +18,7 @@ export function makeKit(c, opts = {}) {
   function hotspot(def, mesh) {
     ensureLayer();
     if (mesh) { mesh.traverse(o => { o.userData.hotspot = def.id; }); def.mesh = mesh; }
-    const b = document.createElement('button'); b.type = 'button'; b.className = 'hot'; b.dataset.hot = def.id; b.textContent = def.label;
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'hot'; b.dataset.hot = def.id; b.setAttribute('aria-label', def.label); b.innerHTML = `<span class="hd"></span><span class="hl">${def.label}</span>`;
     layer.appendChild(b); def.el = b; hots.push(def); return def;
   }
   function activate(id) {
@@ -45,10 +45,13 @@ export function makeKit(c, opts = {}) {
       v.set(h.at[0], h.at[1], h.at[2]).project(camera);
       // nơi rộng: điểm chạm ở xa ngoài màn hình thì ẩn nhãn (gần mép thì vẫn kẹp vào để bấm được)
       if (opts.cull && (v.z > 1 || Math.abs(v.x) > 1.35 || v.y < -1.3 || v.y > 1.5)) { h.el.style.visibility = 'hidden'; continue; }
-      const w = h.el.offsetWidth || 90;
-      const x = clamp((v.x + 1) / 2 * r.width, w / 2 + 8, r.width - w / 2 - 8), y = clamp((1 - v.y) / 2 * r.height, 112, r.height - 150);
+      const m = 64; // chừa chỗ cho nhãn chữ khi bung ra, để vị trí không nhảy lúc chấm biến thành nhãn
+      const x = clamp((v.x + 1) / 2 * r.width, m, r.width - m), y = clamp((1 - v.y) / 2 * r.height, 112, r.height - 150);
       h.el.style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%)`; h.el.style.visibility = 'visible'; // ẩn tới khi có vị trí đúng, không nháy ở góc trên
     }
+    // Điểm chạm ở xa bé chỉ hiện chấm nhỏ (đỡ che thú của người khác); lại gần mới bung nhãn chữ gọn
+    const [px, pz] = c.getPetXZ ? c.getPetXZ() : [0, 0];
+    for (const h of hots) { const s = h.stand || [h.at[0], h.at[2]]; h.el.classList.toggle('near', Math.hypot(s[0] - px, s[1] - pz) < 2.6); }
   }
   function tick(now) { const t = now / 1000; npcs.forEach(n => n.tick(t)); updateLabels(); }
 

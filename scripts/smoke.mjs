@@ -287,6 +287,7 @@ await reload();
 await goPlace('plaza');
 ok('đi tới Quảng trường: chip đổi tên, thanh emote và nhãn Bảng tin hiện',await until(async()=>(await p.textContent('#scene-tag')).includes('Quảng trường')&&await p.isVisible('.emote-bar')&&await p.isVisible('.hot[data-hot="news"]'),15000));
 ok('bạn ảo vào kênh: thấy ít nhất 2 thú khác và đếm người',await until(()=>p.evaluate(()=>document.querySelectorAll('.actor').length>=2),15000)&&/\d+\/12 người/.test(await p.textContent('#eb-count')),await p.textContent('#eb-count'));
+await p.click('[data-eb-toggle]'); // biểu cảm gập sau nút "Biểu cảm"
 await p.click('.eb[data-emote="heart"]');
 ok('bấm emote: bé nói biểu tượng',await until(async()=>(await p.textContent('#bubble')).includes('❤️'),4000));
 await p.fill('#chat-in','Xin chào mọi người');await p.click('#chat-box button');
