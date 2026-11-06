@@ -42,4 +42,5 @@ jobs:
       - run: node scripts/hooks-check.mjs  # giảm giá, mục tiêu cộng đồng, đồ chơi, Mùa cúm + cách ly
       - run: node scripts/world-check.mjs  # sự kiện (biểu ngữ, nhân xu), không gian theo Gắn bó (ban công, phòng chơi, sân thượng)
       - run: node scripts/interact-check.mjs # thú tương tác với thế giới: xích đu, cầu trượt, đài phun, sân khấu, bàn trà, mèo…
+      - run: node scripts/mini-check.mjs   # mini-game Bắt bướm và Pha trà: chơi thật bằng chạm, nhận xu, không tràn màn hình
       - run: node scripts/admin-smoke.mjs  # trang quản trị: vai trò, quà, thông báo, sự kiện, kiểm duyệt, nhật ký

@@ -12,6 +12,8 @@ import { blockedNow, minutesVi } from './clinic.js';
 import { initHome } from './home.js';
 import { viError } from '../lib/errors';
 import { initEvents } from './events-ui.js';
+import { initMinigames } from './minigames.js';
+import { initPhoto } from './photo.js';
 import { initNotify } from './notify.js';
 import { TOY_BY_ID, TOY_REFUSAL_TEXT, toyGain } from './toys';
 import { decayStats, deriveExpression, localDay } from './rules';
@@ -316,13 +318,14 @@ const PLACE_LOADERS = {
   rooftop: () => import('./places/spaces.js').then(m => m.initRooftop),
 };
 const placeOpen = {
+  mini: kind => mini.open(kind),
   clinic: sec => home.openClinic(sec), shop: (t, k) => home.openShop(t, k), wardrobe: () => home.openWardrobe(), dex: () => home.openDex(), family: () => home.openFamily(), sell: () => home.openSell(),
   news: () => (home.openNews ? home.openNews() : toast('Chưa có tin mới.')), mail: () => (home.openMail ? home.openMail() : toast('Chưa có thư mới.')), toys: () => (home.openToys ? home.openToys() : toast('Chưa có đồ chơi.')), ads: () => (home.openAds ? home.openAds() : toast('Chưa có quảng cáo.')), ai: () => toast('Thủ thư AI sắp có. Đợi chút nhé!'),
 };
 function loadPlace(name) {
   if (placeInst[name]) return Promise.resolve(placeInst[name]);
   return placeLoading[name] || (placeLoading[name] = PLACE_LOADERS[name]().then(init => {
-    const inst = init({ THREE, add, toon, canvasTex, shell, windowOn, scene, camera, canvas, ray, ndcFrom, walkPetTo, say, startAction, toast, sfx, spawn, hideHint, playToy: toyPlay, script: runScript, spawnAt, sfxPlay: sfx, activity: kind => { recordActivity(kind); }, applyShadows, quality: () => quality, isNight: () => period === 'dem', getArea: () => area, state: S, open: placeOpen, goTo, setTemp, play: spinPlay, grad, events, petBuilder, bondLevel: () => bondLevel(S.bondXp), getPetXZ: () => [petBase.x + petOff.x, petBase.z + petOff.z] });
+    const inst = init({ THREE, add, toon, canvasTex, shell, windowOn, scene, camera, canvas, ray, ndcFrom, walkPetTo, say, startAction, toast, sfx, spawn, hideHint, playToy: toyPlay, script: runScript, spawnAt, reduce, sfxPlay: sfx, activity: kind => { recordActivity(kind); }, applyShadows, quality: () => quality, isNight: () => period === 'dem', getArea: () => area, state: S, open: placeOpen, goTo, setTemp, play: spinPlay, grad, events, petBuilder, bondLevel: () => bondLevel(S.bondXp), getPetXZ: () => [petBase.x + petOff.x, petBase.z + petOff.z] });
     inst.group.visible = false; areas[name] = inst.group; applyShadows(inst.group); placeInst[name] = inst; return inst;
   }));
 }
@@ -626,6 +629,8 @@ canvas.addEventListener('pointermove', e => {
   if (down.acc > 42) { down.acc = 0; petStroke(); }
 });
 function endDown(e) {
+  const pi = placeInst[area]; // đang chơi Bắt bướm: mọi cú chạm (kể cả trúng thú) đều dành cho trò chơi
+  if (pi && pi.catching && pi.catching() && down && Math.hypot(e.clientX - down.x, e.clientY - down.y) < 12) { pi.tap(e); down = null; canvas.style.cursor = 'grab'; return; }
   if (gardenFx.editing()) { gardenFx.editPointer('up', e); down = null; return; }
   if (down && down.hit && down.moved < 10) poke();
   else if (down && !down.hit && !down.steer && Math.hypot(e.clientX - down.x, e.clientY - down.y) < 10) {
@@ -1015,6 +1020,22 @@ setupShadows(); applyQuality(); lookBooted = true;
 initAudio();
 /* Nhà của bé: bố cục phòng, trang trí, cửa hàng, tủ đồ, nhiệm vụ */
 const events = initEvents({ $ });
+/** Chụp khung hình kế tiếp: ghép nền trời (CSS, nằm sau canvas) với khung 3D để ảnh có đủ bầu trời. */
+let capReq = null;
+const capture = () => new Promise(res => { capReq = res; });
+function snapshot() {
+  const cv = document.createElement('canvas'); cv.width = canvas.width; cv.height = canvas.height; const g = cv.getContext('2d');
+  const sk = SKY[period] || SKY.trua, gr = g.createLinearGradient(0, 0, 0, cv.height); gr.addColorStop(0, sk[0]); gr.addColorStop(1, sk[1]); g.fillStyle = gr; g.fillRect(0, 0, cv.width, cv.height);
+  if (wx.sky !== 'clear') { g.fillStyle = `rgba(96,108,128,${wx.sky === 'rain' ? 0.5 : 0.28})`; g.fillRect(0, 0, cv.width, cv.height); }
+  g.drawImage(canvas, 0, 0);
+  // cắt khung 4:5 quanh bé (phần đáy màn hình dành cho nút bấm nên thường trống)
+  const v = new THREE.Vector3(); petRoot.getWorldPosition(v); v.y += 0.9; v.project(camera);
+  const h = Math.min(cv.height, Math.round(cv.width * 1.25)), top = Math.max(0, Math.min(cv.height - h, Math.round((1 - v.y) / 2 * cv.height - h * 0.55)));
+  const out = document.createElement('canvas'); out.width = cv.width; out.height = h; out.getContext('2d').drawImage(cv, 0, top, cv.width, h, 0, 0, cv.width, h); return out;
+}
+const photo = initPhoto({ ctx: { state: S, toast, sfx, hideHint, closeAllSheets: () => home.closeAll?.(), capture, pose: () => startAction('hop'), placeName: () => AREA_NAME[area] || 'Nhà' }, app: $('app'), $ });
+$('btn-photo')?.addEventListener('click', () => photo.enter());
+const mini = initMinigames({ ctx: { catchGame: o => (placeInst[area] && placeInst[area].catchGame ? placeInst[area].catchGame(o) : null), catchState: () => (placeInst[area] && placeInst[area].catchState ? placeInst[area].catchState() : null), toast, popText, spawn, buzz, closeAllSheets: () => home.closeAll?.() }, app: $('app'), $, reduce, sfx });
 initNotify({ S, $ });
 home = initHome({
   events, THREE, scene, camera, canvas, renderer, room, toon, add, canvasTex, grad, $, reduce,
@@ -1120,6 +1141,7 @@ function tick(now, dt) {
   updateCamera(dt, t);
   if (!bubbleEl.hidden) { if (now > bubbleUntil) bubbleEl.hidden = true; else placeBubble(); }
   renderer.render(scene, camera);
+  if (capReq) { const r = capReq; capReq = null; r(snapshot()); }
   if (DEV) { fpsN++; if (now > fpsAt) { const i = renderer.info.render; devhud.textContent = `${fpsN * 2} FPS · ${i.calls} draw · ${(i.triangles / 1000).toFixed(1)}k tam giác · pr ${renderer.getPixelRatio()}`; fpsN = 0; fpsAt = now + 500; } }
 }
 /* Vòng lặp theo skill threejs-scene-setup: setAnimationLoop + Timer, dt kẹp trong [0, 0.1] */

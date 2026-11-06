@@ -15,6 +15,8 @@ const setPet = (u: string, set: string) => h.db.exec(`update pets set ${set} whe
 
 beforeAll(async () => {
   h = await createHarness(); await h.addUsers(A, B, C);
+  // Từ 22:00 giờ địa phương (20:00 trong Mùa cúm) chơi 2 lượt là bị cảm lạnh; ghim múi giờ về giữa trưa để test không phụ thuộc giờ chạy.
+  const k = 12 - new Date().getUTCHours(); await h.db.exec(`update profiles set timezone = 'Etc/GMT${k <= 0 ? '+' : '-'}${Math.abs(k)}'`);
   for (const [u, n] of [[A, 'An'], [B, 'Bình'], [C, 'Cúc']] as const) { await h.as(u); await h.q(`select * from create_pet('${n}', 'Nhà ${n}', 1)`); }
 }, 90_000);
 

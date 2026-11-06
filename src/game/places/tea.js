@@ -50,6 +50,7 @@ export function initTea(c) {
   const menu = canvasTex(256, 192, d => { d.fillStyle = '#3a4a42'; d.fillRect(0, 0, 256, 192); d.strokeStyle = '#b98a5e'; d.lineWidth = 10; d.strokeRect(5, 5, 246, 182); d.fillStyle = '#fff'; d.font = '800 24px "Baloo 2", system-ui'; d.textAlign = 'center'; d.fillText('Thực đơn hôm nay', 128, 40);
     d.font = '600 18px "Baloo 2", system-ui'; d.textAlign = 'left'; ['Trà gừng mật ong', 'Trà hoa cúc', 'Trà đào cam sả', 'Bánh dorayaki', 'Bánh bông lan trứng'].forEach((t, i) => d.fillText('· ' + t, 28, 76 + i * 26)); });
   const mb = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 1.65), new THREE.MeshBasicMaterial({ map: menu })); mb.position.set(5.0, 2.7, -D / 2 + 0.03); g.add(mb);
+  kit.hotspot({ id: 'brew', label: 'Pha trà', at: [-1.9, 2.2, -0.1], stand: [-1.9, -1.7], act: () => { steamBoost = 1; c.sfx('kettle'); c.open.mini('brew'); } }, kettle);
   kit.hotspot({ id: 'order', label: 'Gọi món', at: [-1.5, 2.6, -3.3], stand: [-1.5, -1.7], act: () => { steamBoost = 1; c.sfx('kettle'); c.say('Ấm trà sôi rồi kìa, thơm ghê!', 1800); c.open.shop('food'); } }, counter);
   // quầy ghế cao
   [-3.2, -1.5, 0.2].forEach(x => { const s = new THREE.Group(); s.position.set(x, 0, -2.3); g.add(s); add(s, new THREE.CylinderGeometry(0.3, 0.3, 0.12, 14), toon(['#ff9ec4', '#9fd8ff', '#ffd36e'][Math.round((x + 3.2) / 1.7)]), 0, 0.85, 0, '#7a5a6a', 0.02); add(s, new THREE.CylinderGeometry(0.06, 0.1, 0.8, 8), toon('#8a6a4a'), 0, 0.4, 0, '#5a3a22', 0.015); });

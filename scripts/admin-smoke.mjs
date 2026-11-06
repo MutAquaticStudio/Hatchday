@@ -84,6 +84,8 @@ const out = []; const ok = (n, c, x = '') => out.push((c ? 'OK  ' : 'FAIL') + ' 
 
   await go(p, 'sys'); await p.fill('#why', 'đã chốt pháp lý');
   ok('Hệ thống có 5 công tắc', (await p.$$('[data-flag]')).length === 5);
+  const sysText = await p.innerText('body');
+  ok('Hệ thống: có mục Lỗi phía người chơi với lỗi mẫu', sysText.includes('Lỗi phía người chơi') && sysText.includes('Cannot read properties'));
   await p.click('[data-flag="chat.public.enabled"]'); await p.waitForFunction(() => document.querySelector('.fl .pill.ok'));
   ok('bật chat công cộng', (await p.textContent('main')).includes('Đang bật') && (await p.textContent('main')).includes('đã chốt pháp lý'));
   await p.fill('#why', 'bật thử quảng cáo'); await p.click('[data-flag="ads.enabled"]'); await p.waitForFunction(() => document.querySelectorAll('.fl .pill.ok').length >= 2);

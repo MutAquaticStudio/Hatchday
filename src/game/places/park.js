@@ -72,6 +72,61 @@ export function initPark(c) {
     }, done: () => { setTimeout(() => { if (c.getArea() === 'park' && ball) c.walkPetTo(ball.position.x + 0.6, ball.position.z + 0.5).then(ok => { if (ok) c.say('Lấy lại được rồi nè!', 1800); }); }, 2600); } });
   }
 
+  /* ---------- mini-game Bắt bướm ngay trong công viên: bướm bay quanh bé, chạm vào bướm để bé nhảy tới bắt ---------- */
+  let catchGame = null;
+  const WING = ['#ff9ec4', '#ffd36e', '#c9a6ff', '#7ec8ff', '#ff9a76'];
+  function makeCatchButterfly(i) {
+    const grp = new THREE.Group(), col = WING[i % WING.length];
+    const wingGeo = new THREE.CircleGeometry(0.3, 14); wingGeo.scale(1, 0.8, 1);
+    const mat = new THREE.MeshBasicMaterial({ color: col, side: THREE.DoubleSide }), edge = new THREE.MeshBasicMaterial({ color: '#ffffff', side: THREE.DoubleSide });
+    const wings = [-1, 1].map(sd => { const w = new THREE.Group(); const o = new THREE.Mesh(wingGeo, edge); o.scale.setScalar(1.14); o.position.z = -0.002; const m = new THREE.Mesh(wingGeo, mat); const dot = new THREE.Mesh(new THREE.CircleGeometry(0.09, 10), edge); dot.position.set(sd * 0.04, 0.03, 0.002); w.add(o, m, dot); w.position.x = sd * 0.02; m.position.x = o.position.x = sd * 0.26; dot.position.x = sd * 0.26; grp.add(w); return w; });
+    const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.04, 0.3, 4, 8), new THREE.MeshBasicMaterial({ color: '#5a3a4a' })); grp.add(body); grp.scale.setScalar(1.5);
+    grp.userData = { wings, ph: Math.random() * 6, a: Math.random() * 6.28, sp: 0.7 + Math.random() * 0.5, turn: 0, col };
+    return grp;
+  }
+  function startCatch(o) { // o: { seconds, target, count, onCatch(n), onEnd(n, aborted) }
+    if (catchGame) stopCatch(true);
+    const list = Array.from({ length: o.count }, (_, i) => makeCatchButterfly(i)), st = catchGame = { o, list, caught: 0, t0: performance.now(), done: false };
+    const [px, pz] = c.getPetXZ();
+    list.forEach((b, i) => { b.position.set(px + (Math.random() - 0.5) * 9, 1 + Math.random() * 1.6, pz - 1 - Math.random() * 3.5); b.userData.i = i; g.add(b); });
+    return { stop: () => stopCatch(true), state: () => ({ caught: st.caught, bs: list.map(b => screenOf(b)) }) };
+  }
+  function stopCatch(aborted) {
+    const st = catchGame; if (!st) return; catchGame = null;
+    st.list.forEach(b => { g.remove(b); b.traverse(m => { if (m.geometry) m.geometry.dispose(); }); });
+    st.o.onEnd(st.caught, !!aborted);
+  }
+  const _v = new THREE.Vector3();
+  function screenOf(b) { b.getWorldPosition(_v); _v.project(c.camera); const r = c.canvas.getBoundingClientRect(); return [r.left + (_v.x + 1) / 2 * r.width, r.top + (1 - _v.y) / 2 * r.height]; }
+  /** Chạm khi đang chơi: tìm bướm gần điểm chạm nhất trên màn hình (bán kính ~46px); trúng thì bé nhảy tới bắt. Luôn nuốt cú chạm. */
+  function catchTap(e) {
+    const st = catchGame; if (!st || st.done) return false;
+    let hit = -1, best = 46 * 46;
+    st.list.forEach((b, i) => { const [x, y] = screenOf(b), d = (x - e.clientX) ** 2 + (y - e.clientY) ** 2; if (d < best) { best = d; hit = i; } });
+    if (hit < 0) { c.sfx('miss'); return true; }
+    const b = st.list[hit], bx = b.position.x, bz = b.position.z; st.caught++; c.sfx('catch'); c.spawnAt('sparkle', bx, b.position.y, bz, { vy: 0.8, scale: 0.5, max: 0.7 }); for (let k = 0; k < 4; k++) c.spawnAt('sparkle', bx + (Math.random() - 0.5) * 0.6, b.position.y + (Math.random() - 0.5) * 0.4, bz, { vy: 0.5 + Math.random(), scale: 0.28, max: 0.8 });
+    c.walkPetTo(Math.max(-16, Math.min(16, bx)), Math.max(-6, Math.min(7.5, bz + 0.6))); c.startAction('hop');
+    b.position.set(bx + (Math.random() < 0.5 ? -9 : 9), 1 + Math.random() * 1.6, bz + (Math.random() - 0.5) * 3); b.userData.a = Math.random() * 6.28; // bướm mới bay vào từ mép
+    st.o.onCatch(st.caught);
+    if (st.caught >= st.o.target) { st.done = true; setTimeout(() => stopCatch(false), 500); }
+    return true;
+  }
+  function updateCatch(dt, now, px, pz) {
+    const st = catchGame; if (!st) return;
+    if (!st.done && (now - st.t0) / 1000 >= st.o.seconds) { st.done = true; stopCatch(false); return; }
+    const t = now / 1000, slow = c.reduce ? 0.55 : 1;
+    for (const b of st.list) {
+      const u = b.userData; u.turn -= dt; if (u.turn <= 0) { u.turn = 0.6 + Math.random() * 1.2; u.a += (Math.random() - 0.5) * 2.2; }
+      let vx = Math.cos(u.a) * u.sp * 1.6 * slow, vz = Math.sin(u.a) * u.sp * 1.1 * slow;
+      // giữ bướm trong tầm nhìn quanh bé
+      if (b.position.x < px - 7) vx = Math.abs(vx) + 0.6; if (b.position.x > px + 7) vx = -Math.abs(vx) - 0.6;
+      if (b.position.z < pz - 5) vz = Math.abs(vz) + 0.4; if (b.position.z > pz + 1.5) vz = -Math.abs(vz) - 0.4;
+      b.position.x += vx * dt; b.position.z += vz * dt; b.position.y = 1.5 + Math.sin(t * 1.6 + u.ph) * 0.55 + Math.sin(t * 0.7 + u.ph * 2) * 0.25;
+      b.quaternion.copy(c.camera.quaternion); b.rotateZ(Math.max(-0.5, Math.min(0.5, -vx * 0.12))); // luôn quay mặt về phía người chơi để dễ thấy và dễ chạm
+      const f = c.reduce ? 0.8 : 0.35 + Math.abs(Math.sin(t * 16 + u.ph)) * 0.65; u.wings[0].scale.x = u.wings[1].scale.x = f; // vỗ cánh
+    }
+  }
+
   world.zone({ id: 'core', core: true, cx: 0, cz: 0, build(z) {
     add(z, new THREE.BoxGeometry(46, 0.4, 32), toon('#ffffff', grass), 0, -0.2, 0, '#6aa05a', 0.03);
     // lối đi vòng quanh đồng cỏ
@@ -91,6 +146,7 @@ export function initPark(c) {
     // bóng chung
     ball = add(z, new THREE.SphereGeometry(0.28, 14, 10), toon('#ff6a8a'), -1.4, 0.28, 1.8, '#a83a4a', 0.02);
     add(ball, new THREE.TorusGeometry(0.28, 0.025, 6, 20), toon('#ffffff'), 0, 0, 0, null);
+    kit.hotspot({ id: 'catch', label: 'Bắt bướm', at: [2.2, 1.4, 4.0], stand: [1.0, 5.0], act: () => c.open.mini('butterfly') }, pic);
     kit.hotspot({ id: 'ball', label: 'Bóng chung', at: [-1.4, 1.1, 1.8], stand: [-0.7, 2.2], act: () => { c.say('Đá bóng nào! Ai chơi cùng không?', 2200); kickBall(); } }, ball);
     props.lamp(z, -5, 5.2); props.lamp(z, 5, 5.2);
     // cổng về Quảng trường (mép tây) + bướm
@@ -176,7 +232,7 @@ export function initPark(c) {
   return {
     group: g,
     enter() { kit.show(true); shared.enter(); setTimeout(() => { if (c.getArea() === 'park') c.say('Công viên rộng ghê! Mình chạy thử nha.', 2800); }, 900); },
-    leave() { kit.show(false); shared.leave(); },
+    leave() { stopCatch(true); kit.show(false); shared.leave(); },
     update(dt, now) {
       kit.tick(now); const t = now / 1000, [px, pz] = c.getPetXZ(); world.update(px, pz);
       seats.forEach((s, i) => { s.rotation.z = s.userData.ride ?? Math.sin(t * 1.6 + i * 1.1) * 0.2; }); if (plank) plank.rotation.z = plank.userData.ride ?? Math.sin(t * 1.2) * 0.14;
@@ -201,8 +257,10 @@ export function initPark(c) {
       if (slideBall) { const k = (t * 0.35) % 1; slideBall.position.set(0, 2.05 - k * 1.7, 0.2 + k * 2.4); slideBall.visible = k < 0.9; }
       if (pondMat) pondMat.color.setHSL(0.55, 0.9, 0.78 + Math.sin(t * 0.8) * 0.02);
       const night = c.isNight ? c.isNight() : false; props.night(night); fireflies(t, night);
+      updateCatch(dt, now, px, pz);
       shared.update(dt, now);
     },
-    tap: e => shared.tap(e) || kit.tap(e), sync() {}, world,
+    catchGame: startCatch, catching: () => !!catchGame, catchState: () => (catchGame ? { caught: catchGame.caught, bs: catchGame.list.map(screenOf) } : null),
+    tap: e => (catchGame ? catchTap(e) : shared.tap(e) || kit.tap(e)), sync() {}, world,
   };
 }

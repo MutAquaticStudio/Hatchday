@@ -79,6 +79,7 @@ export async function demoRpc(fn: string, a: Record<string, any>): Promise<any> 
     case 'admin_set_flag': need('flag'); why(a.p_reason); if (!(a.p_key in S.flags)) throw new Error('unknown_flag'); if (a.p_key !== 'campaign.approval' && typeof a.p_value !== 'boolean') throw new Error('invalid_flag');
       S.flags[a.p_key] = a.p_value; S.flagMeta[a.p_key] = { at: now(), reason: a.p_reason, by: role }; audit('set_flag', a.p_key, a.p_value, a.p_reason); return null;
     case 'admin_flag_meta': need('flag'); return S.flagMeta;
+    case 'admin_client_errors': need('flag'); return { total: 14, users: 5, top: [{ fp: 'a', kind: 'js', message: "Cannot read properties of undefined (reading 'position')", stack: 'TypeError: Cannot read properties of undefined\n    at update (park-4f2a.js:1:2210)\n    at tick (index-9c1b.js:1:41233)', place: 'Công viên Cỏ Non', build: '9c1b3a', count: 9, users: 3, last: now() }, { fp: 'b', kind: 'promise', message: 'realtime_timeout', stack: '', place: 'Quảng trường Mầm', build: '9c1b3a', count: 5, users: 2, last: now() }], daily: [] };
     case 'admin_push_stats': need('flag'); return { devices: 14, users: 11, sent_24h: 32, fail_24h: 1 };
     case 'admin_list_balance': need('flag'); return S.balance;
     case 'admin_set_balance': { need('flag'); why(a.p_reason); const b = S.balance.find(x => x.key === a.p_key); if (!b) throw new Error('unknown_balance');

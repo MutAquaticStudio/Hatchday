@@ -11,8 +11,16 @@ export const FLAGS: { key: string; label: string; desc: string; warn?: string }[
 ];
 const when = (iso?: string) => (iso ? new Date(iso).toLocaleString('vi-VN') : '');
 
+/** Lỗi JS của người chơi 7 ngày qua (gộp theo dấu vân tay). Chỉ vai trò có quyền "flag" thấy; thiếu quyền thì không hiện gì. */
+function errorsCard(e: any): string {
+  if (!e) return '';
+  const rows = (e.top || []).map((t: any) => `<tr><td><details><summary>${esc(String(t.message).slice(0, 110))}</summary><pre class="small">${esc(t.stack || '(không có stack)')}</pre></details></td><td>${esc(t.kind)}</td><td class="r">${num(t.count)}</td><td class="r">${num(t.users)}</td><td>${esc(t.place || '')}</td><td class="small">${esc(t.build || '')}</td><td class="small">${esc(when(t.last))}</td></tr>`).join('');
+  return `<h2>Lỗi phía người chơi (7 ngày)</h2><div class="card"><p class="small">Tổng <b>${num(e.total)}</b> lần, <b>${num(e.users)}</b> người gặp. Chỉ ghi lỗi JS chưa xử lý (bỏ lỗi mạng, lỗi tiện ích trình duyệt); mỗi người tối đa 20 bản/giờ; xoá sau 30 ngày. Chưa có lỗi nào nghĩa là trang vẫn chạy ổn hoặc chưa có đủ người dùng.</p>
+    ${rows ? `<table><tr><th>Lỗi</th><th>Loại</th><th>Lần</th><th>Người</th><th>Màn</th><th>Bản</th><th>Gần nhất</th></tr>${rows}</table>` : '<p class="small">Không có lỗi nào trong 7 ngày qua. 🎉</p>'}</div>`;
+}
+
 export async function renderFlags(reasonField: string): Promise<string> {
-  const [f, meta, push] = await Promise.all([rpc('admin_list_flags'), rpc('admin_flag_meta'), rpc('admin_push_stats').catch(() => null)]);
+  const [f, meta, push, errs] = await Promise.all([rpc('admin_list_flags'), rpc('admin_flag_meta'), rpc('admin_push_stats').catch(() => null), rpc('admin_client_errors', { p_days: 7 }).catch(() => null)]);
   const card = (x: typeof FLAGS[number]) => {
     const on = f[x.key] === true, m = meta[x.key];
     return `<div class="card fl"><div><b>${esc(x.label)}</b> <span class="pill ${on ? 'ok' : 'warn'}">${on ? '● Đang bật' : '○ Đang tắt'}</span><p class="small">${esc(x.desc)}${x.warn ? ` <b>${esc(x.warn)}</b>` : ''}</p>
@@ -20,7 +28,7 @@ export async function renderFlags(reasonField: string): Promise<string> {
       <p class="small">${m ? `Đổi lần cuối ${esc(when(m.at))} bởi ${esc(m.by || '—')}: “${esc(m.reason || '')}”` : 'Chưa từng đổi (giá trị mặc định).'}</p></div>
       <button class="p" data-flag="${esc(x.key)}" data-on="${on ? 0 : 1}">${on ? 'Tắt' : 'Bật'}</button></div>`;
   };
-  return `<h2>Cờ hệ thống</h2><div class="card">${reasonField}<p class="small">Điền lý do rồi bấm bật/tắt ở từng thẻ. Mọi thay đổi ghi vào nhật ký kiểm toán.</p></div>${FLAGS.map(card).join('')}`;
+  return `<h2>Cờ hệ thống</h2><div class="card">${reasonField}<p class="small">Điền lý do rồi bấm bật/tắt ở từng thẻ. Mọi thay đổi ghi vào nhật ký kiểm toán.</p></div>${FLAGS.map(card).join('')}${errorsCard(errs)}`;
 }
 
 export async function renderBalance(): Promise<string> {

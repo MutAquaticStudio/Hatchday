@@ -5,6 +5,7 @@ import { mountOnboarding } from './onboarding/onboarding';
 import { getMyPet, listFamily, setTimezone } from './data/api';
 import { viError } from './lib/errors';
 import { captureReferral, startTelemetry } from './lib/telemetry';
+import { installErrorReporting } from './lib/report-errors';
 
 const root = document.getElementById('root')!;
 let started = false;
@@ -33,7 +34,7 @@ async function startGame(): Promise<void> {
   }
   logout?.addEventListener('click', async () => { if (isConfigured) await supabase.auth.signOut(); location.replace(location.pathname); });
   await import('./game/game.js');
-  startTelemetry();
+  startTelemetry(); installErrorReporting();
 }
 
 async function onSignedIn(): Promise<void> {

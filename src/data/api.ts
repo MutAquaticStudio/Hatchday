@@ -182,6 +182,7 @@ export const claimAdReward = (nonce: string) => (isDemo ? demo.claimAdReward(non
 /* ---------- Đo lường cho dashboard (bản Chơi thử không gửi gì) ---------- */
 export const pingSession = (platform: string, standalone: boolean) => (isDemo ? Promise.resolve(null) : rpc<{ session: number; new: boolean }>('ping_session', { p_platform: platform, p_standalone: standalone }));
 export const setAttribution = (ref: string, medium: string | null) => (isDemo ? Promise.resolve() : rpc<void>('set_attribution', { p_ref: ref, p_medium: medium }));
+export const logClientError = (kind: string, message: string, stack: string, place: string, build: string) => (isDemo ? Promise.resolve() : rpc<void>('log_client_error', { p_kind: kind, p_message: message, p_stack: stack, p_place: place, p_build: build }));
 export const markMilestone = (key: string) => (isDemo ? Promise.resolve() : rpc<void>('mark_milestone', { p_key: key }));
 
 /* ---------- Đồ chơi, mục tiêu cộng đồng, cách ly ---------- */
