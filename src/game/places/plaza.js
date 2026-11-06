@@ -7,7 +7,7 @@ import { festival } from './festival.js';
 import { makeFireflies, makeProps, makeWorld } from './world.js';
 
 export function initPlaza(c) {
-  const { THREE, add, toon, canvasTex, scene } = c, kit = makeKit(c);
+  const { THREE, add, toon, canvasTex, scene } = c, kit = makeKit(c, { cull: true });
   const g = new THREE.Group(); g.visible = false; scene.add(g);
   const world = makeWorld(c, g), props = makeProps({ THREE, add, toon, canvasTex, kit, world });
   const shared = makeShared(c, { placeId: 'plaza', group: g });
