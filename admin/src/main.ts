@@ -2,6 +2,9 @@
 import { isDemo, rpc, sb, viMsg } from './api';
 import { can, type Action, type Role } from './rbac';
 import { mountCaptcha } from '../../src/lib/captcha';
+import { bindCharts, resetCharts } from './charts';
+import { renderDashboard } from './screens/dashboard';
+import { renderBalance, renderFlags } from './screens/system';
 import { CHAT, CHAT_REASON_TEXT, filterChat, type WordRule } from '../../src/net/moderation';
 
 const root = document.getElementById('root')!;
@@ -12,6 +15,7 @@ const val = (id: string) => ($(id) as HTMLInputElement).value;
 
 interface Tab { id: string; label: string; need: Action; render: () => Promise<string>; bind?: () => void }
 const REASON_VI: Record<string, string> = { link: 'liên kết', phone: 'số điện thoại', filtered: 'từ khoá', emoji: 'quá nhiều biểu tượng', too_long: 'quá dài', invalid_chars: 'ký tự lạ', empty: 'trống' };
+let dashDays = 30, dashTimer = 0;
 let role: Role = 'analyst', tab = '', idle = 0, chatWords: WordRule[] = [];
 const flash = (html: string, bad = false) => { const m = $('msg'); if (m) { m.className = 'msg' + (bad ? ' err' : ''); m.innerHTML = html; } };
 const guard = async (fn: () => Promise<unknown>, ok: string) => { try { await fn(); flash(ok); } catch (e) { flash(esc(viMsg(e)), true); } };
@@ -49,11 +53,16 @@ async function mfaStep(): Promise<void> {
 /* ---------- Các màn hình ---------- */
 const reasonField = '<label for="why">Lý do (bắt buộc, ghi vào nhật ký)</label><input id="why" maxlength="200">';
 const TABS: Tab[] = [
-  { id: 'dash', label: 'Tổng quan', need: 'dashboard', render: async () => {
-    const s = await rpc('admin_dashboard_stats'); const st = (n: string, v: unknown) => `<div class="stat"><b>${esc(v)}</b><span>${n}</span></div>`;
-    return `<h2>Tổng quan</h2><div class="grid">${st('Người chơi', s.players)}${st('Mới hôm nay', s.new_today)}${st('Thú đang sống', s.pets_alive)}${st('Đang ốm', s.ill_now)}${st('Xu đang có', s.coins_total)}${st('Bạn bè', s.friends)}${st('Quà 7 ngày', s.gifts_7d)}${st('Thư chưa nhận', s.mail_unclaimed)}${st('Báo cáo đang mở', s.reports_open)}${st('Đang bị phạt', s.sanctions_active)}${st('Sự kiện đang chạy', s.events_live)}</div>
-      <h3>Bệnh theo loại</h3><div class="card">${Object.entries(s.ill_by_type || {}).map(([k, n]) => `<span class="pill warn">${esc(k)}: ${esc(n)}</span> `).join('') || '<span class="small">Không có bé nào đang ốm.</span>'}</div>
-      <h3>Loài phổ biến</h3><div class="card">${(s.species_top || []).map((x: any) => `<span class="pill">${esc(x.species)}: ${esc(x.n)}</span> `).join('') || '—'}</div>`; } },
+  { id: 'dash', label: 'Tổng quan', need: 'dashboard', render: () => { resetCharts(); return renderDashboard(dashDays, isDemo); },
+    bind: () => {
+      const main = document.querySelector('main') as HTMLElement; bindCharts(main);
+      main.onclick = e => { const b = (e.target as HTMLElement).closest('[data-days]') as HTMLElement | null; if (b) { dashDays = +b.dataset.days!; show('dash'); } };
+      window.clearInterval(dashTimer);
+      dashTimer = window.setInterval(async () => {
+        if (tab !== 'dash' || document.hidden) return;
+        try { resetCharts(); const html = await renderDashboard(dashDays, isDemo); const m = document.querySelector('main'); if (m && tab === 'dash') m.innerHTML = '<div id="msg"></div>' + html; } catch { /* giữ bản cũ */ }
+      }, 60000);
+    } },
   { id: 'users', label: 'Người chơi', need: 'search', render: async () => `<h2>Người chơi</h2><div class="card row"><div><label for="q">Tên, mã bạn bè${can(role, 'get_user') ? ', email' : ''}</label><input id="q"></div><button class="p" id="find">Tìm</button></div><div id="found"></div><div id="user"></div>`,
     bind: () => {
       $('find').onclick = () => guard(async () => { const r = await rpc('admin_search_user', { p_q: val('q') }); $('found').innerHTML = `<div class="card"><table><tr><th>Tên</th><th>Mã</th><th>Loài</th><th>Gắn bó</th><th>Email</th><th></th></tr>${r.map((p: any) => `<tr><td>${esc(p.name)}</td><td>${esc(p.code)}</td><td>${esc(p.species)}</td><td>${esc(p.bond_level)}</td><td>${esc(p.email ?? '—')}</td><td>${can(role, 'get_user') ? `<button class="g" data-view="${esc(p.user_id)}">Xem</button>` : ''}</td></tr>`).join('') || '<tr><td colspan="6">Không thấy ai.</td></tr>'}</table></div>`; }, 'Đã tìm.');
@@ -133,10 +142,14 @@ const TABS: Tab[] = [
       document.querySelector('main')!.onclick = async e => { const t = (e.target as HTMLElement).closest('[data-dw],[data-mute]') as HTMLElement | null; if (!t) return;
         const reason = prompt('Lý do?') || ''; await guard(async () => { if (t.dataset.mute) { await rpc('admin_sanction', { p_user: t.dataset.mute, p_kind: 'mute', p_hours: 24, p_reason: reason }); $('lgo').click(); } else { await rpc('admin_delete_word', { p_term: t.dataset.dw, p_reason: reason }); await show('chat'); } }, 'Đã xử lý.'); }; } },
   { id: 'sys', label: 'Hệ thống', need: 'flag', render: async () => {
-    const f = await rpc('admin_list_flags'); const roles = can(role, 'role') ? await rpc('admin_list_roles') : [];
-    return `<h2>Cờ hệ thống</h2><div class="card"><p>Chat công cộng: <span class="pill ${f['chat.public.enabled'] ? 'ok' : 'warn'}">${f['chat.public.enabled'] ? 'Đang bật' : 'Đang tắt'}</span></p>${reasonField}<p><button class="p" id="chat">${f['chat.public.enabled'] ? 'Tắt chat công cộng' : 'Bật chat công cộng'}</button></p><p class="small">Chỉ bật khi đã chốt pháp lý và có người kiểm duyệt.</p></div>
-      ${roles.length ? `<h3>Vai trò quản trị</h3><div class="card"><table><tr><th>Email</th><th>Vai trò</th><th>Từ</th></tr>${roles.map((r: any) => `<tr><td>${esc(r.email)}</td><td>${esc(r.role)}</td><td>${fmt(r.since)}</td></tr>`).join('')}</table></div>` : ''}`; },
-    bind: () => { $('chat').onclick = () => guard(async () => { const f = await rpc('admin_list_flags'); await rpc('admin_set_flag', { p_key: 'chat.public.enabled', p_value: !f['chat.public.enabled'], p_reason: val('why') }); await show('sys'); }, ''); } },
+    const roles = can(role, 'role') ? await rpc('admin_list_roles') : [];
+    return await renderFlags(reasonField) + (roles.length ? `<h3>Vai trò quản trị</h3><div class="card"><table><tr><th>Email</th><th>Vai trò</th><th>Từ</th></tr>${roles.map((r: any) => `<tr><td>${esc(r.email)}</td><td>${esc(r.role)}</td><td>${fmt(r.since)}</td></tr>`).join('')}</table></div>` : ''); },
+    bind: () => { (document.querySelector('main') as HTMLElement).onclick = async e => { const b = (e.target as HTMLElement).closest('[data-flag]') as HTMLElement | null; if (!b) return;
+      await guard(async () => { await rpc('admin_set_flag', { p_key: b.dataset.flag, p_value: b.dataset.on === '1', p_reason: val('why') }); await show('sys'); }, ''); }; } },
+  { id: 'balance', label: 'Cân bằng', need: 'flag', render: () => renderBalance(),
+    bind: () => { (document.querySelector('main') as HTMLElement).onclick = async e => { const t = e.target as HTMLElement, sv = t.closest('[data-bal]') as HTMLElement | null, rs = t.closest('[data-bal-reset]') as HTMLElement | null; if (!sv && !rs) return;
+      const key = (sv || rs)!.dataset.bal || rs!.dataset.balReset!, value = sv ? +(document.querySelector(`.bal[data-key="${key}"]`) as HTMLInputElement).value : +rs!.dataset.def!;
+      await guard(async () => { await rpc('admin_set_balance', { p_key: key, p_value: value, p_reason: val('why') }); await show('balance'); }, ''); }; } },
   { id: 'audit', label: 'Nhật ký', need: 'audit', render: async () => {
     const log = await rpc('admin_audit_list', { p_limit: 100 });
     return `<h2>Nhật ký kiểm toán</h2><div class="card"><table><tr><th>Lúc</th><th>Ai</th><th>Việc</th><th>Đối tượng</th><th>Lý do</th></tr>${log.map((l: any) => `<tr><td>${fmt(l.at)}</td><td>${esc(l.admin)}</td><td>${esc(l.action)}</td><td>${esc(l.target)}</td><td>${esc(l.reason)}</td></tr>`).join('') || '<tr><td colspan="5">Chưa có.</td></tr>'}</table></div><p class="small">Nhật ký không sửa hoặc xoá được.</p>`; } },
@@ -145,7 +158,7 @@ const TABS: Tab[] = [
 async function show(id: string) {
   const t = TABS.find(x => x.id === id && can(role, x.need)) || TABS.find(x => can(role, x.need)); if (!t) return;
   tab = t.id; document.querySelectorAll('nav button').forEach(b => b.setAttribute('aria-current', String((b as HTMLElement).dataset.tab === tab)));
-  const main = document.querySelector('main')!; main.innerHTML = '<p class="small">Đang tải…</p>';
+  window.clearInterval(dashTimer); const main = document.querySelector('main')!; main.innerHTML = '<p class="small">Đang tải…</p>';
   try { main.innerHTML = '<div id="msg"></div>' + await t.render(); t.bind?.(); } catch (e) { main.innerHTML = `<div class="msg err">${esc(viMsg(e))}</div>`; }
 }
 async function start(): Promise<void> {

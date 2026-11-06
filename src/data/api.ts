@@ -160,7 +160,7 @@ export const getGuestbook = () => (isDemo ? demoSocial.getGuestbook() : rpc<{ fr
 export const reportUser = async (who: string, reason: 'harassment' | 'spam' | 'inappropriate_name' | 'cheating' | 'other', detail = '') => { if (isDemo) return; await rpc('report_user', { p_who: who, p_reason: reason, p_detail: detail }); };
 
 /* ---------- Chat công khai, chat riêng, cấu hình công khai ---------- */
-export const getPublicConfig = () => (isDemo ? Promise.resolve({ chat_public: true as boolean | unknown }) : rpc<{ chat_public: boolean | unknown }>('get_public_config'));
+export const getPublicConfig = () => (isDemo ? Promise.resolve({ chat_public: true as boolean | unknown, care_cap: 50 }) : rpc<{ chat_public: boolean | unknown; care_cap?: number }>('get_public_config'));
 export const postChat = async (room: string, text: string): Promise<ChatReply> =>
   isDemo ? (await import('../net/sim')).simPostChat(room, text) : rpc<ChatReply>('post_chat', { p_room: room, p_text: text });
 export const reportChat = async (msg: number, reason: 'harassment' | 'spam' | 'inappropriate_name' | 'cheating' | 'other') => { if (isDemo) return; await rpc('report_chat', { p_msg: msg, p_reason: reason }); };

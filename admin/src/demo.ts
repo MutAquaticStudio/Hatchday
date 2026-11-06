@@ -1,5 +1,6 @@
 /** Bộ chạy thử trong bộ nhớ cho trang quản trị (không cần máy chủ). Dữ liệu giả, không phải người thật. Vai trò chọn bằng ?role=owner|ops|support|moderator|analyst. */
 import { can, type Action, type Role } from './rbac';
+import { demoOverview } from './demo-dash';
 
 const role: Role = (new URLSearchParams(location.search).get('role') as Role) || 'owner';
 const now = () => new Date().toISOString();
@@ -17,7 +18,16 @@ const S = {
   ] as any[],
   audit: [] as any[], ann: [] as any[], events: [] as any[], campaigns: [] as any[], sanctions: [] as any[], words: [] as any[],
   reports: [{ id: 1, kind: 'player', reason: 'harassment', detail: 'nhắn tin làm phiền', status: 'open', at: now(), reporter: 'Bánh Bò', target_id: 'u2', target: 'Nắng', target_open_reports: 1 }] as any[],
-  flags: { 'chat.public.enabled': false, 'campaign.approval': { users: 50, coins: 500 } } as Record<string, unknown>,
+  flags: { 'chat.public.enabled': false, 'chat.dm.enabled': true, 'places.enabled': true, 'ads.enabled': false, 'push.enabled': false, 'campaign.approval': { users: 50, coins: 500 } } as Record<string, unknown>,
+  flagMeta: {} as Record<string, { at: string; reason: string; by: string }>,
+  balance: [
+    ['ads.reward', 20, 5, 100, 'xu', 'Thưởng mỗi lượt xem quảng cáo', 'Quảng cáo', 'Không bị nhân bởi sự kiện nhân xu nhiệm vụ.'], ['ads.per_day', 5, 0, 20, 'lượt', 'Số lượt xem tối đa mỗi ngày', 'Quảng cáo', '0 = không ai nhận được thưởng.'],
+    ['ads.gap_minutes', 10, 0, 120, 'phút', 'Giãn cách giữa hai lượt', 'Quảng cáo', ''], ['ads.min_watch_seconds', 15, 5, 60, 'giây', 'Thời gian xem tối thiểu', 'Quảng cáo', ''],
+    ['ads.ecpm_usd', 1, 0, 50, 'USD', 'eCPM ước tính (cho ARPDAU)', 'Quảng cáo', 'Chỉ dùng để ước tính trên dashboard.'], ['care.daily_cap', 50, 10, 200, 'xu', 'Trần xu chăm sóc mỗi ngày', 'Kinh tế', ''],
+    ['sell.daily_cap', 80, 20, 400, 'xu', 'Trần bán rau mỗi ngày', 'Kinh tế', ''], ['alert.dau_drop_pct', 20, 5, 80, '%', 'Cảnh báo DAU giảm hơn', 'Cảnh báo', ''],
+    ['alert.ads_per_user', 4.5, 1, 20, 'lượt', 'Cảnh báo lượt quảng cáo/người vượt', 'Cảnh báo', ''], ['alert.coin_ratio', 1.3, 1.05, 3, 'lần', 'Cảnh báo xu kiếm/xu tiêu vượt', 'Cảnh báo', ''],
+    ['alert.reports_per_day', 10, 1, 100, 'báo cáo', 'Cảnh báo báo cáo mỗi ngày vượt', 'Cảnh báo', ''],
+  ].map(([key, v, min, max, unit, label, grp, note]) => ({ key, value: v, def: v, min, max, unit, label, grp, note, updated_at: null as string | null, by: '' })) as any[],
   roles: [{ user_id: 'a1', role: 'owner', email: 'owner@example.com', since: now() }] as any[],
 };
 const audit = (action: string, target: string | null, after: unknown, reason: string | null) => S.audit.unshift({ id: ++nid, admin: `${role}@example.com`, action, target, before: null, after, reason, at: now() });
@@ -66,7 +76,14 @@ export async function demoRpc(fn: string, a: Record<string, any>): Promise<any> 
     case 'admin_list_roles': need('role'); return S.roles;
     case 'admin_set_role': need('role'); why(a.p_reason); audit('set_role', a.p_user, { role: a.p_role }, a.p_reason); return null;
     case 'admin_list_flags': need('flag'); return S.flags;
-    case 'admin_set_flag': need('flag'); why(a.p_reason); if (!(a.p_key in S.flags)) throw new Error('unknown_flag'); S.flags[a.p_key] = a.p_value; audit('set_flag', a.p_key, a.p_value, a.p_reason); return null;
+    case 'admin_set_flag': need('flag'); why(a.p_reason); if (!(a.p_key in S.flags)) throw new Error('unknown_flag'); if (a.p_key !== 'campaign.approval' && typeof a.p_value !== 'boolean') throw new Error('invalid_flag');
+      S.flags[a.p_key] = a.p_value; S.flagMeta[a.p_key] = { at: now(), reason: a.p_reason, by: role }; audit('set_flag', a.p_key, a.p_value, a.p_reason); return null;
+    case 'admin_flag_meta': need('flag'); return S.flagMeta;
+    case 'admin_list_balance': need('flag'); return S.balance;
+    case 'admin_set_balance': { need('flag'); why(a.p_reason); const b = S.balance.find(x => x.key === a.p_key); if (!b) throw new Error('unknown_balance');
+      if (!(a.p_value >= b.min && a.p_value <= b.max)) throw new Error('balance_out_of_range'); if (b.def > 0 && Math.abs(a.p_value - b.def) / b.def > 0.5 && role !== 'owner') throw new Error('balance_needs_owner');
+      b.value = a.p_value; b.updated_at = now(); b.by = role; audit('set_balance', a.p_key, { value: a.p_value }, a.p_reason); return null; }
+    case 'admin_dashboard_overview': { need('dashboard'); return demoOverview(+a.p_days || 30, S.events, Object.fromEntries(S.balance.map(x => [x.key, x.value])), S.flags); }
     case 'admin_audit_list': need('audit'); return S.audit;
     default: throw new Error('unknown_rpc ' + fn);
   }

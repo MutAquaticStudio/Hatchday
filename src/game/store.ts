@@ -22,7 +22,7 @@ export interface PetState {
   species: string; stage: Stage; form: Form | null; genes: PetRow['genes'] | null; bornAt: number; generation: number; seen: SeenRow[]; care: CareSums;
   no: number; vui: number; nl: number; sach: number; asleep: boolean; t: number;
   favFound: boolean; mem: Memory[]; day: DayLog | null; diary: Record<string, string>; firsts: Record<string, number>;
-  coins: number; earnedToday: number; rotation: string[]; weekend: boolean;
+  coins: number; earnedToday: number; careCap: number; rotation: string[]; weekend: boolean;
   owned: Record<string, number>; layouts: (Layout | null)[]; activeLayout: number; comfort: number;
   outfit: Outfit; presets: Outfit[]; likes: string[]; dislike: string; quests: QuestRow[]; collections: string[];
   personality: Personality;
@@ -46,7 +46,7 @@ export interface PetState {
 export const S: PetState = {
   id: '', name: 'Bé', family: '', palette: 0, species: 'mam-xanh', stage: 'baby', form: null, genes: null, bornAt: Date.now(), generation: 1, seen: [], care: { fed: 0, ball: 0, pet: 0, talk: 0, bath: 0 }, no: 70, vui: 70, nl: 80, sach: 80, asleep: false, t: Date.now(),
   favFound: false, mem: [], day: null, diary: {}, firsts: {},
-  coins: 0, earnedToday: 0, rotation: [], weekend: false, owned: {}, layouts: [null, null, null], activeLayout: 0, comfort: 1,
+  coins: 0, earnedToday: 0, careCap: 50, rotation: [], weekend: false, owned: {}, layouts: [null, null, null], activeLayout: 0, comfort: 1,
   outfit: {}, presets: [{}, {}, {}], likes: [], dislike: '', quests: [], collections: [],
   personality: normalize(null),
   weekly: [], questBonus: { reward: 0, ready: false, claimed: false }, rationDay: '', groupLog: [], lineage: [],
@@ -144,6 +144,7 @@ export async function hydrate(): Promise<void> {
 
 export async function refreshEconomy(): Promise<void> {
   const e = await api.getEconomy();
+  api.getPublicConfig().then(c => { if (typeof c.care_cap === 'number') { S.careCap = c.care_cap; emit(); } }).catch(() => {}); // trần xu chăm sóc do admin chỉnh (tab Cân bằng)
   S.coins = e.coins; S.earnedToday = e.earned_today; S.rotation = e.rotation; S.weekend = e.weekend; S.rationDay = e.ration_claimed ? e.day : ''; S.fridge = e.fridge_level || 0;
   if (e.spoiled && Object.keys(e.spoiled).length) { if (spoilListeners.size) spoilListeners.forEach(fn => fn(e.spoiled)); else pendingSpoil = e.spoiled; }
   emit();

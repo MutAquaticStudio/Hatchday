@@ -217,12 +217,12 @@ describe('vai trò, cờ hệ thống, kiểm toán', () => {
     expect((await rpc('admin_list_roles')).length).toBe(5);
   });
   it('cờ hệ thống: bật chat công cộng cần lý do, ghi kiểm toán, người chơi thấy qua get_public_config', async () => {
-    await h.as(P2); expect(await rpc('get_public_config')).toEqual({ chat_public: false });
+    await h.as(P2); expect(await rpc('get_public_config')).toMatchObject({ chat_public: false });
     await as2(OPS); await expect(rpc('admin_set_flag', 'chat.public.enabled', 'true', '')).rejects.toThrow('reason_required');
     await expect(rpc('admin_set_flag', 'chat.public.enabled', '"yes"', 'sai kiểu')).rejects.toThrow('invalid_flag');
     await expect(rpc('admin_set_flag', 'khong.co', 'true', 'cờ lạ')).rejects.toThrow('unknown_flag');
     await rpc('admin_set_flag', 'chat.public.enabled', 'true', 'đã chốt pháp lý');
-    await h.as(P2); expect(await rpc('get_public_config')).toEqual({ chat_public: true });
+    await h.as(P2); expect(await rpc('get_public_config')).toMatchObject({ chat_public: true });
     await as2(OPS); await rpc('admin_set_flag', 'chat.public.enabled', 'false', 'tắt khẩn cấp');
     expect((await rpc('admin_list_flags'))['chat.public.enabled']).toBe(false);
   });

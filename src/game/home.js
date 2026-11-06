@@ -378,7 +378,7 @@ export function initHome(ctx) {
           return card(it, `${badge}<div class="ci-meta">${RARITY[it.rarity]}${it.theme ? ' · ' + THEMES[it.theme] : ''}${!single && owned ? ` · có ${owned}` : ''}</div><div class="ci-act">${action}${preview}</div>`);
         }).join('') || '<p class="hs-note">Không có món nào trong mục này.</p>'}</div>`;
     }
-    el.innerHTML = head('Cửa hàng', `${COIN_SVG}<b class="coin-inline">${S.coins.toLocaleString('vi-VN')}</b> xu · hôm nay đã kiếm ${S.earnedToday}/50 xu chăm sóc`) +
+    el.innerHTML = head('Cửa hàng', `${COIN_SVG}<b class="coin-inline">${S.coins.toLocaleString('vi-VN')}</b> xu · hôm nay đã kiếm ${S.earnedToday}/${S.careCap || 50} xu chăm sóc`) +
       `<nav class="tabs-row" role="tablist">${Object.entries(tabs).map(([k, l]) => `<button type="button" role="tab" class="tab" data-shop-tab="${k}" aria-selected="${k === shopTab}">${l}</button>`).join('')}</nav><div class="hs-body">${body}</div>`;
     fillThumbs(el);
   }
