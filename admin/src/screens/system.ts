@@ -12,10 +12,11 @@ export const FLAGS: { key: string; label: string; desc: string; warn?: string }[
 const when = (iso?: string) => (iso ? new Date(iso).toLocaleString('vi-VN') : '');
 
 export async function renderFlags(reasonField: string): Promise<string> {
-  const [f, meta] = await Promise.all([rpc('admin_list_flags'), rpc('admin_flag_meta')]);
+  const [f, meta, push] = await Promise.all([rpc('admin_list_flags'), rpc('admin_flag_meta'), rpc('admin_push_stats').catch(() => null)]);
   const card = (x: typeof FLAGS[number]) => {
     const on = f[x.key] === true, m = meta[x.key];
     return `<div class="card fl"><div><b>${esc(x.label)}</b> <span class="pill ${on ? 'ok' : 'warn'}">${on ? '● Đang bật' : '○ Đang tắt'}</span><p class="small">${esc(x.desc)}${x.warn ? ` <b>${esc(x.warn)}</b>` : ''}</p>
+      ${x.key === 'push.enabled' && push ? `<p class="small">Thiết bị đã đăng ký: <b>${esc(push.devices)}</b> (${esc(push.users)} người) · 24 giờ qua: gửi được <b>${esc(push.sent_24h)}</b>, lỗi <b>${esc(push.fail_24h)}</b>.</p>` : ''}
       <p class="small">${m ? `Đổi lần cuối ${esc(when(m.at))} bởi ${esc(m.by || '—')}: “${esc(m.reason || '')}”` : 'Chưa từng đổi (giá trị mặc định).'}</p></div>
       <button class="p" data-flag="${esc(x.key)}" data-on="${on ? 0 : 1}">${on ? 'Tắt' : 'Bật'}</button></div>`;
   };

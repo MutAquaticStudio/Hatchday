@@ -191,3 +191,12 @@ export const getEventGoal = (): Promise<EventGoal[]> => (isDemo ? demo.getEventG
 export const claimEventGoal = (id: number) => (isDemo ? demo.claimEventGoal(id) : rpc<{ coins: number; reward: number }>('claim_event_goal', { p_event: id }));
 export const getIsolation = () => (isDemo ? demo.getIsolation() : rpc<{ isolating: boolean }>('get_isolation'));
 export const setIsolation = (on: boolean) => (isDemo ? demo.setIsolation(on) : rpc<{ isolating: boolean }>('set_isolation', { p_on: on }));
+
+/* ---------- Thông báo đẩy (bản Chơi thử không có) ---------- */
+export interface PushPrefs { care: boolean; events: boolean; mail: boolean; quiet_from: number; quiet_to: number }
+export interface PushState { devices: number; prefs: PushPrefs; enabled: boolean | unknown }
+const NO_PUSH: PushState = { devices: 0, prefs: { care: true, events: true, mail: true, quiet_from: 22, quiet_to: 7 }, enabled: false };
+export const getPushState = (): Promise<PushState> => (isDemo ? Promise.resolve(NO_PUSH) : rpc<PushState>('get_push_state'));
+export const savePushSubscription = (endpoint: string, p256dh: string, auth: string, ua: string) => (isDemo ? Promise.resolve() : rpc<void>('save_push_subscription', { p_endpoint: endpoint, p_p256dh: p256dh, p_auth: auth, p_ua: ua }));
+export const removePushSubscription = (endpoint: string) => (isDemo ? Promise.resolve() : rpc<void>('remove_push_subscription', { p_endpoint: endpoint }));
+export const setPushPrefs = (p: PushPrefs) => (isDemo ? Promise.resolve() : rpc<void>('set_push_prefs', { p_care: p.care, p_events: p.events, p_mail: p.mail, p_quiet_from: p.quiet_from, p_quiet_to: p.quiet_to }));

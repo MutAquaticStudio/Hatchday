@@ -79,6 +79,7 @@ export async function demoRpc(fn: string, a: Record<string, any>): Promise<any> 
     case 'admin_set_flag': need('flag'); why(a.p_reason); if (!(a.p_key in S.flags)) throw new Error('unknown_flag'); if (a.p_key !== 'campaign.approval' && typeof a.p_value !== 'boolean') throw new Error('invalid_flag');
       S.flags[a.p_key] = a.p_value; S.flagMeta[a.p_key] = { at: now(), reason: a.p_reason, by: role }; audit('set_flag', a.p_key, a.p_value, a.p_reason); return null;
     case 'admin_flag_meta': need('flag'); return S.flagMeta;
+    case 'admin_push_stats': need('flag'); return { devices: 14, users: 11, sent_24h: 32, fail_24h: 1 };
     case 'admin_list_balance': need('flag'); return S.balance;
     case 'admin_set_balance': { need('flag'); why(a.p_reason); const b = S.balance.find(x => x.key === a.p_key); if (!b) throw new Error('unknown_balance');
       if (!(a.p_value >= b.min && a.p_value <= b.max)) throw new Error('balance_out_of_range'); if (b.def > 0 && Math.abs(a.p_value - b.def) / b.def > 0.5 && role !== 'owner') throw new Error('balance_needs_owner');
