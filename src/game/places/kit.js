@@ -43,6 +43,8 @@ export function makeKit(c) {
     const r = canvas.getBoundingClientRect();
     for (const h of hots) {
       v.set(h.at[0], h.at[1], h.at[2]).project(camera);
+      // nơi rộng: điểm chạm ở xa ngoài màn hình thì ẩn nhãn (gần mép thì vẫn kẹp vào để bấm được)
+      if (v.z > 1 || Math.abs(v.x) > 1.35 || v.y < -1.3 || v.y > 1.5) { h.el.style.visibility = 'hidden'; continue; }
       const w = h.el.offsetWidth || 90;
       const x = clamp((v.x + 1) / 2 * r.width, w / 2 + 8, r.width - w / 2 - 8), y = clamp((1 - v.y) / 2 * r.height, 112, r.height - 150);
       h.el.style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%)`; h.el.style.visibility = 'visible'; // ẩn tới khi có vị trí đúng, không nháy ở góc trên

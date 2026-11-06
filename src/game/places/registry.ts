@@ -20,6 +20,10 @@ export interface PlaceDef {
   cam: [CamPreset, CamPreset];
   /** Vùng thú đi được (toạ độ thế giới). */
   walk: { x: [number, number]; z: [number, number] };
+  /** Nơi rộng: camera bám thú. x/z là khoảng dịch camera tối đa; kx/kz là tỉ lệ theo vị trí thú; zBase là z lúc vào. */
+  follow?: { x: [number, number]; z: [number, number]; kx: number; kz: number; zBase: number };
+  /** Vật cản tròn (đài phun, ao…): thú bị đẩy ra khi đi vào. */
+  blockers?: { x: number; z: number; r: number }[];
   /** Nút ngữ cảnh dưới đáy. */
   ctx: [string, string][];
   enterLine: string;
@@ -36,6 +40,8 @@ export interface PlaceDef {
 
 const INDOOR_CAM: [CamPreset, CamPreset] = [[30, 0, 3.2, 9.6, 0, 0.75, 0], [44, 0, 3.6, 11.5, 0, 0.35, 0]];
 const OUTDOOR_CAM: [CamPreset, CamPreset] = [[34, 0, 5.4, 10.2, 0, 0.5, -0.8], [48, 0, 6.4, 12, 0, 0.2, -0.8]];
+/** Nơi rộng (Quảng trường, Công viên): camera cao và xa hơn để thấy cả khu; camera còn bám thú (follow). */
+const WIDE_CAM: [CamPreset, CamPreset] = [[40, 0, 7.6, 13.2, 0, 0.1, -1.4], [54, 0, 9.4, 15.2, 0, -0.2, -1.4]];
 const BACK: [string, string][] = [['map', 'Bản đồ'], ['home', 'Về phòng']];
 
 export const PLACES: PlaceDef[] = [
@@ -51,14 +57,14 @@ export const PLACES: PlaceDef[] = [
   { id: 'library', name: 'Thư viện Sách Mây', short: 'Thư viện', kind: 'solo', outdoor: false, unlock: 2, pet: [0, 0, 0.9], cam: INDOOR_CAM,
     walk: { x: [-3.4, 3.4], z: [-1.2, 2.6] }, ctx: BACK, enterLine: 'Suỵt… ở đây phải nói nhỏ thôi nha.', map: { x: 50, y: 10 }, cap: 1, ready: true,
     blurb: 'Sổ loài, nhật ký, gia phả và bảng tin cập nhật.' },
-  { id: 'plaza', name: 'Quảng trường Mầm', short: 'Quảng trường', kind: 'shared', outdoor: true, unlock: 2, pet: [0, 0, 1.6], cam: OUTDOOR_CAM,
-    walk: { x: [-5, 5], z: [-1.5, 3.6] }, ctx: BACK, enterLine: 'Quảng trường đông vui quá! Mình chào mọi người nhé.', map: { x: 50, y: 45 }, cap: 12, ready: true,
+  { id: 'plaza', name: 'Quảng trường Mầm', short: 'Quảng trường', kind: 'shared', outdoor: true, unlock: 2, pet: [0, 0, 3.4], cam: WIDE_CAM,
+    walk: { x: [-17, 17], z: [-7, 8] }, follow: { x: [-12, 12], z: [-2.5, 3], kx: 0.9, kz: 0.45, zBase: 3.4 }, blockers: [{ x: 0, z: -0.6, r: 2.7 }], ctx: BACK, enterLine: 'Quảng trường đông vui quá! Mình chào mọi người nhé.', map: { x: 50, y: 45 }, cap: 12, ready: true,
     blurb: 'Khu gặp gỡ: gặp người chơi khác, nhắn tin, kết bạn.' },
   { id: 'tea', name: 'Tiệm trà Gió', short: 'Tiệm trà', kind: 'shared', outdoor: false, unlock: 3, pet: [0, 0, 1.2], cam: INDOOR_CAM,
     walk: { x: [-3.4, 3.4], z: [-1.2, 2.6] }, ctx: BACK, enterLine: 'Thơm mùi trà quá~ Mình ngồi một chút nhé.', map: { x: 84, y: 62 }, cap: 16, ready: true,
     blurb: 'Bàn bốn chỗ, ngồi nhâm nhi và trò chuyện cùng bạn.' },
-  { id: 'park', name: 'Công viên Cỏ Non', short: 'Công viên', kind: 'shared', outdoor: true, unlock: 4, pet: [0, 0, 1.4], cam: OUTDOOR_CAM,
-    walk: { x: [-5, 5], z: [-1.5, 3.6] }, ctx: BACK, enterLine: 'Công viên rộng ghê! Mình chạy thử nha.', map: { x: 16, y: 62 }, cap: 16, ready: true,
+  { id: 'park', name: 'Công viên Cỏ Non', short: 'Công viên', kind: 'shared', outdoor: true, unlock: 4, pet: [0, 0, 2.4], cam: WIDE_CAM,
+    walk: { x: [-17, 17], z: [-6.5, 8] }, follow: { x: [-12, 12], z: [-2.5, 3], kx: 0.9, kz: 0.45, zBase: 2.4 }, blockers: [{ x: -12, z: -2.4, r: 2.7 }], ctx: BACK, enterLine: 'Công viên rộng ghê! Mình chạy thử nha.', map: { x: 16, y: 62 }, cap: 16, ready: true,
     blurb: 'Sân chơi, ao vịt, bóng chung và chơi cùng bạn.' },
 ];
 const HOME_BACK: [string, string][] = [['home', 'Về phòng']];

@@ -23,14 +23,18 @@ const rooms = new Map<string, SimRoom>();
 interface SimOpts { bots?: number; botMs?: number; pid?: string }
 type Wire = { t: 'hello'; peer: Peer } | { t: 'bye'; pid: string } | { t: 'ask'; pid: string } | { t: string; pid?: string };
 
+/** Vùng bạn ảo đi lại theo từng nơi (khớp vùng đi của địa điểm trong registry.ts, thu nhỏ một chút). */
+const SIM_AREA: Record<string, { x: [number, number]; z: [number, number] }> = { plaza: { x: [-15, 15], z: [-5, 7] }, park: { x: [-15, 15], z: [-4, 7] }, tea: { x: [-4.5, 4.5], z: [-1.5, 1.8] } };
+
 export class SimRoom extends Emitter implements Room {
-  readonly cap: number; readonly pid: string; readonly topic: string;
+  readonly cap: number; readonly pid: string; readonly topic: string; private area: { x: [number, number]; z: [number, number] };
   private map = new Map<string, Peer & { seen: number; bot?: boolean }>();
   private chan: BroadcastChannel | null; private me: Peer; private timers: ReturnType<typeof setInterval>[] = []; private timeouts: ReturnType<typeof setTimeout>[] = [];
   private th = throttles(); private limit = makeLimiter(); private closed = false;
 
   constructor(place: string, me: PeerLook & { x: number; z: number }, cap: number, o: SimOpts = {}) {
     super();
+    this.area = SIM_AREA[place] ?? SIM_AREA.tea;
     this.cap = cap; this.pid = o.pid ?? sessionPid(); this.me = { ...me, pid: this.pid }; this.topic = place + ':1'; rooms.set(this.topic, this);
     this.chan = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('hatchday-sim:' + place) : null;
     if (this.chan) this.chan.onmessage = ev => this.recv(ev.data as Wire);
@@ -67,12 +71,12 @@ export class SimRoom extends Emitter implements Room {
 
   private addBot(look: PeerLook & { pid: string }, every: number) {
     if (this.closed || this.map.has(look.pid) || this.map.size + 1 >= this.cap) return;
-    this.map.set(look.pid, { ...look, x: rnd(-4, 4), z: rnd(-1.5, 1.6), seen: Date.now(), bot: true });
+    const A = this.area; this.map.set(look.pid, { ...look, x: rnd(A.x[0] * 0.8, A.x[1] * 0.8), z: rnd(A.z[0], A.z[1]), seen: Date.now(), bot: true });
     this.emit('join', this.strip(look.pid));
     let nextEmote = Date.now() + rnd(8000, 30000), nextChat = Date.now() + rnd(10000, 30000);
     this.timers.push(setInterval(() => {
       const b = this.map.get(look.pid); if (!b || this.closed) return;
-      if (Math.random() < 0.6) { b.x = rnd(-4.5, 4.5); b.z = rnd(-1.5, 1.8); this.emit('intent', look.pid, b.x, b.z); }
+      if (Math.random() < 0.6) { b.x = rnd(this.area.x[0], this.area.x[1]); b.z = rnd(this.area.z[0], this.area.z[1]); this.emit('intent', look.pid, b.x, b.z); }
       if (Date.now() > nextEmote) { nextEmote = Date.now() + rnd(20000, 60000); this.emit('emote', look.pid, EMOTES[Math.floor(Math.random() * EMOTES.length)].id); }
       if (Date.now() > nextChat) { nextChat = Date.now() + rnd(25000, 70000); this.emit('chat', { id: Date.now(), pid: look.pid, name: look.name, text: BOT_LINES[Math.floor(Math.random() * BOT_LINES.length)] }); }
     }, every));

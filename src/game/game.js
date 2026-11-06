@@ -278,7 +278,7 @@ function goTo(name, instant) {
     if (name === 'garden') ball.position.set(2.0, 0.3, 1.4);
     particles.forEach(p => releaseSprite(p.s)); particles.length = 0; camIntro = reduce ? 0 : 1;
     bubbleEl.hidden = true; anim = null;
-    resize(); applyAreaLights(); onEnter(name);
+    resize(); applyAreaLights(); onEnter(name); followTarget(camFollow);
     if (placeInst[name] && placeInst[name].enter) placeInst[name].enter();
     document.getElementById('scene-tag').textContent = AREA_NAME[name];
     updateMusic();
@@ -318,7 +318,7 @@ const placeOpen = {
 function loadPlace(name) {
   if (placeInst[name]) return Promise.resolve(placeInst[name]);
   return placeLoading[name] || (placeLoading[name] = PLACE_LOADERS[name]().then(init => {
-    const inst = init({ THREE, add, toon, canvasTex, shell, windowOn, scene, camera, canvas, ray, ndcFrom, walkPetTo, say, startAction, toast, sfx, spawn, hideHint, playToy: toyPlay, getArea: () => area, state: S, open: placeOpen, goTo, setTemp, play: spinPlay, grad, events, petBuilder, bondLevel: () => bondLevel(S.bondXp), getPetXZ: () => [petBase.x + petOff.x, petBase.z + petOff.z] });
+    const inst = init({ THREE, add, toon, canvasTex, shell, windowOn, scene, camera, canvas, ray, ndcFrom, walkPetTo, say, startAction, toast, sfx, spawn, hideHint, playToy: toyPlay, applyShadows, quality: () => quality, isNight: () => period === 'dem', getArea: () => area, state: S, open: placeOpen, goTo, setTemp, play: spinPlay, grad, events, petBuilder, bondLevel: () => bondLevel(S.bondXp), getPetXZ: () => [petBase.x + petOff.x, petBase.z + petOff.z] });
     inst.group.visible = false; areas[name] = inst.group; applyShadows(inst.group); placeInst[name] = inst; return inst;
   }));
 }
@@ -727,6 +727,14 @@ addEventListener('keydown', e => {
 });
 addEventListener('keyup', e => { const k = KEYDIR[e.key]; if (k) keys.delete(k); });
 addEventListener('blur', () => keys.clear());
+/** Đẩy thú ra khỏi vật cản tròn của địa điểm (đài phun, ao…). */
+function avoidBlockers() {
+  const bl = PLACE_BY_ID[area] && PLACE_BY_ID[area].blockers; if (!bl) return;
+  for (const o of bl) {
+    const wx = petBase.x + petOff.x, wz = petBase.z + petOff.z; let dx = wx - o.x, dz = wz - o.z; const d = Math.hypot(dx, dz);
+    if (d < o.r) { if (d < 1e-3) { dx = 0; dz = 1; } const k = o.r / Math.max(d, 1e-3); petOff.x = o.x + dx * k - petBase.x; petOff.z = o.z + dz * k - petBase.z; }
+  }
+}
 function animStep(dt, t, now, key) {
   const o = { hop: 0, roll: 0, yaw: 0, stretch: 0, arm: 0, wave: 0 };
   if (!reduce) idleThink(now);
@@ -752,6 +760,7 @@ function animStep(dt, t, now, key) {
       else { const then = wander.then; wander = null; moveYaw = null; if (then) then(); }
     }
   }
+  avoidBlockers();
   const sp = Math.hypot(petOff.x - lastOff.x, petOff.z - lastOff.z) / Math.max(dt, 1e-3); lastOff.copy(petOff);
   walking = sp > 0.25;
   if (walking) {
@@ -793,6 +802,13 @@ function animStep(dt, t, now, key) {
 /* ---------------- camera rig: thị sai, zoom, rung nhẹ (skill game-feel) ---------------- */
 const camBase = new THREE.Vector3(), lookBase = new THREE.Vector3(), camPar = new THREE.Vector2(), focusW = new THREE.Vector3(), lookNow = new THREE.Vector3();
 let camZoom = 0, trauma = 0, camIntro = 0, zoomExtra = 0;
+const camFollow = new THREE.Vector2();
+/** Nơi rộng: camera dịch theo thú (mượt), kẹp trong khoảng của địa điểm. snap = đặt ngay (lúc vào nơi mới). */
+function followTarget(out) {
+  const f = PLACE_BY_ID[area] && PLACE_BY_ID[area].follow; if (!f) return out.set(0, 0);
+  return out.set(clamp((petBase.x + petOff.x) * f.kx, f.x[0], f.x[1]), clamp((petBase.z + petOff.z - f.zBase) * f.kz, f.z[0], f.z[1]));
+}
+const followTmp = new THREE.Vector2();
 function addTrauma(v) { if (!reduce) trauma = Math.min(1, trauma + v); }
 function updateCamera(dt, t) {
   if (camOverride.pos) {
@@ -809,6 +825,8 @@ function updateCamera(dt, t) {
   const sh = trauma * trauma; // bình phương: va nhẹ gần như không rung, va mạnh mới rõ
   camera.position.x += Math.sin(t * 37) * 0.07 * sh; camera.position.y += Math.sin(t * 43 + 1) * 0.05 * sh;
   lookNow.copy(lookBase).lerp(focusW, camZoom * 0.5);
+  followTarget(followTmp); const fk = Math.min(1, dt * 2.4); camFollow.x += (followTmp.x - camFollow.x) * fk; camFollow.y += (followTmp.y - camFollow.y) * fk;
+  camera.position.x += camFollow.x; camera.position.z += camFollow.y; lookNow.x += camFollow.x; lookNow.z += camFollow.y;
   camera.lookAt(lookNow);
 }
 
@@ -891,6 +909,7 @@ function setupShadows() {
 }
 function applyShadows(root) {
   root.traverse(o => {
+    if (o.isInstancedMesh) { o.receiveShadow = true; return; } // vật lặp không đổ bóng (nhẹ)
     if (!o.isMesh || o.userData.outline || o === face || o === shadow || o.material.blending === THREE.AdditiveBlending || o.material.transparent) return;
     o.geometry.computeBoundingSphere();
     o.castShadow = o.geometry.boundingSphere.radius * Math.max(o.scale.x, o.scale.y, o.scale.z) < 2;
