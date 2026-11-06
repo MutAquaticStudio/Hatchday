@@ -27,7 +27,8 @@ const out = []; const ok = (n, c, x = '') => out.push((c ? 'OK  ' : 'FAIL') + ' 
 
   const p = await open('owner');
   ok('owner thấy đủ 8 tab', (await tabs(p)).length === 8, (await tabs(p)).join());
-  ok('Tổng quan hiện số liệu', (await p.textContent('main')).includes('Người chơi') && (await p.$$('.stat')).length === 11);
+  await p.waitForFunction(() => document.querySelectorAll('.stat').length === 11, null, { timeout: 8000 }).catch(() => {}); // số liệu vẽ sau khi tải xong
+  ok('Tổng quan hiện số liệu',(await p.textContent('main')).includes('Người chơi') && (await p.$$('.stat')).length === 11);
 
   await go(p, 'users'); await p.fill('#q', 'Nắng'); await p.click('#find'); await p.waitForSelector('[data-view]');
   ok('tìm người chơi theo tên, thấy email (owner)', (await p.textContent('#found')).includes('nang@example.com'));
