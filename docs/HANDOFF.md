@@ -33,7 +33,7 @@ Bản chơi thử (chế độ demo, dữ liệu lưu trong trình duyệt): htt
 | Bản đồ thế giới và 4 địa điểm một mình: Bệnh viện, Chợ (có thu mua nông sản), Tiệm may, Thư viện; Quảng trường, Quán trà, Công viên đã có chỗ trên Bản đồ ("sắp mở"). Mở khoá theo Gắn bó, vào bằng chip tên khu vực hoặc ô Nhà | Xong (`src/game/places/`, `20261202000000_sell_food.sql`) |
 | Trang quản trị (`admin/`, build riêng `dist-admin`): đăng nhập + xác thực hai bước, 5 vai trò, tổng quan, tìm/xem người chơi, tặng quà (một người, chiến dịch có duyệt hai người), thông báo trong game, sự kiện (biểu ngữ, trang trí), báo cáo/phạt/từ khoá, cờ hệ thống, nhật ký kiểm toán không sửa được | Xong phần máy chủ (`20261206000000_admin.sql`, 21 test) và giao diện; **chưa thử với Supabase thật** (chạy thử bằng bộ nhớ) |
 | Quầy trả phí | Đã ẩn (`PAID_SHOP_ENABLED = false` trong `src/game/catalog.ts`) |
-| Chạy trên Supabase thật | Chưa. Mọi thứ mới thử ở chế độ demo hoặc PGlite |
+| Chạy trên Supabase thật | **Đã áp 20 migration** lên dự án `Hatchday` (ref `ngumfhweushmoeiplyte`, ap-northeast-2) ngày 2026-11-06; lịch sử `supabase_migrations` khớp tên tệp nên `supabase db push` thấy đã áp. Đối chiếu 773 mục (hàm, cột, ràng buộc, RLS, trigger, quyền, dữ liệu mẫu) với bản PGlite: khớp hết. Advisor bảo mật: không còn cảnh báo `search_path`; còn `rls_auto_enable` (hàm mặc định của Supabase, chưa thu quyền). **Chưa thử:** đăng nhập thật, Realtime, trang admin với tài khoản chủ thật |
 
 ## Chạy và kiểm thử
 
