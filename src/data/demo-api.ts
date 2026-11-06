@@ -505,3 +505,9 @@ export async function sellFood(id: string, qty: number) {
   db.owned[id] -= qty; earn(db, total, false); (db.sold ||= {})[d] = today + total; store(db);
   return { coins: db.coins, qty: db.owned[id], got: total, today: today + total, cap: SELL.dailyCap };
 }
+
+/* ---------- Cổng cho demo-social: cùng bản lưu (xu, kho, thú), cùng luật cộng xu ---------- */
+export type DemoDB = DB;
+export function withDB<T>(fn: (db: DB, earnCoins: (n: number) => number) => T): T {
+  const db = load(); const r = fn(db, n => earn(db, n, false)); store(db); return r;
+}

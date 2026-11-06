@@ -1,5 +1,7 @@
 import { supabase, isConfigured } from '../lib/supabase';
 import * as demo from './demo-api';
+import * as demoSocial from './demo-social';
+import type { MailRow, NewsRow, PublicProfile, SocialState, SocialSummary, VisitData } from '../game/social';
 import type { ActionResult, CureResult, DayLogRow, Economy, FarmItem, Garden, MemoryRow, Outfit, PetAction, PetRow, QuestBoard, SeenRow, Tastes } from './types';
 import type { Layout } from '../game/catalog';
 
@@ -128,3 +130,28 @@ export const claimBond = (level: number) => (isDemo ? demo.claimBond(level) : rp
 /* ---------- Chợ: thu mua nông sản ---------- */
 export const getSellState = () => (isDemo ? demo.getSellState() : rpc<{ today: number; cap: number }>('get_sell_state'));
 export const sellFood = (id: string, qty: number) => (isDemo ? demo.sellFood(id, qty) : rpc<{ coins: number; qty: number; got: number; today: number; cap: number }>('sell_food', { p_item: id, p_qty: qty }));
+
+/* ---------- Xã hội: bạn bè, hộp thư, quà, tin tức, thăm nhà ---------- */
+export const getSocialState = () => (isDemo ? demoSocial.getSocialState() : rpc<SocialState>('get_social_state'));
+export const getSocialSummary = () => (isDemo ? demoSocial.getSocialSummary() : rpc<SocialSummary>('get_social_summary'));
+export const setPrivacy = (key: string, value: string) => (isDemo ? demoSocial.setPrivacy(key, value) : rpc<{ friends: string; online: string }>('set_privacy', { p_key: key, p_value: value }));
+export const findByCode = (who: string) => (isDemo ? demoSocial.findByCode(who) : rpc<PublicProfile>('find_by_code', { p_who: who }));
+export const sendFriendRequest = (who: string) => (isDemo ? demoSocial.sendFriendRequest(who) : rpc<{ status: 'pending' | 'accepted' }>('send_friend_request', { p_who: who }));
+export const respondFriendRequest = (who: string, accept: boolean) => (isDemo ? demoSocial.respondFriendRequest(who, accept) : rpc<{ status: string }>('respond_friend_request', { p_who: who, p_accept: accept }));
+export const removeFriend = async (who: string) => { if (isDemo) return demoSocial.removeFriend(who); await rpc('remove_friend', { p_who: who }); };
+export const blockUser = async (who: string) => { if (isDemo) return demoSocial.blockUser(who); await rpc('block_user', { p_who: who }); };
+export const unblockUser = async (who: string) => { if (isDemo) return demoSocial.unblockUser(who); await rpc('unblock_user', { p_who: who }); };
+export const listFriends = () => (isDemo ? demoSocial.listFriends() : rpc<PublicProfile[]>('list_friends'));
+export const listRequests = () => (isDemo ? demoSocial.listRequests() : rpc<{ incoming: PublicProfile[]; outgoing: PublicProfile[] }>('list_requests'));
+export const getInbox = () => (isDemo ? demoSocial.getInbox() : rpc<{ mail: MailRow[] }>('get_inbox'));
+export const claimMail = (id: number) => (isDemo ? demoSocial.claimMail(id) : rpc<{ items: { id: string; qty: number }[]; coins: number; wallet: number }>('claim_mail', { p_id: id }));
+export const claimAllMail = () => (isDemo ? demoSocial.claimAllMail() : rpc<{ claimed: number; skipped: number; wallet: number }>('claim_all_mail'));
+export const deleteMail = async (id: number) => { if (isDemo) return demoSocial.deleteMail(id); await rpc('delete_mail', { p_id: id }); };
+export const sendGift = (who: string, items: { id: string; qty: number }[], note: string | null) => (isDemo ? demoSocial.sendGift(who, items, note) : rpc<{ id: number }>('send_gift', { p_who: who, p_items: items, p_note: note }));
+export const getNews = () => (isDemo ? demoSocial.getNews() : rpc<NewsRow[]>('get_news'));
+export const markNewsRead = async (id: number) => { if (isDemo) return demoSocial.markNewsRead(id); await rpc('mark_news_read', { p_id: id }); };
+export const getVisit = (who: string) => (isDemo ? demoSocial.getVisit(who) : rpc<VisitData>('get_visit', { p_who: who }));
+export const strokeFriend = (who: string) => (isDemo ? demoSocial.strokeFriend(who) : rpc<{ got: number }>('stroke_friend_pet', { p_who: who }));
+export const waterFriendCrop = (who: string, plot: number) => (isDemo ? demoSocial.waterFriendCrop(who, plot) : rpc<{ waters: number; got: number }>('water_friend_crop', { p_who: who, p_plot: plot }));
+export const leaveGuestbook = async (who: string, emote: string) => { if (isDemo) return demoSocial.leaveGuestbook(who, emote); await rpc('leave_guestbook', { p_who: who, p_emote: emote }); };
+export const getGuestbook = () => (isDemo ? demoSocial.getGuestbook() : rpc<{ from: string; kind: string; emote: string | null; at: string }[]>('get_guestbook'));

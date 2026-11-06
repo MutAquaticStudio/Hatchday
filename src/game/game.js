@@ -1,7 +1,7 @@
 // Lớp hiển thị & tương tác 3D (chuyển từ bản mẫu). Sẽ tách nhỏ và chuyển sang TypeScript dần.
 import * as THREE from 'three';
 import { S, save, act, actBatched, addTalkMemory, renamePet, onSync, onSyncError, onTraitShift, startPeriodicSync,
-  buy, saveLayout, equip, savePreset, claimQuest, claimQuestBonus, claimWeeklyQuest, claimCollection, buyFood, claimRation, nutritionNow, refreshFamily, familyMemories, refreshGarden, plantCrop, waterCrop, harvestCrop, upgradeParcel, buyParcel, saveFarm, cook, upgradeFridge, serverNow, onSpoil, refreshQuests, activeLayout, previewComfort, onIllness, healthNow, buyMedicine, useMedicine, visitClinic, refreshHealth, onBondLevel, claimBond, sellFood, refreshSell } from './store';
+  buy, saveLayout, equip, savePreset, claimQuest, claimQuestBonus, claimWeeklyQuest, claimCollection, buyFood, claimRation, nutritionNow, refreshFamily, familyMemories, refreshGarden, plantCrop, waterCrop, harvestCrop, upgradeParcel, buyParcel, saveFarm, cook, upgradeFridge, serverNow, onSpoil, refreshQuests, activeLayout, previewComfort, onIllness, healthNow, buyMedicine, useMedicine, visitClinic, refreshHealth, onBondLevel, claimBond, sellFood, refreshSell, refreshEconomy, refreshOwned } from './store';
 import { BOND, bondLevel, bondProgress, unclaimedLevels } from './bond';
 import { PLACES, PLACE_BY_ID, MAP_NODES, BLOCK_TEXT, enterBlock } from './places/registry';
 import { HEALTH, ILLNESS_BY_ID, isSevere, minutesToSick, STAT_NOUN } from './health';
@@ -904,7 +904,7 @@ initAudio();
 home = initHome({
   THREE, scene, camera, canvas, renderer, room, toon, add, canvasTex, grad, $, reduce,
   homeFloor, homeWalls: [homeWall, homeWall2], pivot, petBase, petBuilder, getPetParts: () => petParts,
-  store: { S, sellFood, refreshSell, healthNow, buyMedicine, useMedicine, visitClinic, refreshHealth, buy, saveLayout, equip, savePreset, claimQuest, claimQuestBonus, claimWeeklyQuest, claimCollection, buyFood, claimRation, nutritionNow, refreshFamily, familyMemories, refreshGarden, plantCrop, harvestCrop, cook, upgradeFridge, serverNow, refreshQuests, activeLayout, previewComfort, onSync, today: () => localDay() },
+  store: { S, refreshEconomy, refreshOwned, sellFood, refreshSell, healthNow, buyMedicine, useMedicine, visitClinic, refreshHealth, buy, saveLayout, equip, savePreset, claimQuest, claimQuestBonus, claimWeeklyQuest, claimCollection, buyFood, claimRation, nutritionNow, refreshFamily, familyMemories, refreshGarden, plantCrop, harvestCrop, cook, upgradeFridge, serverNow, refreshQuests, activeLayout, previewComfort, onSync, today: () => localDay() },
   say, setTemp, spawn, popText, impulse, startAction, addTrauma, buzz, toast, hideHint, applyShadows, ndcFrom,
   getArea: () => area, goTo, isIdle: () => !busy(performance.now()), isNight: () => period === 'dem',
   setZoom: z => { zoomExtra = z; },

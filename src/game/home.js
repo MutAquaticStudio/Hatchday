@@ -9,6 +9,7 @@ import { makeFitter } from './fit.js';
 import { sfx } from './audio.js';
 import { clinicBody } from './clinic.js';
 import { initMap } from './places/map.js';
+import { initSocial } from './social-ui.js';
 import { bondLevel } from './bond';
 import { ILLNESS_BY_ID, MEDICINE_BY_ID } from './health';
 import { FORMS, RARITIES, REGIONS, SPECIES, SPECIES_BY_ID, STAGES } from './species';
@@ -108,7 +109,7 @@ export function initHome(ctx) {
     if (!el) { el = document.createElement('section'); el.id = id; el.className = 'sheet hsheet ' + cls; el.hidden = true; el.setAttribute('aria-label', id); app.appendChild(el); }
     return el;
   }
-  const sheets = ['house', 'shop', 'wardrobe', 'quests', 'dex', 'family', 'cooking', 'clinic', 'map', 'sell'];
+  const sheets = ['house', 'shop', 'wardrobe', 'quests', 'dex', 'family', 'cooking', 'clinic', 'map', 'sell', 'social', 'visit', 'gift'];
   function closeAll(except) { sheets.forEach(s => { if (s !== except && $(s)) $(s).hidden = true; }); ctx.setZoom(0); $('a-house').setAttribute('aria-pressed', 'false'); }
   function open(id) { ctx.closeGameSheets(); closeAll(id); const el = sheet(id); el.hidden = false; $('a-house').setAttribute('aria-pressed', String(id !== 'none')); el.querySelector('button, input')?.focus({ preventScroll: true }); return el; }
   const head = (title, sub = '') => `<header class="hs-head"><div><h2>${title}</h2>${sub ? `<p>${sub}</p>` : ''}</div><button type="button" class="hs-close" data-close aria-label="Đóng">✕</button></header>`;
@@ -120,6 +121,7 @@ export function initHome(ctx) {
     const el = open('house');
     el.innerHTML = head('Nhà của bé', `Thoải mái cấp ${S.comfort} · ${S.coins.toLocaleString('vi-VN')} xu`) + `<div class="tiles">
       <button type="button" class="tile${S.illness ? ' ready' : ''}" data-go="map"><b>Bản đồ</b><span>Chợ, bệnh viện, tiệm may, thư viện…</span></button>
+      <button type="button" class="tile${social.badge() ? ' ready' : ''}" data-go="social"><b>Bạn bè &amp; thư</b><span>${esc(social.tileText())}</span></button>
       <button type="button" class="tile" data-go="decor"><b>Trang trí phòng</b><span>Đặt, xoay, cất đồ</span></button>
       <button type="button" class="tile" data-go="shop"><b>Cửa hàng</b><span>Thức ăn, đồ trang trí, trang phục</span></button>
       <button type="button" class="tile" data-go="wardrobe"><b>Tủ đồ</b><span>Trang phục cho bé</span></button>
@@ -133,7 +135,7 @@ export function initHome(ctx) {
   $('a-house').addEventListener('click', () => { ctx.hideHint(); const hs = $('house'); if (hs && !hs.hidden) { closeAll(); return; } openHouse(); });
   app.addEventListener('click', e => {
     const b = e.target.closest('.tile'); if (!b) return;
-    ({ decor: () => enterEdit(), shop: () => openShop('market'), wardrobe: openWardrobe, quests: openQuests, dex: () => openDex(), family: openFamily, garden: () => { closeAll(); ctx.goTo('garden'); }, cooking: openCooking, clinic: () => openClinic(), map: () => worldMap.open() })[b.dataset.go]();
+    ({ decor: () => enterEdit(), shop: () => openShop('market'), wardrobe: openWardrobe, quests: openQuests, dex: () => openDex(), family: openFamily, garden: () => { closeAll(); ctx.goTo('garden'); }, cooking: openCooking, clinic: () => openClinic(), map: () => worldMap.open(), social: () => social.open() })[b.dataset.go]();
   });
 
   /* ---------- Ảnh thu nhỏ 3D ---------- */
@@ -218,6 +220,7 @@ export function initHome(ctx) {
     if ('error' in r) ctx.toast(viError(r.error)); else { sfx('coin'); ctx.buzz(10); ctx.toast(`Đã bán, nhận ${r.got} xu.`); }
     renderSell();
   });
+  const social = initSocial({ ctx, S, store, esc, head, open, closeAll, thumb, fillThumbs, app, $, onChange: () => sync() });
   const worldMap = initMap({ app, $, esc, head, open, closeAll, S, bondLevel: () => bondLevel(S.bondXp), goTo: ctx.goTo, toast: ctx.toast, getArea: ctx.getArea, alerts: () => ({ hospital: !!S.illness }) });
 
   /* ---------- Nấu ăn: hai nguyên liệu thành một món ngon hơn, thuộc hai nhóm dinh dưỡng ---------- */
@@ -724,7 +727,7 @@ export function initHome(ctx) {
     renderCoins();
     if (!editing) { const k = JSON.stringify(store.activeLayout()); if (k !== roomKey) { const first = !roomKey; roomKey = k; renderRoom(store.activeLayout()); afterRoomChange(!first); } }
     renderOutfit(S.outfit);
-    $('a-house').classList.toggle('need', questReady() || !!S.illness);
+    $('a-house').classList.toggle('need', questReady() || !!S.illness || social.badge() > 0);
     if ($('clinic') && !$('clinic').hidden) renderClinic();
   }
   store.onSync(sync); sync();
@@ -751,5 +754,5 @@ export function initHome(ctx) {
     return { checked: n, bad };
   };
 
-  return { update, pickVisit, thumb, isEditing: () => editing, openShop, openClinic, openSell, openMap: () => worldMap.open(), openWardrobe, openFamily, enterEdit, closeAll, openDex, refreshOutfit: () => renderOutfit(S.outfit) };
+  return { update, pickVisit, thumb, isEditing: () => editing, openShop, openClinic, openSell, openMap: () => worldMap.open(), openSocial: social.open, openMail: social.openMail, openNews: social.openNews, openWardrobe, openFamily, enterEdit, closeAll, openDex, refreshOutfit: () => renderOutfit(S.outfit) };
 }
