@@ -50,7 +50,14 @@ async function onSignedIn(): Promise<void> {
   }
 }
 
+/** Service worker: chỉ ở bản chạy thật (mở nhanh, mở được khi mất mạng, nhận thông báo đẩy sau này). */
+function registerSW(): void {
+  if (!import.meta.env.PROD || !('serviceWorker' in navigator)) return;
+  window.addEventListener('load', () => { navigator.serviceWorker.register('./sw.js').catch(() => { /* bỏ qua */ }); });
+}
+
 async function boot(): Promise<void> {
+  registerSW();
   if (!isConfigured) { mountAuth(root, 'gate', onSignedIn); return; }
   const recovering = new URLSearchParams(location.search).has('reset');
   supabase.auth.onAuthStateChange(event => {

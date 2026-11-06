@@ -2,6 +2,7 @@ import { supabase, isConfigured } from '../lib/supabase';
 import * as demo from './demo-api';
 import * as demoSocial from './demo-social';
 import type { ActiveEvent } from '../game/events';
+import type { AdState, AdTicket } from '../game/ads';
 import type { ChatReply, DmMsg, DmThread, MailRow, NewsRow, PublicProfile, SocialState, SocialSummary, VisitData } from '../game/social';
 import type { ActionResult, CureResult, DayLogRow, Economy, FarmItem, Garden, MemoryRow, Outfit, PetAction, PetRow, QuestBoard, SeenRow, Tastes } from './types';
 import type { Layout } from '../game/catalog';
@@ -171,3 +172,8 @@ export const dmUnread = () => (isDemo ? demoSocial.dmUnread() : rpc<number>('dm_
 
 /* ---------- Sự kiện đang chạy ---------- */
 export const getActiveEvents = (): Promise<ActiveEvent[]> => (isDemo ? Promise.resolve(demo.demoEvents()) : rpc<ActiveEvent[]>('get_active_events'));
+
+/* ---------- Quảng cáo thưởng ---------- */
+export const getAdState = () => (isDemo ? demo.getAdState() : rpc<AdState>('get_ad_state'));
+export const startAdReward = () => (isDemo ? demo.startAdReward() : rpc<AdTicket>('start_ad_reward'));
+export const claimAdReward = (nonce: string) => (isDemo ? demo.claimAdReward(nonce) : rpc<{ coins: number; reward: number; left: number }>('claim_ad_reward', { p_nonce: nonce }));

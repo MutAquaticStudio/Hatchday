@@ -54,6 +54,24 @@ const until = async (p, fn, ms = 10000, arg) => { const t = Date.now(); while (D
   ok('Quảng trường với trang trí Trung thu vẫn vào được', await until(p, () => document.getElementById('scene-tag').textContent.includes('Quảng trường') && !!document.querySelector('.emote-bar:not([hidden])'), 20000));
   await p.click('#scene-tag'); await p.waitForSelector('#map:not([hidden])');
   ok('Bản đồ vẫn chỉ có 9 ghim (không gian của nhà không lên bản đồ)', (await p.$$('#map .pin')).length === 9);
+  // Chợ: biển Video thưởng -> đồng ý -> xem (bản thử ~2 giây với ?dev) -> +20 xu; nhắc nhở trong Chỉ số
+  await p.click('#map [data-pin="market"]'); await p.click('#map [data-go-place="market"]');
+  ok('vào Chợ có biển Video thưởng', await until(p, () => document.getElementById('scene-tag').textContent.includes('Chợ') && !!document.querySelector('.hot[data-hot="video"]'), 20000));
+  await p.waitForTimeout(1500);
+  const coins0 = await p.evaluate(() => JSON.parse(localStorage.getItem('hatchday-demo')).coins);
+  await p.click('.hot[data-hot="video"]'); await p.waitForSelector('#ads:not([hidden])');
+  ok('lần đầu hiện hộp đồng ý, nút Đồng ý khoá tới khi tích', await until(p, () => !!document.querySelector('[data-ad="consent"]:disabled')));
+  await p.check('#ad-consent'); await p.click('[data-ad="consent"]');
+  ok('sau đồng ý có nút Xem video, còn 5 lượt', await until(p, () => !!document.querySelector('[data-ad="watch"]:not([disabled])') && document.getElementById('ads').textContent.includes('5')));
+  await p.click('[data-ad="watch"]');
+  ok('quảng cáo thử hiện', await until(p, () => !!document.querySelector('.ad-overlay'), 5000));
+  ok('xem xong nhận 20 xu', await until(p, c => JSON.parse(localStorage.getItem('hatchday-demo')).coins === c + 20 && !document.querySelector('.ad-overlay'), 15000, coins0));
+  await p.waitForTimeout(500);
+  ok('thẻ cập nhật còn 4 lượt', (await p.textContent('#ads')).includes('4'));
+  await p.click('[data-ad="watch"]'); await until(p, () => !!document.querySelector('.ad-overlay'), 5000); await p.click('[data-ad-skip]');
+  await p.waitForTimeout(500);
+  ok('bỏ qua giữa chừng thì không nhận thêm xu', await p.evaluate(c => JSON.parse(localStorage.getItem('hatchday-demo')).coins === c + 20, coins0));
+  ok('nút Nhắc nhở có trong Chỉ số', await p.evaluate(() => !!document.getElementById('btn-notify')));
   ok('không có lỗi console/trang', errs.length === 0, errs.slice(0, 3).join(' | '));
   await b.close(); srv.close();
   console.log(out.join('\n')); process.exit(out.some(l => l.startsWith('FAIL')) ? 1 : 0);

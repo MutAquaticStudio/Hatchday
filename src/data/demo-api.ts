@@ -11,6 +11,7 @@ import { applyDrift, isBlank, normalize, rollPersonality } from '../game/persona
 import { blendPersonality, HEIR_FAV_INHERIT, pickHeirSpecies } from '../game/lineage';
 import { BOND, bondLevel } from '../game/bond';
 import { boostedReward, eventBoost, type ActiveEvent } from '../game/events';
+import { AD, type AdState, type AdTicket } from '../game/ads';
 import { clinicPrice, healthStep, HEALTH, ILLNESS_BY_ID, isNightHour, isSevere, MEDICINE_BY_ID, type HealthCtx } from '../game/health';
 import { formFromCare, pickSpecies, SPECIES_BY_ID, stageForAge, REGIONS, GROW_MEMORY } from '../game/species';
 
@@ -31,6 +32,8 @@ interface DB {
   bond?: number[];
   /** Xu đã bán nông sản theo ngày (trần mỗi ngày). */
   sold?: Record<string, number>;
+  /** Quảng cáo thưởng hôm nay (mô phỏng ad_rewards/ad_nonces). */
+  ads?: { day: string; count: number; last: number; nonce?: string; at?: number };
   parcels?: number[]; farm?: FarmItem[]; fridge?: number; spoilDay?: string; garden?: Record<string, { crop: string; planted_at: string; waters?: number; watered_at?: string }>;
 }
 
@@ -520,3 +523,29 @@ export function demoEvents(): ActiveEvent[] {
     config: { banner: 'Tuần lễ nhiệm vụ: xu thưởng nhiệm vụ nhân 1,5!', coin_boost: 1.5, plaza_decor: 'trung-thu' } }] : [];
 }
 const demoBoost = () => eventBoost(demoEvents());
+
+/* ---------- Quảng cáo thưởng (mô phỏng start_ad_reward / claim_ad_reward). Thêm ?dev để rút ngắn thời gian xem còn 2 giây ---------- */
+const devAds = () => { try { return new URLSearchParams(location.search).has('dev'); } catch { return false; } };
+const adMin = () => (devAds() ? 2 : AD.minWatchSeconds), adGap = () => (devAds() ? 0 : AD.gapMinutes * 60000);
+const adToday = (db: DB) => { const d = localDay(); if (!db.ads || db.ads.day !== d) db.ads = { day: d, count: 0, last: 0 }; return db.ads; };
+export async function getAdState(): Promise<AdState> {
+  const db = load(), a = adToday(db);
+  return { enabled: true, left: AD.perDay - a.count, next_in: Math.max(0, Math.ceil((a.last + adGap() - Date.now()) / 1000)), reward: AD.reward, per_day: AD.perDay };
+}
+export async function startAdReward(): Promise<AdTicket> {
+  const db = load(), a = adToday(db);
+  if (a.count >= AD.perDay) throw new Error('ad_limit');
+  if (a.last && Date.now() - a.last < adGap()) throw new Error('ad_too_soon');
+  a.nonce = crypto.randomUUID(); a.at = Date.now(); store(db);
+  return { nonce: a.nonce, reward: AD.reward, left: AD.perDay - a.count, wait: adMin() };
+}
+export async function claimAdReward(nonce: string) {
+  const db = load(), a = adToday(db);
+  if (!a.nonce || a.nonce !== nonce) throw new Error('ad_invalid');
+  const age = (Date.now() - (a.at ?? 0)) / 1000;
+  if (age < adMin()) throw new Error('ad_too_fast');
+  if (age > AD.nonceMinutes * 60) throw new Error('ad_expired');
+  if (a.count >= AD.perDay) throw new Error('ad_limit');
+  a.nonce = undefined; a.count += 1; a.last = Date.now(); earn(db, AD.reward, false); store(db);
+  return { coins: db.coins, reward: AD.reward, left: AD.perDay - a.count };
+}

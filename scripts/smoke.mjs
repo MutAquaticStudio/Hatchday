@@ -260,7 +260,8 @@ await p.click('#map [data-close]');
 await setDemo("d.pet.bond_xp=100;");
 await reload();
 await goPlace('market');
-ok('đi tới Chợ (Gắn bó cấp 3): hiện 6 điểm chạm',await until(async()=>(await p.textContent('#scene-tag')).includes('Chợ')&&(await p.$$('.hot')).length===6,12000));
+ok('đi tới Chợ (Gắn bó cấp 3): hiện 7 điểm chạm (có Video thưởng)',await until(async()=>(await p.textContent('#scene-tag')).includes('Chợ')&&(await p.$$('.hot')).length===7,12000));
+await p.waitForTimeout(1800); // đợi hết chuyển cảnh để điểm chạm đứng yên
 const carB=(await demo()).owned.carot,coB=(await demo()).coins;
 await p.click('.hot[data-hot="sell"]');
 ok('chạm sạp Thu mua: mở bảng bán rau',await until(()=>p.isVisible('#sell'),15000));

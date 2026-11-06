@@ -9,6 +9,7 @@ import { blockedNow, minutesVi } from './clinic.js';
 import { initHome } from './home.js';
 import { viError } from '../lib/errors';
 import { initEvents } from './events-ui.js';
+import { initNotify } from './notify.js';
 import { decayStats, deriveExpression, localDay } from './rules';
 import { makePetBuilder, disposePet } from './pet3d.js';
 import { makeFace } from './face.js';
@@ -311,7 +312,7 @@ const PLACE_LOADERS = {
 };
 const placeOpen = {
   clinic: sec => home.openClinic(sec), shop: (t, k) => home.openShop(t, k), wardrobe: () => home.openWardrobe(), dex: () => home.openDex(), family: () => home.openFamily(), sell: () => home.openSell(),
-  news: () => (home.openNews ? home.openNews() : toast('Chưa có tin mới.')), mail: () => (home.openMail ? home.openMail() : toast('Chưa có thư mới.')), ai: () => toast('Thủ thư AI sắp có. Đợi chút nhé!'),
+  news: () => (home.openNews ? home.openNews() : toast('Chưa có tin mới.')), mail: () => (home.openMail ? home.openMail() : toast('Chưa có thư mới.')), ads: () => (home.openAds ? home.openAds() : toast('Chưa có quảng cáo.')), ai: () => toast('Thủ thư AI sắp có. Đợi chút nhé!'),
 };
 function loadPlace(name) {
   if (placeInst[name]) return Promise.resolve(placeInst[name]);
@@ -909,6 +910,7 @@ setupShadows(); applyQuality(); lookBooted = true;
 initAudio();
 /* Nhà của bé: bố cục phòng, trang trí, cửa hàng, tủ đồ, nhiệm vụ */
 const events = initEvents({ $ });
+initNotify({ S, $ });
 home = initHome({
   events, THREE, scene, camera, canvas, renderer, room, toon, add, canvasTex, grad, $, reduce,
   homeFloor, homeWalls: [homeWall, homeWall2], pivot, petBase, petBuilder, getPetParts: () => petParts,
