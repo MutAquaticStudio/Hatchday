@@ -1,1 +1,1 @@
-{"query": "select version,name from supabase_migrations.schema_migrations order by version desc limit 3"}
+{"query": "select count(*) from supabase_migrations.schema_migrations"}
