@@ -15,7 +15,38 @@ export function initPlaza(c) {
   const paving = canvasTex(128, 128, d => { d.fillStyle = '#f4e8d4'; d.fillRect(0, 0, 128, 128); d.strokeStyle = '#dccaa8'; d.lineWidth = 3; for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) d.strokeRect(i * 32 + (j % 2) * 16 - 16, j * 32, 32, 32); }, [8, 8]);
   const water = canvasTex(128, 128, d => { d.fillStyle = '#8ed6ff'; d.fillRect(0, 0, 128, 128); d.strokeStyle = 'rgba(255,255,255,.55)'; d.lineWidth = 3; for (let r = 10; r < 90; r += 18) { d.beginPath(); d.arc(64, 64, r, 0, 7); d.stroke(); } }, [1, 1]);
   const dens = world.density();
-  let clockHands = null, jets = [], waterMesh = null;
+  let clockHands = null, jets = [], waterMesh = null, jetBoost = 0, spot = null, spotUntil = 0, pigeons = [];
+  const ease = u => u * u * (3 - 2 * u), lerp = (a, b, k) => a + (b - a) * k, clamp01 = u => Math.max(0, Math.min(1, u));
+  const arc = (a, b, k, h) => [lerp(a[0], b[0], k), lerp(a[1], b[1], k) + Math.sin(k * Math.PI) * h, lerp(a[2], b[2], k)];
+
+  /* ---------- tương tác: đài phun nước, ghế đá, sân khấu; chim bồ câu biết tránh bé ---------- */
+  function splashFountain() { // chạy tới mép đài, nhảy tưng và té nước; đài phun mạnh hơn một lúc
+    const [fx, fz] = c.getPetXZ(), edge = [Math.sign(fx || 1) * 1.0, 0, 3.0 - 0.6 + 0.4]; jetBoost = 1; let nextDrop = 0;
+    return c.script({ dur: 3.6, update: (u, t) => {
+      if (u < 0.2) return { pos: arc([fx, 0, fz], edge, ease(u / 0.2), 0.15) };
+      const [px, pz] = c.getPetXZ(), k = (u - 0.2) / 0.8, jump = Math.abs(Math.sin(k * Math.PI * 3)) * 0.55 * (k < 0.85 ? 1 : 0);
+      if (t > nextDrop && k < 0.85) { nextDrop = t + 0.09; const a = Math.random() * Math.PI * 2; c.spawnAt('drop', px + Math.cos(a) * 0.5, 0.6 + jump, pz + Math.sin(a) * 0.3, { vx: Math.cos(a) * 1.3, vy: 2.2 + Math.random(), g: 7, scale: 0.2, max: 0.7 }); }
+      return { pos: [edge[0], jump, edge[2]], stretch: jump > 0.05 ? 0.1 : -0.06, roll: Math.sin(k * Math.PI * 6) * 0.12, face: 0 };
+    }, done: () => { c.say('Mát rượi! Nước bắn tùm lum luôn!', 2200); c.setTemp('excited', 1600); } });
+  }
+  function sitOn(x, z, ry, label) { // nhảy lên ghế đá, ngồi đung đưa, rồi nhảy xuống
+    const [fx, fz] = c.getPetXZ(), front = [x + Math.sin(ry) * 1.15, 0, z + Math.cos(ry) * 1.15];
+    return c.script({ dur: 6, noWalk: true, update: (u, t) => {
+      if (u < 0.12) return { pos: arc([fx, 0, fz], [x, 0.55, z], ease(u / 0.12), 0.5), face: ry, stretch: Math.sin(u / 0.12 * Math.PI) * 0.1 };
+      if (u > 0.88) return { pos: arc([x, 0.55, z], front, ease((u - 0.88) / 0.12), 0.5), face: ry };
+      return { pos: [x, 0.55, z], face: ry, roll: Math.sin(t * 2.4) * 0.05, stretch: -0.07 + Math.sin(t * 1.6) * 0.015 };
+    }, done: () => { c.say(label, 2000); } });
+  }
+  function performOnStage() { // lên sân khấu, đèn rọi đổi màu, nhảy múa và cúi chào
+    const [fx, fz] = c.getPetXZ(); spotUntil = performance.now() + 7200;
+    return c.script({ dur: 7, update: (u, t) => {
+      if (u < 0.12) return { pos: arc([fx, 0, fz], [0, 0.5, -7.5], ease(u / 0.12), 0.6) };
+      if (u > 0.9) return { pos: arc([0, 0.5, -7.5], [0, 0, -5.3], ease((u - 0.9) / 0.1), 0.5), face: 0 };
+      const k = (u - 0.12) / 0.78; if (Math.random() < 0.08) c.spawnAt(Math.random() < 0.5 ? 'note' : 'sparkle', (Math.random() - 0.5) * 3, 1.2 + Math.random(), -7.5, { vy: 0.8, scale: 0.34, max: 1 });
+      if (k > 0.86) return { pos: [0, 0.5, -7.5], stretch: -0.16 * Math.sin((k - 0.86) / 0.14 * Math.PI), face: 0 };
+      return { pos: [0, 0.5 + Math.abs(Math.sin(t * 7)) * 0.18, -7.5], spin: k < 0.4 ? k / 0.4 * Math.PI * 4 : 0, roll: Math.sin(t * 7) * 0.14, face: k < 0.4 ? undefined : 0 };
+    }, done: () => { c.say('Cảm ơn mọi người đã xem mình biểu diễn!', 2400); c.spawn('heart', 4); } });
+  }
   const fireflies = makeFireflies(THREE, g, { x0: -16, x1: 16, z0: -6, z1: 8 }, Math.round(18 * dens));
 
   /* ---------- khu lõi (dựng ngay) ---------- */
@@ -34,8 +65,12 @@ export function initPlaza(c) {
     add(f, new THREE.CylinderGeometry(0.16, 0.22, 0.9, 12), toon('#e9eef7'), 0, 2.0, 0, '#8896b0', 0.03);
     add(f, new THREE.SphereGeometry(0.3, 14, 10), toon('#e9eef7'), 0, 2.55, 0, '#8896b0', 0.03);
     jets = [0, 1, 2, 3, 4, 5, 6, 7].map(i => { const m = add(f, new THREE.SphereGeometry(0.07, 8, 6), toon('#bfe8ff'), 0, 2.2, 0, null); m.userData.i = i; return m; });
-    // ghế đá và đèn quanh đài
-    for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2 + 0.5, r = 4.6; kit.bench(z, Math.cos(a) * r, -0.6 + Math.sin(a) * r * 0.8, -a + Math.PI / 2); }
+    kit.hotspot({ id: 'fountain', label: 'Đài phun nước', at: [0, 3.9, -0.6], stand: [0, 2.9], act: () => splashFountain() }, f);
+    // ghế đá và đèn quanh đài (hai ghế gần có thể ngồi)
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2 + 0.5, r = 4.6, bx = Math.cos(a) * r, bz = -0.6 + Math.sin(a) * r * 0.8, ry = -a + Math.PI / 2, bench = kit.bench(z, bx, bz, ry);
+      if (i === 0 || i === 3 || i === 4) kit.hotspot({ id: 'bench' + i, label: 'Ngồi nghỉ', at: [bx, 1.5, bz], stand: [bx + Math.sin(ry) * 1.15, bz + Math.cos(ry) * 1.15], act: () => sitOn(bx, bz, ry, ['Ngồi đây ngắm đài phun thích ghê~', 'Ghế mát quá, mình ngồi thêm xíu nha.', 'Nhìn mọi người đi dạo vui thật.'][i % 3]) }, bench);
+    }
     for (let i = 0; i < 4; i++) { const a = (i / 4) * Math.PI * 2 + Math.PI / 4; props.lamp(z, Math.cos(a) * 6.3, -0.6 + Math.sin(a) * 5.2); }
     // vòng hoa quanh đường lát
     const ring = []; for (let i = 0, n = Math.round(46 * dens); i < n; i++) { const a = (i / n) * Math.PI * 2, rr = 7.9 + (i % 2) * 0.3; ring.push({ x: Math.cos(a) * rr, z: -0.6 + Math.sin(a) * rr * 0.82 }); }
@@ -61,11 +96,21 @@ export function initPlaza(c) {
     const hand = (len, w, col) => { const p = new THREE.Group(); p.position.set(0, 4.7, 1.04); tower.add(p); const m = new THREE.Mesh(new THREE.BoxGeometry(w, len, 0.03), new THREE.MeshBasicMaterial({ color: col })); m.position.y = len / 2; p.add(m); return p; };
     clockHands = { h: hand(0.45, 0.07, '#5a3a2a'), m: hand(0.68, 0.05, '#5a3a2a') };
     const stage = new THREE.Group(); stage.position.set(0, 0, -7.6); z.add(stage);
+    spot = new THREE.Mesh(new THREE.ConeGeometry(1.9, 4.4, 24, 1, true), new THREE.MeshBasicMaterial({ color: '#ffe9a8', transparent: true, opacity: 0.26, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })); spot.position.set(0, 2.4, 0.3); spot.visible = false; stage.add(spot);
+    kit.hotspot({ id: 'stage', label: 'Sân khấu', at: [0, 3.9, -7.6], stand: [0, -5.3], act: () => performOnStage() }, stage);
     add(stage, new THREE.BoxGeometry(5.4, 0.5, 2.4), toon('#d9b27a'), 0, 0.25, 0, '#8a5f3a', 0.03);
     [-2.5, 2.5].forEach(x => add(stage, new THREE.BoxGeometry(0.14, 2.8, 0.14), toon('#c29a62'), x, 1.9, -0.9, '#8a5f3a', 0.02));
     add(stage, new THREE.BoxGeometry(5.6, 0.25, 0.4), toon('#ff9ec4'), 0, 3.3, -0.9, '#a8507a', 0.02);
     add(stage, new THREE.BoxGeometry(5.0, 2.4, 0.08), toon('#c9a6ff'), 0, 1.75, -1.1, '#6a4aa8', 0.02);
     props.bunting(z, -6.5, -6.3, 6.5, -6.3, 3.4);
+    // chim bồ câu mổ thóc quanh đài, bay đi khi bé lại gần rồi đáp xuống chỗ khác
+    for (let i = 0; i < Math.max(3, Math.round(6 * dens)); i++) {
+      const p = new THREE.Group(), hx = Math.cos(i * 1.9) * (3.8 + (i % 3)), hz = 3.2 + Math.sin(i * 2.3) * 1.6; p.position.set(hx, 0, hz); z.add(p);
+      const body = add(p, new THREE.SphereGeometry(0.15, 10, 8), toon(i % 2 ? '#cfd8e3' : '#e4d6c8'), 0, 0.17, 0, '#667', 0.015), head = add(p, new THREE.SphereGeometry(0.09, 8, 8), toon('#e4eaf2'), 0.12, 0.3, 0, '#667', 0.015);
+      add(p, new THREE.ConeGeometry(0.03, 0.07, 4), toon('#ffb347'), 0.2, 0.29, 0, null).rotation.z = -Math.PI / 2;
+      const wing = add(p, new THREE.SphereGeometry(0.11, 8, 6), toon('#b9c4d4'), -0.02, 0.2, 0.1, null); wing.scale.set(1.3, 0.35, 0.8);
+      pigeons.push({ g: p, body, head, wing, mode: 'peck', t: Math.random() * 3, x: hx, z: hz, from: [hx, hz], to: [hx, hz], dur: 1.2, wait: 0 });
+    }
     // nền xa: đồi, mây
     props.hills(z, -19, [-16, -6, 5, 15]); props.hills(z, 19, [-14, 2, 16]);
     z.userData.clouds = [props.cloud(z, -12, 9, -14, 1.4), props.cloud(z, 8, 11, -16, 1.8), props.cloud(z, 18, 8.5, -12, 1.2)];
@@ -121,7 +166,18 @@ export function initPlaza(c) {
     update(dt, now) {
       kit.tick(now); const t = now / 1000, [px, pz] = c.getPetXZ();
       world.update(px, pz);
-      jets.forEach(j => { const ph = (t * 1.4 + j.userData.i / 8) % 1, a = j.userData.i * Math.PI / 4; j.position.set(Math.cos(a) * ph * 1.0, 2.2 + Math.sin(ph * Math.PI) * 0.8, Math.sin(a) * ph * 1.0); });
+      jetBoost = Math.max(0, jetBoost - dt * 0.28);
+      jets.forEach(j => { const ph = (t * (1.4 + jetBoost) + j.userData.i / 8) % 1, a = j.userData.i * Math.PI / 4, r = 1.0 + jetBoost * 0.9; j.position.set(Math.cos(a) * ph * r, 2.2 + Math.sin(ph * Math.PI) * (0.8 + jetBoost * 1.1), Math.sin(a) * ph * r); });
+      if (spot) { const on = performance.now() < spotUntil; spot.visible = on; if (on) spot.material.color.setHSL((t * 0.4) % 1, 0.7, 0.75); }
+      pigeons.forEach(b => { // chim: mổ thóc -> bay đi khi bé tới gần -> đáp xuống chỗ khác
+        if (b.mode === 'peck') {
+          b.head.position.y = 0.3 - Math.max(0, Math.sin(t * 6 + b.t * 7)) * 0.1; b.head.position.x = 0.12 + Math.max(0, Math.sin(t * 6 + b.t * 7)) * 0.06;
+          if (Math.hypot(b.g.position.x - px, b.g.position.z - pz) < 2.3) { b.mode = 'fly'; b.t = 0; b.from = [b.g.position.x, b.g.position.z]; const a = Math.atan2(b.g.position.z - pz, b.g.position.x - px) + (Math.random() - 0.5) * 1.2, dd = 5 + Math.random() * 3; b.to = [Math.max(-14, Math.min(14, b.from[0] + Math.cos(a) * dd)), Math.max(-5, Math.min(7, b.from[1] + Math.sin(a) * dd))]; if (Math.hypot(b.to[0], b.to[1] + 0.6) < 3.2) b.to[1] += 3; b.dur = 1.3 + Math.random() * 0.5; b.g.rotation.y = -Math.atan2(b.to[1] - b.from[1], b.to[0] - b.from[0]); }
+        } else if (b.mode === 'fly') {
+          b.t += dt; const k = Math.min(1, b.t / b.dur); b.g.position.set(lerp(b.from[0], b.to[0], k), Math.sin(k * Math.PI) * 1.6 + 0.0, lerp(b.from[1], b.to[1], k)); b.wing.rotation.z = Math.sin(t * 40) * 0.9; b.wing.scale.y = 0.35 + Math.abs(Math.sin(t * 40)) * 1.1;
+          if (k >= 1) { b.mode = 'wait'; b.wait = 1.5 + Math.random() * 2.5; b.wing.rotation.z = 0; b.wing.scale.y = 0.35; }
+        } else { b.wait -= dt; if (b.wait <= 0) b.mode = 'peck'; }
+      });
       if (waterMesh) waterMesh.material.map.offset.set(Math.sin(t * 0.3) * 0.04, t * 0.02);
       if (clockHands) { const d = new Date(); clockHands.m.rotation.z = -(d.getMinutes() + d.getSeconds() / 60) * Math.PI / 30; clockHands.h.rotation.z = -((d.getHours() % 12) + d.getMinutes() / 60) * Math.PI / 6; }
       const cl = (core || g.children[0]).userData.clouds; if (cl) cl.forEach((m, i) => { m.position.x += dt * (0.25 + i * 0.1); if (m.position.x > 26) m.position.x = -26; });

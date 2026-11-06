@@ -274,6 +274,7 @@ function goTo(name, instant) {
   const swap = () => {
     if (placeInst[area] && placeInst[area].leave) placeInst[area].leave();
     Object.entries(areas).forEach(([k, g]) => { g.visible = k === name; });
+    if (script) { const o = script; script = null; if (o.done) o.done(); o.resolve(false); }
     area = name; petBase.set(...PET_POS[name]); petOff.set(0, 0, 0); moveYaw = null; fetchBall = null; wander = null; action = null; cancelCtrl();
     if (name === 'garden') ball.position.set(2.0, 0.3, 1.4);
     particles.forEach(p => releaseSprite(p.s)); particles.length = 0; camIntro = reduce ? 0 : 1;
@@ -318,7 +319,7 @@ const placeOpen = {
 function loadPlace(name) {
   if (placeInst[name]) return Promise.resolve(placeInst[name]);
   return placeLoading[name] || (placeLoading[name] = PLACE_LOADERS[name]().then(init => {
-    const inst = init({ THREE, add, toon, canvasTex, shell, windowOn, scene, camera, canvas, ray, ndcFrom, walkPetTo, say, startAction, toast, sfx, spawn, hideHint, playToy: toyPlay, applyShadows, quality: () => quality, isNight: () => period === 'dem', getArea: () => area, state: S, open: placeOpen, goTo, setTemp, play: spinPlay, grad, events, petBuilder, bondLevel: () => bondLevel(S.bondXp), getPetXZ: () => [petBase.x + petOff.x, petBase.z + petOff.z] });
+    const inst = init({ THREE, add, toon, canvasTex, shell, windowOn, scene, camera, canvas, ray, ndcFrom, walkPetTo, say, startAction, toast, sfx, spawn, hideHint, playToy: toyPlay, script: runScript, spawnAt, sfxPlay: sfx, applyShadows, quality: () => quality, isNight: () => period === 'dem', getArea: () => area, state: S, open: placeOpen, goTo, setTemp, play: spinPlay, grad, events, petBuilder, bondLevel: () => bondLevel(S.bondXp), getPetXZ: () => [petBase.x + petOff.x, petBase.z + petOff.z] });
     inst.group.visible = false; areas[name] = inst.group; applyShadows(inst.group); placeInst[name] = inst; return inst;
   }));
 }
@@ -401,7 +402,7 @@ async function toyPlay(id) {
   if (r instanceof Error) { toast(viError(r)); return; }
   if (r.refused) { toast(TOY_REFUSAL_TEXT[r.refused]); return; }
   const g = toyGain(t, used); popText(`+${Math.round(g.vui * 10) / 10} Vui`);
-  setTemp('excited', 1400); spawn('note', 2); spawn('sparkle', 2); startAction(TOY_ACTS[id] || 'hop');
+  setTemp('excited', 1400); spawn('note', 2); spawn('sparkle', 2); if (!script) startAction(TOY_ACTS[id] || 'hop');
   setTimeout(() => say(TOY_LINES[id] || 'Vui quá đi!', 2400), 900);
   if (r.mult < 1) setTimeout(() => toast('Chơi mãi món này thì bé bớt hứng, thử món khác nhé.'), 1800);
   save(); renderStats();
@@ -551,6 +552,18 @@ function placeBubble() {
 
 /* ---------------- squash & stretch, hoạt cảnh ---------------- */
 let sq = 0, sqv = 0, anim = null, shake = 0, yaw = 0;
+/** Kịch bản thú: một nơi (xích đu, cầu trượt, sân khấu, ghế…) điều khiển vị trí/dáng thú trong `dur` giây.
+ *  def: { dur, noWalk?, update(u, t) → { pos?: [x, y, z] (toạ độ thế giới), face?, hop?, roll?, spin?, stretch? }, done?() }. Trả về Promise<boolean>.
+ *  Khi bé ngủ/đang chỉnh sửa/giảm chuyển động thì không chạy (Promise trả false); nơi gọi vẫn tự áp hiệu ứng của nó. */
+let script = null;
+function runScript(def) {
+  return new Promise(resolve => {
+    if (script) { const o = script; script = null; moveYaw = null; if (o.done) o.done(); o.resolve(false); }
+    if (S.asleep || editing || reduce) { resolve(false); return; }
+    cancelCtrl(); wander = null; action = null; hideHint();
+    script = { ...def, t: 0, resolve };
+  });
+}
 const pointerNdc = new THREE.Vector2(0, 0);
 function impulse(v) { sqv += v; }
 
@@ -677,7 +690,7 @@ const keys = new Set();
 let idleAt = performance.now() + 6000, wander = null, action = null, walking = false, walkPh = 0, chompAt = 0, puffAt = 0, earTwAt = performance.now() + 3000;
 const earKick = [0, 0], lastOff = new THREE.Vector3(), mouthW = new THREE.Vector3();
 const ACT_DUR = { yawn: 1.8, look: 2.4, dance: 2.0, hop: 1.0, stretch: 1.6, shake: 1.3, wave: 1.6 };
-function busy(now) { return growth.isEvolving() || editing || S.asleep || area !== 'home' || anim || fetchBall || override || (temp && now < temp.until) || (down && down.hit) || food.isDragging(); }
+function busy(now) { return growth.isEvolving() || editing || S.asleep || area !== 'home' || anim || script || fetchBall || override || (temp && now < temp.until) || (down && down.hit) || food.isDragging(); }
 function startAction(type) { action = { type, t: 0, fxAt: 0 }; }
 function idleThink(now) {
   if (now < idleAt) return;
@@ -771,10 +784,10 @@ function animStep(dt, t, now, key) {
   }
   avoidBlockers();
   const sp = Math.hypot(petOff.x - lastOff.x, petOff.z - lastOff.z) / Math.max(dt, 1e-3); lastOff.copy(petOff);
-  walking = sp > 0.25;
+  walking = sp > 0.25 && !(script && script.noWalk);
   if (walking) {
     walkPh += dt * (sp > 2 ? 18 : 12); o.hop += Math.abs(Math.sin(walkPh)) * 0.08; o.roll += Math.sin(walkPh) * 0.05;
-    if (walkable() && now > puffAt) { puffAt = now + 180; spawnAt('puff', petRoot.position.x, 0.15, petRoot.position.z + 0.3, { vy: 0.3, vx: (Math.random() - 0.5) * 0.4, scale: 0.35, max: 0.6 }); }
+    if (walkable() && !script && now > puffAt) { puffAt = now + 180; spawnAt('puff', petRoot.position.x, 0.15, petRoot.position.z + 0.3, { vy: 0.3, vx: (Math.random() - 0.5) * 0.4, scale: 0.35, max: 0.6 }); }
   }
   feet.forEach((f, i) => { const ph = walkPh + i * Math.PI; f.position.y = 0.1 + (walking ? Math.max(0, Math.sin(ph)) * 0.14 : 0); f.position.z = 0.38 + (walking ? Math.cos(ph) * 0.1 : 0); });
   if (action) {
@@ -1021,8 +1034,15 @@ function tick(now, dt) {
     if (p >= 1) anim = null;
   }
   const ex = animStep(dt, t, now, key); hop += ex.hop; roll += ex.roll; spinY += ex.yaw;
+  let scriptStretch = 0;
+  if (script) {
+    script.t += dt; const u = Math.min(1, script.t / script.dur), r = script.update(u, script.t) || {};
+    if (r.pos) { petOff.x = r.pos[0] - petBase.x; petOff.z = r.pos[2] - petBase.z; hop += r.pos[1] - petBase.y; }
+    hop += r.hop || 0; roll += r.roll || 0; spinY += r.spin || 0; scriptStretch = r.stretch || 0; moveYaw = r.face === undefined ? null : r.face;
+    if (u >= 1) { const s = script; script = null; moveYaw = null; if (s.done) s.done(); s.resolve(true); }
+  }
   if (growth.isEvolving()) { const g = growth.step(dt); spinY += g.spin; hop += g.hop; }
-  pivot.scale.y *= 1 + ex.stretch; pivot.scale.x *= 1 - ex.stretch * 0.4; pivot.scale.z *= 1 - ex.stretch * 0.4;
+  pivot.scale.y *= 1 + ex.stretch + scriptStretch; pivot.scale.x *= 1 - (ex.stretch + scriptStretch) * 0.4; pivot.scale.z *= 1 - (ex.stretch + scriptStretch) * 0.4;
   if (shake > 0) { shake = Math.max(0, shake - dt * 1.6); roll += Math.sin(t * 30) * 0.12 * shake; }
   if (!reduce && key === 'sleepy') roll += Math.sin(t * 1.4) * 0.06;
   if (!reduce && key === 'sick') roll += Math.sin(t * 22) * 0.012;
@@ -1070,6 +1090,7 @@ initCompanion({ say, startAction, spawn, sfx, goTo, openClinic: () => home && ho
 initFarewell();
 /* Chỉ ở ?dev: cho script kiểm tra biết thú đang ở đâu trên màn hình (thú đi lang thang nên không nằm cố định giữa màn hình) */
 if (DEV) window.__plotXY = i => gardenFx.screenOf(i);
+if (DEV) window.__petPos = () => [petRoot.position.x, petRoot.position.y, petRoot.position.z, !!script];
 if (DEV) window.__petXY = () => { const v = new THREE.Vector3(); petRoot.localToWorld(v.set(0, 0.9, 0)); v.project(camera); const r = canvas.getBoundingClientRect(); return { x: r.left + (v.x + 1) / 2 * r.width, y: r.top + (1 - v.y) / 2 * r.height }; };
 setTimeout(() => { say(greeting(S.personality, S.name), 3200); if (!S.asleep && S.personality.social > -30) startAction('wave'); }, 700);
 setTimeout(hideHint, 9000);

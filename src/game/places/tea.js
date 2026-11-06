@@ -12,6 +12,9 @@ export function initTea(c) {
   const wallTex = canvasTex(64, 64, d => { d.fillStyle = '#fff0d6'; d.fillRect(0, 0, 64, 64); d.fillStyle = '#f7ddb4'; d.fillRect(0, 0, 6, 64); }, [10, 3]);
   const panel = canvasTex(64, 64, d => { d.fillStyle = '#b98a5e'; d.fillRect(0, 0, 64, 64); d.strokeStyle = '#9a6f45'; d.lineWidth = 3; d.strokeRect(5, 5, 54, 54); }, [10, 1]);
   const W = 13, D = 10;
+  let steamBoost = 0, catAwake = 0;
+  const ease = u => u * u * (3 - 2 * u), lerp = (a, b, k) => a + (b - a) * k;
+  const arc = (a, b, k, h) => [lerp(a[0], b[0], k), lerp(a[1], b[1], k) + Math.sin(k * Math.PI) * h, lerp(a[2], b[2], k)];
   // sàn, tường sau, tường trái, ốp gỗ, xà ngang
   add(g, new THREE.BoxGeometry(W, 0.4, D), toon('#ffffff', plank), 0, -0.2, 0, '#9a5f4a', 0.04);
   add(g, new THREE.BoxGeometry(W, 8.0, 0.3), toon('#ffffff', wallTex), 0, 3.8, -D / 2 - 0.15, '#8a7a9a', 0.04);
@@ -47,7 +50,7 @@ export function initTea(c) {
   const menu = canvasTex(256, 192, d => { d.fillStyle = '#3a4a42'; d.fillRect(0, 0, 256, 192); d.strokeStyle = '#b98a5e'; d.lineWidth = 10; d.strokeRect(5, 5, 246, 182); d.fillStyle = '#fff'; d.font = '800 24px "Baloo 2", system-ui'; d.textAlign = 'center'; d.fillText('Thực đơn hôm nay', 128, 40);
     d.font = '600 18px "Baloo 2", system-ui'; d.textAlign = 'left'; ['Trà gừng mật ong', 'Trà hoa cúc', 'Trà đào cam sả', 'Bánh dorayaki', 'Bánh bông lan trứng'].forEach((t, i) => d.fillText('· ' + t, 28, 76 + i * 26)); });
   const mb = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 1.65), new THREE.MeshBasicMaterial({ map: menu })); mb.position.set(5.0, 2.7, -D / 2 + 0.03); g.add(mb);
-  kit.hotspot({ id: 'order', label: 'Gọi món', at: [-1.5, 2.6, -3.3], stand: [-1.5, -1.7], act: () => c.open.shop('food') }, counter);
+  kit.hotspot({ id: 'order', label: 'Gọi món', at: [-1.5, 2.6, -3.3], stand: [-1.5, -1.7], act: () => { steamBoost = 1; c.say('Ấm trà sôi rồi kìa, thơm ghê!', 1800); c.open.shop('food'); } }, counter);
   // quầy ghế cao
   [-3.2, -1.5, 0.2].forEach(x => { const s = new THREE.Group(); s.position.set(x, 0, -2.3); g.add(s); add(s, new THREE.CylinderGeometry(0.3, 0.3, 0.12, 14), toon(['#ff9ec4', '#9fd8ff', '#ffd36e'][Math.round((x + 3.2) / 1.7)]), 0, 0.85, 0, '#7a5a6a', 0.02); add(s, new THREE.CylinderGeometry(0.06, 0.1, 0.8, 8), toon('#8a6a4a'), 0, 0.4, 0, '#5a3a22', 0.015); });
 
@@ -60,10 +63,28 @@ export function initTea(c) {
     add(t, new THREE.CylinderGeometry(0.08, 0.14, 0.76, 10), toon('#b98a5e'), 0, 0.38, 0, '#6a4a3a', 0.02);
     add(t, new THREE.CylinderGeometry(0.09, 0.07, 0.1, 12), toon('#ffffff'), 0.15, 0.87, 0.05, '#aaa', 0.015); add(t, new THREE.SphereGeometry(0.07, 8, 6), toon(['#ff9ec4', '#ffd36e', '#c9a6ff', '#7edb72'][i]), -0.2, 0.9, -0.1, null);
     for (let k = 0; k < 4; k++) { const a = k * Math.PI / 2 + 0.4; chairs.push({ x: x + Math.cos(a) * 1.0, y: 0.42, z: z + Math.sin(a) * 1.0, color: ['#ff9ec4', '#9fd8ff', '#ffd36e', '#c9a6ff'][k] }); legs.push({ x: x + Math.cos(a) * 1.0, y: 0.2, z: z + Math.sin(a) * 1.0 }); }
-    kit.hotspot({ id: 'table' + i, label: `Bàn ${i + 1}`, at: [x, 1.8, z], stand: [x, z + 1.2], act: () => { c.say(['Trà thơm quá~', 'Ngồi đây thích ghê!', 'Mình nhâm nhi một chút nha.', 'Gió mát ghê!'][i], 2600); c.startAction('hop'); } }, t);
+    kit.hotspot({ id: 'table' + i, label: `Bàn ${i + 1}`, at: [x, 1.8, z], stand: [x, z + 1.2], act: () => sipTea(x, z, ['Trà thơm quá~', 'Ngồi đây thích ghê!', 'Mình nhâm nhi một chút nha.', 'Gió mát ghê!'][i]) }, t);
   });
 
   world.scatter(g, new THREE.CylinderGeometry(0.28, 0.28, 0.08, 14), world.toonC('#ffffff'), chairs, '#7a5a6a', 0.02); world.scatter(g, new THREE.CylinderGeometry(0.07, 0.07, 0.4, 6), world.toonC('#8a6a4a'), legs, null);
+  function sipTea(x, z, line) { // nhảy lên ghế cạnh bàn, nhấp trà vài ngụm (hơi nước bốc lên), rồi xuống
+    const [fx, fz] = c.getPetXZ(), seat = [x - 0.39, 0.5, z + 0.92], out = [x, 0, z + 1.5]; let nextSip = 1.2;
+    return c.script({ dur: 6.2, noWalk: true, update: (u, t) => {
+      if (u < 0.1) return { pos: arc([fx, 0, fz], seat, ease(u / 0.1), 0.45), stretch: Math.sin(u / 0.1 * Math.PI) * 0.1 };
+      if (u > 0.9) return { pos: arc(seat, out, ease((u - 0.9) / 0.1), 0.4) };
+      if (t > nextSip) { nextSip = t + 1.5; steamBoost = Math.max(steamBoost, 0.6); }
+      const sip = Math.max(0, Math.sin((t - 0.6) * 4.2)) ** 2; // cúi xuống nhấp một ngụm
+      return { pos: seat, stretch: -0.08 - sip * 0.06, roll: sip * 0.12 - 0.03, face: 0.25 };
+    }, done: () => { c.say(line, 2200); c.spawn('heart', 2); } });
+  }
+  function petTheCat() { // lại gần mèo, vuốt ve: mèo thức dậy, kêu rù rù, hiện tim
+    const [fx, fz] = c.getPetXZ(), spot = [-4.7, 0, 3.2]; catAwake = 1;
+    return c.script({ dur: 4.4, update: (u, t) => {
+      if (u < 0.2) return { pos: arc([fx, 0, fz], spot, ease(u / 0.2), 0.1), face: -Math.PI / 2 };
+      if (Math.random() < 0.06) c.spawnAt('heart', -5.5, 1.6, 3.3, { vy: 0.7, scale: 0.34, max: 1 });
+      return { pos: [spot[0] + Math.sin(t * 5) * 0.06, 0, spot[2]], stretch: Math.sin(t * 5) * 0.04, roll: Math.sin(t * 5) * 0.06, face: -Math.PI / 2 };
+    }, done: () => { c.say('Mèo mềm quá, rù rù~', 2200); } });
+  }
   // góc cửa sổ trái: ghế dài có gối, mèo ngủ
   const nook = new THREE.Group(); nook.position.set(-5.6, 0, 2.2); g.add(nook);
   add(nook, new THREE.BoxGeometry(1.0, 0.5, 3.4), toon('#c29a62'), 0, 0.25, 0, '#6a4a3a', 0.025); add(nook, new THREE.BoxGeometry(1.0, 0.16, 3.4), toon('#ffd9e6'), 0, 0.55, 0, '#c9789a', 0.02);
@@ -73,7 +94,7 @@ export function initTea(c) {
   add(cat, new THREE.SphereGeometry(0.22, 12, 10), toon('#ffcf9a'), 0, 0.12, 0.4, '#a8744a', 0.02);
   [-0.12, 0.12].forEach(x => add(cat, new THREE.ConeGeometry(0.07, 0.14, 4), toon('#ffcf9a'), x, 0.34, 0.4, '#a8744a', 0.015));
   const tail = add(cat, new THREE.CylinderGeometry(0.05, 0.04, 0.5, 8), toon('#ffb878'), 0, 0.05, -0.45, null); tail.rotation.x = Math.PI / 2;
-  kit.hotspot({ id: 'cat', label: 'Mèo ngủ', at: [-5.6, 2.2, 3.3], stand: [-4.2, 3.0], act: () => { c.say('Meo~ ngủ say rồi nè…', 2600); c.spawn('heart', 3, 0.8); c.setTemp('love', 1600); } }, cat);
+  kit.hotspot({ id: 'cat', label: 'Mèo ngủ', at: [-5.6, 2.2, 3.3], stand: [-4.2, 3.0], act: () => { c.setTemp('love', 1600); petTheCat(); } }, cat);
   // chậu cây treo, đèn thả, dây đèn, đồng hồ
   [[-5.8, -3.6], [5.6, -3.6], [5.8, 1.6]].forEach(([x, z], i) => { const p = new THREE.Group(); p.position.set(x, 3.4, z); g.add(p); add(p, new THREE.CylinderGeometry(0.01, 0.01, 1.0, 4), toon('#7a5a4a'), 0, 0.5, 0, null); add(p, new THREE.CylinderGeometry(0.26, 0.2, 0.3, 12), toon('#e8a07a'), 0, 0, 0, '#9a5f4a', 0.02); for (let k = 0; k < 5; k++) add(p, new THREE.SphereGeometry(0.2, 8, 6), toon('#7edb72'), Math.cos(k * 1.3) * 0.25, -0.2 - k * 0.12 - (i % 2) * 0.1, Math.sin(k * 1.3) * 0.2, '#3f8a55', 0.015); });
   const pend = [[-1.8, -0.2], [2.2, -0.9], [-2.6, 2.4], [2.6, 2.2]].map(([x, z]) => { const l = new THREE.Group(); l.position.set(x, 3.6, z); g.add(l); add(l, new THREE.CylinderGeometry(0.01, 0.01, 1.2, 4), toon('#7a5a4a'), 0, 0.6, 0, null); const b = add(l, new THREE.SphereGeometry(0.3, 14, 10), new THREE.MeshBasicMaterial({ color: '#ffe9a8' }), 0, 0, 0, '#c9a050', 0.02); b.scale.y = 0.85; return b; });
@@ -90,8 +111,10 @@ export function initTea(c) {
     leave() { kit.show(false); shared.leave(); },
     update(dt, now) {
       kit.tick(now); const t = now / 1000;
-      steam.forEach(m => { const ph = (t * 0.5 + m.userData.i / 4) % 1; m.position.set(-1.9 + Math.sin(ph * 6 + m.userData.i) * 0.08, 1.75 + ph * 0.9, -0.1); m.material.opacity = 0.5 * (1 - ph); m.scale.setScalar(0.7 + ph); });
-      cat.scale.y = 1 + Math.sin(t * 1.4) * 0.03; tail.rotation.z = Math.sin(t * 1.1) * 0.25;
+      steamBoost = Math.max(0, steamBoost - dt * 0.5); catAwake = Math.max(0, catAwake - dt * 0.25);
+      steam.forEach(m => { const ph = (t * (0.5 + steamBoost) + m.userData.i / 4) % 1; m.position.set(-1.9 + Math.sin(ph * 6 + m.userData.i) * 0.08, 1.75 + ph * (0.9 + steamBoost * 0.8), -0.1); m.material.opacity = (0.5 + steamBoost * 0.3) * (1 - ph); m.scale.setScalar((0.7 + ph) * (1 + steamBoost * 0.8)); });
+      kettle.rotation.z = steamBoost > 0.3 ? Math.sin(t * 40) * 0.07 * steamBoost : 0;
+      cat.scale.y = 1 + Math.sin(t * (1.4 + catAwake * 4)) * (0.03 + catAwake * 0.04); tail.rotation.z = Math.sin(t * (1.1 + catAwake * 5)) * (0.25 + catAwake * 0.3); cat.rotation.y = lerp(cat.rotation.y, catAwake > 0.2 ? 0.7 : 0, Math.min(1, dt * 3));
       hand.rotation.z = -t * 0.1; const glow = c.isNight && c.isNight() ? '#ffd36e' : '#ffe9a8'; pend.forEach((b, i) => { b.material.color.set(glow); b.position.y = Math.sin(t * 0.8 + i) * 0.015; });
       shared.update(dt, now);
     },
