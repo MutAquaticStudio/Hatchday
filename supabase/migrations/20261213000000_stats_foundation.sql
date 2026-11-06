@@ -283,4 +283,5 @@ revoke all on all functions in schema private from public, anon, authenticated;
 revoke all on function public.ping_session(text, boolean), public.set_attribution(text, text), public.mark_milestone(text) from public, anon;
 grant execute on function public.ping_session(text, boolean), public.set_attribution(text, text), public.mark_milestone(text) to authenticated;
 revoke all on function public.cron_tick() from public, anon, authenticated;
-grant execute on function public.cron_tick() to service_role;
+-- service_role có sẵn trên Supabase; bản test cũ không tạo vai trò này nên cấp quyền có điều kiện.
+do $$ begin if exists (select 1 from pg_roles where rolname = 'service_role') then grant execute on function public.cron_tick() to service_role; end if; end $$;
