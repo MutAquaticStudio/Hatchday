@@ -10,12 +10,13 @@
 //   bath     kỳ cọ / xả nước            play     ném bóng / xoay   sleep  đi ngủ        wake   thức dậy
 //   evolve   thú lớn sang giai đoạn mới  coin     nhận xu           buy    mua đồ        place  đặt đồ trong phòng
 //   ui       bấm nút thường (tự gắn cho các nút .pill, .tab, .qbtn)
+//   Thế giới: boing creak whee thud quack kick splash sit cheer flap sip purr kettle badge catch rain
 //
 // Nhạc nền: music('home'|'kitchen'|'bath'|'garden'|'bedroom'|'night'|'sleep'). Ban ngày, ban đêm và lúc ngủ có
 // nhịp, cao độ và độ sáng khác nhau. Nhạc tự sinh từ thang ngũ cung nên không lặp đúng một đoạn.
 // Muốn thay bằng file thật sau này: giữ nguyên sfx()/music(), chỉ đổi phần "giọng" bên dưới.
 
-/** @typedef {'pet'|'feed'|'talk'|'bath'|'play'|'sleep'|'wake'|'evolve'|'coin'|'buy'|'place'|'ui'} SfxName */
+/** @typedef {'pet'|'feed'|'talk'|'bath'|'play'|'sleep'|'wake'|'evolve'|'coin'|'buy'|'place'|'ui'|'boing'|'creak'|'whee'|'thud'|'quack'|'kick'|'splash'|'sit'|'cheer'|'flap'|'sip'|'purr'|'kettle'|'badge'|'catch'|'miss'|'rain'} SfxName */
 
 const KEY = 'hatchday-audio';
 const reduce = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -105,9 +106,27 @@ const VOICES = {
   buy: t => { VOICES.coin(t); tone(120, t, 0.18, { vol: 0.2, to: 70 }); },
   place: t => { tone(150, t, 0.16, { vol: 0.26, to: 70 }); noise(t, 0.05, { freq: 1800, vol: 0.08 }); },
   ui: t => { tone(hz(84), t, 0.05, { vol: 0.05, to: hz(86) }); },
+  // ---- thế giới (Công viên, Quảng trường, Tiệm trà) ----
+  boing: t => { tone(180, t, 0.22, { vol: 0.2, to: 420 }); tone(360, t + 0.02, 0.18, { type: 'triangle', vol: 0.07, to: 760 }); },
+  creak: t => { const f = jitter(310, 60); tone(f, t, 0.3, { type: 'sawtooth', vol: 0.035, to: f * 0.78, cutoff: 900 }); },
+  whee: t => { tone(900, t, 0.5, { type: 'triangle', vol: 0.09, to: 260 }); noise(t, 0.45, { freq: 1800, to: 600, q: 0.7, vol: 0.05 }); },
+  thud: t => { tone(110, t, 0.18, { vol: 0.3, to: 55 }); noise(t, 0.07, { freq: 500, vol: 0.09 }); },
+  quack: t => { [0, 0.16].forEach(d => { const f = jitter(480, 90); tone(f, t + d, 0.11, { type: 'sawtooth', vol: 0.06, to: f * 0.7, cutoff: 1500 }); }); },
+  kick: t => { tone(140, t, 0.13, { vol: 0.3, to: 60 }); noise(t, 0.05, { freq: 1200, vol: 0.12 }); },
+  splash: t => { noise(t, 0.28, { freq: 2200, to: 900, q: 0.8, vol: 0.12 }); for (let i = 0; i < 3; i++) { const f = jitter(700 + Math.random() * 600, 100); tone(f, t + 0.03 + i * 0.06, 0.07, { vol: 0.08, to: f * 1.8 }); } },
+  sit: t => { tone(190, t, 0.12, { vol: 0.14, to: 110 }); noise(t, 0.05, { freq: 700, vol: 0.05 }); },
+  cheer: t => { noise(t, 0.9, { freq: 2400, to: 3600, q: 0.6, vol: 0.05 }); [76, 81, 85, 88].forEach((m, i) => bell(m, t + 0.1 + i * 0.09, 0.7, 0.1)); },
+  flap: t => { for (let i = 0; i < 4; i++) noise(t + i * 0.05, 0.05, { freq: 3200, type: 'highpass', vol: 0.06 }); },
+  sip: t => { tone(300, t, 0.28, { vol: 0.06, to: 520, cutoff: 1400 }); noise(t + 0.02, 0.2, { freq: 1500, to: 2500, q: 2, vol: 0.03 }); },
+  purr: t => { for (let i = 0; i < 10; i++) tone(48 + (i % 2) * 4, t + i * 0.07, 0.09, { type: 'sawtooth', vol: 0.05, cutoff: 260 }); },
+  kettle: t => { noise(t, 0.6, { freq: 5200, type: 'highpass', vol: 0.035 }); tone(1500, t + 0.15, 0.4, { vol: 0.025, to: 1900 }); },
+  badge: t => { [72, 76, 79, 84, 91].forEach((m, i) => bell(m, t + i * 0.1, 0.8, 0.13)); },
+  catch: t => { const f = hz(84 + pick(PENTA)); tone(f, t, 0.12, { type: 'triangle', vol: 0.12, to: f * 1.5 }); },
+  miss: t => { tone(240, t, 0.18, { type: 'triangle', vol: 0.08, to: 150 }); },
+  rain: t => { noise(t, 1.0, { freq: 4200, q: 0.5, type: 'bandpass', vol: 0.02 }); },
 };
 // Một số tiếng bị gọi liên tục (vuốt ve, kỳ cọ): giãn khoảng cách tối thiểu cho đỡ rối.
-const GAP = { pet: 0.11, bath: 0.12, talk: 0.08, ui: 0.04 };
+const GAP = { pet: 0.11, bath: 0.12, talk: 0.08, ui: 0.04, creak: 0.4, boing: 0.25, splash: 0.2, quack: 0.3, flap: 0.3, catch: 0.06, rain: 0.8, purr: 0.5 };
 const lastAt = {};
 
 /** Phát một hiệu ứng âm thanh ngắn. @param {SfxName} name */

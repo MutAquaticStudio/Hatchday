@@ -62,3 +62,24 @@ describe('SimRoom: hai người cùng nơi', () => {
     await a.leave(); expect(a.peers()).toHaveLength(0);
   });
 });
+
+describe('act (việc bé đang làm)', () => {
+  it('parseMsg nhận act hợp lệ, bỏ act lạ hoặc thiếu pid', async () => {
+    const { parseMsg, isAct, actChar, ACTS } = await import('./protocol');
+    const pid = 'a0000000-0000-4000-8000-000000000001';
+    for (const a of ACTS) expect(parseMsg({ t: 'act', pid, id: a.id })).toEqual({ t: 'act', pid, id: a.id });
+    expect(parseMsg({ t: 'act', pid, id: 'hack' })).toBeNull(); expect(parseMsg({ t: 'act', id: 'swing' })).toBeNull(); expect(parseMsg({ t: 'act', pid: 'x', id: 'swing' })).toBeNull();
+    expect(isAct('bench')).toBe(true); expect(isAct(5)).toBe(false); expect(actChar('stage')).toBe('🎤'); expect(actChar('zz')).toBe('');
+  });
+  it('hai tab cùng nơi thấy act của nhau, bị giãn cách như emote', async () => {
+    const { SimRoom } = await import('./sim');
+    const look = { name: 'T', family: null, species: 'bong-lua', stage: 'adult', form: null, genes: {}, outfit: {}, bond_level: 5, x: 0, z: 0 };
+    const a = new SimRoom('park', look, 12, { bots: 0, pid: 'a0000000-0000-4000-8000-0000000000a1' }), b = new SimRoom('park', { ...look, name: 'U' }, 12, { bots: 0, pid: 'a0000000-0000-4000-8000-0000000000b2' });
+    await new Promise(r => setTimeout(r, 80));
+    const got: string[] = []; b.on('act', (_pid, id) => got.push(id));
+    a.sendAct('swing'); a.sendAct('slide'); // lần hai bị giãn cách
+    await new Promise(r => setTimeout(r, 80));
+    expect(got).toEqual(['swing']);
+    await a.leave(); await b.leave();
+  });
+});

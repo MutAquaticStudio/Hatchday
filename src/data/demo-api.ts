@@ -13,6 +13,7 @@ import { blendPersonality, HEIR_FAV_INHERIT, pickHeirSpecies } from '../game/lin
 import { BOND, bondLevel } from '../game/bond';
 import { boostedReward, discountedPrice, discountPct, eventBoost, goalEvents, isEpidemic, type ActiveEvent, type DiscountScope, type EventGoal, type GoalMetric } from '../game/events';
 import { AD, type AdState, type AdTicket } from '../game/ads';
+import { ACTIVITY_KINDS, BADGES, BADGE_BY_ID, EXPLORE_TIERS, MINI, MINI_KINDS, miniReward, TOY_KINDS, type ActivityResult, type MiniKind, type MiniResult, type WorldProgress } from '../game/world-activity';
 import { clinicPrice, healthStep, HEALTH, ILLNESS_BY_ID, isNightHour, isSevere, MEDICINE_BY_ID, type HealthCtx } from '../game/health';
 import { formFromCare, pickSpecies, SPECIES_BY_ID, stageForAge, REGIONS, GROW_MEMORY } from '../game/species';
 
@@ -36,6 +37,8 @@ interface DB {
   sold?: Record<string, number>;
   /** Quảng cáo thưởng hôm nay (mô phỏng ad_rewards/ad_nonces). */
   ads?: { day: string; count: number; last: number; nonce?: string; at?: number };
+  /** Hoạt động thế giới (mô phỏng world_activity, world_totals, badge_claims, explore_claims, minigame_logs). */
+  world?: { day: string; kinds: Record<string, number>; totals: Record<string, number>; badges: string[]; explore: string[]; exploreDays: number; mini: Record<string, { plays: number; best: number; last: number }> };
   parcels?: number[]; farm?: FarmItem[]; fridge?: number; spoilDay?: string; garden?: Record<string, { crop: string; planted_at: string; waters?: number; watered_at?: string }>;
 }
 
@@ -557,11 +560,59 @@ export async function playToy(id: string): Promise<ToyResult> {
     mult = used >= 2 ? 0.5 : 1; const g = toyGain(t, used);
     ts.used[id] = used + 1; p.vui = clamp(p.vui + g.vui); p.nl = clamp(p.nl + g.nl); p.no = clamp(p.no + g.no);
     db.plays = [...(db.plays || []).filter(x => Date.now() - x < 2 * 3600000), Date.now()];
-    p.bond_xp += 1; p.personality = applyDriftBy(normalize(p.personality), t.drift); tick(db, 'play');
+    p.bond_xp += 1; p.personality = applyDriftBy(normalize(p.personality), t.drift); tick(db, 'play'); worldToy(db, id);
     earned = earn(db, COIN.careReward, true); newMem = first(db, 'toy-' + id, 'play', t.memory); goalAdd(db, 'play');
   }
   store(db);
   return { pet: { ...p }, refused, earned, coins: db.coins, new_memory: newMem, mult, left: Math.max(0, t.cap - used - (refused ? 0 : 1)), toy: id };
+}
+
+/* ---------- Hoạt động thế giới: Khám phá hôm nay, huy hiệu, mini-game (mô phỏng record_activity… ) ---------- */
+const worldOf = (db: DB) => { const d = localDay(); if (!db.world) db.world = { day: d, kinds: {}, totals: {}, badges: [], explore: [], exploreDays: 0, mini: {} }; if (db.world.day !== d) { db.world.day = d; db.world.kinds = {}; db.world.explore = []; db.world.mini = {}; } return db.world; };
+const worldTotal = (w: NonNullable<DB['world']>, k: string) => (k === 'explore' ? w.exploreDays : w.totals[k] || 0);
+const crossed = (w: NonNullable<DB['world']>, k: string, before: number) => BADGES.filter(b => b.kind === k && before < b.target && worldTotal(w, k) >= b.target).map(b => b.id);
+/** Đồ chơi chơi hôm nay cũng tính vào Khám phá và huy hiệu (giống toy_logs ở máy chủ). */
+function worldToy(db: DB, id: string) { const w = worldOf(db); w.kinds[id] = (w.kinds[id] || 0) + 1; if ((TOY_KINDS as readonly string[]).includes(id)) w.totals[id] = (w.totals[id] || 0) + 1; }
+export async function getWorldProgress(): Promise<WorldProgress> {
+  const db = load(), w = worldOf(db), kinds = Object.keys(w.kinds).filter(k => w.kinds[k] > 0).sort(), n = kinds.length, lim = MINI.plays;
+  return {
+    day: w.day, kinds,
+    explore: EXPLORE_TIERS.map((t, i) => ({ tier: i, need: t.need, reward: t.reward, claimed: w.explore.includes(String(i)), ready: n >= t.need })),
+    badges: BADGES.map(b => ({ id: b.id, progress: Math.min(worldTotal(w, b.kind), b.target), target: b.target, reward: b.reward, claimed: w.badges.includes(b.id) })),
+    mini: Object.fromEntries(MINI_KINDS.map(k => { const m = w.mini[k]; return [k, { plays: m?.plays || 0, left: Math.max(0, lim - (m?.plays || 0)), best: m?.best || 0 }]; })) as WorldProgress['mini'],
+  };
+}
+export async function recordActivity(kind: string): Promise<ActivityResult> {
+  if (!(ACTIVITY_KINDS as readonly string[]).includes(kind)) throw new Error('unknown_activity');
+  const db = load(); if (!db.pet) throw new Error('no_pet');
+  const w = worldOf(db); let counted = false, newly: string[] = [];
+  if ((w.kinds[kind] || 0) < 30) { const b = worldTotal(w, kind); w.kinds[kind] = (w.kinds[kind] || 0) + 1; w.totals[kind] = b + 1; counted = true; newly = crossed(w, kind, b); }
+  store(db); return { kinds: Object.keys(w.kinds).sort(), counted, newly };
+}
+export async function claimExplore(tier: number): Promise<{ coins: number; reward: number; newly: string[] }> {
+  if (tier !== 0 && tier !== 1) throw new Error('invalid_tier');
+  const db = load(), w = worldOf(db), t = EXPLORE_TIERS[tier]; if (Object.keys(w.kinds).length < t.need) throw new Error('quest_not_done');
+  if (w.explore.includes(String(tier))) throw new Error('already_claimed');
+  const b = worldTotal(w, 'explore'); w.explore.push(String(tier)); if (tier === 0) w.exploreDays++;
+  earn(db, t.reward, false); store(db); return { coins: db.coins, reward: t.reward, newly: tier === 0 ? crossed(w, 'explore', b) : [] };
+}
+export async function claimBadge(id: string): Promise<{ coins: number; reward: number }> {
+  const b = BADGE_BY_ID[id]; if (!b) throw new Error('unknown_badge');
+  const db = load(), w = worldOf(db); if (worldTotal(w, b.kind) < b.target) throw new Error('quest_not_done'); if (w.badges.includes(id)) throw new Error('already_claimed');
+  w.badges.push(id); earn(db, b.reward, false); store(db); return { coins: db.coins, reward: b.reward };
+}
+export async function submitMinigame(kind: string, score: number): Promise<MiniResult> {
+  if (!(MINI_KINDS as readonly string[]).includes(kind)) throw new Error('unknown_activity');
+  const k = kind as MiniKind, cfg = MINI[k]; if (!Number.isInteger(score) || score < 0 || score > cfg.max) throw new Error('invalid_score');
+  const db = load(); if (!db.pet) throw new Error('no_pet');
+  const w = worldOf(db), m = (w.mini[k] ||= { plays: 0, best: 0, last: 0 });
+  if (m.last && Date.now() - m.last < (devAds() ? 0 : 20000)) throw new Error('rate_limited');
+  const rewarded = m.plays < MINI.plays, reward = rewarded ? miniReward(k, score) : 0;
+  m.plays++; m.best = Math.max(m.best, score); m.last = Date.now(); w.kinds[k] = (w.kinds[k] || 0) + 1;
+  if (reward) earn(db, reward, false);
+  const add = k === 'butterfly' ? score : score === 5 ? 1 : 0, b = worldTotal(w, k); let newly: string[] = [];
+  if (add) { w.totals[k] = b + add; newly = crossed(w, k, b); }
+  store(db); return { reward, rewarded, coins: db.coins, plays: m.plays, left: Math.max(0, MINI.plays - m.plays), best: m.best, newly };
 }
 
 /* ---------- Mục tiêu cộng đồng (mô phỏng): người khác góp sẵn khoảng 40% mục tiêu ---------- */

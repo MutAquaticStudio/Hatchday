@@ -23,6 +23,7 @@ const until = async (p, fn, ms = 10000, arg) => { const t = Date.now(); while (D
   const goTo = async place => { await p.click('#scene-tag'); await p.waitForSelector('#map:not([hidden])'); await p.click(`#map [data-pin="${place}"]`); await p.click(`#map [data-go-place="${place}"]`); await until(p, () => document.querySelector('#map')?.hidden !== false, 8000); await p.waitForTimeout(2500); };
   /** Bấm điểm chạm (bằng DOM, vì nhãn ở xa có thể bị ẩn), theo dõi thú đến hết kịch bản; trả về { maxY, minZ, maxZ, ran, endY }. */
   const interact = async (hot, ms = 14000) => {
+    await until(p, h => !!document.querySelector(`.hot[data-hot="${h}"]`), 10000, hot); // khu ngoài dựng dần nên đồ chơi có thể chưa sẵn sàng
     await p.evaluate(h => document.querySelector(`.hot[data-hot="${h}"]`).click(), hot);
     const r = { maxY: 0, ran: false, minX: 1e9, maxX: -1e9, minZ: 1e9, maxZ: -1e9, endY: 0 }; const t0 = Date.now(); let done = 0;
     while (Date.now() - t0 < ms) {
@@ -52,6 +53,19 @@ const until = async (p, fn, ms = 10000, arg) => { const t = Date.now(); while (D
   r = await interact('table0'); ok('bàn trà: bé nhảy lên ghế (cao ≈ 0,5), nhấp trà rồi xuống', r.ran && r.maxY > 0.4 && r.endY < 0.15, JSON.stringify({ maxY: +r.maxY.toFixed(2) })); await calm();
   r = await interact('cat'); ok('mèo ngủ: bé lại gần vuốt ve (kịch bản chạy xong)', r.ran && r.endY < 0.15);
   r = await interact('order', 3000); ok('quầy gọi món mở cửa hàng, không đổ kịch bản', !r.ran || r.endY < 0.15);
+  // Hoạt động đã được ghi vào "Khám phá hôm nay" và hiện trong sheet Nhiệm vụ, không tràn ngang
+  const w = await p.evaluate(() => JSON.parse(localStorage.getItem('hatchday-demo')).world);
+  ok('Khám phá hôm nay: đồ chơi và hoạt động đã hoàn tất được ghi lại', ['swing', 'seesaw', 'slide', 'ducks', 'fountain', 'bench', 'stage', 'tea', 'cat'].every(k => (w?.kinds?.[k] || 0) > 0), JSON.stringify(w?.kinds));
+  await p.evaluate(() => document.querySelector('#a-house').click()); await p.waitForSelector('[data-go="quests"]'); await p.evaluate(() => document.querySelector('[data-go="quests"]').click()); await p.waitForSelector('#quests [data-quest-tab]');
+  const tab = async k => { await p.evaluate(k => document.querySelector(`#quests [data-quest-tab="${k}"]`).click(), k); await p.waitForTimeout(150); };
+  const probe = () => p.evaluate(() => { const e = document.querySelector('#quests'), b = [...document.querySelectorAll('#quests .btn-sm:not(:disabled)')].map(x => x.getBoundingClientRect().height); return { over: e.scrollWidth - e.clientWidth, explore: !!e.querySelector('.explore'), badges: e.querySelectorAll('.badge').length, minBtn: Math.min(...b, 99) }; });
+  await tab('explore'); let q = await probe(); ok('sheet Nhiệm vụ > Khám phá: hiện đủ, không tràn ngang', q.explore && q.over <= 0, JSON.stringify(q));
+  await tab('badges'); q = await probe(); ok('sheet Nhiệm vụ > Huy hiệu: 12 huy hiệu, không tràn ngang, nút đủ cao', q.badges === 12 && q.over <= 0 && q.minBtn >= 28, JSON.stringify(q));
+  // Thời tiết: mưa chỉ rơi ngoài trời, quang đãng thì không có mưa
+  const wxAt = async (url, place) => { await p.goto(url); await start(); if (place) await goTo(place); await p.waitForTimeout(800); return p.evaluate(() => window.__wx()); };
+  let wx = await wxAt(`http://localhost:${PORT}/?dev&weather=rain`, 'park'); ok('thời tiết: ?weather=rain thì Công viên có mưa rơi', wx.sky === 'rain' && wx.rain === true, JSON.stringify(wx));
+  wx = await wxAt(`http://localhost:${PORT}/?dev&weather=rain`, null); ok('thời tiết: trong nhà không có mưa dù trời mưa', wx.sky === 'rain' && wx.rain === false, JSON.stringify(wx));
+  wx = await wxAt(`http://localhost:${PORT}/?dev&weather=clear`, 'park'); ok('thời tiết: trời quang thì không có mưa', wx.sky === 'clear' && wx.rain === false, JSON.stringify(wx));
   ok('không có lỗi console/trang', errs.length === 0, errs.slice(0, 3).join(' | '));
   await b.close(); srv.close();
   console.log(out.join('\n')); process.exit(out.some(l => l.startsWith('FAIL')) ? 1 : 0);

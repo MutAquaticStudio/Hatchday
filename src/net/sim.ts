@@ -2,7 +2,7 @@
  * Bản mô phỏng của nơi chung: nhiều tab cùng nơi thấy nhau (BroadcastChannel) và vài bạn ảo đi lại, thỉnh thoảng làm emote.
  * Dùng ở chế độ Chơi thử và trong test. `?bots=N` trên URL đổi số bạn ảo (mặc định 3, 0 để tắt).
  */
-import { EMOTES, PROTO, makeLimiter, parseMsg, type EmoteId, type Peer, type PeerLook } from './protocol';
+import { EMOTES, PROTO, makeLimiter, parseMsg, type ActId, type EmoteId, type Peer, type PeerLook } from './protocol';
 import { CHAT, filterChat, CHAT_REASON_TEXT } from './moderation';
 import type { ChatMsg, ChatReply } from '../game/social';
 import { Emitter, throttles, type Room, type Transport } from './transport';
@@ -13,6 +13,8 @@ const BOT_LOOKS: (PeerLook & { pid: string })[] = [
   { pid: 'b0000000-0000-4000-8000-000000000003', name: 'Mây Xanh', family: 'Nhà Mây', species: 'bong-may', stage: 'child', form: null, genes: { hue: -0.2, ear: 0, scale: 1, region: 2 }, outfit: {}, bond_level: 2 },
 ];
 const BOT_LINES = ['Chào cả nhà!', 'Hôm nay bé nhà mình vui lắm', 'Ai muốn kết bạn không?', 'Bé của mình thích ăn cà rốt', 'Trời đẹp quá ha', 'Mình mới lên cấp Gắn bó nè', 'Cho vịt ăn thử đi mọi người', 'Hihi 😊', 'Quán trà thơm lắm đó'];
+/** Bạn ảo làm gì ở từng nơi (cho Chơi thử). */
+const ACTS_BY_PLACE: Record<string, ActId[]> = { plaza: ['bench', 'fountain', 'stage'], park: ['swing', 'seesaw', 'slide', 'ducks', 'ball'], tea: ['tea', 'cat'] };
 const rnd = (a: number, b: number) => a + Math.random() * (b - a);
 const sessionPid = (): string => {
   const mk = () => 'a' + crypto.randomUUID().slice(1);
@@ -63,7 +65,7 @@ export class SimRoom extends Emitter implements Room {
     const msg = parseMsg(m); if (!msg || msg.pid === this.pid) return;
     const peer = this.map.get(msg.pid); if (!peer || !this.limit(msg.pid)) return;
     peer.seen = Date.now();
-    if (msg.t === 'intent') { peer.x = msg.x; peer.z = msg.z; this.emit('intent', msg.pid, msg.x, msg.z); } else this.emit('emote', msg.pid, msg.id);
+    if (msg.t === 'intent') { peer.x = msg.x; peer.z = msg.z; this.emit('intent', msg.pid, msg.x, msg.z); } else if (msg.t === 'act') this.emit('act', msg.pid, msg.id); else this.emit('emote', msg.pid, msg.id);
   }
   private strip(pid: string): Peer { const { seen: _s, bot: _b, ...p } = this.map.get(pid)!; return p; }
   private drop(pid: string) { if (this.map.delete(pid)) this.emit('leave', pid); }
@@ -73,11 +75,12 @@ export class SimRoom extends Emitter implements Room {
     if (this.closed || this.map.has(look.pid) || this.map.size + 1 >= this.cap) return;
     const A = this.area; this.map.set(look.pid, { ...look, x: rnd(A.x[0] * 0.8, A.x[1] * 0.8), z: rnd(A.z[0], A.z[1]), seen: Date.now(), bot: true });
     this.emit('join', this.strip(look.pid));
-    let nextEmote = Date.now() + rnd(8000, 30000), nextChat = Date.now() + rnd(10000, 30000);
+    let nextAct = Date.now() + rnd(6000, 20000), nextEmote = Date.now() + rnd(8000, 30000), nextChat = Date.now() + rnd(10000, 30000);
     this.timers.push(setInterval(() => {
       const b = this.map.get(look.pid); if (!b || this.closed) return;
       if (Math.random() < 0.6) { b.x = rnd(this.area.x[0], this.area.x[1]); b.z = rnd(this.area.z[0], this.area.z[1]); this.emit('intent', look.pid, b.x, b.z); }
       if (Date.now() > nextEmote) { nextEmote = Date.now() + rnd(20000, 60000); this.emit('emote', look.pid, EMOTES[Math.floor(Math.random() * EMOTES.length)].id); }
+      if (Date.now() > nextAct) { nextAct = Date.now() + rnd(15000, 45000); const pool = ACTS_BY_PLACE[this.topic.split(':')[0]]; if (pool) this.emit('act', look.pid, pool[Math.floor(Math.random() * pool.length)]); }
       if (Date.now() > nextChat) { nextChat = Date.now() + rnd(25000, 70000); this.emit('chat', { id: Date.now(), pid: look.pid, name: look.name, text: BOT_LINES[Math.floor(Math.random() * BOT_LINES.length)] }); }
     }, every));
   }
@@ -87,6 +90,7 @@ export class SimRoom extends Emitter implements Room {
 
   sendIntent(x: number, z: number) { this.me.x = x; this.me.z = z; if (this.th.intent()) this.post({ t: 'intent', pid: this.pid, x, z } as Wire); }
   sendEmote(id: EmoteId) { if (this.th.emote()) this.post({ t: 'emote', pid: this.pid, id } as Wire); }
+  sendAct(id: ActId) { if (this.th.act()) this.post({ t: 'act', pid: this.pid, id } as Wire); }
   async leave() {
     if (this.closed) return; this.closed = true;
     this.post({ t: 'bye', pid: this.pid }); this.chan?.close(); if (rooms.get(this.topic) === this) rooms.delete(this.topic);

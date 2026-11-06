@@ -2,6 +2,7 @@
 import { SELL, sellPrice, BY_ID, DEFAULT_LAYOUT, FOOD_BY_ID, FOOD_GROUPS, FOOD_STOCK, FOODS, FRIDGE, GRID, ITEMS, PAID_SHOP_ENABLED, PET_ZONE, RARITY, RECIPES, SET_LINES, SLOTS, TAGS, THEMES, WINDOW_CELLS } from './catalog';
 import { BALANCED_BONUS, BALANCED_GROUPS, tastesLine } from './nutrition';
 import { FOOD_SVG } from './food.js';
+import { ACTIVITY_LABEL, BADGES, BADGE_BY_ID, EXPLORE_TIERS } from './world-activity';
 import { activeSets, buyable, canPlace, cellsOf, comfortLevel, comfortScore, footprint, placedCount, QUEST_BONUS, QUEST_POOL, WEEKLY_POOL } from './layout';
 import { makeDecor } from './decor3d.js';
 import { disposePet } from './pet3d.js';
@@ -121,7 +122,8 @@ export function initHome(ctx) {
   app.addEventListener('click', e => { if (e.target.closest('[data-close]')) { closeAll(); $('a-house').focus(); } });
 
   /* ---------- Menu Nhà ---------- */
-  const questReady = () => S.quests.some(q => !q.claimed && q.progress >= q.target) || (S.questBonus.ready && !S.questBonus.claimed) || S.weekly.some(q => !q.claimed && q.progress >= q.target);
+  const worldReady = () => !!S.world && (S.world.explore.some(t => t.ready && !t.claimed) || S.world.badges.some(b => !b.claimed && b.progress >= b.target));
+  const questReady = () => S.quests.some(q => !q.claimed && q.progress >= q.target) || (S.questBonus.ready && !S.questBonus.claimed) || S.weekly.some(q => !q.claimed && q.progress >= q.target) || worldReady();
   function openHouse() {
     const el = open('house');
     el.innerHTML = head('Nhà của bé', `Thoải mái cấp ${S.comfort} · ${S.coins.toLocaleString('vi-VN')} xu`) + `<div class="tiles">
@@ -457,17 +459,24 @@ export function initHome(ctx) {
   });
 
   /* ---------- Nhiệm vụ ---------- */
-  function openQuests() { open('quests'); renderQuests(); store.refreshQuests().then(() => { if (!$('quests').hidden) renderQuests(); }); }
+  function openQuests() { open('quests'); renderQuests(); store.refreshQuests().then(() => { if (!$('quests').hidden) renderQuests(); }); store.refreshWorld().then(() => { if (!$('quests').hidden) renderQuests(); }).catch(() => {}); }
   const questRow = (q, def, attr) => {
     const done = q.progress >= q.target;
     return `<li><div><b>${def.label}</b><div class="bar-track"><i style="width:${Math.min(100, q.progress / q.target * 100)}%"></i></div><span>${Math.min(q.progress, q.target)}/${q.target}</span></div>
       ${q.claimed ? '<span class="pill-ok">Đã nhận</span>' : `<button type="button" class="btn-sm" ${attr}="${q.idx}" ${done ? '' : 'disabled'}>${COIN_SVG}+${q.reward}</button>`}</li>`;
   };
   function weekDaysLeft() { const [y, m, d] = store.today().split('-').map(Number), dow = new Date(y, m - 1, d).getDay(); return 7 - ((dow + 6) % 7); }
+  let questTab = 'daily';
+  const exploreReady = () => !!S.world && S.world.explore.some(t => t.ready && !t.claimed), badgeReady = () => !!S.world && S.world.badges.some(b => !b.claimed && b.progress >= b.target);
   function renderQuests(el = $('quests')) {
     const b = S.questBonus, n = S.quests.filter(q => q.claimed).length, left = weekDaysLeft();
     const boost = ctx.events ? ctx.events.boost() : 1;
-    el.innerHTML = head('Nhiệm vụ', `${COIN_SVG}<b class="coin-inline">${S.coins.toLocaleString('vi-VN')}</b> xu · chăm sóc hằng ngày cho thêm tối đa 50 xu`) + `<div class="hs-body">${boost > 1 ? `<p class="hs-note">🎉 Sự kiện: thưởng nhiệm vụ nhân ${String(boost).replace('.', ',')} lần!</p>` : ''}
+    const dotDaily = S.quests.some(q => !q.claimed && q.progress >= q.target) || (b.ready && !b.claimed) || S.weekly.some(q => !q.claimed && q.progress >= q.target);
+    const tabs = [['daily', 'Nhiệm vụ', dotDaily], ['explore', 'Khám phá', exploreReady()], ['badges', 'Huy hiệu', badgeReady()]];
+    const nav = `<nav class="tabs-row" role="tablist">${tabs.map(([k, l, dot]) => `<button type="button" role="tab" class="tab${dot ? ' dot' : ''}" data-quest-tab="${k}" aria-selected="${k === questTab}">${l}</button>`).join('')}</nav>`;
+    const sub = questTab === 'explore' ? 'chơi nhiều hoạt động khác nhau để nhận xu' : questTab === 'badges' ? 'sưu tầm huy hiệu bằng cách chơi cùng bé' : 'chăm sóc hằng ngày cho thêm tối đa 50 xu';
+    if (questTab !== 'daily') { el.innerHTML = head('Nhiệm vụ', `${COIN_SVG}<b class="coin-inline">${S.coins.toLocaleString('vi-VN')}</b> xu · ${sub}`) + nav + `<div class="hs-body">${questTab === 'explore' ? exploreHtml() : badgesHtml()}</div>`; return; }
+    el.innerHTML = head('Nhiệm vụ', `${COIN_SVG}<b class="coin-inline">${S.coins.toLocaleString('vi-VN')}</b> xu · ${sub}`) + nav + `<div class="hs-body">${boost > 1 ? `<p class="hs-note">🎉 Sự kiện: thưởng nhiệm vụ nhân ${String(boost).replace('.', ',')} lần!</p>` : ''}
       <h3 class="qh">Hôm nay <small>${n}/${S.quests.length} đã nhận</small></h3>
       <ul class="quests">${S.quests.map(q => questRow(q, QUEST_POOL[q.quest], 'data-quest')).join('')}</ul>
       <div class="quest-bonus${b.ready && !b.claimed ? ' ready' : ''}"><div><b>Thưởng cả ngày</b><span>Nhận đủ ${S.quests.length} nhiệm vụ hôm nay</span></div>
@@ -476,7 +485,35 @@ export function initHome(ctx) {
       <ul class="quests">${S.weekly.map(q => questRow(q, WEEKLY_POOL[q.quest], 'data-weekly')).join('')}</ul>
       <p class="hs-note">Nhiệm vụ ngày đổi mới mỗi ngày, nhiệm vụ tuần đổi vào thứ Hai. Làm nhiều thì thưởng nhiều.</p></div>`;
   }
+  /** "Khám phá hôm nay": chơi nhiều hoạt động khác nhau trong thế giới (đồ chơi, ghế đá, sân khấu, trà, mèo, mini-game). */
+  function exploreHtml() {
+    const w = S.world; if (!w) return '';
+    const n = w.kinds.length, top = EXPLORE_TIERS[EXPLORE_TIERS.length - 1].need;
+    return `<h3 class="qh">Khám phá hôm nay <small>${Math.min(n, top)}/${top} hoạt động khác nhau</small></h3>
+      <div class="explore"><div class="bar-track"><i style="width:${Math.min(100, n / top * 100)}%"></i></div>
+        <p class="ex-kinds">${w.kinds.length ? w.kinds.map(k => `<span>${ACTIVITY_LABEL[k] || k}</span>`).join('') : '<em>Chưa có hoạt động nào. Ra Công viên, Quảng trường hoặc Tiệm trà chơi cùng bé nhé!</em>'}</p>
+        <ul class="quests">${w.explore.map(t => `<li><div><b>Chơi ${t.need} hoạt động khác nhau</b><span class="ex-n">${Math.min(n, t.need)}/${t.need}</span></div>
+          ${t.claimed ? '<span class="pill-ok">Đã nhận</span>' : `<button type="button" class="btn-sm" data-explore="${t.tier}" ${t.ready ? '' : 'disabled'}>${COIN_SVG}+${t.reward}</button>`}</li>`).join('')}</ul></div>`;
+  }
+  /** Sổ huy hiệu: tiến độ lấy từ máy chủ; đủ thì bấm nhận xu một lần. */
+  function badgesHtml() {
+    const w = S.world; if (!w) return '';
+    const got = w.badges.filter(b => b.claimed).length;
+    return `<h3 class="qh">Huy hiệu <small>${got}/${w.badges.length} đã nhận</small></h3>
+      <ul class="badges">${w.badges.map(b => { const d = BADGE_BY_ID[b.id], done = b.progress >= b.target || b.claimed, prog = b.claimed ? b.target : b.progress;
+        return `<li class="badge${b.claimed ? ' got' : done ? ' ready' : ''}"><span class="b-ico" aria-hidden="true">${d.icon}</span><b>${d.name}</b><span class="b-desc">${d.desc}</span>
+          <div class="bar-track"><i style="width:${Math.min(100, prog / b.target * 100)}%"></i></div><span class="b-num">${prog}/${b.target}</span>
+          ${b.claimed ? '<span class="pill-ok">Đã nhận</span>' : `<button type="button" class="btn-sm" data-badge="${b.id}" ${done ? '' : 'disabled'}>${COIN_SVG}+${b.reward}</button>`}</li>`; }).join('')}</ul>`;
+  }
   app.addEventListener('click', async e => {
+    const qt = e.target.closest('[data-quest-tab]'); if (qt) { questTab = qt.dataset.questTab; renderQuests(); return; }
+    const wb = e.target.closest('[data-explore], [data-badge]');
+    if (wb) {
+      wb.disabled = true;
+      const res = 'explore' in wb.dataset ? await store.claimExplore(+wb.dataset.explore) : await store.claimBadge(wb.dataset.badge);
+      if ('error' in res) ctx.toast(viError(res.error)); else { sfx('coin'); ctx.popText(`+${res.reward} xu`, '#a8742e'); ctx.buzz(12); ctx.spawn('sparkle', 3); }
+      renderQuests(); return;
+    }
     const b = e.target.closest('[data-quest], [data-quest-bonus], [data-weekly]'); if (!b) return;
     b.disabled = true;
     const res = 'quest' in b.dataset ? await store.claimQuest(+b.dataset.quest) : 'weekly' in b.dataset ? await store.claimWeeklyQuest(+b.dataset.weekly) : await store.claimQuestBonus();

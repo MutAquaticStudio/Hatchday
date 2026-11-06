@@ -1,7 +1,7 @@
 // Bộ dùng chung cho nơi chung (Quảng trường, Tiệm trà, Công viên): vào/rời kênh, thú của người khác, nhãn tên, emote, thẻ hồ sơ.
 // Truyền tin ở src/net (SimTransport khi Chơi thử). Chat gõ chữ không ở đây (đợt chat riêng).
 import { createTransport } from '../../net/transport';
-import { EMOTES, emoteChar } from '../../net/protocol';
+import { EMOTES, actChar, emoteChar } from '../../net/protocol';
 import { CHAT_REASON_TEXT, filterChat } from '../../net/moderation';
 import * as api from '../../data/api';
 import { viError } from '../../lib/errors';
@@ -67,6 +67,11 @@ export function makeShared(c, { placeId, group }) {
     if (!a.parts) { const m = new THREE.Mesh(new THREE.SphereGeometry(0.5, 14, 10), c.toon('#ffc9a8')); m.position.y = 0.5; g.add(m); }
     g.scale.setScalar(a.k); a.body = g; a.root.add(g);
   }
+  /** Người khác vừa làm xong một tương tác: biểu tượng nổi trên đầu bé một lúc và bé nhún nhảy. */
+  function showAct(pid, id) {
+    const a = actors.get(pid); if (!a) return;
+    a.el.querySelector('.actor-emote').textContent = actChar(id); a.emoteUntil = performance.now() + 4200; a.el.classList.add('has-emote'); a.hop = performance.now();
+  }
   function removeActor(pid) {
     const a = actors.get(pid); if (!a) return;
     a.el.remove(); if (a.body) disposePet(a.body); group.remove(a.root); actors.delete(pid); updateCount();
@@ -128,7 +133,7 @@ export function makeShared(c, { placeId, group }) {
   }
 
   const inst = {
-    emote, onCard, sendChat, reportLine, pagehide: () => { if (room) room.leave(); },
+    emote, onCard, sendChat, sendAct: id => { if (room) room.sendAct(id); }, reportLine, pagehide: () => { if (room) room.leave(); },
     async enter() {
       ui(); cur = inst; active = true; const mine = ++token; bar.hidden = false; labels.hidden = false; setCount('Đang vào kênh…'); chatLog.innerHTML = ''; setChat(false);
       api.getPublicConfig().then(cfg => { if (mine === token) { setChat(cfg.chat_public === true); } }).catch(() => {});
@@ -138,7 +143,7 @@ export function makeShared(c, { placeId, group }) {
         room = r;
         r.on('join', addActor); r.on('leave', removeActor);
         r.on('intent', (pid, x, z) => { const a = actors.get(pid); if (a) { a.tx = x; a.tz = z; } });
-        r.on('emote', showEmote); r.on('chat', onChat);
+        r.on('emote', showEmote); r.on('act', showAct); r.on('chat', onChat);
         r.peers().forEach(addActor); updateCount();
       } catch (e) { setCount('Chưa vào được kênh chung'); c.toast(viError(e)); }
     },

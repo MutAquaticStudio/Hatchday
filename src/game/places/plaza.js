@@ -21,31 +21,38 @@ export function initPlaza(c) {
 
   /* ---------- tương tác: đài phun nước, ghế đá, sân khấu; chim bồ câu biết tránh bé ---------- */
   function splashFountain() { // chạy tới mép đài, nhảy tưng và té nước; đài phun mạnh hơn một lúc
-    const [fx, fz] = c.getPetXZ(), edge = [Math.sign(fx || 1) * 1.0, 0, 3.0 - 0.6 + 0.4]; jetBoost = 1; let nextDrop = 0;
-    return c.script({ dur: 3.6, update: (u, t) => {
+    const [fx, fz] = c.getPetXZ(), edge = [Math.sign(fx || 1) * 1.0, 0, 3.0 - 0.6 + 0.4]; jetBoost = 1; let nextDrop = 0, lastB = -1;
+    return c.script({ onStart: () => shared.sendAct('fountain'), dur: 3.6, update: (u, t) => {
       if (u < 0.2) return { pos: arc([fx, 0, fz], edge, ease(u / 0.2), 0.15) };
-      const [px, pz] = c.getPetXZ(), k = (u - 0.2) / 0.8, jump = Math.abs(Math.sin(k * Math.PI * 3)) * 0.55 * (k < 0.85 ? 1 : 0);
+      const [px, pz] = c.getPetXZ(), k = (u - 0.2) / 0.8, bn = Math.floor(k * 3 + 0.5);
+      if (bn !== lastB && k < 0.85) { lastB = bn; c.sfx('splash'); }
+      const jump = Math.abs(Math.sin(k * Math.PI * 3)) * 0.55 * (k < 0.85 ? 1 : 0);
       if (t > nextDrop && k < 0.85) { nextDrop = t + 0.09; const a = Math.random() * Math.PI * 2; c.spawnAt('drop', px + Math.cos(a) * 0.5, 0.6 + jump, pz + Math.sin(a) * 0.3, { vx: Math.cos(a) * 1.3, vy: 2.2 + Math.random(), g: 7, scale: 0.2, max: 0.7 }); }
       return { pos: [edge[0], jump, edge[2]], stretch: jump > 0.05 ? 0.1 : -0.06, roll: Math.sin(k * Math.PI * 6) * 0.12, face: 0 };
-    }, done: () => { c.say('Mát rượi! Nước bắn tùm lum luôn!', 2200); c.setTemp('excited', 1600); } });
+    }, done: ok => { if (!ok) return; c.say('Mát rượi! Nước bắn tùm lum luôn!', 2200); c.setTemp('excited', 1600); if (ok) c.activity('fountain'); } });
   }
   function sitOn(x, z, ry, label) { // nhảy lên ghế đá, ngồi đung đưa, rồi nhảy xuống
     const [fx, fz] = c.getPetXZ(), front = [x + Math.sin(ry) * 1.15, 0, z + Math.cos(ry) * 1.15];
-    return c.script({ dur: 6, noWalk: true, update: (u, t) => {
+    let sat = false;
+    return c.script({ onStart: () => shared.sendAct('bench'), dur: 6, noWalk: true, update: (u, t) => {
+      if (!sat && u >= 0.12) { sat = true; c.sfx('sit'); }
       if (u < 0.12) return { pos: arc([fx, 0, fz], [x, 0.55, z], ease(u / 0.12), 0.5), face: ry, stretch: Math.sin(u / 0.12 * Math.PI) * 0.1 };
       if (u > 0.88) return { pos: arc([x, 0.55, z], front, ease((u - 0.88) / 0.12), 0.5), face: ry };
       return { pos: [x, 0.55, z], face: ry, roll: Math.sin(t * 2.4) * 0.05, stretch: -0.07 + Math.sin(t * 1.6) * 0.015 };
-    }, done: () => { c.say(label, 2000); } });
+    }, done: ok => { if (!ok) return; c.say(label, 2000); if (ok) c.activity('bench'); } });
   }
   function performOnStage() { // lên sân khấu, đèn rọi đổi màu, nhảy múa và cúi chào
     const [fx, fz] = c.getPetXZ(); spotUntil = performance.now() + 7200;
-    return c.script({ dur: 7, update: (u, t) => {
+    let cheered = false, nextBang = 0; const fest = () => !!decor.theme; // ngày lễ: sân khấu có pháo hoa
+    return c.script({ onStart: () => shared.sendAct('stage'), dur: 7, update: (u, t) => {
+      if (!cheered && u >= 0.12) { cheered = true; c.sfx('cheer'); }
       if (u < 0.12) return { pos: arc([fx, 0, fz], [0, 0.5, -7.5], ease(u / 0.12), 0.6) };
       if (u > 0.9) return { pos: arc([0, 0.5, -7.5], [0, 0, -5.3], ease((u - 0.9) / 0.1), 0.5), face: 0 };
+      if (fest() && t > nextBang && u < 0.9) { nextBang = t + 0.55; c.sfx('badge'); const bx = (Math.random() - 0.5) * 7, by = 3 + Math.random() * 2; for (let i = 0; i < 9; i++) { const a = i / 9 * Math.PI * 2; c.spawnAt('sparkle', bx, by, -8.5, { vx: Math.cos(a) * 1.6, vy: Math.sin(a) * 1.6 + 0.5, g: 2.2, scale: 0.34, max: 1.1 }); } }
       const k = (u - 0.12) / 0.78; if (Math.random() < 0.08) c.spawnAt(Math.random() < 0.5 ? 'note' : 'sparkle', (Math.random() - 0.5) * 3, 1.2 + Math.random(), -7.5, { vy: 0.8, scale: 0.34, max: 1 });
       if (k > 0.86) return { pos: [0, 0.5, -7.5], stretch: -0.16 * Math.sin((k - 0.86) / 0.14 * Math.PI), face: 0 };
       return { pos: [0, 0.5 + Math.abs(Math.sin(t * 7)) * 0.18, -7.5], spin: k < 0.4 ? k / 0.4 * Math.PI * 4 : 0, roll: Math.sin(t * 7) * 0.14, face: k < 0.4 ? undefined : 0 };
-    }, done: () => { c.say('Cảm ơn mọi người đã xem mình biểu diễn!', 2400); c.spawn('heart', 4); } });
+    }, done: ok => { if (!ok) return; c.say('Cảm ơn mọi người đã xem mình biểu diễn!', 2400); c.spawn('heart', 4); c.sfx('cheer'); if (ok) c.activity('stage'); } });
   }
   const fireflies = makeFireflies(THREE, g, { x0: -16, x1: 16, z0: -6, z1: 8 }, Math.round(18 * dens));
 
@@ -169,10 +176,11 @@ export function initPlaza(c) {
       jetBoost = Math.max(0, jetBoost - dt * 0.28);
       jets.forEach(j => { const ph = (t * (1.4 + jetBoost) + j.userData.i / 8) % 1, a = j.userData.i * Math.PI / 4, r = 1.0 + jetBoost * 0.9; j.position.set(Math.cos(a) * ph * r, 2.2 + Math.sin(ph * Math.PI) * (0.8 + jetBoost * 1.1), Math.sin(a) * ph * r); });
       if (spot) { const on = performance.now() < spotUntil; spot.visible = on; if (on) spot.material.color.setHSL((t * 0.4) % 1, 0.7, 0.75); }
+      const asleep = c.isNight ? c.isNight() : false; // ban đêm chim rúc đầu ngủ, chỉ giật mình khi bé tới rất gần
       pigeons.forEach(b => { // chim: mổ thóc -> bay đi khi bé tới gần -> đáp xuống chỗ khác
         if (b.mode === 'peck') {
-          b.head.position.y = 0.3 - Math.max(0, Math.sin(t * 6 + b.t * 7)) * 0.1; b.head.position.x = 0.12 + Math.max(0, Math.sin(t * 6 + b.t * 7)) * 0.06;
-          if (Math.hypot(b.g.position.x - px, b.g.position.z - pz) < 2.3) { b.mode = 'fly'; b.t = 0; b.from = [b.g.position.x, b.g.position.z]; const a = Math.atan2(b.g.position.z - pz, b.g.position.x - px) + (Math.random() - 0.5) * 1.2, dd = 5 + Math.random() * 3; b.to = [Math.max(-14, Math.min(14, b.from[0] + Math.cos(a) * dd)), Math.max(-5, Math.min(7, b.from[1] + Math.sin(a) * dd))]; if (Math.hypot(b.to[0], b.to[1] + 0.6) < 3.2) b.to[1] += 3; b.dur = 1.3 + Math.random() * 0.5; b.g.rotation.y = -Math.atan2(b.to[1] - b.from[1], b.to[0] - b.from[0]); }
+          if (asleep) { b.head.position.set(0.02, 0.2, 0); b.body.scale.y = 0.85 + Math.sin(t * 1.6 + b.t * 3) * 0.04; } else { b.body.scale.y = 1; b.head.position.y = 0.3 - Math.max(0, Math.sin(t * 6 + b.t * 7)) * 0.1; b.head.position.x = 0.12 + Math.max(0, Math.sin(t * 6 + b.t * 7)) * 0.06; }
+          if (Math.hypot(b.g.position.x - px, b.g.position.z - pz) < (asleep ? 1.1 : 2.3)) { b.mode = 'fly'; c.sfx('flap'); b.t = 0; b.from = [b.g.position.x, b.g.position.z]; const a = Math.atan2(b.g.position.z - pz, b.g.position.x - px) + (Math.random() - 0.5) * 1.2, dd = 5 + Math.random() * 3; b.to = [Math.max(-14, Math.min(14, b.from[0] + Math.cos(a) * dd)), Math.max(-5, Math.min(7, b.from[1] + Math.sin(a) * dd))]; if (Math.hypot(b.to[0], b.to[1] + 0.6) < 3.2) b.to[1] += 3; b.dur = 1.3 + Math.random() * 0.5; b.g.rotation.y = -Math.atan2(b.to[1] - b.from[1], b.to[0] - b.from[0]); }
         } else if (b.mode === 'fly') {
           b.t += dt; const k = Math.min(1, b.t / b.dur); b.g.position.set(lerp(b.from[0], b.to[0], k), Math.sin(k * Math.PI) * 1.6 + 0.0, lerp(b.from[1], b.to[1], k)); b.wing.rotation.z = Math.sin(t * 40) * 0.9; b.wing.scale.y = 0.35 + Math.abs(Math.sin(t * 40)) * 1.1;
           if (k >= 1) { b.mode = 'wait'; b.wait = 1.5 + Math.random() * 2.5; b.wing.rotation.z = 0; b.wing.scale.y = 0.35; }

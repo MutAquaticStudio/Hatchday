@@ -99,6 +99,7 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline
   display:flex;flex-direction:column;overflow:hidden;background-color:#fffdf5}
 .diary .tabs{display:flex;gap:6px;padding:12px 14px 10px;border-bottom:2px dashed var(--candy-edge);flex:none}
 .tab{border:2px solid var(--candy-edge);background:#fff;border-radius:999px;padding:4px 14px;font-weight:800;font-size:13px}
+.tab.dot{position:relative}.tab.dot::after{content:'';position:absolute;top:-3px;right:-2px;width:10px;height:10px;border-radius:50%;background:#ff5c8a;border:2px solid #fff}
 .tab[aria-selected="true"]{background:var(--accent);border-color:var(--accent-deep);color:#fff}
 .dpanel{overflow:auto;padding:12px 18px 18px;display:flex;flex-direction:column;gap:16px;min-height:0;
   background-image:repeating-linear-gradient(transparent 0 27px,#f6e3ec 27px 28px)}
@@ -266,6 +267,21 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline
 .quest-bonus{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:10px;background:#fff8e0;border:2px dashed #e8b34a;border-radius:16px;padding:10px 14px}
 .quest-bonus>div{flex:1;min-width:0}.quest-bonus b{display:block}.quest-bonus span{font-size:12px;font-weight:700;color:var(--ink-soft)}
 .quest-bonus.ready{background:#fff1b8;border-style:solid}
+.explore{background:#fff;border:2px solid var(--candy-edge);border-radius:16px;padding:12px 14px}
+.explore .quests{margin-top:10px}.explore .quests li{border:0;padding:6px 0;background:none;border-top:2px dashed var(--candy-edge);border-radius:0}.explore .quests li:first-child{border-top:0}
+.explore .ex-n{display:block;margin-top:2px}
+.ex-kinds{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 0;min-height:24px}
+.ex-kinds span{font-size:12px;font-weight:800;color:#3f9a63;background:#e3f7ea;border-radius:999px;padding:3px 10px}
+.ex-kinds em{font-size:12px;font-style:normal;font-weight:700;color:var(--ink-soft)}
+.badges{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.badge{display:flex;flex-direction:column;align-items:flex-start;gap:4px;background:#fff;border:2px solid var(--candy-edge);border-radius:16px;padding:10px 12px;min-width:0}
+.badge .b-ico{font-size:26px;line-height:1;filter:grayscale(1);opacity:.45}
+.badge.ready .b-ico,.badge.got .b-ico{filter:none;opacity:1}
+.badge b{font-size:13px;line-height:1.2}.badge .b-desc{font-size:11px;font-weight:700;color:var(--ink-soft);line-height:1.3}
+.badge .bar-track{width:100%}.badge .b-num{font-size:11px;font-weight:800;color:var(--ink-soft)}
+.badge .btn-sm,.badge .pill-ok{margin-top:2px}
+.badge.ready{background:#fff8e0;border-color:#e8b34a}.badge.got{background:#f2fbf5}
+
 .ration,.nutri{background:#fff;border:2px solid var(--candy-edge);border-radius:16px;padding:10px 14px;margin-bottom:10px}
 .ration{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .ration>div,.nutri{font-size:13px}.ration b,.nutri b{display:block;font-size:14px}

@@ -7,7 +7,7 @@
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import type { ChatMsg } from '../game/social';
-import { makeLimiter, parseMsg, type EmoteId, type Peer, type PeerLook } from './protocol';
+import { makeLimiter, parseMsg, type ActId, type EmoteId, type Peer, type PeerLook } from './protocol';
 import { Emitter, throttles, type Room, type Transport } from './transport';
 
 type Roster = (PeerLook & { pid: string })[];
@@ -25,6 +25,7 @@ class SupaRoom extends Emitter implements Room {
     this.ch = supabase.channel(this.topic, { config: { private: true, broadcast: { self: false, ack: false }, presence: { key: this.pid } } });
     this.ch.on('broadcast', { event: 'intent' }, ({ payload }) => this.recv(payload));
     this.ch.on('broadcast', { event: 'emote' }, ({ payload }) => this.recv(payload));
+    this.ch.on('broadcast', { event: 'act' }, ({ payload }) => this.recv(payload));
     this.ch.on('presence', { event: 'sync' }, () => this.syncPresence());
     await new Promise<void>((ok, bad) => {
       const t = setTimeout(() => bad(new Error('realtime_timeout')), 10000);
@@ -65,7 +66,7 @@ class SupaRoom extends Emitter implements Room {
   private recv(payload: unknown) {
     const msg = parseMsg(payload); if (!msg || msg.pid === this.pid) return;
     const peer = this.live.get(msg.pid); if (!peer || !this.limit(msg.pid)) return;
-    if (msg.t === 'intent') { peer.x = msg.x; peer.z = msg.z; this.emit('intent', msg.pid, msg.x, msg.z); } else this.emit('emote', msg.pid, msg.id);
+    if (msg.t === 'intent') { peer.x = msg.x; peer.z = msg.z; this.emit('intent', msg.pid, msg.x, msg.z); } else if (msg.t === 'act') this.emit('act', msg.pid, msg.id); else this.emit('emote', msg.pid, msg.id);
   }
   sendIntent(x: number, z: number) {
     this.me.x = x; this.me.z = z;
@@ -74,6 +75,7 @@ class SupaRoom extends Emitter implements Room {
     void this.ch.track({ pid: this.pid, x, z });
   }
   sendEmote(id: EmoteId) { if (this.ch && this.th.emote()) void this.ch.send({ type: 'broadcast', event: 'emote', payload: { t: 'emote', pid: this.pid, id } }); }
+  sendAct(id: ActId) { if (this.ch && this.th.act()) void this.ch.send({ type: 'broadcast', event: 'act', payload: { t: 'act', pid: this.pid, id } }); }
   async leave() {
     if (this.closed) return; this.closed = true;
     if (this.beat) clearInterval(this.beat);

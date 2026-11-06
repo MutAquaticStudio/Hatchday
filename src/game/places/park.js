@@ -20,19 +20,22 @@ export function initPark(c) {
 
   /* ---------- tương tác: thú chơi thật trên đồ chơi (kịch bản chuyển động + phản ứng của đồ vật) ---------- */
   function rideSwing() { // nhảy lên ghế xích đu, đưa dần lên cao rồi nhảy xuống
-    const s = seats[swingTurn++ % seats.length], sw = s.parent, bx = sw.position.x + s.position.x, bz = sw.position.z, [fx, fz] = c.getPetXZ(), L = 1.6, A = 0.62, T0 = 0.14, T1 = 0.86;
-    return c.script({ dur: 7, noWalk: true, update: (u, t) => {
+    const s = seats[swingTurn++ % seats.length], sw = s.parent, bx = sw.position.x + s.position.x, bz = sw.position.z, [fx, fz] = c.getPetXZ(), L = 1.6, A = 0.62, T0 = 0.14, T1 = 0.86; let lastS = 0;
+    c.sfx('boing');
+    return c.script({ onStart: () => shared.sendAct('swing'), dur: 7, noWalk: true, update: (u, t) => {
       const th = Math.sin(t * 2.4) * A * (u < T0 ? 0 : u > T1 ? clamp01((1 - u) / (1 - T1)) : clamp01((u - T0) / 0.25));
-      s.userData.ride = th; const seat = [bx + L * Math.sin(th), 2.5 - L * Math.cos(th) + 0.04, bz];
+      s.userData.ride = th; if (Math.abs(th) > 0.3 && Math.sign(th) !== lastS) { lastS = Math.sign(th); c.sfx('creak'); }
+      const seat = [bx + L * Math.sin(th), 2.5 - L * Math.cos(th) + 0.04, bz];
       if (u < T0) { const k = ease(u / T0); return { pos: arc([fx, 0, fz], [bx, 0.9, bz], k, 0.7), stretch: Math.sin(k * Math.PI) * 0.12 }; }
       if (u > T1) { const k = ease((u - T1) / (1 - T1)); return { pos: arc(seat, [bx, 0, bz + 1.8], k, 0.5), stretch: Math.sin(k * Math.PI) * 0.1 }; }
       return { pos: seat, roll: th * 0.5, face: 0 };
-    }, done: () => { s.userData.ride = null; } });
+    }, done: () => { s.userData.ride = null; c.sfx('thud'); } });
   }
   function rideSeesaw() { // ngồi đầu bập bênh, bập bênh lên xuống theo bé
-    const see = plank.parent, cx = see.position.x, cz = see.position.z, ex = -1.15, [fx, fz] = c.getPetXZ();
-    return c.script({ dur: 6, noWalk: true, update: (u, t) => {
-      const th = Math.sin(t * 2.2) * 0.24 * (u < 0.15 ? 0 : u > 0.85 ? (1 - u) / 0.15 : clamp01((u - 0.15) / 0.15)); plank.userData.ride = th;
+    const see = plank.parent, cx = see.position.x, cz = see.position.z, ex = -1.15, [fx, fz] = c.getPetXZ(); let lastS = 0;
+    c.sfx('boing');
+    return c.script({ onStart: () => shared.sendAct('seesaw'), dur: 6, noWalk: true, update: (u, t) => {
+      const th = Math.sin(t * 2.2) * 0.24 * (u < 0.15 ? 0 : u > 0.85 ? (1 - u) / 0.15 : clamp01((u - 0.15) / 0.15)); plank.userData.ride = th; if (Math.abs(th) > 0.2 && Math.sign(th) !== lastS) { lastS = Math.sign(th); c.sfx(th < 0 ? 'thud' : 'boing'); }
       const end = [cx + ex * Math.cos(th), 0.64 + ex * Math.sin(th), cz];
       if (u < 0.15) return { pos: arc([fx, 0, fz], [cx + ex, 0.64, cz], ease(u / 0.15), 0.6) };
       if (u > 0.85) return { pos: arc(end, [cx + ex, 0, cz + 1.4], ease((u - 0.85) / 0.15), 0.5) };
@@ -40,8 +43,9 @@ export function initPark(c) {
     }, done: () => { plank.userData.ride = null; } });
   }
   function rideSlide() { // leo thang, ngồi trên đỉnh, trượt xuống ngã vào bãi cỏ
-    const p = slideGrp.position, [fx, fz] = c.getPetXZ(), foot = [p.x, 0, p.z - 1.1], top = [p.x, 2.0, p.z - 0.05], rampTop = [p.x, 1.8, p.z + 0.5], rampEnd = [p.x, 0.2, p.z + 2.7], out = [p.x, 0, p.z + 3.4];
-    return c.script({ dur: 5.6, update: u => {
+    const p = slideGrp.position, [fx, fz] = c.getPetXZ(), foot = [p.x, 0, p.z - 1.1], top = [p.x, 2.0, p.z - 0.05], rampTop = [p.x, 1.8, p.z + 0.5], rampEnd = [p.x, 0.2, p.z + 2.7], out = [p.x, 0, p.z + 3.4]; let phase = 0;
+    return c.script({ onStart: () => shared.sendAct('slide'), dur: 5.6, update: u => {
+      if (phase < 1 && u >= 0.52) { phase = 1; c.sfx('whee'); } else if (phase < 2 && u >= 0.78) { phase = 2; c.sfx('thud'); }
       if (u < 0.12) return { pos: arc([fx, 0, fz], foot, ease(u / 0.12), 0.2) };
       if (u < 0.42) { const k = (u - 0.12) / 0.3; return { pos: [foot[0], lerp(0, top[1], k) + Math.abs(Math.sin(k * 14)) * 0.1, lerp(foot[2], top[2], k)], face: Math.PI }; }
       if (u < 0.52) return { pos: [top[0], top[1] + Math.sin((u - 0.42) / 0.1 * Math.PI) * 0.12, top[2] + (u - 0.42) * 1.5], stretch: -0.1 * Math.sin((u - 0.42) / 0.1 * Math.PI), face: 0 };
@@ -51,8 +55,9 @@ export function initPark(c) {
     } });
   }
   function feedDucks() { // ngồi xổm bên ao tung vụn bánh, vịt bơi lại
-    const pond = ducks[0] && ducks[0].d.parent; duckUntil = performance.now() + 7000; let nextCrumb = 0;
-    return c.script({ dur: 4.6, noWalk: true, update: (u, t) => {
+    const pond = ducks[0] && ducks[0].d.parent; duckUntil = performance.now() + 7000; let nextCrumb = 0, nextQuack = 0.9;
+    return c.script({ onStart: () => shared.sendAct('ducks'), dur: 4.6, noWalk: true, update: (u, t) => {
+      if (t > nextQuack && u < 0.9) { nextQuack = t + 0.7 + Math.random() * 0.5; c.sfx('quack'); }
       if (t > nextCrumb) { nextCrumb = t + 0.32; const [px, pz] = c.getPetXZ(); c.spawnAt('crumb', px - 0.35, 0.75, pz - 0.1, { vx: -1.6 - Math.random(), vy: 2.2, g: 6, scale: 0.16, max: 0.9 }); }
       return { stretch: -0.12 * Math.min(1, Math.sin(Math.min(1, u * 8) * Math.PI / 2)) * (u > 0.9 ? (1 - u) / 0.1 : 1), roll: Math.sin(t * 6) * 0.03, face: Math.PI * 0.8, _pond: pond };
     } });
@@ -60,9 +65,9 @@ export function initPark(c) {
   function kickBall() { // chạy tới đá bóng, bóng nảy và lăn đi, bé đuổi theo nhặt lại
     if (!ball) return Promise.resolve(false);
     const [fx, fz] = c.getPetXZ(), bp = ball.position, spot = [bp.x + 0.55, 0, bp.z + 0.35]; let kicked = false;
-    return c.script({ dur: 1.5, update: u => {
+    return c.script({ onStart: () => shared.sendAct('ball'), dur: 1.5, update: u => {
       if (u < 0.45) return { pos: arc([fx, 0, fz], spot, ease(u / 0.45), 0.15), stretch: -0.1 * Math.sin(u / 0.45 * Math.PI / 2), face: -Math.PI / 2 };
-      if (!kicked) { kicked = true; ballV = { vx: -2.2 - Math.random() * 1.3, vy: 3.4, vz: -1.8 - Math.random() * 1.6 }; c.spawnAt('sparkle', bp.x, 0.5, bp.z, { vy: 1, scale: 0.4, max: 0.5 }); }
+      if (!kicked) { kicked = true; c.sfx('kick'); ballV = { vx: -2.2 - Math.random() * 1.3, vy: 3.4, vz: -1.8 - Math.random() * 1.6 }; c.spawnAt('sparkle', bp.x, 0.5, bp.z, { vy: 1, scale: 0.4, max: 0.5 }); }
       const k = (u - 0.45) / 0.55; return { pos: [spot[0] - 0.2 * Math.sin(Math.min(1, k * 2) * Math.PI), Math.sin(Math.min(1, k * 1.6) * Math.PI) * 0.25, spot[2]], stretch: 0.1 * Math.sin(k * Math.PI), roll: 0.12 * Math.sin(k * Math.PI), face: -Math.PI / 2 };
     }, done: () => { setTimeout(() => { if (c.getArea() === 'park' && ball) c.walkPetTo(ball.position.x + 0.6, ball.position.z + 0.5).then(ok => { if (ok) c.say('Lấy lại được rồi nè!', 1800); }); }, 2600); } });
   }
@@ -112,7 +117,7 @@ export function initPark(c) {
         [-2.0, 2.0].forEach(x => { add(br, new THREE.BoxGeometry(0.12, 0.7, 0.12), toon('#a8744a'), x, 0.3, 0.45, '#5a3a22', 0.015); add(br, new THREE.BoxGeometry(0.12, 0.7, 0.12), toon('#a8744a'), x, 0.3, -0.45, '#5a3a22', 0.015); });
         add(br, new THREE.BoxGeometry(4.2, 0.07, 0.06), toon('#a8744a'), 0, 0.62, 0.45, '#5a3a22', 0.01); add(br, new THREE.BoxGeometry(4.2, 0.07, 0.06), toon('#a8744a'), 0, 0.62, -0.45, '#5a3a22', 0.01);
         ducks = [[-1.6, 0.5], [1.4, -0.6], [0.2, 1.0]].map(([x, zz], i) => { const d = new THREE.Group(); d.position.set(x, 0.1, zz); pond.add(d); add(d, new THREE.SphereGeometry(0.22, 12, 10), toon('#fff3a0'), 0, 0.16, 0, '#c9a84a', 0.02); add(d, new THREE.SphereGeometry(0.14, 10, 8), toon('#fff3a0'), 0.18, 0.34, 0, '#c9a84a', 0.02); add(d, new THREE.ConeGeometry(0.05, 0.12, 6), toon('#ff9f3a'), 0.34, 0.33, 0, null).rotation.z = -Math.PI / 2; return { d, ph: i * 2, x, z: zz }; });
-        kit.hotspot({ id: 'duck', label: 'Cho vịt ăn', at: [-12, 1.9, -2.4], stand: [-8.4, -0.6], act: () => { c.spawn('sparkle', 4, 0.8); c.playToy('ducks'); feedDucks(); } }, pond);
+        kit.hotspot({ id: 'duck', label: 'Cho vịt ăn', at: [-12, 1.9, -2.4], stand: [-8.4, -0.6], act: () => { if (c.playToy('ducks')) { c.spawn('sparkle', 4, 0.8); feedDucks(); } } }, pond);
       },
       () => { const rocks = []; for (let i = 0; i < Math.round(10 * dens); i++) { const a = i * 0.63; rocks.push({ x: -12 + Math.cos(a) * 3.9, z: -2.4 + Math.sin(a) * 2.8, y: 0.12, s: 0.18 + (i % 3) * 0.08, color: '#c9c2b4' }); } world.scatter(z, world.geo('rock', () => new THREE.DodecahedronGeometry(1, 0)), world.toonC('#ffffff'), rocks, '#7a7468', 0.02); },
       () => props.trees(z, [{ x: -17, z: -6, s: 1.3 }, { x: -16.5, z: 0.5, s: 1.1 }, { x: -9, z: -7.2, s: 1.15 }].slice(0, Math.round(3 * dens) || 2)),
@@ -129,13 +134,13 @@ export function initPark(c) {
         [-1.5, 1.5].forEach(x => { const l = add(swing, new THREE.BoxGeometry(0.12, 2.5, 0.12), toon('#ff9ec4'), x, 1.25, 0, '#a8507a', 0.02); l.rotation.z = x * 0.08; });
         add(swing, new THREE.BoxGeometry(3.4, 0.12, 0.12), toon('#ff9ec4'), 0, 2.5, 0, '#a8507a', 0.02);
         seats = [-0.6, 0.6].map(x => { const s = new THREE.Group(); s.position.set(x, 2.5, 0); swing.add(s); [-0.3, 0.3].forEach(dx => add(s, new THREE.CylinderGeometry(0.012, 0.012, 1.6, 4), toon('#6a4a5a'), dx, -0.8, 0, null)); add(s, new THREE.BoxGeometry(0.8, 0.07, 0.3), toon('#ffd36e'), 0, -1.6, 0, '#a8742e', 0.02); return s; });
-        kit.hotspot({ id: 'swing', label: 'Xích đu', at: [10, 3.1, -3.2], stand: [10, -0.8], act: () => { c.playToy('swing'); rideSwing(); } }, swing);
+        kit.hotspot({ id: 'swing', label: 'Xích đu', at: [10, 3.1, -3.2], stand: [10, -0.8], act: () => { if (c.playToy('swing')) rideSwing(); } }, swing);
       },
       () => { // bập bênh
         const see = new THREE.Group(); see.position.set(14.5, 0, 1.4); z.add(see);
         add(see, new THREE.ConeGeometry(0.3, 0.55, 4), toon('#9fd8ff'), 0, 0.27, 0, '#4a7a9a', 0.02);
         plank = add(see, new THREE.BoxGeometry(2.8, 0.1, 0.42), toon('#ffb347'), 0, 0.58, 0, '#a8742e', 0.02);
-        kit.hotspot({ id: 'seesaw', label: 'Bập bênh', at: [14.5, 1.7, 1.4], stand: [14.5, 3.0], act: () => { c.playToy('seesaw'); rideSeesaw(); } }, see);
+        kit.hotspot({ id: 'seesaw', label: 'Bập bênh', at: [14.5, 1.7, 1.4], stand: [14.5, 3.0], act: () => { if (c.playToy('seesaw')) rideSeesaw(); } }, see);
       },
       () => { // cầu trượt
         const sl = new THREE.Group(); sl.position.set(15.5, 0, -3.6); z.add(sl); slideGrp = sl;
@@ -144,7 +149,7 @@ export function initPark(c) {
         const ramp = add(sl, new THREE.BoxGeometry(0.9, 0.08, 2.6), toon('#6ab7ff'), 0, 0.95, 1.7, '#356a9a', 0.02); ramp.rotation.x = 0.62;
         const lad = add(sl, new THREE.BoxGeometry(0.7, 2.0, 0.08), toon('#ff7a8a'), 0, 0.95, -0.7, '#a83a4a', 0.015); lad.rotation.x = -0.15;
         slideBall = add(sl, new THREE.SphereGeometry(0.1, 8, 6), toon('#ffffff'), 0, 2.1, 0.2, null);
-        kit.hotspot({ id: 'slide', label: 'Cầu trượt', at: [15.5, 3.2, -3.6], stand: [15.5, 0.2], act: () => { c.playToy('slide'); rideSlide(); } }, sl);
+        kit.hotspot({ id: 'slide', label: 'Cầu trượt', at: [15.5, 3.2, -3.6], stand: [15.5, 0.2], act: () => { if (c.playToy('slide')) rideSlide(); } }, sl);
       },
       () => { // hố cát + xô
         const sb = new THREE.Group(); sb.position.set(10.5, 0, 3.8); z.add(sb);

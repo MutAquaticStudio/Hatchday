@@ -1,8 +1,11 @@
 // Lớp hiển thị & tương tác 3D (chuyển từ bản mẫu). Sẽ tách nhỏ và chuyển sang TypeScript dần.
 import * as THREE from 'three';
-import { S, save, act, playToy as playToyStore, actBatched, addTalkMemory, renamePet, onSync, onSyncError, onTraitShift, startPeriodicSync,
+import { S, save, act, playToy as playToyStore, actBatched, addTalkMemory, renamePet, onSync, onSyncError, onTraitShift, recordActivity, onWorldReady, refreshWorld, claimExplore, claimBadge, startPeriodicSync,
   buy, saveLayout, equip, savePreset, claimQuest, claimQuestBonus, claimWeeklyQuest, claimCollection, buyFood, claimRation, nutritionNow, refreshFamily, familyMemories, refreshGarden, plantCrop, waterCrop, harvestCrop, upgradeParcel, buyParcel, saveFarm, cook, upgradeFridge, serverNow, onSpoil, refreshQuests, activeLayout, previewComfort, onIllness, healthNow, buyMedicine, useMedicine, visitClinic, refreshHealth, onBondLevel, claimBond, sellFood, refreshSell, refreshEconomy, refreshOwned } from './store';
 import { BOND, bondLevel, bondProgress, unclaimedLevels } from './bond';
+import { BADGE_BY_ID } from './world-activity';
+import { fallFor, SKY_LIGHT, SKY_LABEL, weatherAt, weatherOverride } from './weather';
+import { makeWeatherFx } from './weather-fx.js';
 import { PLACES, PLACE_BY_ID, MAP_NODES, BLOCK_TEXT, enterBlock } from './places/registry';
 import { HEALTH, ILLNESS_BY_ID, isSevere, minutesToSick, STAT_NOUN } from './health';
 import { blockedNow, minutesVi } from './clinic.js';
@@ -274,7 +277,7 @@ function goTo(name, instant) {
   const swap = () => {
     if (placeInst[area] && placeInst[area].leave) placeInst[area].leave();
     Object.entries(areas).forEach(([k, g]) => { g.visible = k === name; });
-    if (script) { const o = script; script = null; if (o.done) o.done(); o.resolve(false); }
+    if (script) { const o = script; script = null; if (o.done) o.done(false); o.resolve(false); }
     area = name; petBase.set(...PET_POS[name]); petOff.set(0, 0, 0); moveYaw = null; fetchBall = null; wander = null; action = null; cancelCtrl();
     if (name === 'garden') ball.position.set(2.0, 0.3, 1.4);
     particles.forEach(p => releaseSprite(p.s)); particles.length = 0; camIntro = reduce ? 0 : 1;
@@ -319,7 +322,7 @@ const placeOpen = {
 function loadPlace(name) {
   if (placeInst[name]) return Promise.resolve(placeInst[name]);
   return placeLoading[name] || (placeLoading[name] = PLACE_LOADERS[name]().then(init => {
-    const inst = init({ THREE, add, toon, canvasTex, shell, windowOn, scene, camera, canvas, ray, ndcFrom, walkPetTo, say, startAction, toast, sfx, spawn, hideHint, playToy: toyPlay, script: runScript, spawnAt, sfxPlay: sfx, applyShadows, quality: () => quality, isNight: () => period === 'dem', getArea: () => area, state: S, open: placeOpen, goTo, setTemp, play: spinPlay, grad, events, petBuilder, bondLevel: () => bondLevel(S.bondXp), getPetXZ: () => [petBase.x + petOff.x, petBase.z + petOff.z] });
+    const inst = init({ THREE, add, toon, canvasTex, shell, windowOn, scene, camera, canvas, ray, ndcFrom, walkPetTo, say, startAction, toast, sfx, spawn, hideHint, playToy: toyPlay, script: runScript, spawnAt, sfxPlay: sfx, activity: kind => { recordActivity(kind); }, applyShadows, quality: () => quality, isNight: () => period === 'dem', getArea: () => area, state: S, open: placeOpen, goTo, setTemp, play: spinPlay, grad, events, petBuilder, bondLevel: () => bondLevel(S.bondXp), getPetXZ: () => [petBase.x + petOff.x, petBase.z + petOff.z] });
     inst.group.visible = false; areas[name] = inst.group; applyShadows(inst.group); placeInst[name] = inst; return inst;
   }));
 }
@@ -329,7 +332,8 @@ function onEnter(name) {
   const ctx = document.getElementById('ctx');
   ctx.innerHTML = CTX[name].map(([k, l]) => `<button class="ctx-btn${k === 'home' || k === 'wake' ? ' ghosty' : ''}" type="button" data-k="${k}">${l}</button>`).join('');
   ctx.hidden = !CTX[name].length;
-  const line = (PLACE_BY_ID[name] && PLACE_BY_ID[name].enterLine) || { kitchen: 'Tới giờ ăn rồi! Hôm nay ăn gì đây?', bath: 'Nước ấm quá~ Vuốt lên người mình để kỳ cọ nha!', garden: 'Ra vườn thôi! Chạm vào đất để mình đi tới đó, chạm luống đất để trồng rau, hoặc ném bóng cho mình nhé!' }[name];
+  let line = (PLACE_BY_ID[name] && PLACE_BY_ID[name].enterLine) || { kitchen: 'Tới giờ ăn rồi! Hôm nay ăn gì đây?', bath: 'Nước ấm quá~ Vuốt lên người mình để kỳ cọ nha!', garden: 'Ra vườn thôi! Chạm vào đất để mình đi tới đó, chạm luống đất để trồng rau, hoặc ném bóng cho mình nhé!' }[name];
+  if (PLACE_BY_ID[name] && PLACE_BY_ID[name].outdoor) { if (wx.sky === 'rain') line = 'Trời đang mưa… mình nghe tiếng mưa rơi nè~'; else if (period === 'dem') line = 'Khuya rồi, yên tĩnh ghê…'; }
   if (name === 'garden') refreshGarden().then(() => gardenFx.sync()).catch(() => {});
   if (line) setTimeout(() => say(line, 3200), reduce ? 0 : 350);
 }
@@ -347,6 +351,7 @@ function applyAreaLights() {
   if (area === 'bedroom') { lightT.hemi = 0.75; lightT.sun = 0.35; lightT.sunCol.set('#b7b8ff'); lightT.lampPos.set(2.4, 2.2, -0.6); lightT.lamp = 20; if (!lookBooted) snapLights(); return; }
   const outdoor = area === 'garden' || !!(PLACE_BY_ID[area] && PLACE_BY_ID[area].outdoor), moon = night && outdoor;
   lightT.hemi = moon ? 1.3 : night ? 0.95 : 1.6; lightT.sun = moon ? 1.0 : night ? 0.7 : 2.0; lightT.sunCol.set(night ? '#c3c4ff' : (period === 'chieu' ? '#ffd2b0' : '#fff1dc'));
+  if (outdoor) { const [kh, ks] = SKY_LIGHT[wx.sky]; lightT.hemi *= kh; lightT.sun *= ks; if (wx.sky !== 'clear') lightT.sunCol.lerp(new THREE.Color('#c9d3e6'), wx.sky === 'rain' ? 0.55 : 0.3); }
   lightT.lampPos.set(-1.5, 3, 2); lightT.lamp = night && !outdoor ? 18 : 0;
   if (!lookBooted) snapLights();
 }
@@ -390,13 +395,17 @@ function spinPlay() {
 const TOY_LINES = { bubbles: 'Bong bóng lấp lánh quá!', kite: 'Diều bay cao quá!', scope: 'Nhìn thấy sao rồi! Lấp lánh quá!', train: 'Tu tu! Tàu hoả chạy rồi!', pit: 'Tùm! Bóng nhiều ghê!', blocks: 'Mình xếp được cái tháp cao này nè!',
   swing: 'Đưa mình nhẹ thôi nha~ vù vù!', seesaw: 'Lên xuống lên xuống!', slide: 'Wheee! Trượt thêm lần nữa nha!', ducks: 'Cạp cạp! Vịt con ăn ngon nè.', frisbee: 'Bắt được rồi! Ném nữa đi!', puzzle: 'Ghép xong rồi, đẹp ghê!', musicbox: 'Nhạc dễ thương quá~' };
 const TOY_ACTS = { swing: 'hop', seesaw: 'dance', slide: 'hop', pit: 'hop', frisbee: 'hop', train: 'wave', blocks: 'look', puzzle: 'look', musicbox: 'dance', ducks: 'wave', kite: 'wave', bubbles: 'hop', scope: 'look' };
-async function toyPlay(id) {
-  const t = TOY_BY_ID[id]; if (!t) return;
-  if (S.asleep) { say('Zzz… mai chơi tiếp nha…', 2200); return; }
-  if (sickBlocks('play')) return;
-  if (S.nl < 15) { setTemp('sleepy', 1800); say('Mình mệt quá, cho mình nghỉ chút đã…', 2600); return; }
-  const used = S.toys.used[id] || 0;
-  if (used >= t.cap) { toast(TOY_REFUSAL_TEXT.toy_cap); return; }
+/** Kiểm tra ngay tại chỗ trước khi chơi một món đồ chơi (ngủ, ốm, mệt, hết lượt): đạt thì mới chạy hoạt ảnh và gọi máy chủ. */
+function toyGate(id) {
+  const t = TOY_BY_ID[id]; if (!t) return false;
+  if (S.asleep) { say('Zzz… mai chơi tiếp nha…', 2200); return false; }
+  if (sickBlocks('play')) return false;
+  if (S.nl < 15) { setTemp('sleepy', 1800); say('Mình mệt quá, cho mình nghỉ chút đã…', 2600); return false; }
+  if ((S.toys.used[id] || 0) >= t.cap) { toast(TOY_REFUSAL_TEXT.toy_cap); return false; }
+  return true;
+}
+async function toyApply(id) {
+  const t = TOY_BY_ID[id], used = S.toys.used[id] || 0;
   sfx('play');
   const r = await playToyStore(id);
   if (r instanceof Error) { toast(viError(r)); return; }
@@ -407,7 +416,22 @@ async function toyPlay(id) {
   if (r.mult < 1) setTimeout(() => toast('Chơi mãi món này thì bé bớt hứng, thử món khác nhé.'), 1800);
   save(); renderStats();
 }
+/** Chơi đồ chơi: trả true nếu được chơi (nơi gọi chạy hoạt ảnh ngay, không chờ mạng), false nếu bị chặn (đã báo lý do). */
+function toyPlay(id) { const ok = toyGate(id); if (ok) toyApply(id); return ok; }
 const tmpV = new THREE.Vector3();
+const SPLASH = { vy: 1.4, g: 7, scale: 0.13, max: 0.3 };
+function updateWeather(dt) {
+  const out = isOutdoor(), px = petBase.x + petOff.x, pz = petBase.z + petOff.z, fall = fallFor(new Date().getMonth());
+  wxFx.update(dt, { sky: wx.sky, amount: wx.amount, kind: fall, density: quality === 'thap' ? 0.4 : 1, cx: px, cz: pz, outdoors: out && !editing, splash: (x, z) => { if (Math.random() < 0.45) spawnAt('drop', x, 0.05, z, SPLASH); } });
+  if (!out || wx.sky !== 'rain') return;
+  const now = performance.now();
+  if (now > rainSfxAt) { rainSfxAt = now + 1300; sfx('rain'); }
+  const sh = PLACE_BY_ID[area] && PLACE_BY_ID[area].shelter; // trời mưa thì bé tự chạy vào chỗ trú
+  if (sh && now > shelterAt && !busy(now) && !ctrl && Math.hypot(px - sh[0], pz - sh[1]) > 2.2) {
+    shelterAt = now + 45000;
+    walkPetTo(sh[0], sh[1]).then(ok => { if (ok) say(sh[2] || 'Mưa rồi, mình trú chút nha~', 2600); });
+  }
+}
 function updateArea(dt, t) {
   if (area === 'bath') { duck.position.y = 1.05 + Math.sin(t * 2.2) * 0.04; duck.rotation.z = Math.sin(t * 1.7) * 0.12; }
   moveMark.visible = !!ctrl && walkable();
@@ -484,6 +508,8 @@ FXT.crumb = canvasTex(64, 64, g => { g.fillStyle = '#e8b47a'; g.strokeStyle = '#
 FXT.puff = canvasTex(128, 128, g => { g.fillStyle = 'rgba(255,255,255,.92)'; [[44, 72, 30], [80, 66, 34], [62, 44, 28]].forEach(([x, y, r]) => { g.beginPath(); g.arc(x, y, r, 0, 7); g.fill(); }); });
 FXT.drop = FXT.sweat;
 const particles = [];
+const wxFx = makeWeatherFx({ THREE, scene, canvasTex, reduce });
+let rainSfxAt = 0, shelterAt = 0;
 /* Pool sprite: tái sử dụng thay vì tạo/huỷ mỗi hạt (skill performance-optimization) */
 const spritePool = [];
 function getSprite(tex) {
@@ -514,16 +540,25 @@ const SKY = {
 };
 let period = '';
 function periodNow() { const h = new Date().getHours(); return h >= 5 && h < 10 ? 'sang' : h >= 10 && h < 16 ? 'trua' : h >= 16 && h < 19 ? 'chieu' : 'dem'; }
+/* ---------------- thời tiết (suy ra từ giờ, mọi người cùng thấy một bầu trời) ---------------- */
+const wxOverride = weatherOverride(location.search);
+let wx = { sky: 'clear', amount: 0 };
+const weatherNow = () => (wxOverride ? { sky: wxOverride, amount: wxOverride === 'clear' ? 0 : 0.8 } : weatherAt(Date.now()));
+const isOutdoor = () => area === 'garden' || !!(PLACE_BY_ID[area] && PLACE_BY_ID[area].outdoor);
 function applyPeriod() {
-  const p = periodNow(); if (p === period) return; period = p; updateMusic();
+  const p = periodNow(), w = weatherNow(); if (p === period && w.sky === wx.sky) return;
+  const changed = p !== period; wx = w; period = p; if (changed) updateMusic();
   const [a, b, body] = SKY[p];
-  $('sky').style.background = `linear-gradient(${a}, ${b})`;
+  const gray = wx.sky === 'rain' ? 0.5 : wx.sky === 'cloudy' ? 0.28 : 0;
+  $('sky').style.background = (gray ? `linear-gradient(rgba(96,108,128,${gray}), rgba(96,108,128,${gray})), ` : '') + `linear-gradient(${a}, ${b})`;
   const g = winCanvas.getContext('2d'), gr = g.createLinearGradient(0, 0, 0, 192);
   gr.addColorStop(0, a); gr.addColorStop(1, b); g.fillStyle = gr; g.fillRect(0, 0, 256, 192);
   if (body === 'sun') { g.fillStyle = '#fff6c2'; g.beginPath(); g.arc(196, 52, 24, 0, Math.PI * 2); g.fill();
     g.fillStyle = 'rgba(255,255,255,.95)'; [[60, 70], [110, 120]].forEach(([x, y]) => { g.beginPath(); g.arc(x, y, 18, 0, Math.PI * 2); g.arc(x + 22, y - 8, 22, 0, Math.PI * 2); g.arc(x + 46, y, 17, 0, Math.PI * 2); g.fill(); }); }
   else { g.fillStyle = '#fff3c4'; g.beginPath(); g.arc(190, 54, 22, 0, Math.PI * 2); g.fill(); g.fillStyle = b; g.beginPath(); g.arc(200, 46, 20, 0, Math.PI * 2); g.fill();
     g.fillStyle = '#fff'; [[30, 30], [70, 80], [120, 40], [150, 120], [40, 140], [220, 140], [100, 160]].forEach(([x, y]) => g.fillRect(x, y, 3, 3)); }
+  if (gray) { g.fillStyle = `rgba(96,108,128,${gray})`; g.fillRect(0, 0, 256, 192); }
+  if (wx.sky === 'rain') { g.strokeStyle = 'rgba(220,236,255,.55)'; g.lineWidth = 1.5; for (let i = 0; i < 46; i++) { const x = (i * 53) % 256, y = (i * 97) % 192; g.beginPath(); g.moveTo(x, y); g.lineTo(x - 4, y + 12); g.stroke(); } }
   winTex.needsUpdate = true;
   applyAreaLights();
 }
@@ -558,10 +593,10 @@ let sq = 0, sqv = 0, anim = null, shake = 0, yaw = 0;
 let script = null;
 function runScript(def) {
   return new Promise(resolve => {
-    if (script) { const o = script; script = null; moveYaw = null; if (o.done) o.done(); o.resolve(false); }
+    if (script) { const o = script; script = null; moveYaw = null; if (o.done) o.done(false); o.resolve(false); }
     if (S.asleep || editing || reduce) { resolve(false); return; }
     cancelCtrl(); wander = null; action = null; hideHint();
-    script = { ...def, t: 0, resolve };
+    script = { ...def, t: 0, resolve }; if (def.onStart) def.onStart();
   });
 }
 const pointerNdc = new THREE.Vector2(0, 0);
@@ -666,6 +701,11 @@ function renderPersona() {
     $('ax-' + a).setAttribute('aria-label', `${TRAITS[a].lo} – ${TRAITS[a].hi}: ${Math.abs(v) < 15 ? 'cân bằng' : (v > 0 ? TRAITS[a].hi : TRAITS[a].lo)}`);
   });
 }
+onWorldReady(list => { // huy hiệu/bậc Khám phá vừa đủ điều kiện nhận
+  const b = list.find(x => x.kind === 'badge'), e = list.find(x => x.kind === 'explore');
+  if (b) { sfx('badge'); toast(`Huy hiệu mới: ${BADGE_BY_ID[b.id]?.name || ''}! Vào Nhiệm vụ để nhận xu.`); }
+  else if (e) { sfx('badge'); toast('Khám phá đủ rồi! Vào Nhiệm vụ để nhận thưởng.'); }
+});
 onTraitShift(name => { toast(`${S.name} đang dần trở nên ${name.toLowerCase()} hơn.`); if (!$('stats').hidden) renderPersona(); });
 $('btn-stats').onclick = () => { const s = $('stats'); s.hidden = !s.hidden; $('btn-stats').setAttribute('aria-expanded', String(!s.hidden)); renderStats(); if (!s.hidden) growth.renderSpecies(); if (!s.hidden) { $('diary').hidden = true; $('btn-diary').setAttribute('aria-expanded', 'false'); } };
 $('pet-name').value = S.name;
@@ -979,7 +1019,7 @@ initNotify({ S, $ });
 home = initHome({
   events, THREE, scene, camera, canvas, renderer, room, toon, add, canvasTex, grad, $, reduce,
   homeFloor, homeWalls: [homeWall, homeWall2], pivot, petBase, petBuilder, getPetParts: () => petParts,
-  store: { S, refreshEconomy, refreshOwned, sellFood, refreshSell, healthNow, buyMedicine, useMedicine, visitClinic, refreshHealth, buy, saveLayout, equip, savePreset, claimQuest, claimQuestBonus, claimWeeklyQuest, claimCollection, buyFood, claimRation, nutritionNow, refreshFamily, familyMemories, refreshGarden, plantCrop, harvestCrop, cook, upgradeFridge, serverNow, refreshQuests, activeLayout, previewComfort, onSync, today: () => localDay() },
+  store: { S, refreshWorld, claimExplore, claimBadge, refreshEconomy, refreshOwned, sellFood, refreshSell, healthNow, buyMedicine, useMedicine, visitClinic, refreshHealth, buy, saveLayout, equip, savePreset, claimQuest, claimQuestBonus, claimWeeklyQuest, claimCollection, buyFood, claimRation, nutritionNow, refreshFamily, familyMemories, refreshGarden, plantCrop, harvestCrop, cook, upgradeFridge, serverNow, refreshQuests, activeLayout, previewComfort, onSync, today: () => localDay() },
   say, setTemp, spawn, popText, impulse, startAction, addTrauma, buzz, toast, hideHint, applyShadows, ndcFrom, playToy: toyPlay, closeAllSheets: () => home.closeAll?.(),
   getArea: () => area, goTo, isIdle: () => !busy(performance.now()), isNight: () => period === 'dem',
   setZoom: z => { zoomExtra = z; },
@@ -1039,7 +1079,7 @@ function tick(now, dt) {
     script.t += dt; const u = Math.min(1, script.t / script.dur), r = script.update(u, script.t) || {};
     if (r.pos) { petOff.x = r.pos[0] - petBase.x; petOff.z = r.pos[2] - petBase.z; hop += r.pos[1] - petBase.y; }
     hop += r.hop || 0; roll += r.roll || 0; spinY += r.spin || 0; scriptStretch = r.stretch || 0; moveYaw = r.face === undefined ? null : r.face;
-    if (u >= 1) { const s = script; script = null; moveYaw = null; if (s.done) s.done(); s.resolve(true); }
+    if (u >= 1) { const s = script; script = null; moveYaw = null; if (s.done) s.done(true); s.resolve(true); }
   }
   if (growth.isEvolving()) { const g = growth.step(dt); spinY += g.spin; hop += g.hop; }
   pivot.scale.y *= 1 + ex.stretch + scriptStretch; pivot.scale.x *= 1 - (ex.stretch + scriptStretch) * 0.4; pivot.scale.z *= 1 - (ex.stretch + scriptStretch) * 0.4;
@@ -1048,7 +1088,7 @@ function tick(now, dt) {
   if (!reduce && key === 'sick') roll += Math.sin(t * 22) * 0.012;
   petRoot.position.set(petBase.x + petOff.x, petBase.y + hop, petBase.z + petOff.z);
   shadow.position.set(petRoot.position.x, 0.075, petRoot.position.z + 0.05); shadow.visible = area !== 'bath' && area !== 'bedroom';
-  updateArea(dt, t); updateLights(dt);
+  updateArea(dt, t); updateLights(dt); updateWeather(dt);
   /* nhìn theo con trỏ, quay đi khi dỗi */
   /* dáng bốn chân / bay lượn đứng hơi nghiêng 3/4 để thấy cả thân */
   const side = petParts && (petParts.plan === 'thu4' || petParts.plan === 'ran') ? 0.42 : 0;
@@ -1091,6 +1131,7 @@ initFarewell();
 /* Chỉ ở ?dev: cho script kiểm tra biết thú đang ở đâu trên màn hình (thú đi lang thang nên không nằm cố định giữa màn hình) */
 if (DEV) window.__plotXY = i => gardenFx.screenOf(i);
 if (DEV) window.__petPos = () => [petRoot.position.x, petRoot.position.y, petRoot.position.z, !!script];
+if (DEV) window.__wx = () => ({ sky: wx.sky, ...wxFx.state() });
 if (DEV) window.__petXY = () => { const v = new THREE.Vector3(); petRoot.localToWorld(v.set(0, 0.9, 0)); v.project(camera); const r = canvas.getBoundingClientRect(); return { x: r.left + (v.x + 1) / 2 * r.width, y: r.top + (1 - v.y) / 2 * r.height }; };
 setTimeout(() => { say(greeting(S.personality, S.name), 3200); if (!S.asleep && S.personality.social > -30) startAction('wave'); }, 700);
 setTimeout(hideHint, 9000);

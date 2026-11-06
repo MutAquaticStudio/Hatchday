@@ -6,13 +6,15 @@
  */
 import { isDemo } from '../data/api';
 import type { ChatMsg } from '../game/social';
-import { PROTO, type EmoteId, type Peer, type PeerLook } from './protocol';
+import { PROTO, type ActId, type EmoteId, type Peer, type PeerLook } from './protocol';
 
 export interface RoomEvents {
   join: (p: Peer) => void;
   leave: (pid: string) => void;
   intent: (pid: string, x: number, z: number) => void;
   emote: (pid: string, id: EmoteId) => void;
+  /** Người khác vừa làm xong một tương tác (xích đu, ghế đá…). */
+  act: (pid: string, id: ActId) => void;
   /** Tin chat công khai của kênh (người gửi do máy chủ đóng dấu). */
   chat: (m: ChatMsg) => void;
 }
@@ -28,13 +30,15 @@ export interface Room {
   /** Gửi ý định đi tới (x, z). Tự giãn cách theo PROTO.intentMinMs; gọi nhiều cũng được. */
   sendIntent(x: number, z: number): void;
   sendEmote(id: EmoteId): void;
+  /** Báo mình vừa làm xong một tương tác; tự giãn cách như emote. */
+  sendAct(id: ActId): void;
   leave(): Promise<void>;
 }
 export interface Transport { join(place: string, me: PeerLook & { x: number; z: number }): Promise<Room> }
 
 /** Bộ phát sự kiện nhỏ dùng chung cho các Room. */
 export class Emitter {
-  private fns: { [K in keyof RoomEvents]: Set<RoomEvents[K]> } = { join: new Set(), leave: new Set(), intent: new Set(), emote: new Set(), chat: new Set() };
+  private fns: { [K in keyof RoomEvents]: Set<RoomEvents[K]> } = { join: new Set(), leave: new Set(), intent: new Set(), emote: new Set(), act: new Set(), chat: new Set() };
   on<K extends keyof RoomEvents>(ev: K, fn: RoomEvents[K]) { (this.fns[ev] as Set<RoomEvents[K]>).add(fn); return () => { (this.fns[ev] as Set<RoomEvents[K]>).delete(fn); }; }
   emit<K extends keyof RoomEvents>(ev: K, ...a: Parameters<RoomEvents[K]>) { for (const f of this.fns[ev] as Set<(...x: Parameters<RoomEvents[K]>) => void>) f(...a); }
 }
@@ -44,12 +48,12 @@ export function makeThrottle(ms: number, now: () => number = Date.now) {
   let last = -Infinity;
   return (): boolean => { const t = now(); if (t - last < ms) return false; last = t; return true; };
 }
-export const throttles = () => ({ intent: makeThrottle(PROTO.intentMinMs), emote: makeThrottle(PROTO.emoteMinMs) });
+export const throttles = () => ({ intent: makeThrottle(PROTO.intentMinMs), emote: makeThrottle(PROTO.emoteMinMs), act: makeThrottle(PROTO.emoteMinMs) });
 
 class SoloRoom extends Emitter implements Room {
   readonly cap = 1; readonly pid = 'solo'; readonly topic = 'solo';
   peers() { return []; }
-  sendIntent() {} sendEmote() {}
+  sendIntent() {} sendEmote() {} sendAct() {}
   async leave() {}
 }
 export const soloTransport: Transport = { join: async () => new SoloRoom() };

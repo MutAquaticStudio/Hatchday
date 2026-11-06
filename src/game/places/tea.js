@@ -50,7 +50,7 @@ export function initTea(c) {
   const menu = canvasTex(256, 192, d => { d.fillStyle = '#3a4a42'; d.fillRect(0, 0, 256, 192); d.strokeStyle = '#b98a5e'; d.lineWidth = 10; d.strokeRect(5, 5, 246, 182); d.fillStyle = '#fff'; d.font = '800 24px "Baloo 2", system-ui'; d.textAlign = 'center'; d.fillText('Thực đơn hôm nay', 128, 40);
     d.font = '600 18px "Baloo 2", system-ui'; d.textAlign = 'left'; ['Trà gừng mật ong', 'Trà hoa cúc', 'Trà đào cam sả', 'Bánh dorayaki', 'Bánh bông lan trứng'].forEach((t, i) => d.fillText('· ' + t, 28, 76 + i * 26)); });
   const mb = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 1.65), new THREE.MeshBasicMaterial({ map: menu })); mb.position.set(5.0, 2.7, -D / 2 + 0.03); g.add(mb);
-  kit.hotspot({ id: 'order', label: 'Gọi món', at: [-1.5, 2.6, -3.3], stand: [-1.5, -1.7], act: () => { steamBoost = 1; c.say('Ấm trà sôi rồi kìa, thơm ghê!', 1800); c.open.shop('food'); } }, counter);
+  kit.hotspot({ id: 'order', label: 'Gọi món', at: [-1.5, 2.6, -3.3], stand: [-1.5, -1.7], act: () => { steamBoost = 1; c.sfx('kettle'); c.say('Ấm trà sôi rồi kìa, thơm ghê!', 1800); c.open.shop('food'); } }, counter);
   // quầy ghế cao
   [-3.2, -1.5, 0.2].forEach(x => { const s = new THREE.Group(); s.position.set(x, 0, -2.3); g.add(s); add(s, new THREE.CylinderGeometry(0.3, 0.3, 0.12, 14), toon(['#ff9ec4', '#9fd8ff', '#ffd36e'][Math.round((x + 3.2) / 1.7)]), 0, 0.85, 0, '#7a5a6a', 0.02); add(s, new THREE.CylinderGeometry(0.06, 0.1, 0.8, 8), toon('#8a6a4a'), 0, 0.4, 0, '#5a3a22', 0.015); });
 
@@ -69,21 +69,22 @@ export function initTea(c) {
   world.scatter(g, new THREE.CylinderGeometry(0.28, 0.28, 0.08, 14), world.toonC('#ffffff'), chairs, '#7a5a6a', 0.02); world.scatter(g, new THREE.CylinderGeometry(0.07, 0.07, 0.4, 6), world.toonC('#8a6a4a'), legs, null);
   function sipTea(x, z, line) { // nhảy lên ghế cạnh bàn, nhấp trà vài ngụm (hơi nước bốc lên), rồi xuống
     const [fx, fz] = c.getPetXZ(), seat = [x - 0.39, 0.5, z + 0.92], out = [x, 0, z + 1.5]; let nextSip = 1.2;
-    return c.script({ dur: 6.2, noWalk: true, update: (u, t) => {
+    return c.script({ onStart: () => shared.sendAct('tea'), dur: 6.2, noWalk: true, update: (u, t) => {
       if (u < 0.1) return { pos: arc([fx, 0, fz], seat, ease(u / 0.1), 0.45), stretch: Math.sin(u / 0.1 * Math.PI) * 0.1 };
       if (u > 0.9) return { pos: arc(seat, out, ease((u - 0.9) / 0.1), 0.4) };
-      if (t > nextSip) { nextSip = t + 1.5; steamBoost = Math.max(steamBoost, 0.6); }
+      if (t > nextSip) { nextSip = t + 1.5; steamBoost = Math.max(steamBoost, 0.6); if (t > 0.6) c.sfx('sip'); }
       const sip = Math.max(0, Math.sin((t - 0.6) * 4.2)) ** 2; // cúi xuống nhấp một ngụm
       return { pos: seat, stretch: -0.08 - sip * 0.06, roll: sip * 0.12 - 0.03, face: 0.25 };
-    }, done: () => { c.say(line, 2200); c.spawn('heart', 2); } });
+    }, done: ok => { if (!ok) return; c.say(line, 2200); c.spawn('heart', 2); if (ok) c.activity('tea'); } });
   }
   function petTheCat() { // lại gần mèo, vuốt ve: mèo thức dậy, kêu rù rù, hiện tim
-    const [fx, fz] = c.getPetXZ(), spot = [-4.7, 0, 3.2]; catAwake = 1;
-    return c.script({ dur: 4.4, update: (u, t) => {
+    const [fx, fz] = c.getPetXZ(), spot = [-4.7, 0, 3.2]; catAwake = 1; let purred = false;
+    return c.script({ onStart: () => shared.sendAct('cat'), dur: 4.4, update: (u, t) => {
+      if (!purred && u >= 0.25) { purred = true; c.sfx('purr'); }
       if (u < 0.2) return { pos: arc([fx, 0, fz], spot, ease(u / 0.2), 0.1), face: -Math.PI / 2 };
       if (Math.random() < 0.06) c.spawnAt('heart', -5.5, 1.6, 3.3, { vy: 0.7, scale: 0.34, max: 1 });
       return { pos: [spot[0] + Math.sin(t * 5) * 0.06, 0, spot[2]], stretch: Math.sin(t * 5) * 0.04, roll: Math.sin(t * 5) * 0.06, face: -Math.PI / 2 };
-    }, done: () => { c.say('Mèo mềm quá, rù rù~', 2200); } });
+    }, done: ok => { if (!ok) return; c.say('Mèo mềm quá, rù rù~', 2200); if (ok) c.activity('cat'); } });
   }
   // góc cửa sổ trái: ghế dài có gối, mèo ngủ
   const nook = new THREE.Group(); nook.position.set(-5.6, 0, 2.2); g.add(nook);
