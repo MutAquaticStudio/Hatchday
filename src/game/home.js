@@ -37,7 +37,7 @@ export function initHome(ctx) {
   /* ===================== Phòng theo bố cục ===================== */
   const itemsRoot = new THREE.Group(); room.add(itemsRoot);
   let placed = []; // { p, group, item }
-  const backTexRepeat = [6, 3], leftTexRepeat = [4, 3], floorRepeat = [3, 3];
+  const backTexRepeat = [6, 3], leftTexRepeat = [4, 3], floorRepeat = [3 * 14 / 9, 3 * 13 / 7]; // sàn kéo dài ra phía trước (xem FLOOR trong game.js) nên số lần lặp tăng theo
 
   function worldOf(p) {
     const it = BY_ID[p.id];
@@ -144,7 +144,8 @@ export function initHome(ctx) {
   /* Hàng tab cuộn ngang: mờ dần ở mép còn nội dung để người chơi biết vuốt thêm */
   const hint = el => { el.classList.toggle('fade-r', el.scrollLeft + el.clientWidth < el.scrollWidth - 4); el.classList.toggle('fade-l', el.scrollLeft > 4); };
   app.addEventListener('scroll', e => { if (e.target.classList?.contains('tabs-row')) hint(e.target); }, true);
-  new MutationObserver(() => app.querySelectorAll('.tabs-row').forEach(hint)).observe(app, { childList: true, subtree: true });
+  let hintRaf = 0; // gộp nhiều thay đổi DOM trong một khung hình
+  new MutationObserver(() => { if (hintRaf) return; hintRaf = requestAnimationFrame(() => { hintRaf = 0; app.querySelectorAll('.tabs-row').forEach(hint); }); }).observe(app, { childList: true, subtree: true });
   $('a-house').addEventListener('click', () => { ctx.hideHint(); const hs = $('house'); if (hs && !hs.hidden) { closeAll(); return; } openHouse(); });
   app.addEventListener('click', e => {
     const b = e.target.closest('.tile'); if (!b) return;

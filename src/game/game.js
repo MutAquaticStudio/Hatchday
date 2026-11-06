@@ -109,7 +109,10 @@ const woodTex = canvasTex(256, 256, (g, w, h) => {
   g.fillStyle = '#efe2d6'; for (let i = 0; i < 4; i++) g.fillRect(0, i * 64 + 60, w, 4);
   g.fillStyle = '#f4ebe2'; for (let i = 0; i < 4; i++) g.fillRect((i * 97) % w, i * 64, 4, 64);
 }, [3, 3]);
-const homeFloor = add(room, new THREE.BoxGeometry(9, 0.4, 7), toon('#f6c99c', woodTex), 0, -0.2, 0, '#9a5f4a', 0.04);
+/** Sàn kéo dài ra phía trước và sang phải để phủ kín khung hình (trước đây đáy màn hình là nền phẳng trống). Số lần lặp họa tiết tăng theo để ô gạch giữ nguyên cỡ. */
+const FLOOR = { w: 14, d: 13, x: 2.5, z: 3 };
+const homeFloor = add(room, new THREE.BoxGeometry(FLOOR.w, 0.4, FLOOR.d), toon('#f6c99c', woodTex), FLOOR.x, -0.2, FLOOR.z, '#9a5f4a', 0.04);
+homeFloor.material.map = woodTex.clone(); homeFloor.material.map.repeat.set(3 * FLOOR.w / 9, 3 * FLOOR.d / 7); homeFloor.material.map.needsUpdate = true;
 const wallTex = canvasTex(128, 128, (g, w, h) => {
   g.fillStyle = '#ffffff'; g.fillRect(0, 0, w, h); g.fillStyle = '#ffd8e7';
   for (let y = 0; y < 2; y++) for (let x = 0; x < 2; x++) { g.beginPath(); g.arc(32 + x * 64 + (y % 2) * 32, 32 + y * 64, 7, 0, Math.PI * 2); g.fill(); }
@@ -174,7 +177,8 @@ const CAM = {
 };
 function shell(wallColor, wallT, floorColor, floorT, trim) {
   const g = new THREE.Group(); g.visible = false; scene.add(g);
-  add(g, new THREE.BoxGeometry(9, 0.4, 7), toon(floorColor, floorT), 0, -0.2, 0, '#9a5f4a', 0.04);
+  let ft = floorT; if (ft) { ft = ft.clone(); ft.repeat.set(ft.repeat.x * FLOOR.w / 9, ft.repeat.y * FLOOR.d / 7); ft.needsUpdate = true; }
+  add(g, new THREE.BoxGeometry(FLOOR.w, 0.4, FLOOR.d), toon(floorColor, ft), FLOOR.x, -0.2, FLOOR.z, '#9a5f4a', 0.04);
   add(g, new THREE.BoxGeometry(9, 5, 0.3), toon(wallColor, wallT), 0, 2.3, -3.65, '#8a7a9a', 0.04);
   let t2 = null; if (wallT) { t2 = wallT.clone(); t2.repeat.set(4, 3); t2.needsUpdate = true; }
   add(g, new THREE.BoxGeometry(0.3, 5, 7.3), toon(wallColor, t2), -4.65, 2.3, 0, '#8a7a9a', 0.04);
@@ -211,7 +215,8 @@ add(kitchen, new THREE.CylinderGeometry(0.42, 0.34, 0.06, 28), toon('#ffffff'), 
 
 /* Phòng tắm */
 const bathTile = canvasTex(128, 128, (g, w, h) => { g.fillStyle = '#eaf7ff'; g.fillRect(0, 0, w, h); g.strokeStyle = '#bfe3f7'; g.lineWidth = 5; [[2, 2], [66, 2], [2, 66], [66, 66]].forEach(([x, y]) => g.strokeRect(x, y, 60, 60)); }, [6, 4]);
-const bath = shell('#eaf7ff', bathTile, '#d6f0ff', null, '#9fd3f0'); areas.bath = bath;
+const bathFloorTex = canvasTex(64, 64, g => { g.fillStyle = '#eaf6ff'; g.fillRect(0, 0, 64, 64); g.strokeStyle = '#c4def2'; g.lineWidth = 3; g.strokeRect(0, 0, 64, 64); g.fillStyle = '#f6fbff'; g.fillRect(6, 6, 20, 20); g.fillRect(38, 38, 20, 20); }, [5, 4]);
+const bath = shell('#eaf7ff', bathTile, '#d6f0ff', bathFloorTex, '#9fd3f0'); areas.bath = bath;
 const tub = add(bath, new THREE.CylinderGeometry(1.9, 1.7, 1.0, 40), toon('#ffffff'), 0, 0.5, 0.2, '#6f8fb8', 0.04); tub.scale.set(1.15, 1, 0.8);
 const water = new THREE.Mesh(new THREE.CylinderGeometry(1.8, 1.8, 0.05, 40), new THREE.MeshToonMaterial({ color: '#8fdcff', gradientMap: grad, transparent: true, opacity: 0.93 }));
 water.scale.set(1.15, 1, 0.8); water.position.set(0, 1.01, 0.2); bath.add(water);
@@ -224,7 +229,17 @@ const beak = add(duck, new THREE.ConeGeometry(0.06, 0.14, 10), toon('#ff8a3c'), 
 add(bath, new THREE.CylinderGeometry(0.05, 0.05, 1.2, 10), toon('#cfd8e8'), -2.6, 3.5, -3.3, '#6f8fb8', 0.01);
 const shower = add(bath, new THREE.CylinderGeometry(0.32, 0.18, 0.2, 20), toon('#cfd8e8'), -2.6, 2.9, -3.1, '#6f8fb8'); shower.rotation.x = 0.5;
 add(bath, new THREE.BoxGeometry(0.12, 1.3, 0.9), toon('#ff9ec4'), -4.45, 2.4, -1.2, '#a8507a');
-add(bath, new THREE.BoxGeometry(2.0, 0.05, 0.9), toon('#ffcfdc'), 0, 0.03, 2.2, '#a8507a', 0.02);
+{ // thảm tròn trước bồn, kệ xà phòng, ghế đẩu có khăn, chậu cây: nhà tắm bớt trống
+  const mat = add(bath, new THREE.CylinderGeometry(1.05, 1.05, 0.05, 40), toon('#ffb8cf'), 0, 0.03, 2.3, '#a8507a', 0.02); mat.scale.set(1.5, 1, 0.7);
+  const matIn = add(bath, new THREE.CylinderGeometry(0.72, 0.72, 0.06, 40), toon('#ffe0ea'), 0, 0.045, 2.3, null); matIn.scale.set(1.5, 1, 0.7);
+  add(bath, new THREE.BoxGeometry(1.9, 0.1, 0.42), toon('#e8b47a'), 1.9, 2.45, -3.28, '#9a5f4a', 0.015);
+  [[1.25, '#ff9ec4', 0.34], [1.7, '#7ec8ff', 0.42], [2.15, '#ffd36e', 0.3]].forEach(([x, col, h]) => { add(bath, new THREE.CylinderGeometry(0.1, 0.12, h, 12), toon(col), x, 2.5 + h / 2, -3.28, '#6f5a7a', 0.012); add(bath, new THREE.CylinderGeometry(0.05, 0.05, 0.08, 8), toon('#ffffff'), x, 2.5 + h + 0.04, -3.28, null); });
+  const pot = add(bath, new THREE.CylinderGeometry(0.16, 0.12, 0.2, 12), toon('#e8a07a'), 2.6, 2.6, -3.28, '#9a5f4a', 0.012);
+  [[0, 0.22, 0.12], [-0.1, 0.16, 0.09], [0.1, 0.18, 0.09]].forEach(([dx, dy, r]) => add(pot, new THREE.SphereGeometry(r, 10, 8), toon('#7edb72'), dx, dy + 0.1, 0, '#3f8a55', 0.01));
+  add(bath, new THREE.CylinderGeometry(0.42, 0.4, 0.5, 20), toon('#ffd9a8'), -2.1, 0.25, 1.7, '#9a5f4a', 0.02);
+  add(bath, new THREE.BoxGeometry(0.62, 0.16, 0.5), toon('#ffffff'), -2.1, 0.58, 1.7, '#a8778e', 0.015);
+  add(bath, new THREE.BoxGeometry(0.62, 0.07, 0.5), toon('#9fd3f0'), -2.1, 0.68, 1.7, null);
+}
 
 /* Vườn */
 const garden = new THREE.Group(); garden.visible = false; scene.add(garden); areas.garden = garden;
@@ -240,6 +255,10 @@ add(garden, new THREE.CylinderGeometry(0.28, 0.38, 2.2, 14), toon('#a8744e'), -4
   for (let i = 0; i < 26; i++) { const x = (R2() * 2 - 1) * 6, z = -3.6 + R2() * 6.5; if (Math.hypot(x, z - 0.6) < 2.6 || (Math.abs(x) < 3.2 && z < -0.2 && z > -4.2)) continue; // chừa chỗ cho luống rau
     add(garden, new THREE.CylinderGeometry(0.02, 0.02, 0.3, 6), toon('#4fae5a'), x, 0.15, z, null);
     add(garden, new THREE.SphereGeometry(0.11, 10, 8), toon(cols[i % 4]), x, 0.33, z, '#7a4a63', 0.015); } }
+{ // đồi xa quanh vườn che mép đĩa cỏ, cho chân trời mềm thay vì đường cong cắt vào bầu trời
+  const hillCols = ['#9bdc8a', '#86cf86', '#a8e39a'];
+  for (let i = 0; i < 9; i++) { const x = -26 + i * 6.5 + (i % 2) * 1.5, r = 5 + (i * 7 % 4) * 1.2; const h = add(garden, new THREE.SphereGeometry(r, 28, 14), toon(hillCols[i % 3]), x, -r * 0.55, -17 - (i % 3) * 2.2, null); h.scale.set(1.5, 0.75, 1); }
+}
 const cloudM = new THREE.MeshBasicMaterial({ color: '#ffffff' });
 [[-6, 5.2, -9], [3, 6.2, -10], [8, 4.8, -9]].forEach(([x, y, z]) => { [[0, 0, 1], [1.1, 0.2, 1.2], [2.2, 0, 0.9]].forEach(([dx, dy, r]) => { const c = new THREE.Mesh(new THREE.SphereGeometry(r, 16, 12), cloudM); c.position.set(x + dx, y + dy, z); garden.add(c); }); });
 const ballTex = canvasTex(128, 64, g => { g.fillStyle = '#ff9ec4'; g.fillRect(0, 0, 128, 64); g.fillStyle = '#ffffff'; g.fillRect(0, 26, 128, 12); g.fillStyle = '#ffd36e'; g.fillRect(0, 0, 128, 8); g.fillRect(0, 56, 128, 8); });
@@ -339,6 +358,7 @@ function onEnter(name) {
   ctx.innerHTML = CTX[name].map(([k, l]) => `<button class="ctx-btn${k === 'home' || k === 'wake' ? ' ghosty' : ''}" type="button" data-k="${k}">${l}</button>`).join('');
   ctx.hidden = !CTX[name].length;
   let line = (PLACE_BY_ID[name] && PLACE_BY_ID[name].enterLine) || { kitchen: 'Tới giờ ăn rồi! Hôm nay ăn gì đây?', bath: 'Nước ấm quá~ Vuốt lên người mình để kỳ cọ nha!', garden: 'Ra vườn thôi! Chạm vào đất để mình đi tới đó, chạm luống đất để trồng rau, hoặc ném bóng cho mình nhé!' }[name];
+  if (PLACE_BY_ID[name] && !seenHotHint()) hotHint();
   if (PLACE_BY_ID[name] && PLACE_BY_ID[name].outdoor) { if (wx.sky === 'rain') line = 'Trời đang mưa… mình nghe tiếng mưa rơi nè~'; else if (period === 'dem') line = 'Khuya rồi, yên tĩnh ghê…'; }
   if (name === 'garden') refreshGarden().then(() => gardenFx.sync()).catch(() => {});
   if (line) setTimeout(() => say(line, 3200), reduce ? 0 : 350);
@@ -441,6 +461,7 @@ function updateWeather(dt) {
   }
 }
 function updateArea(dt, t) {
+  if (area === 'bath' && !reduce && Math.random() < dt * 1.6) spawnAt('bubble', (Math.random() - 0.5) * 3.4, 1.3, 0.4 + Math.random() * 0.8, { vy: 0.45 + Math.random() * 0.3, vx: (Math.random() - 0.5) * 0.2, scale: 0.16 + Math.random() * 0.2, max: 2.6 });
   if (area === 'bath') { duck.position.y = 1.05 + Math.sin(t * 2.2) * 0.04; duck.rotation.z = Math.sin(t * 1.7) * 0.12; }
   moveMark.visible = !!ctrl && walkable();
   if (moveMark.visible) { const k = 1 + Math.sin(t * 7) * 0.12; moveMark.scale.set(k, k, k); }
@@ -616,6 +637,9 @@ function ndcFrom(e) { const r = canvas.getBoundingClientRect(); return new THREE
 function hitPet(e) { ray.setFromCamera(ndcFrom(e), camera); return ray.intersectObject(pivot, true).length > 0; }
 let down = null;
 const hint = $('hint');
+const seenHotHint = () => { try { return !!localStorage.getItem('hatchday-hot-hint'); } catch { return true; } };
+/** Lần đầu vào một nơi: giải thích chấm hồng (điểm chạm) một lần duy nhất. */
+function hotHint() { try { localStorage.setItem('hatchday-hot-hint', '1'); } catch { /* bỏ qua */ } setTimeout(() => { hint.textContent = 'Chạm vào chấm hồng để chơi hoặc dùng đồ ở đây'; hint.classList.remove('gone'); setTimeout(() => hint.classList.add('gone'), 5200); }, 900); }
 function hideHint() { hint.classList.add('gone'); }
 canvas.addEventListener('pointerdown', e => {
   if (gardenFx.editing()) { gardenFx.editPointer('down', e); return; } // đang trang trí nông trại

@@ -5,7 +5,11 @@ export function initMarket(c) {
   const { THREE, add, toon, canvasTex, scene } = c, kit = makeKit(c);
   const g = new THREE.Group(); g.visible = false; scene.add(g);
   const cobble = canvasTex(128, 128, d => { d.fillStyle = '#f0e2c8'; d.fillRect(0, 0, 128, 128); d.strokeStyle = '#d8c39c'; d.lineWidth = 3; for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) { d.strokeRect(i * 32 + (j % 2) * 16 - 16, j * 32, 32, 32); } }, [6, 4]);
-  add(g, new THREE.BoxGeometry(14, 0.4, 10), toon('#ffffff', cobble), 0, -0.2, 0, '#9a7f5a', 0.03);
+  // nền lát đá kéo dài ra phía trước (phủ kín đáy khung hình) và đồi xa phía sau thay cho mảng trời trống
+  const cob = cobble.clone(); cob.repeat.set(6 * 22 / 14, 4 * 20 / 10); cob.needsUpdate = true;
+  add(g, new THREE.BoxGeometry(22, 0.4, 20), toon('#ffffff', cob), 0, -0.2, 5, '#9a7f5a', 0.03);
+  ['#9bdc8a', '#86cf86', '#a8e39a'].forEach((col, i) => { for (let k = 0; k < 4; k++) { const r = 4 + ((i + k) * 5 % 3) * 1.4, h = add(g, new THREE.SphereGeometry(r, 26, 12), toon(col), -17 + k * 11 + i * 3.5, -r * 0.5, -12 - i * 2.4, null); h.scale.set(1.6, 0.7, 1); } });
+  [[-7, -8.6], [6.5, -9.2], [10, -8]].forEach(([x, z], i) => { add(g, new THREE.CylinderGeometry(0.22, 0.3, 1.6, 10), toon('#a8744e'), x, 0.8, z, '#6a4630', 0.02); add(g, new THREE.SphereGeometry(1.2 + (i % 2) * 0.3, 18, 14), toon('#6fd08c'), x, 2.4, z, '#2f7a3d', 0.03); });
   add(g, new THREE.BoxGeometry(14, 0.5, 0.3), toon('#d9b27a'), 0, 0.15, -4.8, '#8a5f3a', 0.02); // hàng rào sau
   [-5, -2.5, 0, 2.5, 5].forEach(x => add(g, new THREE.BoxGeometry(0.16, 0.9, 0.16), toon('#c29a62'), x, 0.45, -4.8, '#8a5f3a', 0.02));
   add(g, new THREE.CylinderGeometry(1.1, 1.2, 0.1, 30), toon('#ffe9c4'), 0, 0.04, 1.4, '#c29a62', 0.02); // quảng trường nhỏ giữa chợ

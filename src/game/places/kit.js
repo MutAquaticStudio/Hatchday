@@ -53,7 +53,9 @@ export function makeKit(c, opts = {}) {
     const [px, pz] = c.getPetXZ ? c.getPetXZ() : [0, 0];
     for (const h of hots) { const s = h.stand || [h.at[0], h.at[2]]; h.el.classList.toggle('near', Math.hypot(s[0] - px, s[1] - pz) < 2.6); }
   }
-  function tick(now) { const t = now / 1000; npcs.forEach(n => n.tick(t)); updateLabels(); }
+  let labelAt = 0;
+  /** Nhãn DOM chỉ cần cập nhật ~30 lần/giây (đỡ tính chiếu và ghi style mỗi khung hình). */
+  function tick(now) { const t = now / 1000; npcs.forEach(n => n.tick(t)); if (now - labelAt >= 33) { labelAt = now; updateLabels(); } }
 
   /** Nhân vật NPC tròn xinh. hat: nurse | doctor | chef | tailor | librarian | vendor | none. */
   function npc({ x, z, color = '#ffd0dc', hat = 'none', ry = 0, s = 1, parent }) {
