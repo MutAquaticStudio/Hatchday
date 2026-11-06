@@ -245,7 +245,7 @@ add(bath, new THREE.BoxGeometry(0.12, 1.3, 0.9), toon('#ff9ec4'), -4.45, 2.4, -1
 const garden = new THREE.Group(); garden.visible = false; scene.add(garden); areas.garden = garden;
 const groundTex = groundTextures(canvasTex); // texture nền vườn (garden3d.js)
 add(garden, new THREE.CylinderGeometry(15, 14.5, 0.6, 72), toon('#ffffff', groundTex.grass), 0, -0.3, 0, '#4f9a4a', 0.04);
-add(garden, new THREE.CylinderGeometry(2.4, 2.4, 0.04, 40), toon('#ffffff', groundTex.lawn), 0, 0.02, 0.6, null);
+
 for (let i = -7; i <= 7; i++) add(garden, new THREE.BoxGeometry(0.2, 1.1, 0.2), toon('#fff3e0'), i * 0.85, 0.55, -4.3, '#a8778e', 0.02);
 [0.75, 0.35].forEach(y => add(garden, new THREE.BoxGeometry(12.5, 0.12, 0.12), toon('#fff3e0'), 0, y, -4.25, '#a8778e', 0.02));
 add(garden, new THREE.CylinderGeometry(0.28, 0.38, 2.2, 14), toon('#a8744e'), -4.6, 1.1, -2.6, '#6a4630');

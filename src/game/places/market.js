@@ -12,7 +12,6 @@ export function initMarket(c) {
   [[-7, -8.6], [6.5, -9.2], [10, -8]].forEach(([x, z], i) => { add(g, new THREE.CylinderGeometry(0.22, 0.3, 1.6, 10), toon('#a8744e'), x, 0.8, z, '#6a4630', 0.02); add(g, new THREE.SphereGeometry(1.2 + (i % 2) * 0.3, 18, 14), toon('#6fd08c'), x, 2.4, z, '#2f7a3d', 0.03); });
   add(g, new THREE.BoxGeometry(14, 0.5, 0.3), toon('#d9b27a'), 0, 0.15, -4.8, '#8a5f3a', 0.02); // hàng rào sau
   [-5, -2.5, 0, 2.5, 5].forEach(x => add(g, new THREE.BoxGeometry(0.16, 0.9, 0.16), toon('#c29a62'), x, 0.45, -4.8, '#8a5f3a', 0.02));
-  add(g, new THREE.CylinderGeometry(1.1, 1.2, 0.1, 30), toon('#ffe9c4'), 0, 0.04, 1.4, '#c29a62', 0.02); // quảng trường nhỏ giữa chợ
 
   const stripe = (a, b) => canvasTex(128, 64, d => { for (let i = 0; i < 8; i++) { d.fillStyle = i % 2 ? a : b; d.fillRect(i * 16, 0, 16, 64); } }, [1, 1]);
   function stall(x, z, col, light, label, goods, hat = 'vendor', ry = 0) {
@@ -56,10 +55,16 @@ export function initMarket(c) {
   kit.hotspot({ id: 'toys', label: 'Đồ chơi', at: [4.4, 2.2, -0.2], stand: [3.6, 1.0], act: () => c.open.toys() }, toyPost);
   void T;
 
-  // chim bồ câu
-  const pigeons = [[-0.5, 1.9], [0.6, 1.2], [0.1, 2.1]].map(([x, z], i) => {
-    const p = new THREE.Group(); p.position.set(x, 0, z); g.add(p);
-    add(p, new THREE.SphereGeometry(0.13, 10, 8), toon('#cfd8e3'), 0, 0.15, 0, '#556', 0.02); add(p, new THREE.SphereGeometry(0.08, 8, 8), toon('#e4eaf2'), 0.1, 0.27, 0, '#556', 0.02);
+  // chim bồ câu: đặt xa chỗ bé đứng (bé vào chợ ở giữa) để không chồng lên chân bé
+  const pigeons = [[-3.4, 3.2, 0.5], [3.3, 2.6, -0.6], [-2.2, 4.2, 2.4]].map(([x, z, ry], i) => {
+    const p = new THREE.Group(); p.position.set(x, 0, z); p.rotation.y = ry; g.add(p);
+    const body = add(p, new THREE.SphereGeometry(0.17, 12, 10), toon('#b9c2d4'), 0, 0.2, 0, '#5a6278', 0.018); body.scale.set(1.25, 0.9, 0.95);
+    add(p, new THREE.SphereGeometry(0.1, 10, 8), toon('#8fa0c0'), 0.15, 0.3, 0, '#5a6278', 0.015); // cổ ánh tím
+    add(p, new THREE.SphereGeometry(0.085, 10, 8), toon('#c9d2e4'), 0.23, 0.38, 0, '#5a6278', 0.015); // đầu
+    const beak = add(p, new THREE.ConeGeometry(0.03, 0.09, 6), toon('#ffb36b'), 0.33, 0.37, 0, null); beak.rotation.z = -Math.PI / 2;
+    add(p, new THREE.SphereGeometry(0.014, 6, 6), toon('#2a2230'), 0.27, 0.41, 0.06, null); add(p, new THREE.SphereGeometry(0.014, 6, 6), toon('#2a2230'), 0.27, 0.41, -0.06, null);
+    const tail = add(p, new THREE.ConeGeometry(0.07, 0.2, 6), toon('#9aa6c0'), -0.27, 0.22, 0, '#5a6278', 0.012); tail.rotation.z = Math.PI / 2 + 0.3;
+    [-0.05, 0.05].forEach(dz => add(p, new THREE.CylinderGeometry(0.01, 0.01, 0.1, 5), toon('#ff8a7a'), 0.02, 0.05, dz, null));
     return { p, ph: i * 2 };
   });
   kit.plant(g, -4.2, 0.6, 0.9); kit.plant(g, 4.2, 0.6, 0.9);
