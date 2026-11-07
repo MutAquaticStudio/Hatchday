@@ -53,7 +53,7 @@ export const PLACES: PlaceDef[] = [
     walk: { x: [-3.5, 3.5], z: [-1.5, 2.6] }, ctx: BACK, enterLine: 'Bệnh viện Nhà thuốc Bông đây. Mình không sợ đâu… chắc vậy.', map: { x: 84, y: 28 }, cap: 12, ready: true,
     blurb: 'Khám bệnh, mua thuốc, xem sổ bệnh. Luôn mở, kể cả lúc bé ốm.' },
   { id: 'market', name: 'Chợ Xanh', short: 'Chợ Xanh', kind: 'solo', outdoor: true, unlock: 2, pet: [0, 0, 1.2], cam: OUTDOOR_CAM,
-    walk: { x: [-3.4, 3.4], z: [-0.8, 3] }, ctx: BACK, enterLine: 'Chợ đông vui ghê! Mua gì cũng có.', map: { x: 16, y: 28 }, cap: 16, ready: true,
+    walk: { x: [-13, 13], z: [-0.8, 4.2] }, follow: { x: [-9.5, 9.5], z: [0, 1.4], kx: 0.9, kz: 0.6, zBase: 1.2 }, blockers: [{ x: -12.9, z: -1.7, r: 1.0 }, { x: 12.9, z: -1.7, r: 1.1 }], ctx: BACK, enterLine: 'Chợ đông vui ghê! Mua gì cũng có.', map: { x: 16, y: 28 }, cap: 16, ready: true,
     blurb: 'Mua thức ăn, đồ trang trí, nông trại; bán rau thừa lấy xu.' },
   { id: 'tailor', name: 'Tiệm may Kim Chỉ', short: 'Tiệm may', kind: 'solo', outdoor: false, unlock: 0, pet: [0, 0, 0.9], cam: INDOOR_CAM,
     walk: { x: [-3.4, 3.4], z: [-1.2, 2.6] }, ctx: BACK, enterLine: 'Thử đồ nào! Mình muốn xem mình mặc gì hợp nhất.', map: { x: 50, y: 77 }, cap: 1, ready: true,
