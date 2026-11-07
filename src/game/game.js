@@ -64,14 +64,29 @@ const camera = new THREE.PerspectiveCamera(32, 1, 0.1, 100);
 const look = new THREE.Vector3(0, 1.15, 0);
 
 /* toon */
-const grad = new THREE.DataTexture(new Uint8Array([105, 180, 255]), 3, 1, THREE.RedFormat);
+const grad = new THREE.DataTexture(new Uint8Array([120, 186, 255]), 3, 1, THREE.RedFormat);
 grad.minFilter = grad.magFilter = THREE.NearestFilter; grad.needsUpdate = true;
-const toon = (color, map) => new THREE.MeshToonMaterial({ color, gradientMap: grad, map: map || null });
+/** Bóng toon có màu: phần tối ngả tím lạnh và giữ độ bão hoà thay vì xám đục (kiểu tranh anime). Một bản vá dùng chung cho mọi vật liệu toon. */
+const shadowTint = { value: new THREE.Color('#b8a8ff') }, shadowTintK = { value: 0.42 };
+const TINT_GLSL = `
+  { vec3 base = max(diffuseColor.rgb, vec3(0.001));
+    float shade = clamp(dot(outgoingLight, vec3(0.299, 0.587, 0.114)) / max(dot(base, vec3(0.299, 0.587, 0.114)), 0.001), 0.0, 1.5);
+    float sh = 1.0 - smoothstep(0.55, 0.95, shade);
+    vec3 tinted = outgoingLight * mix(vec3(1.0), shadowTint * 1.18, sh * shadowTintK);
+    float l = dot(tinted, vec3(0.299, 0.587, 0.114));
+    outgoingLight = mix(vec3(l), tinted, 1.0 + sh * 0.18); }
+`;
+function tintShader(sh) {
+  sh.uniforms.shadowTint = shadowTint; sh.uniforms.shadowTintK = shadowTintK;
+  sh.fragmentShader = 'uniform vec3 shadowTint;\nuniform float shadowTintK;\n' + sh.fragmentShader.replace('#include <opaque_fragment>', TINT_GLSL + '#include <opaque_fragment>');
+}
+const toon = (color, map) => { const m = new THREE.MeshToonMaterial({ color, gradientMap: grad, map: map || null }); m.onBeforeCompile = tintShader; m.customProgramCacheKey = () => 'toon-tint'; return m; };
 /* Viền sáng anime (rim light) cho thú: chèn vào shader toon, sau opaque_fragment */
 const rimColor = { value: new THREE.Color('#fff4e8') }, rimStrength = { value: 0.5 }, evoGlow = { value: 0 };
 function petToon(color) {
   const m = toon(color);
   m.onBeforeCompile = sh => {
+    tintShader(sh);
     sh.uniforms.rimColor = rimColor; sh.uniforms.rimStrength = rimStrength; sh.uniforms.evoGlow = evoGlow;
     sh.fragmentShader = 'uniform vec3 rimColor;\nuniform float rimStrength;\nuniform float evoGlow;\n' + sh.fragmentShader.replace('#include <opaque_fragment>',
       '#include <opaque_fragment>\n  float rimF = 1.0 - clamp(dot(normalize(normal), normalize(vViewPosition)), 0.0, 1.0);\n  gl_FragColor.rgb += rimColor * smoothstep(0.6, 0.7, rimF) * rimStrength;\n  gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(1.0, 0.98, 0.94), evoGlow);');
@@ -517,6 +532,14 @@ async function toyApply(id) {
 function toyPlay(id) { const ok = toyGate(id); if (DEV) (window.__gates ||= []).push([id, ok, S.asleep, Math.round(S.nl), S.toys.used[id] || 0]); if (ok) toyApply(id); return ok; }
 const tmpV = new THREE.Vector3();
 const SPLASH = { vy: 1.4, g: 7, scale: 0.13, max: 0.3 };
+/** Nơi rộng: khung đổ bóng của mặt trời đi theo bé (bám lưới 0,5 để bóng không rung), khung rộng hơn; trong nhà giữ cố định quanh gốc toạ độ. */
+let sunSpan = 0;
+function updateSunFollow() {
+  const wide = !!(PLACE_BY_ID[area] && PLACE_BY_ID[area].follow), span = wide ? 10 : 6;
+  const cx = wide ? Math.round((petBase.x + petOff.x) * 2) / 2 : 0, cz = wide ? Math.round((petBase.z + petOff.z) * 2) / 2 : 0;
+  sun.target.position.set(cx, 0, cz); sun.position.set(cx + 3, 8, cz + 6); sun.target.updateMatrixWorld();
+  if (span !== sunSpan) { sunSpan = span; const sc = sun.shadow.camera; sc.left = -span; sc.right = span; sc.top = span; sc.bottom = -span; sc.far = 30; sc.updateProjectionMatrix(); }
+}
 function updateWeather(dt) {
   const out = isOutdoor(), px = petBase.x + petOff.x, pz = petBase.z + petOff.z, fall = fallFor(new Date().getMonth());
   wxFx.update(dt, { sky: wx.sky, amount: wx.amount, kind: fall, density: quality === 'thap' ? 0.4 : 1, cx: px, cz: pz, outdoors: out && !editing, splash: (x, z) => { if (Math.random() < 0.45) spawnAt('drop', x, 0.05, z, SPLASH); } });
@@ -1208,7 +1231,7 @@ function tick(now, dt) {
   if (!reduce && key === 'sick') roll += Math.sin(t * 22) * 0.012;
   petRoot.position.set(petBase.x + petOff.x, petBase.y + hop, petBase.z + petOff.z);
   shadow.position.set(petRoot.position.x, 0.075, petRoot.position.z + 0.05); shadow.visible = area !== 'bath' && area !== 'bedroom';
-  updateArea(dt, t); updateLights(dt); updateWeather(dt);
+  updateArea(dt, t); updateLights(dt); updateWeather(dt); updateSunFollow();
   /* nhìn theo con trỏ, quay đi khi dỗi */
   /* dáng bốn chân / bay lượn đứng hơi nghiêng 3/4 để thấy cả thân */
   const side = petParts && (petParts.plan === 'thu4' || petParts.plan === 'ran') ? 0.42 : 0;
