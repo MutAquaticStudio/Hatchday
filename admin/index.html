@@ -24,7 +24,27 @@
     button:disabled{opacity:.5;cursor:default}.msg{margin:8px 0;padding:8px 10px;border-radius:8px;background:#eaf7ef;color:var(--ok)}.msg.err{background:#fdecea;color:var(--bad)}
     .pill{display:inline-block;border-radius:999px;padding:1px 8px;font-size:12px;background:#eee}.pill.ok{background:#eaf7ef;color:var(--ok)}.pill.warn{background:#fff6e0;color:var(--warn)}.pill.bad{background:#fdecea;color:var(--bad)}
     .login{max-width:380px;margin:60px auto}.small{color:var(--soft);font-size:12px}
-    @media (max-width:560px){main{padding:10px}header{padding:8px 10px}}
+    /* Dashboard: màu phân loại theo thứ tự cố định (bộ màu đã kiểm bằng validate_palette), trục/lưới mờ, nét 2px */
+    :root{--s1:#2a78d6;--s2:#eb6834;--s3:#1baf7a;--s4:#eda100;--s5:#e87ba4;--s6:#008300;--s7:#6250d6;--s8:#e34948;--grid:#ece4f0;--axis:#7a6a7a}
+    main:has(.kg){max-width:1180px}
+    .dctl{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:6px}.dctl button[aria-pressed=true]{background:var(--ink);color:#fff;border-color:var(--ink)}
+    .kg{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
+    .kpi{background:var(--card);border:1px solid var(--edge);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:2px;min-width:0}
+    .kl{color:var(--soft);font-size:12px}.kv{font-size:24px;line-height:1.15}.ks{color:var(--soft);font-size:12px}.spark{width:100%;height:28px;margin-top:4px}
+    .dl.up{color:var(--ok)}.dl.dn{color:var(--bad)}.dl{font-weight:600}
+    .help{display:inline-block;width:15px;height:15px;line-height:15px;text-align:center;border-radius:50%;background:#eee;color:var(--soft);font-size:10px;cursor:help;font-weight:700}
+    .cg{display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:12px}.cc{margin:0;overflow:visible;min-width:0}.cc.wide{grid-column:1/-1}.cc h4{margin:0 0 6px;font-size:13px}
+    .chart{width:100%;height:auto;display:block;touch-action:pan-y}.chart .gl{stroke:var(--grid);stroke-width:1}.chart .ax{fill:var(--axis);font-size:12px}.chart .xh{stroke:var(--axis);stroke-width:1;stroke-dasharray:3 3}.chart .hit{fill:transparent}
+    .lg{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;color:var(--soft);margin-bottom:4px}.lg i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+    .tv{margin-top:6px;font-size:12px}.tv summary{cursor:pointer;color:var(--soft)}.tvs{max-height:200px;overflow:auto;margin-top:4px}.tvs table{font-size:11px}
+    .hb{display:flex;flex-direction:column;gap:6px}.hr{display:grid;grid-template-columns:minmax(90px,150px) 1fr auto;gap:2px 8px;align-items:center;font-size:12px}.hl{color:var(--ink)}
+    .ht{display:block;background:#f3edf6;border-radius:4px;height:12px;overflow:hidden}.ht i{display:block;height:100%;border-radius:4px}.hr small{grid-column:2/-1;color:var(--soft);font-size:11px;margin-top:-2px}
+    .hm{overflow-x:auto}.hm table{font-size:11px;text-align:center;border-collapse:separate;border-spacing:2px}.hm th{font-weight:600;padding:2px 4px;white-space:nowrap;text-align:right;border:0}.hm td{min-width:22px;padding:3px 2px;border:0;border-radius:3px}.hm td.na{color:#c9bccf}
+    .al{display:flex;flex-direction:column;gap:6px}.al>div{border:1px solid var(--edge);border-left-width:4px;border-radius:8px;padding:8px 10px;background:#fff}.al .bad{border-left-color:#d03b3b}.al .warn{border-left-color:#fab219}.al.ok>div{border-left-color:#0ca30c}
+    .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px}
+    .fl{display:flex;gap:12px;align-items:center;justify-content:space-between}.fl p{margin:4px 0 0}
+    #tip{position:fixed;z-index:20;pointer-events:none;background:#2d2230;color:#fff;border-radius:8px;padding:6px 9px;font-size:12px;max-width:260px;box-shadow:0 4px 14px rgba(0,0,0,.25)}#tip i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px}
+    @media (max-width:560px){main{padding:10px}header{padding:8px 10px}.cg{grid-template-columns:minmax(0,1fr)}.kg{grid-template-columns:repeat(2,minmax(0,1fr))}.fl{flex-direction:column;align-items:stretch}}
   </style>
 </head>
 <body><div id="root"></div><script type="module" src="./src/main.ts"></script></body>

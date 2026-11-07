@@ -2,6 +2,8 @@
 import { SELL, sellPrice, BY_ID, DEFAULT_LAYOUT, FOOD_BY_ID, FOOD_GROUPS, FOOD_STOCK, FOODS, FRIDGE, GRID, ITEMS, PAID_SHOP_ENABLED, PET_ZONE, RARITY, RECIPES, SET_LINES, SLOTS, TAGS, THEMES, WINDOW_CELLS } from './catalog';
 import { BALANCED_BONUS, BALANCED_GROUPS, tastesLine } from './nutrition';
 import { FOOD_SVG } from './food.js';
+import { BADGE_ICONS } from './badge-icons';
+import { ACTIVITY_LABEL, BADGES, BADGE_BY_ID, EXPLORE_TIERS } from './world-activity';
 import { activeSets, buyable, canPlace, cellsOf, comfortLevel, comfortScore, footprint, placedCount, QUEST_BONUS, QUEST_POOL, WEEKLY_POOL } from './layout';
 import { makeDecor } from './decor3d.js';
 import { disposePet } from './pet3d.js';
@@ -9,6 +11,12 @@ import { makeFitter } from './fit.js';
 import { sfx } from './audio.js';
 import { clinicBody } from './clinic.js';
 import { initMap } from './places/map.js';
+import { initSocial } from './social-ui.js';
+import { priceOf, salePct } from './pricing';
+import { setIsolation } from './store';
+import { initAds } from './ads-ui.js';
+import { initToys } from './toys-ui.js';
+import { SPACES } from './places/registry';
 import { bondLevel } from './bond';
 import { ILLNESS_BY_ID, MEDICINE_BY_ID } from './health';
 import { FORMS, RARITIES, REGIONS, SPECIES, SPECIES_BY_ID, STAGES } from './species';
@@ -29,7 +37,7 @@ export function initHome(ctx) {
   /* ===================== Phòng theo bố cục ===================== */
   const itemsRoot = new THREE.Group(); room.add(itemsRoot);
   let placed = []; // { p, group, item }
-  const backTexRepeat = [6, 3], leftTexRepeat = [4, 3], floorRepeat = [3, 3];
+  const backTexRepeat = [6, 3], leftTexRepeat = [4, 3], floorRepeat = [3 * 14 / 9, 3 * 13 / 7]; // sàn kéo dài ra phía trước (xem FLOOR trong game.js) nên số lần lặp tăng theo
 
   function worldOf(p) {
     const it = BY_ID[p.id];
@@ -108,18 +116,21 @@ export function initHome(ctx) {
     if (!el) { el = document.createElement('section'); el.id = id; el.className = 'sheet hsheet ' + cls; el.hidden = true; el.setAttribute('aria-label', id); app.appendChild(el); }
     return el;
   }
-  const sheets = ['house', 'shop', 'wardrobe', 'quests', 'dex', 'family', 'cooking', 'clinic', 'map', 'sell'];
+  const sheets = ['house', 'shop', 'wardrobe', 'quests', 'dex', 'family', 'cooking', 'clinic', 'map', 'sell', 'social', 'visit', 'gift', 'spaces', 'ads', 'toys'];
   function closeAll(except) { sheets.forEach(s => { if (s !== except && $(s)) $(s).hidden = true; }); ctx.setZoom(0); $('a-house').setAttribute('aria-pressed', 'false'); }
   function open(id) { ctx.closeGameSheets(); closeAll(id); const el = sheet(id); el.hidden = false; $('a-house').setAttribute('aria-pressed', String(id !== 'none')); el.querySelector('button, input')?.focus({ preventScroll: true }); return el; }
   const head = (title, sub = '') => `<header class="hs-head"><div><h2>${title}</h2>${sub ? `<p>${sub}</p>` : ''}</div><button type="button" class="hs-close" data-close aria-label="Đóng">✕</button></header>`;
   app.addEventListener('click', e => { if (e.target.closest('[data-close]')) { closeAll(); $('a-house').focus(); } });
 
   /* ---------- Menu Nhà ---------- */
-  const questReady = () => S.quests.some(q => !q.claimed && q.progress >= q.target) || (S.questBonus.ready && !S.questBonus.claimed) || S.weekly.some(q => !q.claimed && q.progress >= q.target);
+  const worldReady = () => !!S.world && (S.world.explore.some(t => t.ready && !t.claimed) || S.world.badges.some(b => !b.claimed && b.progress >= b.target));
+  const questReady = () => S.quests.some(q => !q.claimed && q.progress >= q.target) || (S.questBonus.ready && !S.questBonus.claimed) || S.weekly.some(q => !q.claimed && q.progress >= q.target) || worldReady();
   function openHouse() {
     const el = open('house');
     el.innerHTML = head('Nhà của bé', `Thoải mái cấp ${S.comfort} · ${S.coins.toLocaleString('vi-VN')} xu`) + `<div class="tiles">
       <button type="button" class="tile${S.illness ? ' ready' : ''}" data-go="map"><b>Bản đồ</b><span>Chợ, bệnh viện, tiệm may, thư viện…</span></button>
+      <button type="button" class="tile${social.badge() ? ' ready' : ''}" data-go="social"><b>Bạn bè &amp; thư</b><span>${esc(social.tileText())}</span></button>
+      <button type="button" class="tile${SPACES.some(p => bondLevel(S.bondXp) >= p.unlock) ? ' ready' : ''}" data-go="spaces"><b>Không gian của bé</b><span>${SPACES.filter(p => bondLevel(S.bondXp) >= p.unlock).length}/${SPACES.length} nơi đã mở</span></button>
       <button type="button" class="tile" data-go="decor"><b>Trang trí phòng</b><span>Đặt, xoay, cất đồ</span></button>
       <button type="button" class="tile" data-go="shop"><b>Cửa hàng</b><span>Thức ăn, đồ trang trí, trang phục</span></button>
       <button type="button" class="tile" data-go="wardrobe"><b>Tủ đồ</b><span>Trang phục cho bé</span></button>
@@ -129,11 +140,17 @@ export function initHome(ctx) {
       <button type="button" class="tile" data-go="cooking"><b>Nấu ăn</b><span>${RECIPES.length} công thức</span></button>
       <button type="button" class="tile" data-go="family"><b>Gia phả</b><span>${S.lineage.length > 1 ? `${S.lineage.length} đời của ${esc(S.family)}` : `Đời ${S.generation} của ${esc(S.family)}`}</span></button>
       <button type="button" class="tile" data-go="dex"><b>Sổ loài</b><span>Đã gặp ${S.seen.length}/${SPECIES.length} loài</span></button></div>`;
+    scrollWrap(el);
   }
+  /* Hàng tab cuộn ngang: mờ dần ở mép còn nội dung để người chơi biết vuốt thêm */
+  const hint = el => { el.classList.toggle('fade-r', el.scrollLeft + el.clientWidth < el.scrollWidth - 4); el.classList.toggle('fade-l', el.scrollLeft > 4); };
+  app.addEventListener('scroll', e => { if (e.target.classList?.contains('tabs-row')) hint(e.target); }, true);
+  let hintRaf = 0; // gộp nhiều thay đổi DOM trong một khung hình
+  new MutationObserver(() => { if (hintRaf) return; hintRaf = requestAnimationFrame(() => { hintRaf = 0; app.querySelectorAll('.tabs-row').forEach(hint); }); }).observe(app, { childList: true, subtree: true });
   $('a-house').addEventListener('click', () => { ctx.hideHint(); const hs = $('house'); if (hs && !hs.hidden) { closeAll(); return; } openHouse(); });
   app.addEventListener('click', e => {
     const b = e.target.closest('.tile'); if (!b) return;
-    ({ decor: () => enterEdit(), shop: () => openShop('market'), wardrobe: openWardrobe, quests: openQuests, dex: () => openDex(), family: openFamily, garden: () => { closeAll(); ctx.goTo('garden'); }, cooking: openCooking, clinic: () => openClinic(), map: () => worldMap.open() })[b.dataset.go]();
+    ({ decor: () => enterEdit(), shop: () => openShop('market'), wardrobe: openWardrobe, quests: openQuests, dex: () => openDex(), family: openFamily, garden: () => { closeAll(); ctx.goTo('garden'); }, cooking: openCooking, clinic: () => openClinic(), map: () => worldMap.open(), social: () => social.open(), spaces: () => openSpaces() })[b.dataset.go]();
   });
 
   /* ---------- Ảnh thu nhỏ 3D ---------- */
@@ -187,6 +204,8 @@ export function initHome(ctx) {
     el.querySelectorAll('details').forEach((d, i) => { d.open = clinicOpen.has(i); d.addEventListener('toggle', () => { d.open ? clinicOpen.add(i) : clinicOpen.delete(i); }); });
   }
   app.addEventListener('click', async e => {
+    const iso = e.target.closest('[data-iso]');
+    if (iso) { iso.disabled = true; const err = await setIsolation(iso.dataset.iso === '1'); if (err) ctx.toast(viError(err)); else ctx.toast(iso.dataset.iso === '1' ? 'Bé đang cách ly, tạm thời không vào nơi chung.' : 'Đã tắt cách ly.'); renderClinic?.(); return; }
     const buy = e.target.closest('[data-buy-med]'), use = e.target.closest('[data-use-med]'), cl = e.target.closest('[data-clinic]');
     if (!buy && !use && !cl) return;
     (buy || use || cl).disabled = true;
@@ -203,6 +222,14 @@ export function initHome(ctx) {
     if (!$('clinic').hidden) renderClinic();
   });
 
+
+  /* ---------- Không gian của bé: mở theo cấp Gắn bó ---------- */
+  function openSpaces() {
+    const el = open('spaces'), lvl = bondLevel(S.bondXp);
+    el.innerHTML = head('Không gian của bé', 'Mở thêm khi tăng cấp Gắn bó') + `<div class="hs-body"><ul class="soc-list">${SPACES.map(p => `<li class="soc-row"><div class="soc-info"><b>${esc(p.name)}</b><small>${esc(p.blurb)}</small></div><div class="soc-act">${lvl >= p.unlock ? `<button type="button" class="btn-sm" data-space="${p.id}">Đi tới</button>` : `<span class="pill-ok" style="background:#eee;color:#666">Gắn bó cấp ${p.unlock}</span>`}</div></li>`).join('')}</ul></div>`;
+  }
+  app.addEventListener('click', e => { const b = e.target.closest('[data-space]'); if (b) { closeAll(); ctx.goTo(b.dataset.space); } });
+
   /* ---------- Thu mua nông sản (Chợ) ---------- */
   function openSell() { open('sell'); renderSell(); store.refreshSell().then(() => { if (!$('sell').hidden) renderSell(); }).catch(() => {}); }
   function renderSell(el = $('sell')) {
@@ -218,10 +245,14 @@ export function initHome(ctx) {
     if ('error' in r) ctx.toast(viError(r.error)); else { sfx('coin'); ctx.buzz(10); ctx.toast(`Đã bán, nhận ${r.got} xu.`); }
     renderSell();
   });
-  const worldMap = initMap({ app, $, esc, head, open, closeAll, S, bondLevel: () => bondLevel(S.bondXp), goTo: ctx.goTo, toast: ctx.toast, getArea: ctx.getArea, alerts: () => ({ hospital: !!S.illness }) });
+  const ads = initAds({ ctx, store, head, open, app, $ });
+  const toys = initToys({ ctx, head, open, app, $ });
+  const social = initSocial({ ctx, S, store, esc, head, open, closeAll, thumb, fillThumbs, app, $, onChange: () => sync() });
+  const worldMap = initMap({ app, $, esc, head, open, closeAll, decor: () => (ctx.events && ctx.events.decor ? ctx.events.decor() : null), S, bondLevel: () => bondLevel(S.bondXp), goTo: ctx.goTo, toast: ctx.toast, getArea: ctx.getArea, alerts: () => ({ hospital: !!S.illness }) });
 
   /* ---------- Nấu ăn: hai nguyên liệu thành một món ngon hơn, thuộc hai nhóm dinh dưỡng ---------- */
-  function openCooking() { open('cooking'); renderCooking(); }
+  /** Nấu ăn chỉ mở khi bé đã đứng trước bếp lò (force); bấm từ nơi khác thì đi vào Bếp trước (game.js: goCook). */
+  function openCooking(force) { if (force !== true && !(ctx.atStove && ctx.atStove())) { ctx.goCook(); return; } open('cooking'); renderCooking(); }
   function renderCooking(el = $('cooking')) {
     // món nấu được ngay lên đầu, giữ nguyên thứ tự công thức trong mỗi nhóm
     const can = r => (S.owned[r.a] || 0) >= 1 && (S.owned[r.b] || 0) >= 1 && (S.owned[r.dish] || 0) < FOOD_STOCK.max;
@@ -282,12 +313,19 @@ export function initHome(ctx) {
   /* ---------- Sổ loài ---------- */
   let dexRegion = -1, dexSel = '';
   function openDex() { dexSel = S.species; open('dex'); renderDex(); }
+  /** Bọc phần thân của sheet (mọi thứ sau thanh tiêu đề) vào một vùng cuộn, giữ nguyên vị trí cuộn khi vẽ lại. */
+  function scrollWrap(el, keepTop = 0) {
+    const h = el.querySelector('.hs-head'); if (!h) return;
+    const w = document.createElement('div'); w.className = 'hs-scroll'; while (h.nextSibling) w.appendChild(h.nextSibling); el.appendChild(w); w.scrollTop = keepTop;
+  }
+  const scrollTopOf = el => el.querySelector('.hs-scroll')?.scrollTop || 0;
   function renderDex(el = $('dex')) {
     const seen = new Map(S.seen.map(x => [x.species_id, x]));
     const leg = SPECIES.filter(x => x.rarity === 'huyen' && seen.has(x.id)).length;
     const list = SPECIES.filter(x => dexRegion < 0 || x.region === dexRegion);
     const sel = SPECIES_BY_ID[dexSel], selSeen = sel && seen.get(sel.id);
     const look = sp => { const cur = sp.id === S.species; const f = cur ? S.form : seen.get(sp.id)?.forms[0]; return `pet:${sp.id}:${cur ? S.stage : 'adult'}:${f || 'thuong'}`; };
+    const keepTop = scrollTopOf(el);
     el.innerHTML = head('Sổ loài', `Đã gặp ${seen.size}/${SPECIES.length} loài · Huyền thoại ${leg}/5`) +
       (sel ? `<div class="dex-detail">${selSeen ? `<img data-thumb="${look(sel)}" alt="" width="96" height="96">` : '<div class="dex-q">?</div>'}
         <div><b>${selSeen ? esc(sel.name) : '???'}</b> <span class="rar" style="--rc:${RARITIES[sel.rarity].color}">${RARITIES[sel.rarity].name}</span>
@@ -299,7 +337,7 @@ export function initHome(ctx) {
       `<div class="tabs-row" role="tablist">${[[-1, 'Tất cả'], ...REGIONS.map((r, i) => [i, r.name])].map(([i, n]) => `<button type="button" class="pill${dexRegion === i ? ' on' : ''}" data-dexr="${i}" role="tab" aria-selected="${dexRegion === i}">${n}</button>`).join('')}</div>
       <div class="grid-items dex-grid">${list.map(sp => { const ok = seen.has(sp.id); return `<button type="button" class="card-item dex-card r-${sp.rarity}${ok ? '' : ' unknown'}${dexSel === sp.id ? ' on' : ''}" data-dex="${sp.id}">
         <img data-thumb="${look(sp)}" alt="" width="72" height="72"><div class="ci-name">${ok ? esc(sp.name) : '???'}</div><span class="rar" style="--rc:${RARITIES[sp.rarity].color}">${RARITIES[sp.rarity].name}</span></button>`; }).join('')}</div>`;
-    fillThumbs(el);
+    scrollWrap(el, keepTop); fillThumbs(el);
   }
   app.addEventListener('click', e => {
     const r = e.target.closest('[data-dexr]'); if (r) { dexRegion = Number(r.dataset.dexr); renderDex(); return; }
@@ -321,11 +359,11 @@ export function initHome(ctx) {
     return `<div class="ration"><div><b>Suất ăn hôm nay</b><span>Miễn phí ${FOOD_STOCK.ration} ${esc(ration.name)}, mỗi ngày nhận một lần</span></div>${claimed ? '<span class="pill-ok">Đã nhận</span>' : '<button type="button" class="btn-sm" data-ration>Nhận</button>'}</div>
       <div class="ration fridge"><div><b>Tủ lạnh cấp ${S.fridge + 1}</b><span>Giữ tươi tối đa ${FRIDGE[S.fridge].keep} phần mỗi món tươi (rau, trái cây, đạm, món nấu). Phần dư mỗi ngày hỏng 1/4. Tinh bột và đồ ngọt không hỏng.</span></div>${FRIDGE[S.fridge + 1] ? `<button type="button" class="btn-sm" data-fridge ${S.coins >= FRIDGE[S.fridge + 1].price ? '' : 'disabled'}>${COIN_SVG}${FRIDGE[S.fridge + 1].price}</button>` : '<span class="pill-ok">Cấp cao nhất</span>'}</div>
       <div class="nutri"><b>Khẩu vị của bé</b><span>${esc(tastesLine(S.tastes))}. Cho bé ăn thử nhiều món để biết bé thích gì.</span></div>
-      <div class="nutri"><b>Ăn cân bằng</b><span>Trong 3 ngày, cho bé ăn đủ ${BALANCED_GROUPS} nhóm: mỗi bữa bé vui thêm +${BALANCED_BONUS}.</span>
+      ${salePct('food') ? `<div class="sale-note">🏷 Đang giảm giá ${salePct('food')}% thức ăn</div>` : ''}<div class="nutri"><b>Ăn cân bằng</b><span>Trong 3 ngày, cho bé ăn đủ ${BALANCED_GROUPS} nhóm: mỗi bữa bé vui thêm +${BALANCED_BONUS}.</span>
         <div class="chips-row">${healthy.map(([k, g]) => `<span class="gchip${got.has(k) ? ' on' : ''}">${got.has(k) ? '✓ ' : ''}${g.name}</span>`).join('')}</div></div>
       <div class="grid-items">${FOODS.map(f => {
-        const have = S.owned[f.id] || 0, one = f.price, five = f.price * 5;
-        const can = n => S.coins >= f.price * n && have + n <= FOOD_STOCK.max;
+        const have = S.owned[f.id] || 0, one = priceOf('food', f.price), five = one * 5;
+        const can = n => S.coins >= one * n && have + n <= FOOD_STOCK.max;
         return `<article class="card-item"><div class="food-ic">${FOOD_SVG[f.id]}</div><div class="ci-name">${esc(f.name)}</div>
           <div class="ci-meta">${FOOD_GROUPS[f.group].name}${f.fresh ? ' · tươi' : ''} · +${f.no} No · +${f.vui} Vui</div><div class="ci-meta">Đang có ${have}/${FOOD_STOCK.max}</div>
           <div class="ci-act"><button type="button" class="btn-sm buy" data-buyfood="${f.id}" data-qty="1" ${can(1) ? '' : 'disabled'}>${COIN_SVG}${one}</button>
@@ -358,12 +396,12 @@ export function initHome(ctx) {
           const can = !closed && buyable(it, store.today());
           const badge = liked(it) ? '<span class="badge-like">Bé chỉ vào món này</span>' : '';
           const action = single && owned ? '<span class="pill-ok">Đã có</span>'
-            : `<button type="button" class="btn-sm buy" data-buy="${it.id}" ${can && S.coins >= it.price ? '' : 'disabled'}>${confirmId === it.id ? 'Bấm lần nữa để mua' : `${COIN_SVG}${it.price}`}</button>`;
+            : `<button type="button" class="btn-sm buy" data-buy="${it.id}" ${can && S.coins >= priceOf(it.kind === 'outfit' ? 'outfit' : 'decor', it.price) ? '' : 'disabled'}>${confirmId === it.id ? 'Bấm lần nữa để mua' : `${COIN_SVG}${priceOf(it.kind === 'outfit' ? 'outfit' : 'decor', it.price)}`}</button>`;
           const preview = it.kind === 'decor' && ['floor', 'rug', 'wall'].includes(it.layer) && can ? `<button type="button" class="btn-link" data-try="${it.id}">Xem thử</button>` : '';
           return card(it, `${badge}<div class="ci-meta">${RARITY[it.rarity]}${it.theme ? ' · ' + THEMES[it.theme] : ''}${!single && owned ? ` · có ${owned}` : ''}</div><div class="ci-act">${action}${preview}</div>`);
         }).join('') || '<p class="hs-note">Không có món nào trong mục này.</p>'}</div>`;
     }
-    el.innerHTML = head('Cửa hàng', `${COIN_SVG}<b class="coin-inline">${S.coins.toLocaleString('vi-VN')}</b> xu · hôm nay đã kiếm ${S.earnedToday}/50 xu chăm sóc`) +
+    el.innerHTML = head('Cửa hàng', `${COIN_SVG}<b class="coin-inline">${S.coins.toLocaleString('vi-VN')}</b> xu · hôm nay đã kiếm ${S.earnedToday}/${S.careCap || 50} xu chăm sóc`) +
       `<nav class="tabs-row" role="tablist">${Object.entries(tabs).map(([k, l]) => `<button type="button" role="tab" class="tab" data-shop-tab="${k}" aria-selected="${k === shopTab}">${l}</button>`).join('')}</nav><div class="hs-body">${body}</div>`;
     fillThumbs(el);
   }
@@ -377,7 +415,7 @@ export function initHome(ctx) {
       confirmId = ''; b.disabled = true;
       const err = await store.buy(id);
       if (err) { ctx.toast(viError(err)); renderShop(); return; }
-      const it = BY_ID[id]; sfx('buy'); ctx.buzz(12); ctx.toast(`Đã mua ${it.name}.`); ctx.popText('-' + it.price + ' xu', '#a8742e'); reactTo(it, it.kind);
+      const it = BY_ID[id]; sfx('buy'); ctx.buzz(12); ctx.toast(`Đã mua ${it.name}.`); ctx.popText('-' + priceOf(it.kind === 'outfit' ? 'outfit' : 'decor', it.price) + ' xu', '#a8742e'); reactTo(it, it.kind);
       renderShop();
       if (pendingPreview === id) { pendingPreview = ''; }
       return;
@@ -386,7 +424,7 @@ export function initHome(ctx) {
     if (bf) {
       const f = FOOD_BY_ID[bf.dataset.buyfood], n = +bf.dataset.qty; bf.disabled = true;
       const err = await store.buyFood(f.id, n);
-      if (err) ctx.toast(viError(err)); else { sfx('buy'); ctx.buzz(10); ctx.toast(`Đã mua ${n} ${f.name}.`); ctx.popText('-' + f.price * n + ' xu', '#a8742e'); }
+      if (err) ctx.toast(viError(err)); else { sfx('buy'); ctx.buzz(10); ctx.toast(`Đã mua ${n} ${f.name}.`); ctx.popText('-' + priceOf('food', f.price) * n + ' xu', '#a8742e'); }
       renderShop(); return;
     }
     const fr = e.target.closest('[data-fridge]');
@@ -417,7 +455,7 @@ export function initHome(ctx) {
       <div class="hs-body"><div class="grid-items">
         <article class="card-item none ${cur ? '' : 'on'}"><div class="none-ic" aria-hidden="true">∅</div><div class="ci-name">Không đeo</div><div class="ci-act"><button type="button" class="btn-sm ghost" data-wear="" ${cur ? '' : 'disabled'}>Bỏ ra</button></div></article>
         ${items.map(it => { const own = !!S.owned[it.id];
-          return card(it, `<div class="ci-meta">${own ? RARITY[it.rarity] : buyable(it, store.today()) ? `Có bán · ${it.price} xu` : 'Chưa bán hôm nay'}</div><div class="ci-act">${own ? `<button type="button" class="btn-sm ${cur === it.id ? 'on' : ''}" data-wear="${it.id}">${cur === it.id ? 'Đang mặc' : 'Mặc'}</button>` : `<button type="button" class="btn-link" data-shop-for="${it.id}">Đến cửa hàng</button>`}</div>`).replace('card-item', `card-item ${own ? '' : 'locked'} ${cur === it.id ? 'on' : ''}`); }).join('')}
+          return card(it, `<div class="ci-meta">${own ? RARITY[it.rarity] : buyable(it, store.today()) ? `Có bán · ${priceOf(it.kind === 'outfit' ? 'outfit' : 'decor', it.price)} xu` : 'Chưa bán hôm nay'}</div><div class="ci-act">${own ? `<button type="button" class="btn-sm ${cur === it.id ? 'on' : ''}" data-wear="${it.id}">${cur === it.id ? 'Đang mặc' : 'Mặc'}</button>` : `<button type="button" class="btn-link" data-shop-for="${it.id}">Đến cửa hàng</button>`}</div>`).replace('card-item', `card-item ${own ? '' : 'locked'} ${cur === it.id ? 'on' : ''}`); }).join('')}
       </div>
       <h3 class="hs-sub">Bộ phối</h3><div class="presets">${S.presets.map((p, i) => `<div class="preset"><b>Bộ ${i + 1}</b><span>${Object.values(p || {}).map(id => BY_ID[id]?.name).filter(Boolean).join(', ') || 'Trống'}</span><div><button type="button" class="btn-sm ghost" data-preset-wear="${i}" ${Object.keys(p || {}).length ? '' : 'disabled'}>Mặc</button><button type="button" class="btn-sm ghost" data-preset-save="${i}">Lưu bộ đang mặc</button></div></div>`).join('')}</div></div>`;
     fillThumbs(el);
@@ -436,16 +474,24 @@ export function initHome(ctx) {
   });
 
   /* ---------- Nhiệm vụ ---------- */
-  function openQuests() { open('quests'); renderQuests(); store.refreshQuests().then(() => { if (!$('quests').hidden) renderQuests(); }); }
+  function openQuests() { open('quests'); renderQuests(); store.refreshQuests().then(() => { if (!$('quests').hidden) renderQuests(); }); store.refreshWorld().then(() => { if (!$('quests').hidden) renderQuests(); }).catch(() => {}); }
   const questRow = (q, def, attr) => {
     const done = q.progress >= q.target;
     return `<li><div><b>${def.label}</b><div class="bar-track"><i style="width:${Math.min(100, q.progress / q.target * 100)}%"></i></div><span>${Math.min(q.progress, q.target)}/${q.target}</span></div>
       ${q.claimed ? '<span class="pill-ok">Đã nhận</span>' : `<button type="button" class="btn-sm" ${attr}="${q.idx}" ${done ? '' : 'disabled'}>${COIN_SVG}+${q.reward}</button>`}</li>`;
   };
   function weekDaysLeft() { const [y, m, d] = store.today().split('-').map(Number), dow = new Date(y, m - 1, d).getDay(); return 7 - ((dow + 6) % 7); }
+  let questTab = 'daily';
+  const exploreReady = () => !!S.world && S.world.explore.some(t => t.ready && !t.claimed), badgeReady = () => !!S.world && S.world.badges.some(b => !b.claimed && b.progress >= b.target);
   function renderQuests(el = $('quests')) {
     const b = S.questBonus, n = S.quests.filter(q => q.claimed).length, left = weekDaysLeft();
-    el.innerHTML = head('Nhiệm vụ', `${COIN_SVG}<b class="coin-inline">${S.coins.toLocaleString('vi-VN')}</b> xu · chăm sóc hằng ngày cho thêm tối đa 50 xu`) + `<div class="hs-body">
+    const boost = ctx.events ? ctx.events.boost() : 1;
+    const dotDaily = S.quests.some(q => !q.claimed && q.progress >= q.target) || (b.ready && !b.claimed) || S.weekly.some(q => !q.claimed && q.progress >= q.target);
+    const tabs = [['daily', 'Nhiệm vụ', dotDaily], ['explore', 'Khám phá', exploreReady()], ['badges', 'Huy hiệu', badgeReady()]];
+    const nav = `<nav class="tabs-row" role="tablist">${tabs.map(([k, l, dot]) => `<button type="button" role="tab" class="tab${dot ? ' dot' : ''}" data-quest-tab="${k}" aria-selected="${k === questTab}">${l}</button>`).join('')}</nav>`;
+    const sub = questTab === 'explore' ? 'chơi nhiều hoạt động khác nhau để nhận xu' : questTab === 'badges' ? 'sưu tầm huy hiệu bằng cách chơi cùng bé' : 'chăm sóc hằng ngày cho thêm tối đa 50 xu';
+    if (questTab !== 'daily') { el.innerHTML = head('Nhiệm vụ', `${COIN_SVG}<b class="coin-inline">${S.coins.toLocaleString('vi-VN')}</b> xu · ${sub}`) + nav + `<div class="hs-body">${questTab === 'explore' ? exploreHtml() : badgesHtml()}</div>`; return; }
+    el.innerHTML = head('Nhiệm vụ', `${COIN_SVG}<b class="coin-inline">${S.coins.toLocaleString('vi-VN')}</b> xu · ${sub}`) + nav + `<div class="hs-body">${boost > 1 ? `<p class="hs-note">🎉 Sự kiện: thưởng nhiệm vụ nhân ${String(boost).replace('.', ',')} lần!</p>` : ''}
       <h3 class="qh">Hôm nay <small>${n}/${S.quests.length} đã nhận</small></h3>
       <ul class="quests">${S.quests.map(q => questRow(q, QUEST_POOL[q.quest], 'data-quest')).join('')}</ul>
       <div class="quest-bonus${b.ready && !b.claimed ? ' ready' : ''}"><div><b>Thưởng cả ngày</b><span>Nhận đủ ${S.quests.length} nhiệm vụ hôm nay</span></div>
@@ -454,7 +500,35 @@ export function initHome(ctx) {
       <ul class="quests">${S.weekly.map(q => questRow(q, WEEKLY_POOL[q.quest], 'data-weekly')).join('')}</ul>
       <p class="hs-note">Nhiệm vụ ngày đổi mới mỗi ngày, nhiệm vụ tuần đổi vào thứ Hai. Làm nhiều thì thưởng nhiều.</p></div>`;
   }
+  /** "Khám phá hôm nay": chơi nhiều hoạt động khác nhau trong thế giới (đồ chơi, ghế đá, sân khấu, trà, mèo, mini-game). */
+  function exploreHtml() {
+    const w = S.world; if (!w) return '';
+    const n = w.kinds.length, top = EXPLORE_TIERS[EXPLORE_TIERS.length - 1].need;
+    return `<h3 class="qh">Khám phá hôm nay <small>${Math.min(n, top)}/${top} hoạt động khác nhau</small></h3>
+      <div class="explore"><div class="bar-track"><i style="width:${Math.min(100, n / top * 100)}%"></i></div>
+        <p class="ex-kinds">${w.kinds.length ? w.kinds.map(k => `<span>${ACTIVITY_LABEL[k] || k}</span>`).join('') : '<em>Chưa có hoạt động nào. Ra Công viên, Quảng trường hoặc Tiệm trà chơi cùng bé nhé!</em>'}</p>
+        <ul class="quests">${w.explore.map(t => `<li><div><b>Chơi ${t.need} hoạt động khác nhau</b><span class="ex-n">${Math.min(n, t.need)}/${t.need}</span></div>
+          ${t.claimed ? '<span class="pill-ok">Đã nhận</span>' : `<button type="button" class="btn-sm" data-explore="${t.tier}" ${t.ready ? '' : 'disabled'}>${COIN_SVG}+${t.reward}</button>`}</li>`).join('')}</ul></div>`;
+  }
+  /** Sổ huy hiệu: tiến độ lấy từ máy chủ; đủ thì bấm nhận xu một lần. */
+  function badgesHtml() {
+    const w = S.world; if (!w) return '';
+    const got = w.badges.filter(b => b.claimed).length;
+    return `<h3 class="qh">Huy hiệu <small>${got}/${w.badges.length} đã nhận</small></h3>
+      <ul class="badges">${w.badges.map(b => { const d = BADGE_BY_ID[b.id], done = b.progress >= b.target || b.claimed, prog = b.claimed ? b.target : b.progress;
+        return `<li class="badge${b.claimed ? ' got' : done ? ' ready' : ''}"><span class="b-ico" aria-hidden="true">${BADGE_ICONS[b.id] || d.icon}</span><b>${d.name}</b><span class="b-desc">${d.desc}</span>
+          <div class="bar-track"><i style="width:${Math.min(100, prog / b.target * 100)}%"></i></div><span class="b-num">${prog}/${b.target}</span>
+          ${b.claimed ? '<span class="pill-ok">Đã nhận</span>' : `<button type="button" class="btn-sm" data-badge="${b.id}" ${done ? '' : 'disabled'}>${COIN_SVG}+${b.reward}</button>`}</li>`; }).join('')}</ul>`;
+  }
   app.addEventListener('click', async e => {
+    const qt = e.target.closest('[data-quest-tab]'); if (qt) { questTab = qt.dataset.questTab; renderQuests(); return; }
+    const wb = e.target.closest('[data-explore], [data-badge]');
+    if (wb) {
+      wb.disabled = true;
+      const res = 'explore' in wb.dataset ? await store.claimExplore(+wb.dataset.explore) : await store.claimBadge(wb.dataset.badge);
+      if ('error' in res) ctx.toast(viError(res.error)); else { sfx('coin'); ctx.popText(`+${res.reward} xu`, '#a8742e'); ctx.buzz(12); ctx.spawn('sparkle', 3); }
+      renderQuests(); return;
+    }
     const b = e.target.closest('[data-quest], [data-quest-bonus], [data-weekly]'); if (!b) return;
     b.disabled = true;
     const res = 'quest' in b.dataset ? await store.claimQuest(+b.dataset.quest) : 'weekly' in b.dataset ? await store.claimWeeklyQuest(+b.dataset.weekly) : await store.claimQuestBonus();
@@ -531,7 +605,7 @@ export function initHome(ctx) {
     bar.hidden = false; $('e-itemname').textContent = it.name;
     bar.style.bottom = `calc(env(safe-area-inset-bottom, 0px) + ${ui.querySelector('.inventory').offsetHeight + 24}px)`;
     $('e-rotate').hidden = it.layer === 'wall';
-    $('e-buy').hidden = !unpaid; $('e-buy').innerHTML = `Mua · ${it.price} xu`; $('e-buy').disabled = S.coins < (it.price || 0);
+    $('e-buy').hidden = !unpaid; $('e-buy').innerHTML = `Mua · ${priceOf(it.kind === 'outfit' ? 'outfit' : 'decor', it.price || 0)} xu`; $('e-buy').disabled = S.coins < priceOf(it.kind === 'outfit' ? 'outfit' : 'decor', it.price || 0);
   }
   function enterEdit(previewId) {
     if (ctx.getArea() !== 'home') { ctx.goTo('home'); setTimeout(() => enterEdit(previewId), 1100); return; }
@@ -671,7 +745,7 @@ export function initHome(ctx) {
       case 'e-buy': {
         const p = work.items[sel]; if (!p) break;
         const err = await store.buy(p.id);
-        if (err) ctx.toast(viError(err)); else { sfx('buy'); ctx.toast(`Đã mua ${BY_ID[p.id].name}.`); ctx.popText('-' + BY_ID[p.id].price + ' xu', '#a8742e'); reactTo(BY_ID[p.id], 'decor'); pendingPreview = ''; }
+        if (err) ctx.toast(viError(err)); else { sfx('buy'); ctx.toast(`Đã mua ${BY_ID[p.id].name}.`); ctx.popText('-' + priceOf(BY_ID[p.id].kind === 'outfit' ? 'outfit' : 'decor', BY_ID[p.id].price) + ' xu', '#a8742e'); reactTo(BY_ID[p.id], 'decor'); pendingPreview = ''; }
         refreshEdit(); break;
       }
     }
@@ -724,7 +798,7 @@ export function initHome(ctx) {
     renderCoins();
     if (!editing) { const k = JSON.stringify(store.activeLayout()); if (k !== roomKey) { const first = !roomKey; roomKey = k; renderRoom(store.activeLayout()); afterRoomChange(!first); } }
     renderOutfit(S.outfit);
-    $('a-house').classList.toggle('need', questReady() || !!S.illness);
+    $('a-house').classList.toggle('need', questReady() || !!S.illness || social.badge() > 0);
     if ($('clinic') && !$('clinic').hidden) renderClinic();
   }
   store.onSync(sync); sync();
@@ -751,5 +825,5 @@ export function initHome(ctx) {
     return { checked: n, bad };
   };
 
-  return { update, pickVisit, thumb, isEditing: () => editing, openShop, openClinic, openSell, openMap: () => worldMap.open(), openWardrobe, openFamily, enterEdit, closeAll, openDex, refreshOutfit: () => renderOutfit(S.outfit) };
+  return { update, pickVisit, thumb, isEditing: () => editing, openShop, openCooking, openClinic, openSell, openMap: () => worldMap.open(), openSocial: social.open, openAds: ads.open, openToys: toys.open, closeAll, openMail: social.openMail, openNews: social.openNews, openWardrobe, openFamily, enterEdit, closeAll, openDex, refreshOutfit: () => renderOutfit(S.outfit) };
 }

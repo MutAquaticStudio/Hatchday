@@ -85,7 +85,8 @@ describe('bệnh do hành động', () => {
     expect(healthStep(well(), ctx({ meals3d: 9, healthyGroups3d: 0 }), NOW).illness).toBeNull();
   });
   it('khuya là 22:00–04:59', () => {
-    expect([21, 22, 23, 0, 4, 5].map(isNightHour)).toEqual([false, true, true, true, true, false]);
+    expect([21, 22, 23, 0, 4, 5].map(h => isNightHour(h))).toEqual([false, true, true, true, true, false]);
+    expect([19, 20, 21, 4, 5].map(h => isNightHour(h, true))).toEqual([false, true, true, true, false]); // Mùa cúm: từ 20:00
   });
   it('bệnh theo giờ tự khỏi đúng số giờ; thiếu chất khỏi khi ăn cân bằng', () => {
     const a = healthStep(well(), ctx({ action: 'play', plays1h: 12 }), NOW);

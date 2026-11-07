@@ -1,6 +1,11 @@
 import { supabase, isConfigured } from '../lib/supabase';
 import * as demo from './demo-api';
-import type { ActionResult, CureResult, DayLogRow, Economy, FarmItem, Garden, MemoryRow, Outfit, PetAction, PetRow, QuestBoard, SeenRow, Tastes } from './types';
+import * as demoSocial from './demo-social';
+import type { ActiveEvent, EventGoal } from '../game/events';
+import type { AdState, AdTicket } from '../game/ads';
+import type { ActivityResult, MiniResult, WorldProgress } from '../game/world-activity';
+import type { ChatReply, DmMsg, DmThread, MailRow, NewsRow, PublicProfile, SocialState, SocialSummary, VisitData } from '../game/social';
+import type { ToyResult, ToysState, ActionResult, CureResult, DayLogRow, Economy, FarmItem, Garden, MemoryRow, Outfit, PetAction, PetRow, QuestBoard, SeenRow, Tastes } from './types';
 import type { Layout } from '../game/catalog';
 
 /** Chưa cấu hình Supabase thì chạy chế độ Chơi thử (dữ liệu trong trình duyệt). */
@@ -55,7 +60,7 @@ export const listDayLogs = async (petId: string) =>
 const rpc = async <T>(fn: string, args?: Record<string, unknown>) => unwrap(await supabase.rpc(fn, args)) as T;
 
 export const getEconomy = () => (isDemo ? demo.getEconomy() : rpc<Economy>('get_economy'));
-export const buyItem = (id: string) => (isDemo ? demo.buyItem(id) : rpc<{ coins: number; qty: number }>('buy_item', { p_item: id }));
+export const buyItem = (id: string) => (isDemo ? demo.buyItem(id) : rpc<{ coins: number; qty: number; paid?: number }>('buy_item', { p_item: id }));
 
 export async function listOwned(): Promise<Record<string, number>> {
   if (isDemo) return demo.listOwned();
@@ -128,3 +133,80 @@ export const claimBond = (level: number) => (isDemo ? demo.claimBond(level) : rp
 /* ---------- Chợ: thu mua nông sản ---------- */
 export const getSellState = () => (isDemo ? demo.getSellState() : rpc<{ today: number; cap: number }>('get_sell_state'));
 export const sellFood = (id: string, qty: number) => (isDemo ? demo.sellFood(id, qty) : rpc<{ coins: number; qty: number; got: number; today: number; cap: number }>('sell_food', { p_item: id, p_qty: qty }));
+
+/* ---------- Xã hội: bạn bè, hộp thư, quà, tin tức, thăm nhà ---------- */
+export const getSocialState = () => (isDemo ? demoSocial.getSocialState() : rpc<SocialState>('get_social_state'));
+export const getSocialSummary = () => (isDemo ? demoSocial.getSocialSummary() : rpc<SocialSummary>('get_social_summary'));
+export const setPrivacy = (key: string, value: string) => (isDemo ? demoSocial.setPrivacy(key, value) : rpc<{ friends: string; online: string }>('set_privacy', { p_key: key, p_value: value }));
+export const findByCode = (who: string) => (isDemo ? demoSocial.findByCode(who) : rpc<PublicProfile>('find_by_code', { p_who: who }));
+export const sendFriendRequest = (who: string) => (isDemo ? demoSocial.sendFriendRequest(who) : rpc<{ status: 'pending' | 'accepted' }>('send_friend_request', { p_who: who }));
+export const respondFriendRequest = (who: string, accept: boolean) => (isDemo ? demoSocial.respondFriendRequest(who, accept) : rpc<{ status: string }>('respond_friend_request', { p_who: who, p_accept: accept }));
+export const removeFriend = async (who: string) => { if (isDemo) return demoSocial.removeFriend(who); await rpc('remove_friend', { p_who: who }); };
+export const blockUser = async (who: string) => { if (isDemo) return demoSocial.blockUser(who); await rpc('block_user', { p_who: who }); };
+export const unblockUser = async (who: string) => { if (isDemo) return demoSocial.unblockUser(who); await rpc('unblock_user', { p_who: who }); };
+export const listFriends = () => (isDemo ? demoSocial.listFriends() : rpc<PublicProfile[]>('list_friends'));
+export const listRequests = () => (isDemo ? demoSocial.listRequests() : rpc<{ incoming: PublicProfile[]; outgoing: PublicProfile[] }>('list_requests'));
+export const getInbox = () => (isDemo ? demoSocial.getInbox() : rpc<{ mail: MailRow[] }>('get_inbox'));
+export const claimMail = (id: number) => (isDemo ? demoSocial.claimMail(id) : rpc<{ items: { id: string; qty: number }[]; coins: number; wallet: number }>('claim_mail', { p_id: id }));
+export const claimAllMail = () => (isDemo ? demoSocial.claimAllMail() : rpc<{ claimed: number; skipped: number; wallet: number }>('claim_all_mail'));
+export const deleteMail = async (id: number) => { if (isDemo) return demoSocial.deleteMail(id); await rpc('delete_mail', { p_id: id }); };
+export const sendGift = (who: string, items: { id: string; qty: number }[], note: string | null) => (isDemo ? demoSocial.sendGift(who, items, note) : rpc<{ id: number }>('send_gift', { p_who: who, p_items: items, p_note: note }));
+export const getNews = () => (isDemo ? demoSocial.getNews() : rpc<NewsRow[]>('get_news'));
+export const markNewsRead = async (id: number) => { if (isDemo) return demoSocial.markNewsRead(id); await rpc('mark_news_read', { p_id: id }); };
+export const getVisit = (who: string) => (isDemo ? demoSocial.getVisit(who) : rpc<VisitData>('get_visit', { p_who: who }));
+export const strokeFriend = (who: string) => (isDemo ? demoSocial.strokeFriend(who) : rpc<{ got: number }>('stroke_friend_pet', { p_who: who }));
+export const waterFriendCrop = (who: string, plot: number) => (isDemo ? demoSocial.waterFriendCrop(who, plot) : rpc<{ waters: number; got: number }>('water_friend_crop', { p_who: who, p_plot: plot }));
+export const leaveGuestbook = async (who: string, emote: string) => { if (isDemo) return demoSocial.leaveGuestbook(who, emote); await rpc('leave_guestbook', { p_who: who, p_emote: emote }); };
+export const getGuestbook = () => (isDemo ? demoSocial.getGuestbook() : rpc<{ from: string; kind: string; emote: string | null; at: string }[]>('get_guestbook'));
+export const reportUser = async (who: string, reason: 'harassment' | 'spam' | 'inappropriate_name' | 'cheating' | 'other', detail = '') => { if (isDemo) return; await rpc('report_user', { p_who: who, p_reason: reason, p_detail: detail }); };
+
+/* ---------- Chat công khai, chat riêng, cấu hình công khai ---------- */
+export const getPublicConfig = () => (isDemo ? Promise.resolve({ chat_public: true as boolean | unknown, care_cap: 50 }) : rpc<{ chat_public: boolean | unknown; care_cap?: number }>('get_public_config'));
+export const postChat = async (room: string, text: string): Promise<ChatReply> =>
+  isDemo ? (await import('../net/sim')).simPostChat(room, text) : rpc<ChatReply>('post_chat', { p_room: room, p_text: text });
+export const reportChat = async (msg: number, reason: 'harassment' | 'spam' | 'inappropriate_name' | 'cheating' | 'other') => { if (isDemo) return; await rpc('report_chat', { p_msg: msg, p_reason: reason }); };
+export const sendDm = (who: string, text: string) => (isDemo ? demoSocial.sendDm(who, text) : rpc<ChatReply>('send_dm', { p_who: who, p_text: text }));
+export const listDmThreads = () => (isDemo ? demoSocial.listDmThreads() : rpc<DmThread[]>('list_dm_threads'));
+export const listDm = (who: string, before?: number) => (isDemo ? demoSocial.listDm(who) : rpc<DmMsg[]>('list_dm', { p_who: who, p_before: before ?? null }));
+export const markDmRead = async (who: string) => { if (isDemo) return demoSocial.markDmRead(who); await rpc('mark_dm_read', { p_who: who }); };
+export const dmUnread = () => (isDemo ? demoSocial.dmUnread() : rpc<number>('dm_unread'));
+
+/* ---------- Sự kiện đang chạy ---------- */
+export const getActiveEvents = (): Promise<ActiveEvent[]> => (isDemo ? Promise.resolve(demo.demoEvents()) : rpc<ActiveEvent[]>('get_active_events'));
+
+/* ---------- Quảng cáo thưởng ---------- */
+export const getAdState = () => (isDemo ? demo.getAdState() : rpc<AdState>('get_ad_state'));
+export const startAdReward = () => (isDemo ? demo.startAdReward() : rpc<AdTicket>('start_ad_reward'));
+export const claimAdReward = (nonce: string) => (isDemo ? demo.claimAdReward(nonce) : rpc<{ coins: number; reward: number; left: number }>('claim_ad_reward', { p_nonce: nonce }));
+
+/* ---------- Đo lường cho dashboard (bản Chơi thử không gửi gì) ---------- */
+export const pingSession = (platform: string, standalone: boolean) => (isDemo ? Promise.resolve(null) : rpc<{ session: number; new: boolean }>('ping_session', { p_platform: platform, p_standalone: standalone }));
+export const setAttribution = (ref: string, medium: string | null) => (isDemo ? Promise.resolve() : rpc<void>('set_attribution', { p_ref: ref, p_medium: medium }));
+export const logClientError = (kind: string, message: string, stack: string, place: string, build: string) => (isDemo ? Promise.resolve() : rpc<void>('log_client_error', { p_kind: kind, p_message: message, p_stack: stack, p_place: place, p_build: build }));
+export const markMilestone = (key: string) => (isDemo ? Promise.resolve() : rpc<void>('mark_milestone', { p_key: key }));
+
+/* ---------- Đồ chơi, mục tiêu cộng đồng, cách ly ---------- */
+export const getToys = (): Promise<ToysState> => (isDemo ? demo.getToys() : rpc<ToysState>('get_toys'));
+export const buyToy = (id: string) => (isDemo ? demo.buyToy(id) : rpc<{ coins: number; paid: number }>('buy_toy', { p_toy: id }));
+export const playToy = (id: string): Promise<ToyResult> => (isDemo ? demo.playToy(id) : rpc<ToyResult>('play_toy', { p_toy: id }));
+export const getWorldProgress = (): Promise<WorldProgress> => (isDemo ? demo.getWorldProgress() : rpc<WorldProgress>('get_world_progress'));
+export const recordActivity = (kind: string): Promise<ActivityResult> => (isDemo ? demo.recordActivity(kind) : rpc<ActivityResult>('record_activity', { p_kind: kind }));
+export const claimExplore = (tier: number) => (isDemo ? demo.claimExplore(tier) : rpc<{ coins: number; reward: number; newly: string[] }>('claim_explore', { p_tier: tier }));
+export const claimBadge = (id: string) => (isDemo ? demo.claimBadge(id) : rpc<{ coins: number; reward: number }>('claim_badge', { p_badge: id }));
+export const submitMinigame = (kind: string, score: number): Promise<MiniResult> => (isDemo ? demo.submitMinigame(kind, score) : rpc<MiniResult>('submit_minigame', { p_kind: kind, p_score: score }));
+export const getEventGoal = (): Promise<EventGoal[]> => (isDemo ? demo.getEventGoal() : rpc<EventGoal[]>('get_event_goal'));
+export const claimEventGoal = (id: number) => (isDemo ? demo.claimEventGoal(id) : rpc<{ coins: number; reward: number }>('claim_event_goal', { p_event: id }));
+export const getIsolation = () => (isDemo ? demo.getIsolation() : rpc<{ isolating: boolean }>('get_isolation'));
+export const setIsolation = (on: boolean) => (isDemo ? demo.setIsolation(on) : rpc<{ isolating: boolean }>('set_isolation', { p_on: on }));
+
+/* ---------- Thông báo đẩy (bản Chơi thử không có) ---------- */
+export interface PushPrefs { care: boolean; events: boolean; mail: boolean; quiet_from: number; quiet_to: number }
+export interface PushState { devices: number; prefs: PushPrefs; enabled: boolean | unknown }
+const NO_PUSH: PushState = { devices: 0, prefs: { care: true, events: true, mail: true, quiet_from: 22, quiet_to: 7 }, enabled: false };
+export const getPushState = (): Promise<PushState> => (isDemo ? Promise.resolve(NO_PUSH) : rpc<PushState>('get_push_state'));
+export const savePushSubscription = (endpoint: string, p256dh: string, auth: string, ua: string) => (isDemo ? Promise.resolve() : rpc<void>('save_push_subscription', { p_endpoint: endpoint, p_p256dh: p256dh, p_auth: auth, p_ua: ua }));
+export const removePushSubscription = (endpoint: string) => (isDemo ? Promise.resolve() : rpc<void>('remove_push_subscription', { p_endpoint: endpoint }));
+export const setPushPrefs = (p: PushPrefs) => (isDemo ? Promise.resolve() : rpc<void>('set_push_prefs', { p_care: p.care, p_events: p.events, p_mail: p.mail, p_quiet_from: p.quiet_from, p_quiet_to: p.quiet_to }));
+
+/* ---------- Bản đồ: số người đang ở các nơi chung (bản Chơi thử: vài bạn ảo) ---------- */
+export const getPlacesSummary = (): Promise<Record<string, number>> => (isDemo ? Promise.resolve({ plaza: 4, tea: 2, park: 3 }) : rpc<Record<string, number>>('places_summary'));

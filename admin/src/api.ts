@@ -19,6 +19,6 @@ const MSG: Record<string, string> = {
   reason_required: 'Cần nhập lý do (ít nhất 3 ký tự).', grant_limit: 'Vượt hạn mức của vai trò (tối đa 200 xu và 5 phần).', invalid_grant: 'Quà chưa hợp lệ.', not_found: 'Không tìm thấy.',
   self_approval: 'Người tạo không được tự duyệt.', not_pending: 'Chiến dịch không còn chờ duyệt.', empty_audience: 'Không có ai thuộc nhóm nhận này.', invalid_campaign: 'Chiến dịch chưa hợp lệ.',
   invalid_announcement: 'Thông báo chưa hợp lệ.', invalid_event_config: 'Cấu hình sự kiện chưa hợp lệ.', last_owner: 'Không thể bỏ chủ cuối cùng.', cannot_sanction_admin: 'Không thể phạt quản trị viên.',
-  invalid_sanction: 'Phạt chưa hợp lệ.', not_open: 'Báo cáo đã được xử lý.', invalid_word: 'Từ khoá chưa hợp lệ.', query_too_short: 'Gõ ít nhất 2 ký tự.', unknown_flag: 'Cờ không tồn tại.', invalid_flag: 'Giá trị cờ chưa hợp lệ.',
+  invalid_sanction: 'Phạt chưa hợp lệ.', not_open: 'Báo cáo đã được xử lý.', invalid_word: 'Từ khoá chưa hợp lệ.', query_too_short: 'Gõ ít nhất 2 ký tự.', unknown_balance: 'Núm cân bằng không tồn tại.', balance_out_of_range: 'Giá trị nằm ngoài khoảng cho phép.', balance_needs_owner: 'Đổi lệch quá ±50% so với mặc định chỉ owner làm được.',  unknown_flag: 'Cờ không tồn tại.', invalid_flag: 'Giá trị cờ chưa hợp lệ.',
 };
 export const viMsg = (e: unknown): string => { const m = String((e as Error)?.message ?? e); const k = Object.keys(MSG).find(x => m.includes(x)); return k ? MSG[k] : m; };

@@ -5,10 +5,13 @@ export function initMarket(c) {
   const { THREE, add, toon, canvasTex, scene } = c, kit = makeKit(c);
   const g = new THREE.Group(); g.visible = false; scene.add(g);
   const cobble = canvasTex(128, 128, d => { d.fillStyle = '#f0e2c8'; d.fillRect(0, 0, 128, 128); d.strokeStyle = '#d8c39c'; d.lineWidth = 3; for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) { d.strokeRect(i * 32 + (j % 2) * 16 - 16, j * 32, 32, 32); } }, [6, 4]);
-  add(g, new THREE.BoxGeometry(14, 0.4, 10), toon('#ffffff', cobble), 0, -0.2, 0, '#9a7f5a', 0.03);
+  // nền lát đá kéo dài ra phía trước (phủ kín đáy khung hình) và đồi xa phía sau thay cho mảng trời trống
+  const cob = cobble.clone(); cob.repeat.set(6 * 22 / 14, 4 * 20 / 10); cob.needsUpdate = true;
+  add(g, new THREE.BoxGeometry(22, 0.4, 20), toon('#ffffff', cob), 0, -0.2, 5, '#9a7f5a', 0.03);
+  ['#9bdc8a', '#86cf86', '#a8e39a'].forEach((col, i) => { for (let k = 0; k < 4; k++) { const r = 4 + ((i + k) * 5 % 3) * 1.4, h = add(g, new THREE.SphereGeometry(r, 26, 12), toon(col), -17 + k * 11 + i * 3.5, -r * 0.5, -12 - i * 2.4, null); h.scale.set(1.6, 0.7, 1); } });
+  [[-7, -8.6], [6.5, -9.2], [10, -8]].forEach(([x, z], i) => { add(g, new THREE.CylinderGeometry(0.22, 0.3, 1.6, 10), toon('#a8744e'), x, 0.8, z, '#6a4630', 0.02); add(g, new THREE.SphereGeometry(1.2 + (i % 2) * 0.3, 18, 14), toon('#6fd08c'), x, 2.4, z, '#2f7a3d', 0.03); });
   add(g, new THREE.BoxGeometry(14, 0.5, 0.3), toon('#d9b27a'), 0, 0.15, -4.8, '#8a5f3a', 0.02); // hàng rào sau
   [-5, -2.5, 0, 2.5, 5].forEach(x => add(g, new THREE.BoxGeometry(0.16, 0.9, 0.16), toon('#c29a62'), x, 0.45, -4.8, '#8a5f3a', 0.02));
-  add(g, new THREE.CylinderGeometry(1.1, 1.2, 0.1, 30), toon('#ffe9c4'), 0, 0.04, 1.4, '#c29a62', 0.02); // quảng trường nhỏ giữa chợ
 
   const stripe = (a, b) => canvasTex(128, 64, d => { for (let i = 0; i < 8; i++) { d.fillStyle = i % 2 ? a : b; d.fillRect(i * 16, 0, 16, 64); } }, [1, 1]);
   function stall(x, z, col, light, label, goods, hat = 'vendor', ry = 0) {
@@ -33,6 +36,14 @@ export function initMarket(c) {
   add(book, new THREE.BoxGeometry(0.1, 1.7, 0.1), toon('#c29a62'), -0.55, 0.85, 0, '#8a5f3a', 0.02); add(book, new THREE.BoxGeometry(0.1, 1.7, 0.1), toon('#c29a62'), 0.55, 0.85, 0, '#8a5f3a', 0.02);
   const bs = kit.sign('Sổ sưu tập', 1.5, 0.7, '#fff3c4', '#7a5a1a', 34); bs.position.set(0, 1.5, 0); book.add(bs);
 
+  // biển Video thưởng: xem video nhận xu (tự nguyện)
+  const video = new THREE.Group(); video.position.set(-4.4, 0, -0.3); g.add(video);
+  add(video, new THREE.BoxGeometry(0.1, 1.5, 0.1), toon('#c29a62'), 0, 0.75, 0, '#8a5f3a', 0.02);
+  const vs = kit.sign('Video thưởng', 1.3, 0.55, '#e4f6ff', '#2f5a7a', 30); vs.position.set(0, 1.4, 0.08); video.add(vs);
+  // biển Đồ chơi: mua đồ chơi mang theo
+  const toyPost = new THREE.Group(); toyPost.position.set(4.4, 0, -0.3); g.add(toyPost);
+  add(toyPost, new THREE.BoxGeometry(0.1, 1.5, 0.1), toon('#c29a62'), 0, 0.75, 0, '#8a5f3a', 0.02);
+  const ts = kit.sign('Đồ chơi', 1.2, 0.55, '#ffeef6', '#8a3a5a', 32); ts.position.set(0, 1.4, 0.08); toyPost.add(ts);
   const T = 'market';
   kit.hotspot({ id: 'food', label: 'Rau quả', at: [-2.5, 2.7, -3.3], stand: [-2.2, -0.8], act: () => c.open.shop('food') }, food);
   kit.hotspot({ id: 'today', label: 'Tiệm hôm nay', at: [0, 2.7, -3.3], stand: [0, -0.8], act: () => c.open.shop('rotating') }, today);
@@ -40,12 +51,20 @@ export function initMarket(c) {
   kit.hotspot({ id: 'furn', label: 'Nội thất', at: [-2.65, 2.5, -1.45], stand: [-2.2, -0.4], act: () => c.open.shop('market') }, furn);
   kit.hotspot({ id: 'sell', label: 'Thu mua rau', at: [2.65, 2.5, -1.45], stand: [2.2, -0.4], act: () => c.open.sell() }, sell);
   kit.hotspot({ id: 'book', label: 'Sổ sưu tập', at: [0, 2.3, -1.9], stand: [0, -0.5], act: () => c.open.shop('book') }, book);
+  kit.hotspot({ id: 'video', label: 'Video thưởng', at: [-4.4, 2.2, -0.2], stand: [-3.6, 1.0], act: () => c.open.ads() }, video);
+  kit.hotspot({ id: 'toys', label: 'Đồ chơi', at: [4.4, 2.2, -0.2], stand: [3.6, 1.0], act: () => c.open.toys() }, toyPost);
   void T;
 
-  // chim bồ câu
-  const pigeons = [[-0.5, 1.9], [0.6, 1.2], [0.1, 2.1]].map(([x, z], i) => {
-    const p = new THREE.Group(); p.position.set(x, 0, z); g.add(p);
-    add(p, new THREE.SphereGeometry(0.13, 10, 8), toon('#cfd8e3'), 0, 0.15, 0, '#556', 0.02); add(p, new THREE.SphereGeometry(0.08, 8, 8), toon('#e4eaf2'), 0.1, 0.27, 0, '#556', 0.02);
+  // chim bồ câu: đặt xa chỗ bé đứng (bé vào chợ ở giữa) để không chồng lên chân bé
+  const pigeons = [[-3.4, 3.2, 0.5], [3.3, 2.6, -0.6], [-2.2, 4.2, 2.4]].map(([x, z, ry], i) => {
+    const p = new THREE.Group(); p.position.set(x, 0, z); p.rotation.y = ry; g.add(p);
+    const body = add(p, new THREE.SphereGeometry(0.17, 12, 10), toon('#b9c2d4'), 0, 0.2, 0, '#5a6278', 0.018); body.scale.set(1.25, 0.9, 0.95);
+    add(p, new THREE.SphereGeometry(0.1, 10, 8), toon('#8fa0c0'), 0.15, 0.3, 0, '#5a6278', 0.015); // cổ ánh tím
+    add(p, new THREE.SphereGeometry(0.085, 10, 8), toon('#c9d2e4'), 0.23, 0.38, 0, '#5a6278', 0.015); // đầu
+    const beak = add(p, new THREE.ConeGeometry(0.03, 0.09, 6), toon('#ffb36b'), 0.33, 0.37, 0, null); beak.rotation.z = -Math.PI / 2;
+    add(p, new THREE.SphereGeometry(0.014, 6, 6), toon('#2a2230'), 0.27, 0.41, 0.06, null); add(p, new THREE.SphereGeometry(0.014, 6, 6), toon('#2a2230'), 0.27, 0.41, -0.06, null);
+    const tail = add(p, new THREE.ConeGeometry(0.07, 0.2, 6), toon('#9aa6c0'), -0.27, 0.22, 0, '#5a6278', 0.012); tail.rotation.z = Math.PI / 2 + 0.3;
+    [-0.05, 0.05].forEach(dz => add(p, new THREE.CylinderGeometry(0.01, 0.01, 0.1, 5), toon('#ff8a7a'), 0.02, 0.05, dz, null));
     return { p, ph: i * 2 };
   });
   kit.plant(g, -4.2, 0.6, 0.9); kit.plant(g, 4.2, 0.6, 0.9);

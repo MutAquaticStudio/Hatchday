@@ -183,6 +183,29 @@ describe('kiểm duyệt', () => {
   });
 });
 
+describe('bộ lọc chat trong quản trị', () => {
+  it('tra nhật ký chat (có kiểm toán) và thống kê; chỉ moderator/owner', async () => {
+    await h.db.exec(`delete from chat_log; delete from chat_strikes; delete from sanctions;
+      insert into chat_log (user_id, topic, body, norm) values ('${P1}', 'plaza:1', 'xin chào cả nhà', 'xin chao ca nha'), ('${P2}', 'plaza:1', 'ai chơi bóng không', 'ai choi bong khong'), ('${P2}', 'plaza:1', '100% vui', '100 vui');
+      insert into chat_strikes (user_id, reason) values ('${P2}', 'link'), ('${P2}', 'filtered'), ('${P3}', 'link')`);
+    await as2(MOD);
+    const all = await rpc('admin_chat_log', null, null, 100); expect(all.map((m: any) => m.body)).toEqual(['100% vui', 'ai chơi bóng không', 'xin chào cả nhà']); // mới nhất trước
+    expect(all[0]).toMatchObject({ name: 'Hai', topic: 'plaza:1', sanctioned: false });
+    await h.db.exec(`insert into sanctions (user_id, kind, until, reason, auto) values ('${P2}', 'mute', now() + interval '1 hour', 'thử', true)`);
+    expect((await rpc('admin_chat_log', null, P2, 100)).every((m: any) => m.sanctioned)).toBe(true); // người đang bị phạt được đánh dấu
+    expect((await rpc('admin_chat_log', 'BÓNG', null, 100)).map((m: any) => m.body)).toEqual(['ai chơi bóng không']);
+    expect(await rpc('admin_chat_log', '%', null, 100)).toHaveLength(3); // ký tự đại diện bị bỏ, không khớp mọi dòng một cách ngẫu nhiên
+    expect((await rpc('admin_chat_log', null, P1, 100)).map((m: any) => m.body)).toEqual(['xin chào cả nhà']);
+    expect(await rpc('admin_chat_log', null, null, 1)).toHaveLength(1);
+    expect(await audits('view_chat_log')).toBe(6);
+    const st = await rpc('admin_chat_filter_stats'); expect(st).toMatchObject({ messages_24h: 3, senders_24h: 2, blocked: { link: 2, filtered: 1 } });
+    await as2(OWNER); expect(await rpc('admin_chat_log', null, null, 10)).toHaveLength(3);
+    for (const u of [OPS, SUP, ANA]) { await as2(u); await expect(rpc('admin_chat_log', null, null, 10)).rejects.toThrow('forbidden'); await expect(rpc('admin_chat_filter_stats')).rejects.toThrow('forbidden'); }
+    await as2(MOD, 'aal1'); await expect(rpc('admin_chat_log', null, null, 10)).rejects.toThrow(); // chưa qua hai bước
+    await h.as(P1); await expect(rpc('admin_chat_log', null, null, 10)).rejects.toThrow(); // người chơi thường
+  });
+});
+
 describe('vai trò, cờ hệ thống, kiểm toán', () => {
   it('chỉ owner đổi vai trò; không bỏ được owner cuối; vai trò sai bị chặn', async () => {
     await as2(OPS); await expect(rpc('admin_set_role', P1, 'support', 'cấp quyền')).rejects.toThrow('forbidden');
@@ -194,12 +217,12 @@ describe('vai trò, cờ hệ thống, kiểm toán', () => {
     expect((await rpc('admin_list_roles')).length).toBe(5);
   });
   it('cờ hệ thống: bật chat công cộng cần lý do, ghi kiểm toán, người chơi thấy qua get_public_config', async () => {
-    await h.as(P2); expect(await rpc('get_public_config')).toEqual({ chat_public: false });
+    await h.as(P2); expect(await rpc('get_public_config')).toMatchObject({ chat_public: false });
     await as2(OPS); await expect(rpc('admin_set_flag', 'chat.public.enabled', 'true', '')).rejects.toThrow('reason_required');
     await expect(rpc('admin_set_flag', 'chat.public.enabled', '"yes"', 'sai kiểu')).rejects.toThrow('invalid_flag');
     await expect(rpc('admin_set_flag', 'khong.co', 'true', 'cờ lạ')).rejects.toThrow('unknown_flag');
     await rpc('admin_set_flag', 'chat.public.enabled', 'true', 'đã chốt pháp lý');
-    await h.as(P2); expect(await rpc('get_public_config')).toEqual({ chat_public: true });
+    await h.as(P2); expect(await rpc('get_public_config')).toMatchObject({ chat_public: true });
     await as2(OPS); await rpc('admin_set_flag', 'chat.public.enabled', 'false', 'tắt khẩn cấp');
     expect((await rpc('admin_list_flags'))['chat.public.enabled']).toBe(false);
   });

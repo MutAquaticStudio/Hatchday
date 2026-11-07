@@ -40,6 +40,10 @@ describe('danh mục sau khi nạp mọi migration', () => {
     const rows = await h.q("select p.oid::regprocedure::text as f from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname in ('public', 'private') and p.prosecdef and not exists (select 1 from unnest(coalesce(p.proconfig, '{}'::text[])) c where c = 'search_path=\"\"') order by 1");
     expect(rows.map(r => r.f)).toEqual([]);
   });
+  it('mọi hàm ở public và private (kể cả hàm thuần) đều đặt search_path rỗng', async () => {
+    const rows = await h.q("select p.oid::regprocedure::text as f from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname in ('public', 'private') and p.prokind = 'f' and not exists (select 1 from unnest(coalesce(p.proconfig, '{}'::text[])) c where c = 'search_path=\"\"') order by 1");
+    expect(rows.map(r => r.f)).toEqual([]);
+  });
   it('authenticated không chạy được hàm private nào', async () => {
     const rows = await h.q("select p.oid::regprocedure::text as f from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'private' and has_function_privilege('authenticated', p.oid, 'execute') order by 1");
     expect(rows.map(r => r.f)).toEqual([]);

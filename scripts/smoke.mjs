@@ -27,6 +27,7 @@ await p.mouse.move(box.x+box.width/2,box.y+box.height*0.5);await p.mouse.down();
 // cho ăn
 await p.click('#a-eat');await p.waitForTimeout(1500);
 ok('khay thức ăn hiện',await p.isVisible('#tray'));
+await p.click('#tray .food.more');await p.waitForTimeout(800);ok('bấm "Mua thêm" ở khay thức ăn: mở cửa hàng',await p.isVisible('#shop')); await p.evaluate(()=>document.querySelector('#shop [data-close]')?.click()); await p.waitForTimeout(300);
 const before=(await demo()).pet.no;
 await p.click('#tray .food[data-id="kem"]');await p.waitForTimeout(3500);
 await p.click('#a-eat').catch(()=>{});await p.waitForTimeout(100);
@@ -122,7 +123,8 @@ await p.goto(`http://localhost:${PORT}/?dev`);await p.waitForTimeout(800);await 
 await p.click('#btn-stats');await p.waitForTimeout(300);
 ok('Chỉ số có dòng Khẩu vị (đã thử một vài món)',/Khẩu vị: .*đã thử [1-9]\d*\/12 món/.test(await p.textContent('#tastes')),await p.textContent('#tastes'));
 await p.click('#btn-stats');
-await p.click('#a-house');await p.click('.tile[data-go="cooking"]');await p.waitForTimeout(500);
+await p.click('#a-house');await p.click('.tile[data-go="cooking"]');await p.waitForFunction(()=>{const e=document.querySelector('#cooking');return e&&!e.hidden},null,{timeout:9000}); // đi vào Bếp, bé chạy lại bếp lò rồi mới mở bảng nấu
+await p.waitForTimeout(300);
 ok('Nấu ăn: 16 công thức',(await p.$$('#cooking .recipes li')).length===16);
 dm=await demo();const st0=dm.owned['sinh-to']||0;
 await p.click('[data-cook="sinh-to"]');await p.waitForTimeout(400);dm=await demo();
@@ -248,7 +250,7 @@ ok('chạm chip khu vực: mở Bản đồ với 9 ghim',await p.isVisible('#ma
 await p.click('#map [data-pin="market"]');await p.waitForTimeout(200);
 ok('Chợ bị khoá ở Gắn bó cấp 1: thẻ báo cần cấp 2, không có nút Đi tới',(await p.textContent('#map .map-card')).includes('cấp 2')&&!(await p.$('#map [data-go-place]')));
 await p.click('#map [data-pin="plaza"]');await p.waitForTimeout(200);
-ok('Quảng trường chưa mở: báo "sắp mở"',(await p.textContent('#map .map-card')).includes('sắp mở'));
+ok('Quảng trường khoá ở Gắn bó cấp 1: thẻ báo cần cấp 2',(await p.textContent('#map .map-card')).includes('cấp 2')&&!(await p.$('#map [data-go-place]')));
 await p.click('#map [data-pin="hospital"]');await p.click('#map [data-go-place="hospital"]');
 ok('đi tới Bệnh viện: chip đổi tên và hiện các điểm chạm',await until(async()=>(await p.textContent('#scene-tag')).includes('Bệnh viện')&&await p.isVisible('.hot[data-hot="desk"]'),12000));
 await p.click('.hot[data-hot="desk"]');
@@ -260,7 +262,8 @@ await p.click('#map [data-close]');
 await setDemo("d.pet.bond_xp=100;");
 await reload();
 await goPlace('market');
-ok('đi tới Chợ (Gắn bó cấp 3): hiện 6 điểm chạm',await until(async()=>(await p.textContent('#scene-tag')).includes('Chợ')&&(await p.$$('.hot')).length===6,12000));
+ok('đi tới Chợ (Gắn bó cấp 3): hiện 8 điểm chạm (có Video thưởng, Đồ chơi)',await until(async()=>(await p.textContent('#scene-tag')).includes('Chợ')&&(await p.$$('.hot')).length===8,12000));
+await p.waitForTimeout(1800); // đợi hết chuyển cảnh để điểm chạm đứng yên
 const carB=(await demo()).owned.carot,coB=(await demo()).coins;
 await p.click('.hot[data-hot="sell"]');
 ok('chạm sạp Thu mua: mở bảng bán rau',await until(()=>p.isVisible('#sell'),15000));
@@ -280,6 +283,30 @@ ok('chạm kệ Sổ loài: mở Sổ loài',await until(()=>p.isVisible('#dex')
 await p.click('.hsheet:not([hidden]) [data-close]');await p.waitForTimeout(300);
 await goPlace('home');
 ok('về Nhà bằng Bản đồ: chip về Phòng khách, nhãn địa điểm ẩn',await until(async()=>(await p.textContent('#scene-tag')).includes('Phòng khách')&&!(await p.isVisible('.hot')),12000));
+// nơi chung (mô phỏng nhiều người): Quảng trường, Tiệm trà, Công viên
+await setDemo("d.pet.bond_xp=300;d.pet.no=70;d.pet.sach=70;d.pet.vui=70;d.pet.nl=90;d.pet.stats_at=new Date().toISOString();");
+await reload();
+await goPlace('plaza');
+ok('đi tới Quảng trường: chip đổi tên, thanh emote và nhãn Bảng tin hiện',await until(async()=>(await p.textContent('#scene-tag')).includes('Quảng trường')&&await p.isVisible('.emote-bar')&&await p.isVisible('.hot[data-hot="news"]'),15000));
+ok('bạn ảo vào kênh: thấy ít nhất 2 thú khác và đếm người',await until(()=>p.evaluate(()=>document.querySelectorAll('.actor').length>=2),15000)&&/\d+\/12 người/.test(await p.textContent('#eb-count')),await p.textContent('#eb-count'));
+await p.click('[data-eb-toggle]'); // biểu cảm gập sau nút "Biểu cảm"
+await p.click('.eb[data-emote="heart"]');
+ok('bấm emote: bé nói biểu tượng',await until(async()=>(await p.textContent('#bubble')).includes('❤️'),4000));
+await p.fill('#chat-in','Xin chào mọi người');await p.click('#chat-box button');
+ok('chat: tin của mình hiện trong nhật ký chat',await until(()=>p.evaluate(()=>!!document.querySelector('.chat-line.mine')),6000));
+await p.fill('#chat-in','gọi 0912345678 nhé');await p.click('#chat-box button');
+ok('chat: số điện thoại bị chặn kèm lý do',await until(async()=>(await p.textContent('#toast')).includes('số điện thoại'),4000),await p.textContent('#toast'));
+await p.fill('#chat-in','');
+await p.click('.hot[data-hot="news"]');
+ok('chạm Bảng tin: mở mục Tin tức',await until(async()=>await p.isVisible('#social')&&(await p.textContent('#social')).includes('Tin tức'),15000));
+await p.click('.hsheet:not([hidden]) [data-close]');await p.waitForTimeout(300);
+await goPlace('tea');
+ok('đi tới Tiệm trà: có bàn và thanh emote',await until(async()=>(await p.textContent('#scene-tag')).includes('Tiệm trà')&&await p.isVisible('.hot[data-hot="table0"]')&&await p.isVisible('.emote-bar'),15000));
+ok('rời Quảng trường: không còn nhãn tên thú nào của kênh cũ',await until(()=>p.evaluate(()=>document.querySelectorAll('.actor').length<=3),6000));
+await goPlace('park');
+ok('đi tới Công viên: có xích đu',await until(async()=>(await p.textContent('#scene-tag')).includes('Công viên')&&await p.isVisible('.hot[data-hot="swing"]'),15000));
+await goPlace('home');
+ok('về Nhà: thanh emote và nhãn tên biến mất',await until(async()=>(await p.textContent('#scene-tag')).includes('Phòng khách')&&!(await p.isVisible('.emote-bar'))&&!(await p.isVisible('.actor-layer')),12000));
 // vòng đời: tua tuổi cho bé hết tuổi thọ, mở lại game → trang tưởng niệm → đón trứng đời sau → gia phả 2 đời
 const prev=await demo();
 await p.evaluate(()=>{const d=JSON.parse(localStorage.getItem('hatchday-demo'));d.life=40;d.pet.born_at=new Date(Date.now()-41*86400000).toISOString();localStorage.setItem('hatchday-demo',JSON.stringify(d));});

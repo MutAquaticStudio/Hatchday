@@ -1,5 +1,6 @@
 /** Bộ chạy thử trong bộ nhớ cho trang quản trị (không cần máy chủ). Dữ liệu giả, không phải người thật. Vai trò chọn bằng ?role=owner|ops|support|moderator|analyst. */
 import { can, type Action, type Role } from './rbac';
+import { demoOverview } from './demo-dash';
 
 const role: Role = (new URLSearchParams(location.search).get('role') as Role) || 'owner';
 const now = () => new Date().toISOString();
@@ -10,9 +11,23 @@ const players = [
   { user_id: 'u3', name: 'Mây', code: 'MAYXANH2', species: 'co-may', bond_level: 8, email: 'may@example.com' },
 ];
 const S = {
+  chat: [
+    { id: 3, at: now(), user_id: 'u2', topic: 'plaza:1', body: 'ai chơi bóng không', name: 'Nắng' },
+    { id: 2, at: now(), user_id: 'u1', topic: 'plaza:1', body: 'chào cả nhà', name: 'Bánh Bò' },
+    { id: 1, at: now(), user_id: 'u3', topic: 'tea:1', body: 'trà hôm nay thơm quá', name: 'Mây' },
+  ] as any[],
   audit: [] as any[], ann: [] as any[], events: [] as any[], campaigns: [] as any[], sanctions: [] as any[], words: [] as any[],
   reports: [{ id: 1, kind: 'player', reason: 'harassment', detail: 'nhắn tin làm phiền', status: 'open', at: now(), reporter: 'Bánh Bò', target_id: 'u2', target: 'Nắng', target_open_reports: 1 }] as any[],
-  flags: { 'chat.public.enabled': false, 'campaign.approval': { users: 50, coins: 500 } } as Record<string, unknown>,
+  flags: { 'chat.public.enabled': false, 'chat.dm.enabled': true, 'places.enabled': true, 'ads.enabled': false, 'push.enabled': false, 'campaign.approval': { users: 50, coins: 500 } } as Record<string, unknown>,
+  flagMeta: {} as Record<string, { at: string; reason: string; by: string }>,
+  balance: [
+    ['ads.reward', 20, 5, 100, 'xu', 'Thưởng mỗi lượt xem quảng cáo', 'Quảng cáo', 'Không bị nhân bởi sự kiện nhân xu nhiệm vụ.'], ['ads.per_day', 5, 0, 20, 'lượt', 'Số lượt xem tối đa mỗi ngày', 'Quảng cáo', '0 = không ai nhận được thưởng.'],
+    ['ads.gap_minutes', 10, 0, 120, 'phút', 'Giãn cách giữa hai lượt', 'Quảng cáo', ''], ['ads.min_watch_seconds', 15, 5, 60, 'giây', 'Thời gian xem tối thiểu', 'Quảng cáo', ''],
+    ['ads.ecpm_usd', 1, 0, 50, 'USD', 'eCPM ước tính (cho ARPDAU)', 'Quảng cáo', 'Chỉ dùng để ước tính trên dashboard.'], ['care.daily_cap', 50, 10, 200, 'xu', 'Trần xu chăm sóc mỗi ngày', 'Kinh tế', ''],
+    ['sell.daily_cap', 80, 20, 400, 'xu', 'Trần bán rau mỗi ngày', 'Kinh tế', ''], ['alert.dau_drop_pct', 20, 5, 80, '%', 'Cảnh báo DAU giảm hơn', 'Cảnh báo', ''],
+    ['alert.ads_per_user', 4.5, 1, 20, 'lượt', 'Cảnh báo lượt quảng cáo/người vượt', 'Cảnh báo', ''], ['alert.coin_ratio', 1.3, 1.05, 3, 'lần', 'Cảnh báo xu kiếm/xu tiêu vượt', 'Cảnh báo', ''],
+    ['alert.reports_per_day', 10, 1, 100, 'báo cáo', 'Cảnh báo báo cáo mỗi ngày vượt', 'Cảnh báo', ''],
+  ].map(([key, v, min, max, unit, label, grp, note]) => ({ key, value: v, def: v, min, max, unit, label, grp, note, updated_at: null as string | null, by: '' })) as any[],
   roles: [{ user_id: 'a1', role: 'owner', email: 'owner@example.com', since: now() }] as any[],
 };
 const audit = (action: string, target: string | null, after: unknown, reason: string | null) => S.audit.unshift({ id: ++nid, admin: `${role}@example.com`, action, target, before: null, after, reason, at: now() });
@@ -43,7 +58,7 @@ export async function demoRpc(fn: string, a: Record<string, any>): Promise<any> 
       const i = S.ann.findIndex(x => x.id === row.id); if (i >= 0) S.ann[i] = row; else S.ann.unshift(row); audit('announce_' + (a.p_id ? 'update' : 'create'), String(row.id), { title: a.p_title }, a.p_reason); return row.id; }
     case 'admin_delete_announcement': { need('announce'); why(a.p_reason); const i = S.ann.findIndex(x => x.id === a.p_id); if (i < 0) throw new Error('not_found'); S.ann.splice(i, 1); audit('announce_delete', String(a.p_id), null, a.p_reason); return null; }
     case 'admin_list_events': need('event'); return S.events;
-    case 'admin_upsert_event': { need('event'); why(a.p_reason); for (const k of Object.keys(a.p_config || {})) if (!['banner', 'plaza_decor'].includes(k)) throw new Error('invalid_event_config');
+    case 'admin_upsert_event': { need('event'); why(a.p_reason); for (const k of Object.keys(a.p_config || {})) if (!['banner', 'plaza_decor', 'coin_boost', 'shop_discount', 'epidemic', 'goal'].includes(k)) throw new Error('invalid_event_config');
       const row = { id: a.p_id ?? ++nid, title: a.p_title, body: a.p_body, kind: a.p_kind, starts_at: a.p_starts, ends_at: a.p_ends, enabled: true, config: a.p_config || {} }; S.events.unshift(row); audit('event_create', String(row.id), { title: a.p_title }, a.p_reason); return row.id; }
     case 'admin_set_event_enabled': { need('event'); why(a.p_reason); const e = S.events.find(x => x.id === a.p_id); if (!e) throw new Error('not_found'); e.enabled = a.p_enabled; audit('event_enabled', String(a.p_id), a.p_enabled, a.p_reason); return null; }
     case 'admin_list_reports': need('report'); return S.reports.filter(r => r.status === a.p_status);
@@ -51,13 +66,26 @@ export async function demoRpc(fn: string, a: Record<string, any>): Promise<any> 
       r.status = a.p_action === 'dismiss' ? 'dismissed' : 'resolved'; if (a.p_action !== 'dismiss') S.sanctions.unshift({ id: ++nid, user_id: r.target_id, name: r.target, kind: a.p_action, until: now(), reason: a.p_reason, auto: false }); audit('report_' + a.p_action, String(r.id), null, a.p_reason); return null; }
     case 'admin_list_sanctions': need('sanction'); return S.sanctions;
     case 'admin_lift_sanction': { need('sanction'); why(a.p_reason); const i = S.sanctions.findIndex(x => x.id === a.p_id); if (i < 0) throw new Error('not_found'); S.sanctions.splice(i, 1); audit('sanction_lift', String(a.p_id), null, a.p_reason); return null; }
+    case 'admin_chat_log': { need('report'); const q = String(a.p_q || '').toLowerCase().replace(/[%_]/g, ''); audit('view_chat_log', a.p_user ?? null, { q }, null);
+      return S.chat.filter(m => (!a.p_user || m.user_id === a.p_user) && (!q || m.body.toLowerCase().includes(q))).slice(0, Math.min(Math.max(a.p_limit || 100, 1), 200)).map(m => ({ ...m, sanctioned: S.sanctions.some(s => s.user_id === m.user_id) })); }
+    case 'admin_chat_filter_stats': need('report'); return { messages_24h: S.chat.length, senders_24h: new Set(S.chat.map(m => m.user_id)).size, blocked: { link: 4, phone: 2, filtered: 3 }, auto_mutes_24h: S.sanctions.filter(s => s.auto).length, words: S.words.length };
+    case 'admin_sanction': { need('sanction'); why(a.p_reason); if (!(a.p_hours > 0)) throw new Error('invalid_sanction'); const p = players.find(x => x.user_id === a.p_user); S.sanctions.unshift({ id: ++nid, user_id: a.p_user, name: p?.name ?? '—', kind: a.p_kind, until: new Date(Date.now() + a.p_hours * 3600000).toISOString(), reason: a.p_reason, auto: false }); audit('sanction', a.p_user, { kind: a.p_kind, hours: a.p_hours }, a.p_reason); return ++nid; }
     case 'admin_list_words': need('word'); return S.words;
     case 'admin_upsert_word': { need('word'); why(a.p_reason); if (String(a.p_term || '').trim().length < 2) throw new Error('invalid_word'); S.words = S.words.filter(w => w.term !== a.p_term.toLowerCase()); S.words.push({ term: a.p_term.toLowerCase(), match: a.p_match, action: a.p_action }); audit('word_upsert', a.p_term, null, a.p_reason); return null; }
     case 'admin_delete_word': { need('word'); why(a.p_reason); S.words = S.words.filter(w => w.term !== a.p_term); audit('word_delete', a.p_term, null, a.p_reason); return null; }
     case 'admin_list_roles': need('role'); return S.roles;
     case 'admin_set_role': need('role'); why(a.p_reason); audit('set_role', a.p_user, { role: a.p_role }, a.p_reason); return null;
     case 'admin_list_flags': need('flag'); return S.flags;
-    case 'admin_set_flag': need('flag'); why(a.p_reason); if (!(a.p_key in S.flags)) throw new Error('unknown_flag'); S.flags[a.p_key] = a.p_value; audit('set_flag', a.p_key, a.p_value, a.p_reason); return null;
+    case 'admin_set_flag': need('flag'); why(a.p_reason); if (!(a.p_key in S.flags)) throw new Error('unknown_flag'); if (a.p_key !== 'campaign.approval' && typeof a.p_value !== 'boolean') throw new Error('invalid_flag');
+      S.flags[a.p_key] = a.p_value; S.flagMeta[a.p_key] = { at: now(), reason: a.p_reason, by: role }; audit('set_flag', a.p_key, a.p_value, a.p_reason); return null;
+    case 'admin_flag_meta': need('flag'); return S.flagMeta;
+    case 'admin_client_errors': need('flag'); return { total: 14, users: 5, top: [{ fp: 'a', kind: 'js', message: "Cannot read properties of undefined (reading 'position')", stack: 'TypeError: Cannot read properties of undefined\n    at update (park-4f2a.js:1:2210)\n    at tick (index-9c1b.js:1:41233)', place: 'Công viên Cỏ Non', build: '9c1b3a', count: 9, users: 3, last: now() }, { fp: 'b', kind: 'promise', message: 'realtime_timeout', stack: '', place: 'Quảng trường Mầm', build: '9c1b3a', count: 5, users: 2, last: now() }], daily: [] };
+    case 'admin_push_stats': need('flag'); return { devices: 14, users: 11, sent_24h: 32, fail_24h: 1 };
+    case 'admin_list_balance': need('flag'); return S.balance;
+    case 'admin_set_balance': { need('flag'); why(a.p_reason); const b = S.balance.find(x => x.key === a.p_key); if (!b) throw new Error('unknown_balance');
+      if (!(a.p_value >= b.min && a.p_value <= b.max)) throw new Error('balance_out_of_range'); if (b.def > 0 && Math.abs(a.p_value - b.def) / b.def > 0.5 && role !== 'owner') throw new Error('balance_needs_owner');
+      b.value = a.p_value; b.updated_at = now(); b.by = role; audit('set_balance', a.p_key, { value: a.p_value }, a.p_reason); return null; }
+    case 'admin_dashboard_overview': { need('dashboard'); return demoOverview(+a.p_days || 30, S.events, Object.fromEntries(S.balance.map(x => [x.key, x.value])), S.flags); }
     case 'admin_audit_list': need('audit'); return S.audit;
     default: throw new Error('unknown_rpc ' + fn);
   }

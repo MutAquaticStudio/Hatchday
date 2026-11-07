@@ -6,16 +6,21 @@ import { clamp, decayStats, localDay } from '../game/rules';
 import { BY_ID, CROPS, SELL, sellPrice, readyAtMs, WATER, DEFAULT_LAYOUT, EDIBLES, FOOD_BY_ID, FOOD_STOCK, FOODS, FRIDGE, GARDEN_LAND, GARDEN_PLOTS, PARCEL, ITEMS, RECIPES, spoilLoss, STARTER_ITEMS, type Layout } from '../game/catalog';
 import { BALANCED_BONUS, isBalanced } from '../game/nutrition';
 import { buyable, COIN, comfortLevel, comfortScore, dayNumber, QUEST_BONUS, QUEST_POOL, questsForDay, rotationForDay, isWeekend, weekStart, WEEKLY_POOL, weeklyForDay } from '../game/layout';
-import type { ActionResult, CureResult, DayLogRow, Economy, FarmItem, Garden, MemoryRow, Outfit, PetAction, PetRow, QuestBoard, QuestRow, SeenRow, Tastes } from './types';
-import { applyDrift, isBlank, normalize, rollPersonality } from '../game/personality';
+import type { ToyResult, ToysState, ActionResult, CureResult, DayLogRow, Economy, FarmItem, Garden, MemoryRow, Outfit, PetAction, PetRow, QuestBoard, QuestRow, SeenRow, Tastes } from './types';
+import { applyDrift, applyDriftBy, isBlank, normalize, rollPersonality } from '../game/personality';
+import { TOY_BY_ID, toyGain } from '../game/toys';
 import { blendPersonality, HEIR_FAV_INHERIT, pickHeirSpecies } from '../game/lineage';
 import { BOND, bondLevel } from '../game/bond';
+import { boostedReward, discountedPrice, discountPct, eventBoost, goalEvents, isEpidemic, type ActiveEvent, type DiscountScope, type EventGoal, type GoalMetric } from '../game/events';
+import { AD, type AdState, type AdTicket } from '../game/ads';
+import { ACTIVITY_KINDS, BADGES, BADGE_BY_ID, EXPLORE_TIERS, MINI, MINI_KINDS, miniReward, TOY_KINDS, type ActivityResult, type MiniKind, type MiniResult, type WorldProgress } from '../game/world-activity';
 import { clinicPrice, healthStep, HEALTH, ILLNESS_BY_ID, isNightHour, isSevere, MEDICINE_BY_ID, type HealthCtx } from '../game/health';
 import { formFromCare, pickSpecies, SPECIES_BY_ID, stageForAge, REGIONS, GROW_MEMORY } from '../game/species';
 
 const KEY = 'hatchday-demo';
 interface DB {
   pet: PetRow | null; mem: MemoryRow[]; days: Record<string, DayLogRow>; fav: string; dis: string; firsts: string[]; nextId: number;
+  toys?: { owned: string[]; day: string; used: Record<string, number> }; goals?: Record<number, { mine: number; claimed: boolean }>; isolating?: boolean;
   coins: number; earnedDay: string; earnedToday: number; owned: Record<string, number>; layouts: (Layout | null)[]; active: number;
   quests: string[]; collections: string[]; life?: number; seen?: SeenRow[];
   /** Ngày đã nhận suất ăn, tuần:idx đã nhận nhiệm vụ tuần, đã bù kho thức ăn cho bản lưu cũ. */
@@ -30,6 +35,10 @@ interface DB {
   bond?: number[];
   /** Xu đã bán nông sản theo ngày (trần mỗi ngày). */
   sold?: Record<string, number>;
+  /** Quảng cáo thưởng hôm nay (mô phỏng ad_rewards/ad_nonces). */
+  ads?: { day: string; count: number; last: number; nonce?: string; at?: number };
+  /** Hoạt động thế giới (mô phỏng world_activity, world_totals, badge_claims, explore_claims, minigame_logs). */
+  world?: { day: string; kinds: Record<string, number>; totals: Record<string, number>; badges: string[]; explore: string[]; exploreDays: number; mini: Record<string, { plays: number; best: number; last: number }> };
   parcels?: number[]; farm?: FarmItem[]; fridge?: number; spoilDay?: string; garden?: Record<string, { crop: string; planted_at: string; waters?: number; watered_at?: string }>;
 }
 
@@ -95,7 +104,7 @@ function healthCtx(db: DB, action?: 'feed' | 'play', lastMealSweet = false): Hea
   return {
     action, lastMealSweet, sweetsToday: (db.days[d]?.fgroups || []).filter(g => g === 'ngot').length,
     meals3d: logs.reduce((a, x) => a + x.fed, 0), healthyGroups3d: new Set(logs.flatMap(x => x.fgroups || []).filter(g => g !== 'ngot')).size,
-    plays1h: plays.filter(t => now - t < 3600000).length, nightPlays2h: plays.filter(t => isNightHour(new Date(t).getHours())).length,
+    plays1h: plays.filter(t => now - t < 3600000).length, nightPlays2h: plays.filter(t => isNightHour(new Date(t).getHours(), isEpidemic(demoEvents()))).length, epidemic: isEpidemic(demoEvents()),
   };
 }
 /** Một bước đánh giá sức khoẻ (giống private.health_step). */
@@ -230,6 +239,7 @@ export async function petAction(action: PetAction, item?: string, count = 1): Pr
     if ((play && blk.includes('play')) || ((action === 'bath_scrub' || action === 'bath_rinse') && blk.includes('bath'))) throw new Error('sick_blocked');
     if (play) db.plays = [...(db.plays || []).filter(t => Date.now() - t < 2 * 3600000), Date.now()];
     p.bond_xp += 1; // giống pet_action
+    if (GOAL_OF[action]) goalAdd(db, GOAL_OF[action]);
     p.personality = applyDrift(normalize(p.personality), action); // giống trigger trên action_log
     tick(db, play ? 'play' : action === 'feed' ? 'feed' : undefined, sweetMeal);
   }
@@ -266,14 +276,15 @@ export async function getEconomy(): Promise<Economy> {
   const db = load(), d = localDay(), spoiled = applySpoilage(db); store(db);
   return { fridge_level: db.fridge || 0, spoiled, coins: db.coins, earned_today: db.earnedDay === d ? db.earnedToday : 0, day: d, rotation: rotationForDay(d), weekend: isWeekend(d), ration_claimed: !!db.ration?.includes(d) };
 }
-export async function buyItem(id: string): Promise<{ coins: number; qty: number }> {
+export async function buyItem(id: string): Promise<{ coins: number; qty: number; paid?: number }> {
   const db = load(), it = BY_ID[id];
   if (!it || it.kind === 'food') throw new Error('unknown_item');
   if (!buyable(it, localDay())) throw new Error('not_for_sale');
   if ((it.kind === 'outfit' || it.layer === 'wallpaper' || it.layer === 'flooring') && db.owned[id]) throw new Error('already_owned');
-  if (db.coins < (it.price || 0)) throw new Error('not_enough_coins');
-  db.coins -= it.price || 0; db.owned[id] = (db.owned[id] || 0) + 1; store(db);
-  return { coins: db.coins, qty: db.owned[id] };
+  const paid = px(it.kind === 'outfit' ? 'outfit' : 'decor', it.price || 0);
+  if (db.coins < paid) throw new Error('not_enough_coins');
+  db.coins -= paid; db.owned[id] = (db.owned[id] || 0) + 1; store(db);
+  return { coins: db.coins, qty: db.owned[id], paid };
 }
 export async function listOwned() { return load().owned; }
 export async function getLayouts() { const db = load(); return { layouts: db.layouts, active: db.active }; }
@@ -316,18 +327,18 @@ export async function claimQuest(i: number) {
   const q = (await getQuests()).quests[i]; if (!(i >= 0 && i <= 4) || !q) throw new Error('invalid_quest');
   if (q.progress < q.target) throw new Error('quest_not_done');
   const db = load(), k = localDay() + ':' + i; if (db.quests.includes(k)) throw new Error('already_claimed');
-  db.quests.push(k); earn(db, q.reward, false); store(db); return { coins: db.coins, reward: q.reward };
+  const r = boostedReward(q.reward, demoBoost()); db.quests.push(k); earn(db, r, false); store(db); return { coins: db.coins, reward: r };
 }
 export async function claimQuestBonus() {
   const b = await getQuests(); if (!b.bonus.ready) throw new Error('quest_not_done');
   const db = load(), k = localDay() + ':5'; if (db.quests.includes(k)) throw new Error('already_claimed');
-  db.quests.push(k); earn(db, QUEST_BONUS, false); store(db); return { coins: db.coins, reward: QUEST_BONUS };
+  const r = boostedReward(QUEST_BONUS, demoBoost()); db.quests.push(k); earn(db, r, false); store(db); return { coins: db.coins, reward: r };
 }
 export async function claimWeeklyQuest(i: number) {
   const b = await getQuests(), q = b.weekly[i]; if (!(i >= 0 && i <= 2) || !q) throw new Error('invalid_quest');
   if (q.progress < q.target) throw new Error('quest_not_done');
   const db = load(), k = b.week + ':' + i; if (db.weekly?.includes(k)) throw new Error('already_claimed');
-  (db.weekly ||= []).push(k); earn(db, q.reward, false); store(db); return { coins: db.coins, reward: q.reward };
+  const r = boostedReward(q.reward, demoBoost()); (db.weekly ||= []).push(k); earn(db, r, false); store(db); return { coins: db.coins, reward: r };
 }
 
 /* ---------- Thức ăn nâng cao: tủ lạnh, vườn rau, nấu ăn, khẩu vị ---------- */
@@ -421,9 +432,10 @@ export async function buyFood(id: string, qty: number) {
   const db = load(), f = FOOD_BY_ID[id]; if (!f || f.kind !== 'food' || f.price == null) throw new Error('unknown_item');
   if (!(qty >= 1 && qty <= FOOD_STOCK.packMax)) throw new Error('invalid_qty');
   if ((db.owned[id] || 0) + qty > FOOD_STOCK.max) throw new Error('stock_full');
-  if (db.coins < f.price * qty) throw new Error('not_enough_coins');
-  db.coins -= f.price * qty; db.owned[id] = (db.owned[id] || 0) + qty; store(db);
-  return { coins: db.coins, qty: db.owned[id] };
+  const total = px('food', f.price) * qty;
+  if (db.coins < total) throw new Error('not_enough_coins');
+  db.coins -= total; db.owned[id] = (db.owned[id] || 0) + qty; store(db);
+  return { coins: db.coins, qty: db.owned[id], paid: total };
 }
 export async function claimRation() {
   const db = load(), d = localDay(); if (db.ration?.includes(d)) throw new Error('already_claimed');
@@ -452,8 +464,9 @@ export async function buyMedicine(id: string, qty: number) {
   const db = load(), m = MEDICINE_BY_ID[id]; if (!m) throw new Error('unknown_item');
   if (!(qty >= 1 && qty <= 10)) throw new Error('invalid_qty');
   const cur = db.owned[id] || 0; if (cur + qty > HEALTH.medicineMax) throw new Error('stock_full');
-  if (db.coins < m.price * qty) throw new Error('not_enough_coins');
-  db.coins -= m.price * qty; db.owned[id] = cur + qty; store(db); return { coins: db.coins, qty: db.owned[id] };
+  const total = px('medicine', m.price) * qty;
+  if (db.coins < total) throw new Error('not_enough_coins');
+  db.coins -= total; db.owned[id] = cur + qty; store(db); return { coins: db.coins, qty: db.owned[id], paid: total };
 }
 export async function useMedicine(id: string): Promise<CureResult> {
   const db = load(), m = MEDICINE_BY_ID[id]; if (!m) throw new Error('unknown_item');
@@ -504,4 +517,150 @@ export async function sellFood(id: string, qty: number) {
   if (today + total > SELL.dailyCap) throw new Error('sell_cap');
   db.owned[id] -= qty; earn(db, total, false); (db.sold ||= {})[d] = today + total; store(db);
   return { coins: db.coins, qty: db.owned[id], got: total, today: today + total, cap: SELL.dailyCap };
+}
+
+/* ---------- Cổng cho demo-social: cùng bản lưu (xu, kho, thú), cùng luật cộng xu ---------- */
+export type DemoDB = DB;
+export function withDB<T>(fn: (db: DB, earnCoins: (n: number) => number) => T): T {
+  const db = load(); const r = fn(db, n => earn(db, n, false)); store(db); return r;
+}
+
+/* ---------- Sự kiện (mô phỏng get_active_events): thêm ?event=boost vào địa chỉ để xem thử ---------- */
+export function demoEvents(): ActiveEvent[] {
+  let flags: string[] = []; try { flags = (new URLSearchParams(location.search).get('event') || '').split(',').filter(Boolean); } catch { /* không có location */ }
+  const has = (k: string) => flags.includes(k) || flags.includes('all'), t0 = new Date(Date.now() - 3600000).toISOString(), t1 = new Date(Date.now() + 7 * 86400000).toISOString();
+  const out: ActiveEvent[] = [];
+  if (has('boost')) out.push({ id: 1, title: 'Tuần lễ nhiệm vụ', body: 'Hoàn thành nhiệm vụ để nhận thêm xu.', kind: 'limited', starts_at: t0, ends_at: t1, config: { banner: 'Tuần lễ nhiệm vụ: xu thưởng nhiệm vụ nhân 1,5!', coin_boost: 1.5, plaza_decor: 'trung-thu' } });
+  if (has('sale')) out.push({ id: 2, title: 'Chợ giảm giá', body: 'Thức ăn và thuốc giảm giá.', kind: 'limited', starts_at: t0, ends_at: t1, config: { banner: 'Chợ giảm giá: thức ăn -20%, thuốc -30%!', shop_discount: { pct: 20, scope: 'food' } } as ActiveEvent['config'] });
+  if (has('goal')) out.push({ id: 3, title: 'Cả nhà cùng ăn', body: 'Cộng đồng cùng cho bé ăn.', kind: 'limited', starts_at: t0, ends_at: t1, config: { banner: 'Mục tiêu cộng đồng: cùng cho bé ăn!', goal: { metric: 'feed', target: 200, reward_coins: 40 } } as ActiveEvent['config'] });
+  if (has('flu')) out.push({ id: 4, title: 'Mùa cúm', body: 'Trời trở lạnh, bé dễ cảm hơn. Cẩn thận khi đi chỗ đông người.', kind: 'limited', starts_at: t0, ends_at: t1, config: { banner: 'Mùa cúm: giữ ấm cho bé, thuốc ho giảm giá!', epidemic: true, shop_discount: { pct: 30, scope: 'medicine' } } as ActiveEvent['config'] });
+  return out;
+}
+/** Giá sau giảm giá sự kiện (giống private.discounted). */
+const px = (kind: DiscountScope, base: number) => discountedPrice(base, discountPct(demoEvents(), kind));
+
+/* ---------- Đồ chơi (mô phỏng get_toys / buy_toy / play_toy) ---------- */
+const toysOf = (db: DB): { owned: string[]; day: string; used: Record<string, number> } => { const d = localDay(); if (!db.toys || db.toys.day !== d) db.toys = { owned: db.toys?.owned || [], day: d, used: {} }; return db.toys; };
+export async function getToys(): Promise<ToysState> { const db = load(), t = toysOf(db); return { owned: [...t.owned], used: { ...t.used } }; }
+export async function buyToy(id: string): Promise<{ coins: number; paid: number }> {
+  const db = load(), t = TOY_BY_ID[id], ts = toysOf(db); if (!t || t.place !== 'portable' || t.price == null) throw new Error('unknown_toy');
+  if (ts.owned.includes(id)) throw new Error('already_owned');
+  const paid = px('toy', t.price); if (db.coins < paid) throw new Error('not_enough_coins');
+  db.coins -= paid; ts.owned.push(id); store(db); return { coins: db.coins, paid };
+}
+export async function playToy(id: string): Promise<ToyResult> {
+  const db = load(), t = TOY_BY_ID[id]; if (!db.pet) throw new Error('no_pet'); if (!t) throw new Error('unknown_toy');
+  decay(db); const p = db.pet, ts = toysOf(db);
+  if (bondLevel(p.bond_xp) < t.bond) throw new Error('toy_locked');
+  if (t.place === 'portable' && !ts.owned.includes(id)) throw new Error('toy_not_owned');
+  const used = ts.used[id] || 0; let refused: ToyResult['refused'] = null, earned = 0, newMem = false, mult = 1;
+  if (p.asleep) refused = 'asleep'; else if (p.nl < 15) refused = 'tired'; else if (used >= t.cap) refused = 'toy_cap';
+  else {
+    if ((p.illness ? ILLNESS_BY_ID[p.illness]?.block || [] : []).includes('play')) throw new Error('sick_blocked');
+    mult = used >= 2 ? 0.5 : 1; const g = toyGain(t, used);
+    ts.used[id] = used + 1; p.vui = clamp(p.vui + g.vui); p.nl = clamp(p.nl + g.nl); p.no = clamp(p.no + g.no);
+    db.plays = [...(db.plays || []).filter(x => Date.now() - x < 2 * 3600000), Date.now()];
+    p.bond_xp += 1; p.personality = applyDriftBy(normalize(p.personality), t.drift); tick(db, 'play'); worldToy(db, id);
+    earned = earn(db, COIN.careReward, true); newMem = first(db, 'toy-' + id, 'play', t.memory); goalAdd(db, 'play');
+  }
+  store(db);
+  return { pet: { ...p }, refused, earned, coins: db.coins, new_memory: newMem, mult, left: Math.max(0, t.cap - used - (refused ? 0 : 1)), toy: id };
+}
+
+/* ---------- Hoạt động thế giới: Khám phá hôm nay, huy hiệu, mini-game (mô phỏng record_activity… ) ---------- */
+const worldOf = (db: DB) => { const d = localDay(); if (!db.world) db.world = { day: d, kinds: {}, totals: {}, badges: [], explore: [], exploreDays: 0, mini: {} }; if (db.world.day !== d) { db.world.day = d; db.world.kinds = {}; db.world.explore = []; db.world.mini = {}; } return db.world; };
+const worldTotal = (w: NonNullable<DB['world']>, k: string) => (k === 'explore' ? w.exploreDays : w.totals[k] || 0);
+const crossed = (w: NonNullable<DB['world']>, k: string, before: number) => BADGES.filter(b => b.kind === k && before < b.target && worldTotal(w, k) >= b.target).map(b => b.id);
+/** Đồ chơi chơi hôm nay cũng tính vào Khám phá và huy hiệu (giống toy_logs ở máy chủ). */
+function worldToy(db: DB, id: string) { const w = worldOf(db); w.kinds[id] = (w.kinds[id] || 0) + 1; if ((TOY_KINDS as readonly string[]).includes(id)) w.totals[id] = (w.totals[id] || 0) + 1; }
+export async function getWorldProgress(): Promise<WorldProgress> {
+  const db = load(), w = worldOf(db), kinds = Object.keys(w.kinds).filter(k => w.kinds[k] > 0).sort(), n = kinds.length, lim = MINI.plays;
+  return {
+    day: w.day, kinds,
+    explore: EXPLORE_TIERS.map((t, i) => ({ tier: i, need: t.need, reward: t.reward, claimed: w.explore.includes(String(i)), ready: n >= t.need })),
+    badges: BADGES.map(b => ({ id: b.id, progress: Math.min(worldTotal(w, b.kind), b.target), target: b.target, reward: b.reward, claimed: w.badges.includes(b.id) })),
+    mini: Object.fromEntries(MINI_KINDS.map(k => { const m = w.mini[k]; return [k, { plays: m?.plays || 0, left: Math.max(0, lim - (m?.plays || 0)), best: m?.best || 0 }]; })) as WorldProgress['mini'],
+  };
+}
+export async function recordActivity(kind: string): Promise<ActivityResult> {
+  if (!(ACTIVITY_KINDS as readonly string[]).includes(kind)) throw new Error('unknown_activity');
+  const db = load(); if (!db.pet) throw new Error('no_pet');
+  const w = worldOf(db); let counted = false, newly: string[] = [];
+  if ((w.kinds[kind] || 0) < 30) { const b = worldTotal(w, kind); w.kinds[kind] = (w.kinds[kind] || 0) + 1; w.totals[kind] = b + 1; counted = true; newly = crossed(w, kind, b); }
+  store(db); return { kinds: Object.keys(w.kinds).sort(), counted, newly };
+}
+export async function claimExplore(tier: number): Promise<{ coins: number; reward: number; newly: string[] }> {
+  if (tier !== 0 && tier !== 1) throw new Error('invalid_tier');
+  const db = load(), w = worldOf(db), t = EXPLORE_TIERS[tier]; if (Object.keys(w.kinds).length < t.need) throw new Error('quest_not_done');
+  if (w.explore.includes(String(tier))) throw new Error('already_claimed');
+  const b = worldTotal(w, 'explore'); w.explore.push(String(tier)); if (tier === 0) w.exploreDays++;
+  earn(db, t.reward, false); store(db); return { coins: db.coins, reward: t.reward, newly: tier === 0 ? crossed(w, 'explore', b) : [] };
+}
+export async function claimBadge(id: string): Promise<{ coins: number; reward: number }> {
+  const b = BADGE_BY_ID[id]; if (!b) throw new Error('unknown_badge');
+  const db = load(), w = worldOf(db); if (worldTotal(w, b.kind) < b.target) throw new Error('quest_not_done'); if (w.badges.includes(id)) throw new Error('already_claimed');
+  w.badges.push(id); earn(db, b.reward, false); store(db); return { coins: db.coins, reward: b.reward };
+}
+export async function submitMinigame(kind: string, score: number): Promise<MiniResult> {
+  if (!(MINI_KINDS as readonly string[]).includes(kind)) throw new Error('unknown_activity');
+  const k = kind as MiniKind, cfg = MINI[k]; if (!Number.isInteger(score) || score < 0 || score > cfg.max) throw new Error('invalid_score');
+  const db = load(); if (!db.pet) throw new Error('no_pet');
+  const w = worldOf(db), m = (w.mini[k] ||= { plays: 0, best: 0, last: 0 });
+  if (m.last && Date.now() - m.last < (devAds() ? 0 : 20000)) throw new Error('rate_limited');
+  const rewarded = m.plays < MINI.plays, reward = rewarded ? miniReward(k, score) : 0;
+  m.plays++; m.best = Math.max(m.best, score); m.last = Date.now(); w.kinds[k] = (w.kinds[k] || 0) + 1;
+  if (reward) earn(db, reward, false);
+  const add = k === 'butterfly' ? score : score === 5 ? 1 : 0, b = worldTotal(w, k); let newly: string[] = [];
+  if (add) { w.totals[k] = b + add; newly = crossed(w, k, b); }
+  store(db); return { reward, rewarded, coins: db.coins, plays: m.plays, left: Math.max(0, MINI.plays - m.plays), best: m.best, newly };
+}
+
+/* ---------- Mục tiêu cộng đồng (mô phỏng): người khác góp sẵn khoảng 40% mục tiêu ---------- */
+const GOAL_OF: Record<string, GoalMetric> = { feed: 'feed', play_ball: 'play', play_spin: 'play', pet: 'pet', bath_rinse: 'bath', talk: 'talk' };
+function goalAdd(db: DB, metric: GoalMetric) {
+  for (const e of goalEvents(demoEvents())) { const g = (e.config as { goal?: { metric: GoalMetric } }).goal!; if (g.metric === metric) { const m = ((db.goals ||= {})[e.id] ||= { mine: 0, claimed: false }); m.mine++; } }
+}
+export async function getEventGoal(): Promise<EventGoal[]> {
+  const db = load();
+  return goalEvents(demoEvents()).map(e => { const g = (e.config as unknown as { goal: { metric: GoalMetric; target: number; reward_coins: number } }).goal, m = db.goals?.[e.id] || { mine: 0, claimed: false }, count = Math.min(g.target, Math.round(g.target * 0.4) + m.mine * 20);
+    return { event_id: e.id, title: e.title, metric: g.metric, target: g.target, reward_coins: g.reward_coins, count, mine: m.mine, reached: count >= g.target, claimed: m.claimed, active: true, min_mine: 5 }; });
+}
+export async function claimEventGoal(id: number): Promise<{ coins: number; reward: number }> {
+  const db = load(), g = (await getEventGoal()).find(x => x.event_id === id); if (!g) throw new Error('goal_not_found');
+  if (!g.reached) throw new Error('goal_not_reached'); if (g.mine < g.min_mine) throw new Error('goal_not_contributed'); if (g.claimed) throw new Error('already_claimed');
+  (db.goals ||= {})[id].claimed = true; earn(db, g.reward_coins, false); store(db); return { coins: db.coins, reward: g.reward_coins };
+}
+
+/* ---------- Cách ly (Mùa cúm) ---------- */
+export async function getIsolation(): Promise<{ isolating: boolean }> { const db = load(); return { isolating: !!db.isolating && !!db.pet?.illness }; }
+export async function setIsolation(on: boolean): Promise<{ isolating: boolean }> {
+  const db = load(); if (!db.pet) throw new Error('no_pet'); if (on && !db.pet.illness) throw new Error('not_sick');
+  db.isolating = on; store(db); return { isolating: on };
+}
+const demoBoost = () => eventBoost(demoEvents());
+
+/* ---------- Quảng cáo thưởng (mô phỏng start_ad_reward / claim_ad_reward). Thêm ?dev để rút ngắn thời gian xem còn 2 giây ---------- */
+const devAds = () => { try { return new URLSearchParams(location.search).has('dev'); } catch { return false; } };
+const adMin = () => (devAds() ? 2 : AD.minWatchSeconds), adGap = () => (devAds() ? 0 : AD.gapMinutes * 60000);
+const adToday = (db: DB) => { const d = localDay(); if (!db.ads || db.ads.day !== d) db.ads = { day: d, count: 0, last: 0 }; return db.ads; };
+export async function getAdState(): Promise<AdState> {
+  const db = load(), a = adToday(db);
+  return { enabled: true, left: AD.perDay - a.count, next_in: Math.max(0, Math.ceil((a.last + adGap() - Date.now()) / 1000)), reward: AD.reward, per_day: AD.perDay };
+}
+export async function startAdReward(): Promise<AdTicket> {
+  const db = load(), a = adToday(db);
+  if (a.count >= AD.perDay) throw new Error('ad_limit');
+  if (a.last && Date.now() - a.last < adGap()) throw new Error('ad_too_soon');
+  a.nonce = crypto.randomUUID(); a.at = Date.now(); store(db);
+  return { nonce: a.nonce, reward: AD.reward, left: AD.perDay - a.count, wait: adMin() };
+}
+export async function claimAdReward(nonce: string) {
+  const db = load(), a = adToday(db);
+  if (!a.nonce || a.nonce !== nonce) throw new Error('ad_invalid');
+  const age = (Date.now() - (a.at ?? 0)) / 1000;
+  if (age < adMin()) throw new Error('ad_too_fast');
+  if (age > AD.nonceMinutes * 60) throw new Error('ad_expired');
+  if (a.count >= AD.perDay) throw new Error('ad_limit');
+  a.nonce = undefined; a.count += 1; a.last = Date.now(); earn(db, AD.reward, false); store(db);
+  return { coins: db.coins, reward: AD.reward, left: AD.perDay - a.count };
 }

@@ -1,0 +1,89 @@
+{
+ "terms": [
+  {
+   "term": "badword",
+   "match": "word",
+   "action": "block"
+  },
+  {
+   "term": "zork",
+   "match": "substr",
+   "action": "block"
+  },
+  {
+   "term": "maskme",
+   "match": "word",
+   "action": "mask"
+  },
+  {
+   "term": "flagme",
+   "match": "word",
+   "action": "flag"
+  },
+  {
+   "term": "đúxyz",
+   "match": "word",
+   "action": "block"
+  }
+ ],
+ "cases": [
+  "Xin chào các bạn!",
+  "xin    chào   nè",
+  "",
+  "   ",
+  "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "Xem trang http://abc.com",
+  "vào www.abc xyz đi",
+  "chấm com",
+  "gặp ở abc.vn nhé",
+  "abc . com",
+  "liên hệ @tên mình",
+  "mail me a@b.c",
+  "gọi 0912 345 678 nhé",
+  "0912.345.678",
+  "tôi 8 tuổi rồi",
+  "số 12345678 là 8 số",
+  "🎉🎉🎉",
+  "🎉🎉🎉🎉",
+  "vui quá 😂❤️⭐",
+  "\u0007bell",
+  "<b>hi</b>",
+  "tab\tok",
+  "badword",
+  "BADWORD",
+  "bad​word",
+  "b4dw0rd",
+  "baaadwoord",
+  "badwords",
+  "cobadwordx",
+  "b.a.d.w.o.r.d",
+  "zork",
+  "ZORK",
+  "z o r k",
+  "zzzoork",
+  "bazorkba",
+  "ZÓRK",
+  "this maskme text",
+  "MaskMe!",
+  "maskme maskme",
+  "flagme please",
+  "FLAGME",
+  "ĐÚXYZ",
+  "đúxyz nè",
+  "đuxyz",
+  "duxyz",
+  "xin chào đú xyz",
+  "Hôm nay trời đẹp ghê 😊",
+  "Mình là bé thú dễ thương",
+  "ơi ới ỡ ờ",
+  "ĐĂNG KÝ",
+  "phở bò tái",
+  "1 2 3 4 5 6 7 8 9",
+  "nhà mình ở số 12",
+  "ai chơi cùng không?",
+  "~~~ hihi ~~~",
+  "I like pizza",
+  "ｗｗｗ ．ｃｏｍ"
+ ]
+}

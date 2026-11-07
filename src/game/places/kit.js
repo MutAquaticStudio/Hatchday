@@ -2,7 +2,7 @@
 // Mỗi địa điểm nhận `c` (ngữ cảnh) từ game.js: { THREE, add, toon, canvasTex, shell, windowOn, scene, camera, canvas, ray, ndcFrom, walkPetTo, say, startAction, toast, sfx, spawn, hideHint, open }.
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
-export function makeKit(c) {
+export function makeKit(c, opts = {}) {
   const { THREE, add, toon, camera, canvas, ray, ndcFrom } = c;
   const hots = [], npcs = [];
   let layer = null, active = false;
@@ -18,7 +18,7 @@ export function makeKit(c) {
   function hotspot(def, mesh) {
     ensureLayer();
     if (mesh) { mesh.traverse(o => { o.userData.hotspot = def.id; }); def.mesh = mesh; }
-    const b = document.createElement('button'); b.type = 'button'; b.className = 'hot'; b.dataset.hot = def.id; b.textContent = def.label;
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'hot'; b.dataset.hot = def.id; b.setAttribute('aria-label', def.label); b.innerHTML = `<span class="hd"></span><span class="hl">${def.label}</span>`;
     layer.appendChild(b); def.el = b; hots.push(def); return def;
   }
   function activate(id) {
@@ -43,12 +43,19 @@ export function makeKit(c) {
     const r = canvas.getBoundingClientRect();
     for (const h of hots) {
       v.set(h.at[0], h.at[1], h.at[2]).project(camera);
-      const w = h.el.offsetWidth || 90;
-      const x = clamp((v.x + 1) / 2 * r.width, w / 2 + 8, r.width - w / 2 - 8), y = clamp((1 - v.y) / 2 * r.height, 112, r.height - 150);
+      // nơi rộng: điểm chạm ở xa ngoài màn hình thì ẩn nhãn (gần mép thì vẫn kẹp vào để bấm được)
+      if (opts.cull && (v.z > 1 || Math.abs(v.x) > 1.35 || v.y < -1.3 || v.y > 1.5)) { h.el.style.visibility = 'hidden'; continue; }
+      const m = 64; // chừa chỗ cho nhãn chữ khi bung ra, để vị trí không nhảy lúc chấm biến thành nhãn
+      const x = clamp((v.x + 1) / 2 * r.width, m, r.width - m), y = clamp((1 - v.y) / 2 * r.height, 112, r.height - 150);
       h.el.style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%)`; h.el.style.visibility = 'visible'; // ẩn tới khi có vị trí đúng, không nháy ở góc trên
     }
+    // Điểm chạm ở xa bé chỉ hiện chấm nhỏ (đỡ che thú của người khác); lại gần mới bung nhãn chữ gọn
+    const [px, pz] = c.getPetXZ ? c.getPetXZ() : [0, 0];
+    for (const h of hots) { const s = h.stand || [h.at[0], h.at[2]]; h.el.classList.toggle('near', Math.hypot(s[0] - px, s[1] - pz) < 2.6); }
   }
-  function tick(now) { const t = now / 1000; npcs.forEach(n => n.tick(t)); updateLabels(); }
+  let labelAt = 0;
+  /** Nhãn DOM chỉ cần cập nhật ~30 lần/giây (đỡ tính chiếu và ghi style mỗi khung hình). */
+  function tick(now) { const t = now / 1000; npcs.forEach(n => n.tick(t)); if (now - labelAt >= 33) { labelAt = now; updateLabels(); } }
 
   /** Nhân vật NPC tròn xinh. hat: nurse | doctor | chef | tailor | librarian | vendor | none. */
   function npc({ x, z, color = '#ffd0dc', hat = 'none', ry = 0, s = 1, parent }) {
@@ -84,6 +91,10 @@ export function makeKit(c) {
     add(g, new THREE.BoxGeometry(1.4, 0.12, 0.45), toon(color), 0, 0.42, 0, '#9a5f4a', 0.03);
     add(g, new THREE.BoxGeometry(1.4, 0.4, 0.1), toon(color), 0, 0.72, -0.2, '#9a5f4a', 0.03);
     [-0.6, 0.6].forEach(sx => add(g, new THREE.BoxGeometry(0.1, 0.4, 0.4), toon('#b98a5e'), sx, 0.2, 0, '#9a5f4a', 0.02));
+    // chi tiết: tay vịn hai đầu, hai khe ván ở lưng ghế, nẹp dưới mặt ngồi
+    [-0.72, 0.72].forEach(sx => { add(g, new THREE.BoxGeometry(0.09, 0.07, 0.42), toon('#b98a5e'), sx, 0.62, -0.02, '#9a5f4a', 0.015); add(g, new THREE.BoxGeometry(0.07, 0.2, 0.07), toon('#b98a5e'), sx, 0.5, 0.17, '#9a5f4a', 0.01); });
+    [0.66, 0.78].forEach(y => add(g, new THREE.BoxGeometry(1.36, 0.018, 0.04), toon('#9a5f4a'), 0, y, -0.145, null));
+    add(g, new THREE.BoxGeometry(1.3, 0.05, 0.05), toon('#b98a5e'), 0, 0.33, 0.12, null);
     return g;
   };
   const plant = (parent, x, z, s = 1) => {

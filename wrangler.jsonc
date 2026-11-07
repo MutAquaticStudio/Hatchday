@@ -1,8 +1,9 @@
-// Trò chơi (thư mục dist). Triển khai: `npm run build` rồi `npx wrangler deploy`,
+// Trò chơi (thư mục dist) tại https://hatchday.noxelis.co
+// Triển khai: `npm run build` (có VITE_SUPABASE_URL, VITE_SUPABASE_PUBLISHABLE_KEY, VITE_TURNSTILE_SITE_KEY) rồi `npx wrangler deploy`,
 // hoặc nối repo ở Cloudflare dashboard > Workers & Pages > Create > Import a repository (Workers Builds).
 {
   "name": "hatchday",
   "compatibility_date": "2026-11-05",
-  "assets": { "directory": "./dist", "not_found_handling": "single-page-application" }
-  // Gắn tên miền: dashboard > Worker > Settings > Domains & Routes > Add > Custom domain.
+  "assets": { "directory": "./dist", "not_found_handling": "single-page-application" },
+  "routes": [{ "pattern": "hatchday.noxelis.co", "custom_domain": true }]
 }

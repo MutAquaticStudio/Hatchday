@@ -177,7 +177,7 @@ const out = []; const ok = (n, c, x = '') => { out.push((c ? 'OK  ' : 'FAIL') + 
     const bad = [];
     for (const id of ['map', 'clinic', 'shop', 'wardrobe', 'quests', 'family', 'dex', 'cooking']) {
       await p.evaluate(() => { const h = document.getElementById('house'); if (!h || h.hidden) document.getElementById('a-house').click(); }); await p.waitForTimeout(250);
-      await p.evaluate(g => document.querySelector(`.tile[data-go="${g}"]`).click(), id); await p.waitForTimeout(350);
+      await p.evaluate(g => document.querySelector(`.tile[data-go="${g}"]`).click(), id); if (id === 'cooking') await p.waitForFunction(() => { const e = document.getElementById('cooking'); return e && !e.hidden; }, null, { timeout: 12000 }).catch(() => {}); else await p.waitForTimeout(350); // Nấu ăn: chuyển cảnh sang Bếp rồi bé đi tới bếp lò
       const m = await p.evaluate(sid => { const el = document.getElementById(sid); return el && !el.hidden ? { sw: el.scrollWidth, cw: el.clientWidth, doc: document.documentElement.scrollWidth <= innerWidth + 1 } : null; }, id);
       if (!m || m.sw > m.cw + 1 || !m.doc) bad.push(id + ':' + JSON.stringify(m));
       await p.evaluate(() => document.querySelector('.hsheet:not([hidden]) [data-close]')?.click()); await p.waitForTimeout(150);
