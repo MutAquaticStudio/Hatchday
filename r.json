@@ -1,1 +1,0 @@
-{"query": "select has_table_privilege('authenticated','public.place_members','select') s"}
