@@ -149,6 +149,12 @@ export function initPlaza(c) {
     for (let i = 0; i < 5; i++) { add(stage, new THREE.CylinderGeometry(0.1, 0.12, 0.1, 10), toon('#d9b27a'), -2.0 + i * 1.0, 0.6, 1.05, '#8a5f3a', 0.006); add(stage, new THREE.SphereGeometry(0.07, 8, 6), toon('#ffe9a8'), -2.0 + i * 1.0, 0.7, 1.1, null); } // đèn sân khấu
     [-1.4, 1.4].forEach(x => add(stage, new THREE.OctahedronGeometry(0.22), toon('#ffd36e'), x, 2.6, -1.04, '#a8742e', 0.01)); // sao trang trí
     props.bunting(z, -6.5, -6.3, 6.5, -6.3, 3.4);
+    // loa cạnh sân khấu: mini-game Nhảy theo nhịp
+    const spk = new THREE.Group(); spk.position.set(3.55, 0, -7.4); spk.rotation.y = -0.3; z.add(spk);
+    add(spk, new THREE.BoxGeometry(0.8, 1.3, 0.6), toon('#4a3a5a'), 0, 0.65, 0, '#2a2030', 0.02);
+    [0.95, 0.4].forEach((y, i) => { add(spk, new THREE.CylinderGeometry(i ? 0.24 : 0.15, i ? 0.24 : 0.15, 0.04, 18), toon('#2a2030'), 0, y, 0.31, null).rotation.x = Math.PI / 2; add(spk, new THREE.CylinderGeometry(i ? 0.1 : 0.06, i ? 0.1 : 0.06, 0.05, 12), toon('#ffd36e'), 0, y, 0.33, null).rotation.x = Math.PI / 2; });
+    const rs = kit.sign('Nhảy theo nhịp', 1.3, 0.3, '#fff3c4', '#7a3a5a', 30); rs.position.set(0, 1.55, 0.05); spk.add(rs);
+    kit.hotspot({ id: 'rhythm', label: 'Nhảy theo nhịp', at: [3.55, 2.3, -7.4], stand: [4.4, -6.0], act: () => c.open.mini('rhythm') }, spk);
     // chim bồ câu mổ thóc quanh đài, bay đi khi bé lại gần rồi đáp xuống chỗ khác
     for (let i = 0; i < Math.max(3, Math.round(6 * dens)); i++) {
       const p = new THREE.Group(), hx = Math.cos(i * 1.9) * (3.8 + (i % 3)), hz = 3.2 + Math.sin(i * 2.3) * 1.6; p.position.set(hx, 0, hz); z.add(p);

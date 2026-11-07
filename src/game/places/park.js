@@ -192,6 +192,13 @@ export function initPark(c) {
         for (let i = 0; i < 9; i++) add(br, new THREE.BoxGeometry(0.03, 0.02, 0.98), toon('#a8844a'), -2.0 + i * 0.5, 0.4, 0, null); // ván cầu
         [-1, 0, 1].forEach(x => { add(br, new THREE.BoxGeometry(0.1, 0.35, 0.1), toon('#a8744a'), x, 0.55, 0.45, null); add(br, new THREE.BoxGeometry(0.1, 0.35, 0.1), toon('#a8744a'), x, 0.55, -0.45, null); });
         [-2.0, 2.0].forEach(x => [0.45, -0.45].forEach(zz => add(br, new THREE.SphereGeometry(0.08, 8, 6), toon('#ffd36e'), x, 0.7, zz, null)));
+        const dock = new THREE.Group(); dock.position.set(-13.6, 0, 0.1); z.add(dock); // bến câu cá nhỏ ở bờ nam
+        add(dock, new THREE.BoxGeometry(1.4, 0.1, 1.1), toon('#c29a62'), 0, 0.22, -0.2, '#8a5f3a', 0.015);
+        [[-0.6, 0.25], [0.6, 0.25], [-0.6, -0.65], [0.6, -0.65]].forEach(([x, zz]) => add(dock, new THREE.CylinderGeometry(0.06, 0.06, 0.4, 6), toon('#a8744a'), x, 0.1, zz, null));
+        const rod = add(dock, new THREE.CylinderGeometry(0.02, 0.03, 1.8, 6), toon('#7a5a3a'), 0.25, 0.9, -0.5, null); rod.rotation.x = -0.75;
+        add(dock, new THREE.SphereGeometry(0.06, 8, 6), toon('#ff5a5a'), 0.25, 0.08, -1.55, null);
+        add(dock, new THREE.CylinderGeometry(0.17, 0.14, 0.26, 12), toon('#6ab7ff'), -0.4, 0.4, 0.1, '#356a9a', 0.01);
+        kit.hotspot({ id: 'fish', label: 'Câu cá', at: [-13.6, 1.6, 0.1], stand: [-13.6, 1.3], act: () => c.open.mini('fish') }, dock);
         kit.hotspot({ id: 'duck', label: 'Cho vịt ăn', at: [-12, 1.9, -2.4], stand: [-8.4, -0.6], act: () => { if (c.playToy('ducks')) { c.spawn('sparkle', 4, 0.8); feedDucks(); } } }, pond);
       },
       () => { const rocks = []; for (let i = 0; i < Math.round(10 * dens); i++) { const a = i * 0.63; rocks.push({ x: -12 + Math.cos(a) * 3.9, z: -2.4 + Math.sin(a) * 2.8, y: 0.12, s: 0.18 + (i % 3) * 0.08, color: '#c9c2b4' }); } world.scatter(z, world.geo('rock', () => new THREE.DodecahedronGeometry(1, 0)), world.toonC('#ffffff'), rocks, '#7a7468', 0.02); },

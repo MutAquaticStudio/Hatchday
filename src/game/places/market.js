@@ -72,6 +72,14 @@ export function initMarket(c) {
     return { p, ph: i * 2 };
   });
   kit.plant(g, -4.2, 0.6, 0.9); kit.plant(g, 4.2, 0.6, 0.9);
+  // trạm giao hàng (mini-game): xe đẩy chở thùng hàng
+  const dv = new THREE.Group(); dv.position.set(-5.9, 0, -1.6); dv.rotation.y = 0.35; g.add(dv);
+  add(dv, new THREE.BoxGeometry(1.2, 0.12, 0.8), toon('#6ab7ff'), 0, 0.42, 0, '#356a9a', 0.015);
+  [[-0.5, 0.42], [0.5, 0.42], [-0.5, -0.42], [0.5, -0.42]].forEach(([x, zz]) => add(dv, new THREE.CylinderGeometry(0.16, 0.16, 0.08, 12), toon('#4a4a5a'), x, 0.16, zz, null).rotation.x = Math.PI / 2);
+  add(dv, new THREE.CylinderGeometry(0.03, 0.03, 0.9, 6), toon('#7a6a8a'), -0.65, 0.85, 0, null).rotation.z = 0.35;
+  [[-0.25, 0.7, 0, '#d9b27a'], [0.25, 0.7, 0.05, '#c29a62'], [0, 1.05, 0, '#e8c690']].forEach(([x, y, zz, col]) => add(dv, new THREE.BoxGeometry(0.42, 0.34, 0.42), toon(col), x, y, zz, '#8a5f3a', 0.012));
+  const ds = kit.sign('Giao hàng', 1.0, 0.3, '#e4f6ff', '#2f5a7a', 30); ds.position.set(0, 1.55, 0.05); dv.add(ds);
+  kit.hotspot({ id: 'delivery', label: 'Giao hàng', at: [-5.9, 2.2, -1.6], stand: [-5.3, -0.6], act: () => c.open.mini('delivery') }, dv);
 
   /* ---------- hai dãy hàng hai bên (chỉ trang trí, dựng dần khi bé tới gần) ---------- */
   function deco(z, x, zz, col, light, label, goods, hat, ry = 0) { // sạp trang trí: như stall nhưng không có điểm chạm
@@ -109,7 +117,7 @@ export function initMarket(c) {
       add(w, new THREE.CylinderGeometry(0.14, 0.12, 0.2, 10), toon('#a8744a'), 0, 1.15, 0, '#5a3a22', 0.008);
       props.topiary(z, -12.6, 3.4, { shape: 'ball', s: 0.8 }); props.planter(z, -7.6, 3.6, { w: 1.6 });
     },
-    () => { basket(z, -7.6, -1.9, '#ff8f4d'); basket(z, -8.4, -1.6, '#7edb72'); crates(z, -10.8, -2.2); barrel(z, -5.6, -2.0); props.lamp(z, -7.9, -2.4); },
+    () => { basket(z, -7.6, -1.9, '#ff8f4d'); basket(z, -8.4, -1.6, '#7edb72'); crates(z, -10.8, -2.2); props.lamp(z, -7.9, -2.4); },
   ]; } });
   world.zone({ id: 'east', cx: 9, cz: 0, show: 17, build(z) { return [
     () => deco(z, 6.6, -3.5, '#6ab7ff', '#e2f3ff', 'Cá tươi', s => { add(s, new THREE.BoxGeometry(1.5, 0.06, 0.5), toon('#e4f4ff'), 0, 0.86, 0.12, null); for (let i = 0; i < 5; i++) { const f = add(s, new THREE.CapsuleGeometry(0.06, 0.2, 4, 8), toon(i % 2 ? '#9ab0c8' : '#ffb3a0'), -0.56 + i * 0.28, 0.93, 0.12, '#4a5a6a', 0.006); f.rotation.z = Math.PI / 2; add(s, new THREE.ConeGeometry(0.06, 0.1, 3), toon(i % 2 ? '#9ab0c8' : '#ffb3a0'), -0.56 + i * 0.28 + 0.18, 0.93, 0.12, null).rotation.z = Math.PI / 2; } }),

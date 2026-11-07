@@ -56,6 +56,13 @@ export function initLibrary(c) {
   [-0.4, 0.4].forEach(x => add(ai, new THREE.OctahedronGeometry(0.06), toon('#ffd36e'), x, 0.5, 0.36, null));
   kit.hotspot({ id: 'ai', label: 'Thủ thư (sắp có)', at: [-3.0, 1.7, -0.6], stand: [-2.2, -0.2], act: () => c.open.ai() }, ai);
   kit.plant(g, 3.8, 1.9, 0.9);
+  // giá vẽ "Đố vui" (mini-game)
+  const easel = new THREE.Group(); easel.position.set(3.0, 0, 0.15); easel.rotation.y = -0.45; g.add(easel);
+  [-0.35, 0.35].forEach(x => { const l = add(easel, new THREE.BoxGeometry(0.07, 1.7, 0.07), toon('#a8744a'), x, 0.82, 0, '#5a3a22', 0.01); l.rotation.z = x > 0 ? -0.08 : 0.08; });
+  add(easel, new THREE.BoxGeometry(0.07, 1.5, 0.07), toon('#a8744a'), 0, 0.72, -0.35, null).rotation.x = 0.3;
+  const qb = kit.sign('Đố vui ?', 0.95, 0.7, '#2f5a4a', '#ffffff', 40); qb.position.set(0, 1.2, 0.06); easel.add(qb);
+  add(easel, new THREE.BoxGeometry(0.9, 0.06, 0.12), toon('#a8744a'), 0, 0.8, 0.06, null);
+  kit.hotspot({ id: 'quiz', label: 'Đố vui', at: [3.0, 2.2, 0.15], stand: [2.4, 1.0], act: () => c.open.mini('quiz') }, easel);
   // trang trí: thảm tròn, đèn thả, đồng hồ, dây sao, gối ngồi đọc, chồng sách dưới sàn
   const rug = canvasTex(160, 96, d => { d.fillStyle = '#c9a6ff'; d.fillRect(0, 0, 160, 96); d.strokeStyle = '#fff3dc'; d.lineWidth = 5; d.strokeRect(8, 8, 144, 80); d.fillStyle = '#b48ef0'; for (let i = 0; i < 6; i++) d.fillRect(22 + i * 22, 40, 10, 16); });
   const rm = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 1.6), toon('#ffffff', rug)); rm.rotation.x = -Math.PI / 2; rm.position.set(-2.4, 0.012, 1.7); rm.receiveShadow = true; g.add(rm); // thảm góc đọc sách

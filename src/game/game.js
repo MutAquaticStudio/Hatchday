@@ -350,7 +350,7 @@ const CTX = {
   home: [],
   kitchen: [['cook', 'Nấu ăn'], ['home', 'Ăn xong, về phòng']],
   bath: [['rinse', 'Xả nước'], ['home', 'Về phòng']],
-  garden: [['ball', 'Ném bóng'], ['spin', 'Xoay vòng'], ['toys', 'Đồ chơi'], ['farm', 'Trang trí'], ['home', 'Về phòng']],
+  garden: [['ball', 'Ném bóng'], ['bugs', 'Bắt sâu'], ['toys', 'Đồ chơi'], ['farm', 'Trang trí'], ['home', 'Về phòng']],
   bedroom: [['wake', 'Thức dậy']],
 };
 for (const d of PLACES) { AREA_NAME[d.id] = d.name; PET_POS[d.id] = d.pet; CAM[d.id] = d.cam; CTX[d.id] = d.ctx; }
@@ -793,7 +793,7 @@ function goSleep() { sfx('sleep'); count('sleep'); act('sleep'); S.asleep = true
 function wake() { sfx('wake'); act('wake'); S.asleep = false; applySleep(); goTo('home'); setTimeout(() => { say('Chào buổi sáng! Mình ngủ ngon lắm.', 2600); startAction('stretch'); spawn('sparkle', 2); }, reduce ? 0 : 700); save(); }
 $('ctx').addEventListener('click', e => {
   const b = e.target.closest('.ctx-btn'); if (!b) return; hideHint();
-  ({ home: () => goTo('home'), cook: goCook, map: () => home.openMap(), rinse, ball: throwBall, spin: spinPlay, toys: () => home.openToys(), wake, farm: () => gardenFx.startEdit() })[b.dataset.k]();
+  ({ home: () => goTo('home'), cook: goCook, map: () => home.openMap(), rinse, ball: throwBall, spin: spinPlay, toys: () => home.openToys(), wake, farm: () => gardenFx.startEdit(), bugs: () => mini.open('bugs') })[b.dataset.k]();
 });
 /* Nhạc nền: lúc ngủ > ban đêm > theo khu vực */
 function updateMusic() { music(S.asleep ? 'sleep' : period === 'dem' ? 'night' : area); }

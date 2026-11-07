@@ -5,15 +5,20 @@ import { S, submitMinigame, refreshWorld } from './store';
 import { BREW_STEPS, BUTTERFLY, brewScore, butterflyScore, inZone, markerAt, zoneCenter } from './minigame-rules';
 import { MINI } from './world-activity';
 import { viError } from '../lib/errors';
+import { EXTRA_GAMES, EXTRA_INTRO, EXTRA_TITLE, EXTRA_UNIT } from './minigames-extra';
+import { SKILL_BY_ID } from './f2p';
 
 const COIN_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="#ffd36e" stroke="#a8742e" stroke-width="2"/><path d="M12 7v10M9.5 9.5h4a1.8 1.8 0 0 1 0 3.5h-3a1.8 1.8 0 0 0 0 3.5h4" fill="none" stroke="#a8742e" stroke-width="1.8" stroke-linecap="round"/></svg>';
 const esc = v => String(v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const COLORS = ['#ff9ec4', '#ffd36e', '#c9a6ff', '#7ec8ff', '#ff9a76'];
-const TITLE = { butterfly: 'Bắt bướm', brew: 'Pha trà' };
+const TITLE = { butterfly: 'Bắt bướm', brew: 'Pha trà', ...EXTRA_TITLE };
 const INTRO = {
   butterfly: `Bướm đang bay quanh bé trong công viên. Chạm vào bướm, bé sẽ nhảy tới bắt! Bắt tối đa ${BUTTERFLY.target} con trong ${BUTTERFLY.seconds} giây, đủ sớm là xong sớm.`,
   brew: 'Năm bước pha trà. Mỗi bước có một thanh chạy qua lại, bấm "Dừng" khi vạch nằm trong vùng xanh. Trúng được sao nào, nhận xu sao đó.',
+  ...EXTRA_INTRO,
 };
+const UNIT = { butterfly: 'con bướm', brew: 'sao', ...EXTRA_UNIT };
+const PER = { butterfly: 'mỗi con', brew: 'mỗi sao', fish: 'mỗi con cá', quiz: 'mỗi câu đúng', delivery: 'mỗi đơn', rhythm: 'mỗi nhịp', bugs: 'mỗi con sâu' };
 
 export function initMinigames({ ctx, app, $, reduce, sfx }) {
   let root = null, cur = null, raf = 0;
@@ -39,7 +44,8 @@ export function initMinigames({ ctx, app, $, reduce, sfx }) {
     cur = { kind, phase: 'intro' }; root.hidden = false; render();
     refreshWorld().then(() => { if (cur && cur.phase === 'intro') render(); }).catch(() => {});
   }
-  function close() { cancelAnimationFrame(raf); if (ctl) { const c0 = ctl; ctl = null; cur = null; c0.stop(); } cur = null; if (root) { root.hidden = true; root.innerHTML = ''; } }
+  let extraStop = null;
+  function close() { cancelAnimationFrame(raf); if (extraStop) { const f = extraStop; extraStop = null; f(); } window.__miniState = null; if (ctl) { const c0 = ctl; ctl = null; cur = null; c0.stop(); } cur = null; if (root) { root.hidden = true; root.innerHTML = ''; } }
 
   const head = (kind, sub) => `<header class="mini-head"><div><h2>${TITLE[kind]}</h2><span>${sub}</span></div><button type="button" class="x" data-mini-close aria-label="Đóng">✕</button></header>`;
 
@@ -49,18 +55,20 @@ export function initMinigames({ ctx, app, $, reduce, sfx }) {
     if (cur.phase === 'intro') {
       root.innerHTML = `<div class="mini-card">${head(kind, l > 0 ? `Hôm nay còn ${l} lượt có xu` : 'Hết lượt có xu hôm nay, vẫn chơi vui được nha')}
         <p class="mini-intro">${INTRO[kind]}</p>
-        <p class="mini-reward">${COIN_SVG}<span>${kind === 'butterfly' ? `${MINI.butterfly.per} xu mỗi con` : `${MINI.brew.per} xu mỗi sao`} · tối đa ${kind === 'butterfly' ? MINI.butterfly.max * MINI.butterfly.per : MINI.brew.max * MINI.brew.per} xu mỗi lượt${bestOf(kind) ? ` · kỷ lục hôm nay ${bestOf(kind)}` : ''}</span></p>
+        <p class="mini-reward">${COIN_SVG}<span>${MINI[kind].per} xu ${PER[kind]} · tối đa ${MINI[kind].max * MINI[kind].per} xu mỗi lượt${bestOf(kind) ? ` · kỷ lục hôm nay ${bestOf(kind)}` : ''}</span></p>
         <div class="mini-actions"><button type="button" class="btn-sm" data-mini-start>Bắt đầu</button><button type="button" class="btn-sm ghost" data-mini-close>Để sau</button></div></div>`;
       root.querySelector('[data-mini-start]').focus?.();
       return;
     }
     if (cur.phase === 'result') {
       const r = cur.result, err = r instanceof Error;
-      const body = err ? `<p class="mini-intro">${esc(viError(r))}</p>` : `<div class="mini-score"><b>${cur.score}</b><span>${kind === 'butterfly' ? 'con bướm' : 'sao'}</span></div>
+      const sk = !err && r.skill_xp ? SKILL_BY_ID[r.skill] : null;
+      const body = err ? `<p class="mini-intro">${esc(viError(r))}</p>` : `<div class="mini-score"><b>${cur.score}</b><span>${UNIT[kind]}</span></div>
         <p class="mini-reward">${r.rewarded ? `${COIN_SVG}<span>Nhận +${r.reward} xu!</span>` : '<span>Hết lượt có xu hôm nay rồi, mai chơi tiếp nha.</span>'}</p>
+        ${sk ? `<p class="mini-skill">${sk.icon} ${sk.name} +${r.skill_xp} kinh nghiệm</p>` : ''}
         ${kind === 'brew' ? `<p class="mini-stars" aria-hidden="true">${cur.hits.map(h => (h ? '⭐' : '☆')).join('')}</p>` : ''}`;
       const again = !err && r.left > 0;
-      root.innerHTML = `<div class="mini-card">${head(kind, err ? 'Chưa lưu được điểm' : cur.score >= (kind === 'butterfly' ? BUTTERFLY.target : 5) ? 'Hoàn hảo!' : 'Xong rồi!')}${body}
+      root.innerHTML = `<div class="mini-card">${head(kind, err ? 'Chưa lưu được điểm' : cur.score >= (kind === 'rhythm' ? 16 : MINI[kind].max) ? 'Hoàn hảo!' : 'Xong rồi!')}${body}
         <div class="mini-actions">${again ? '<button type="button" class="btn-sm" data-mini-start>Chơi lại</button>' : ''}<button type="button" class="btn-sm ${again ? 'ghost' : ''}" data-mini-close>Xong</button></div></div>`;
       return;
     }
@@ -74,6 +82,8 @@ export function initMinigames({ ctx, app, $, reduce, sfx }) {
   function start(kind) {
     if (S.asleep) { close(); return; }
     cancelAnimationFrame(raf);
+    if (extraStop) { const f = extraStop; extraStop = null; f(); }
+    if (EXTRA_GAMES[kind]) { startExtra(kind); return; }
     if (kind === 'butterfly') startButterfly(); else startBrew();
   }
   async function finish(score, extra = {}) {
@@ -104,6 +114,16 @@ export function initMinigames({ ctx, app, $, reduce, sfx }) {
     const paint = () => { const left = Math.max(0, BUTTERFLY.seconds - Math.floor((performance.now() - t0) / 1000)); hud.innerHTML = `<span class="mh-score">🦋 ${caught}/${BUTTERFLY.target}</span><span class="mh-time">${left}</span><button type="button" class="btn-sm ghost" data-catch-stop>Dừng</button>`; };
     showHud(true); paint(); hudTimer = setInterval(paint, 250);
     window.__miniState = () => { const s = ctx.catchState(); return { kind: 'butterfly', phase: st.phase, caught: s ? s.caught : caught, bs: s ? s.bs : [] }; };
+  }
+
+  /* ---------------- 5 trò mới (minigames-extra.js) ---------------- */
+  function startExtra(kind) {
+    const st = cur = { kind, phase: 'play' };
+    extraStop = EXTRA_GAMES[kind]({
+      root, head, reduce, ctx, sfx, buzz: n => ctx.buzz?.(n),
+      finish: (score, extra = {}) => { if (cur !== st) return; const f = extraStop; extraStop = null; f?.(); finish(score, extra); },
+      live: fn => { window.__miniState = fn; },
+    });
   }
 
   /* ---------------- Pha trà ---------------- */
