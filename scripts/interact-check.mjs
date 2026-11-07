@@ -22,7 +22,9 @@ const until = async (p, fn, ms = 10000, arg) => { const t = Date.now(); while (D
   await p.goto(URL0); await start();
   const goTo = async place => { await p.click('#scene-tag'); await p.waitForSelector('#map:not([hidden])'); await p.click(`#map [data-pin="${place}"]`); await p.click(`#map [data-go-place="${place}"]`); await until(p, () => document.querySelector('#map')?.hidden !== false, 8000); await p.waitForTimeout(2500); };
   /** Bấm điểm chạm (bằng DOM, vì nhãn ở xa có thể bị ẩn), theo dõi thú đến hết kịch bản; trả về { maxY, minZ, maxZ, ran, endY }. */
-  const interact = async (hot, ms = 14000) => {
+  // Máy CI chạy WebGL phần mềm rất chậm (vài khung/giây): kịch bản kéo dài hơn nhiều so với máy thường, nên chờ bé rảnh trước khi bấm và cho khung chờ rộng.
+  const interact = async (hot, ms = 60000) => {
+    await until(p, () => !window.__petPos()[3], 60000); // chờ kịch bản trước kết thúc
     await until(p, h => !!document.querySelector(`.hot[data-hot="${h}"]`), 10000, hot); // khu ngoài dựng dần nên đồ chơi có thể chưa sẵn sàng
     await p.evaluate(h => document.querySelector(`.hot[data-hot="${h}"]`).click(), hot);
     const r = { maxY: 0, ran: false, minX: 1e9, maxX: -1e9, minZ: 1e9, maxZ: -1e9, endY: 0 }; const t0 = Date.now(); let done = 0;
@@ -47,7 +49,7 @@ const until = async (p, fn, ms = 10000, arg) => { const t = Date.now(); while (D
   await goTo('plaza');
   r = await interact('fountain'); ok('đài phun nước: bé nhảy tưng ở mép đài', r.ran && r.maxY > 0.3 && r.endY < 0.15, JSON.stringify({ maxY: +r.maxY.toFixed(2) })); await calm();
   r = await interact('bench0'); ok('ghế đá: bé nhảy lên ngồi (cao ≈ 0,55) rồi xuống', r.ran && r.maxY > 0.5 && r.maxY < 1.3 && r.endY < 0.15, JSON.stringify({ maxY: +r.maxY.toFixed(2) })); await calm();
-  r = await interact('stage', 16000); ok('sân khấu: bé lên sân khấu (z ≈ -7,5, cao ≥ 0,5) biểu diễn rồi xuống', r.ran && r.maxY > 0.5 && r.minZ < -7 && r.endY < 0.15, JSON.stringify({ maxY: +r.maxY.toFixed(2), minZ: +r.minZ.toFixed(1) }));
+  r = await interact('stage', 60000); ok('sân khấu: bé lên sân khấu (z ≈ -7,5, cao ≥ 0,5) biểu diễn rồi xuống', r.ran && r.maxY > 0.5 && r.minZ < -7 && r.endY < 0.15, JSON.stringify({ maxY: +r.maxY.toFixed(2), minZ: +r.minZ.toFixed(1) }));
 
   await goTo('tea');
   r = await interact('table0'); ok('bàn trà: bé nhảy lên ghế (cao ≈ 0,5), nhấp trà rồi xuống', r.ran && r.maxY > 0.4 && r.endY < 0.15, JSON.stringify({ maxY: +r.maxY.toFixed(2) })); await calm();
