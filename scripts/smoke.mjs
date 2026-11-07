@@ -27,6 +27,7 @@ await p.mouse.move(box.x+box.width/2,box.y+box.height*0.5);await p.mouse.down();
 // cho ăn
 await p.click('#a-eat');await p.waitForTimeout(1500);
 ok('khay thức ăn hiện',await p.isVisible('#tray'));
+await p.click('#tray .food.more');await p.waitForTimeout(800);ok('bấm "Mua thêm" ở khay thức ăn: mở cửa hàng',await p.isVisible('#shop')); await p.evaluate(()=>document.querySelector('#shop [data-close]')?.click()); await p.waitForTimeout(300);
 const before=(await demo()).pet.no;
 await p.click('#tray .food[data-id="kem"]');await p.waitForTimeout(3500);
 await p.click('#a-eat').catch(()=>{});await p.waitForTimeout(100);
@@ -122,7 +123,8 @@ await p.goto(`http://localhost:${PORT}/?dev`);await p.waitForTimeout(800);await 
 await p.click('#btn-stats');await p.waitForTimeout(300);
 ok('Chỉ số có dòng Khẩu vị (đã thử một vài món)',/Khẩu vị: .*đã thử [1-9]\d*\/12 món/.test(await p.textContent('#tastes')),await p.textContent('#tastes'));
 await p.click('#btn-stats');
-await p.click('#a-house');await p.click('.tile[data-go="cooking"]');await p.waitForTimeout(500);
+await p.click('#a-house');await p.click('.tile[data-go="cooking"]');await p.waitForFunction(()=>{const e=document.querySelector('#cooking');return e&&!e.hidden},null,{timeout:9000}); // đi vào Bếp, bé chạy lại bếp lò rồi mới mở bảng nấu
+await p.waitForTimeout(300);
 ok('Nấu ăn: 16 công thức',(await p.$$('#cooking .recipes li')).length===16);
 dm=await demo();const st0=dm.owned['sinh-to']||0;
 await p.click('[data-cook="sinh-to"]');await p.waitForTimeout(400);dm=await demo();

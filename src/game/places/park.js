@@ -14,7 +14,7 @@ export function initPark(c) {
   const pathTex = canvasTex(64, 64, d => { d.fillStyle = '#f3e3c3'; d.fillRect(0, 0, 64, 64); d.fillStyle = '#e4cfa6'; for (let i = 0; i < 14; i++) d.fillRect((i * 23) % 64, (i * 37) % 64, 4, 3); }, [10, 1]);
   const dens = world.density();
   const fireflies = makeFireflies(THREE, g, { x0: -16, x1: 16, z0: -6, z1: 8 }, Math.round(20 * dens));
-  let seats = [], plank = null, ducks = [], pondMat = null, butterflies = [], slideBall = null, ball = null, ballV = null, slideGrp = null, swingTurn = 0, duckUntil = 0, duckAtt = 0;
+  let seats = [], plank = null, ducks = [], pondMat = null, butterflies = [], slideBall = null, ball = null, ballV = null, slideGrp = null, swingTurn = 0, duckUntil = 0, duckAtt = 0, ballCd = 0;
   const ease = u => u * u * (3 - 2 * u), lerp = (a, b, k) => a + (b - a) * k, clamp01 = u => Math.max(0, Math.min(1, u));
   const arc = (a, b, k, h) => [lerp(a[0], b[0], k), lerp(a[1], b[1], k) + Math.sin(k * Math.PI) * h, lerp(a[2], b[2], k)];
 
@@ -243,6 +243,10 @@ export function initPark(c) {
         d.rotation.y = lerp(Math.cos(t * 0.5 + ph), Math.PI * 0.5, duckAtt) + (duckAtt > 0.8 ? Math.sin(t * 9 + ph) * 0.25 : 0);
         if (duckAtt > 0.85 && Math.random() < dt * 0.35) c.spawnAt('note', d.parent.position.x + d.position.x, 0.8, d.parent.position.z + d.position.z, { vy: 0.7, scale: 0.28, max: 0.9 });
       });
+      if (ball && now > ballCd && ball.position.y < 0.9 && !c.state.asleep) { // bé đi tới chạm bóng thì bóng bị đá nảy đi (không đi xuyên qua)
+        const dx = ball.position.x - px, dz = ball.position.z - pz, d = Math.hypot(dx, dz);
+        if (d < 0.95) { const nx = dx / (d || 1), nz = dz / (d || 1), sp = 3.2 + Math.random() * 1.2; ballV = { vx: nx * sp, vy: 3.0 + Math.random() * 0.8, vz: nz * sp }; ballCd = now + 450; c.sfx('kick'); c.spawnAt('sparkle', ball.position.x, 0.5, ball.position.z, { vy: 1, scale: 0.4, max: 0.5 }); c.setTemp('excited', 700); }
+      }
       if (ballV && ball) { // bóng nảy, lăn rồi dừng
         const b = ball.position; b.x += ballV.vx * dt; b.z += ballV.vz * dt; ballV.vy -= 9 * dt; b.y += ballV.vy * dt;
         if (b.y < 0.28) { b.y = 0.28; ballV.vy = Math.abs(ballV.vy) > 0.8 ? -ballV.vy * 0.55 : 0; ballV.vx *= 0.82; ballV.vz *= 0.82; }

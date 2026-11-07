@@ -91,6 +91,10 @@ export function makeKit(c, opts = {}) {
     add(g, new THREE.BoxGeometry(1.4, 0.12, 0.45), toon(color), 0, 0.42, 0, '#9a5f4a', 0.03);
     add(g, new THREE.BoxGeometry(1.4, 0.4, 0.1), toon(color), 0, 0.72, -0.2, '#9a5f4a', 0.03);
     [-0.6, 0.6].forEach(sx => add(g, new THREE.BoxGeometry(0.1, 0.4, 0.4), toon('#b98a5e'), sx, 0.2, 0, '#9a5f4a', 0.02));
+    // chi tiết: tay vịn hai đầu, hai khe ván ở lưng ghế, nẹp dưới mặt ngồi
+    [-0.72, 0.72].forEach(sx => { add(g, new THREE.BoxGeometry(0.09, 0.07, 0.42), toon('#b98a5e'), sx, 0.62, -0.02, '#9a5f4a', 0.015); add(g, new THREE.BoxGeometry(0.07, 0.2, 0.07), toon('#b98a5e'), sx, 0.5, 0.17, '#9a5f4a', 0.01); });
+    [0.66, 0.78].forEach(y => add(g, new THREE.BoxGeometry(1.36, 0.018, 0.04), toon('#9a5f4a'), 0, y, -0.145, null));
+    add(g, new THREE.BoxGeometry(1.3, 0.05, 0.05), toon('#b98a5e'), 0, 0.33, 0.12, null);
     return g;
   };
   const plant = (parent, x, z, s = 1) => {

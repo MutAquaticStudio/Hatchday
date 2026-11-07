@@ -140,6 +140,7 @@ export function initHome(ctx) {
       <button type="button" class="tile" data-go="cooking"><b>Nấu ăn</b><span>${RECIPES.length} công thức</span></button>
       <button type="button" class="tile" data-go="family"><b>Gia phả</b><span>${S.lineage.length > 1 ? `${S.lineage.length} đời của ${esc(S.family)}` : `Đời ${S.generation} của ${esc(S.family)}`}</span></button>
       <button type="button" class="tile" data-go="dex"><b>Sổ loài</b><span>Đã gặp ${S.seen.length}/${SPECIES.length} loài</span></button></div>`;
+    scrollWrap(el);
   }
   /* Hàng tab cuộn ngang: mờ dần ở mép còn nội dung để người chơi biết vuốt thêm */
   const hint = el => { el.classList.toggle('fade-r', el.scrollLeft + el.clientWidth < el.scrollWidth - 4); el.classList.toggle('fade-l', el.scrollLeft > 4); };
@@ -250,7 +251,8 @@ export function initHome(ctx) {
   const worldMap = initMap({ app, $, esc, head, open, closeAll, decor: () => (ctx.events && ctx.events.decor ? ctx.events.decor() : null), S, bondLevel: () => bondLevel(S.bondXp), goTo: ctx.goTo, toast: ctx.toast, getArea: ctx.getArea, alerts: () => ({ hospital: !!S.illness }) });
 
   /* ---------- Nấu ăn: hai nguyên liệu thành một món ngon hơn, thuộc hai nhóm dinh dưỡng ---------- */
-  function openCooking() { open('cooking'); renderCooking(); }
+  /** Nấu ăn chỉ mở khi bé đã đứng trước bếp lò (force); bấm từ nơi khác thì đi vào Bếp trước (game.js: goCook). */
+  function openCooking(force) { if (force !== true && !(ctx.atStove && ctx.atStove())) { ctx.goCook(); return; } open('cooking'); renderCooking(); }
   function renderCooking(el = $('cooking')) {
     // món nấu được ngay lên đầu, giữ nguyên thứ tự công thức trong mỗi nhóm
     const can = r => (S.owned[r.a] || 0) >= 1 && (S.owned[r.b] || 0) >= 1 && (S.owned[r.dish] || 0) < FOOD_STOCK.max;
@@ -311,12 +313,19 @@ export function initHome(ctx) {
   /* ---------- Sổ loài ---------- */
   let dexRegion = -1, dexSel = '';
   function openDex() { dexSel = S.species; open('dex'); renderDex(); }
+  /** Bọc phần thân của sheet (mọi thứ sau thanh tiêu đề) vào một vùng cuộn, giữ nguyên vị trí cuộn khi vẽ lại. */
+  function scrollWrap(el, keepTop = 0) {
+    const h = el.querySelector('.hs-head'); if (!h) return;
+    const w = document.createElement('div'); w.className = 'hs-scroll'; while (h.nextSibling) w.appendChild(h.nextSibling); el.appendChild(w); w.scrollTop = keepTop;
+  }
+  const scrollTopOf = el => el.querySelector('.hs-scroll')?.scrollTop || 0;
   function renderDex(el = $('dex')) {
     const seen = new Map(S.seen.map(x => [x.species_id, x]));
     const leg = SPECIES.filter(x => x.rarity === 'huyen' && seen.has(x.id)).length;
     const list = SPECIES.filter(x => dexRegion < 0 || x.region === dexRegion);
     const sel = SPECIES_BY_ID[dexSel], selSeen = sel && seen.get(sel.id);
     const look = sp => { const cur = sp.id === S.species; const f = cur ? S.form : seen.get(sp.id)?.forms[0]; return `pet:${sp.id}:${cur ? S.stage : 'adult'}:${f || 'thuong'}`; };
+    const keepTop = scrollTopOf(el);
     el.innerHTML = head('Sổ loài', `Đã gặp ${seen.size}/${SPECIES.length} loài · Huyền thoại ${leg}/5`) +
       (sel ? `<div class="dex-detail">${selSeen ? `<img data-thumb="${look(sel)}" alt="" width="96" height="96">` : '<div class="dex-q">?</div>'}
         <div><b>${selSeen ? esc(sel.name) : '???'}</b> <span class="rar" style="--rc:${RARITIES[sel.rarity].color}">${RARITIES[sel.rarity].name}</span>
@@ -328,7 +337,7 @@ export function initHome(ctx) {
       `<div class="tabs-row" role="tablist">${[[-1, 'Tất cả'], ...REGIONS.map((r, i) => [i, r.name])].map(([i, n]) => `<button type="button" class="pill${dexRegion === i ? ' on' : ''}" data-dexr="${i}" role="tab" aria-selected="${dexRegion === i}">${n}</button>`).join('')}</div>
       <div class="grid-items dex-grid">${list.map(sp => { const ok = seen.has(sp.id); return `<button type="button" class="card-item dex-card r-${sp.rarity}${ok ? '' : ' unknown'}${dexSel === sp.id ? ' on' : ''}" data-dex="${sp.id}">
         <img data-thumb="${look(sp)}" alt="" width="72" height="72"><div class="ci-name">${ok ? esc(sp.name) : '???'}</div><span class="rar" style="--rc:${RARITIES[sp.rarity].color}">${RARITIES[sp.rarity].name}</span></button>`; }).join('')}</div>`;
-    fillThumbs(el);
+    scrollWrap(el, keepTop); fillThumbs(el);
   }
   app.addEventListener('click', e => {
     const r = e.target.closest('[data-dexr]'); if (r) { dexRegion = Number(r.dataset.dexr); renderDex(); return; }
@@ -816,5 +825,5 @@ export function initHome(ctx) {
     return { checked: n, bad };
   };
 
-  return { update, pickVisit, thumb, isEditing: () => editing, openShop, openClinic, openSell, openMap: () => worldMap.open(), openSocial: social.open, openAds: ads.open, openToys: toys.open, closeAll, openMail: social.openMail, openNews: social.openNews, openWardrobe, openFamily, enterEdit, closeAll, openDex, refreshOutfit: () => renderOutfit(S.outfit) };
+  return { update, pickVisit, thumb, isEditing: () => editing, openShop, openCooking, openClinic, openSell, openMap: () => worldMap.open(), openSocial: social.open, openAds: ads.open, openToys: toys.open, closeAll, openMail: social.openMail, openNews: social.openNews, openWardrobe, openFamily, enterEdit, closeAll, openDex, refreshOutfit: () => renderOutfit(S.outfit) };
 }

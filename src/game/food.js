@@ -61,7 +61,7 @@ export function initFood(c) {
   renderTray(); onSync(renderTray);
   tray.addEventListener('pointerdown', e => {
     const b = e.target.closest('.food'); if (!b) return;
-    if (b.dataset.more) { e.preventDefault(); openShop && openShop(); return; }
+    if ('more' in b.dataset) { e.preventDefault(); openShop && openShop(); return; } // data-more không có giá trị nên dataset.more là '' (falsy): phải kiểm bằng `in`
     e.preventDefault();
     const f = FOOD_BY_ID[b.dataset.id];
     const g = document.createElement('div'); g.className = 'drag-ghost'; g.innerHTML = FOOD_SVG[f.id]; g.style.left = e.clientX + 'px'; g.style.top = e.clientY + 'px';

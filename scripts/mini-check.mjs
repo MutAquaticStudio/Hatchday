@@ -16,7 +16,7 @@ const SHOT = process.env.MINI_SHOT_DIR;
   const b = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
   const p = await (await b.newContext({ viewport: { width: 390, height: 780 }, hasTouch: true, isMobile: true })).newPage();
   const errs = []; p.on('pageerror', e => errs.push('PAGE ' + e.message)); p.on('console', m => { if (m.type() === 'error') errs.push('CON ' + m.text()); });
-  const URL0 = `http://localhost:${PORT}/?dev`;
+  const URL0 = `http://localhost:${PORT}/?dev&weather=clear`; // thời tiết cố định để kịch bản không phụ thuộc giờ chạy (mưa làm bé tự chạy đi trú)
   const start = async () => { await p.waitForSelector('#demo'); await p.click('#demo'); await until(p, () => !!document.querySelector('#a-house'), 30000); await p.waitForTimeout(1200); };
   await p.goto(URL0); await p.waitForSelector('#demo'); await p.click('#demo'); await p.click('button[type=submit]'); await until(p, () => !!document.querySelector('#a-house'), 30000); await p.waitForTimeout(1200);
   await p.evaluate(() => { const d = JSON.parse(localStorage.getItem('hatchday-demo')); d.pet.bond_xp = 800; d.pet.nl = 99; d.pet.no = 90; d.pet.vui = 40; d.pet.sach = 95; d.pet.stats_at = new Date().toISOString(); d.coins = 100; localStorage.setItem('hatchday-demo', JSON.stringify(d)); localStorage.setItem('hatchday-tour', '1'); });

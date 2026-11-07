@@ -82,7 +82,7 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline
 .chat button{border:0;border-radius:14px;background:var(--accent);color:#fff;font-weight:800;padding:0 16px;box-shadow:0 3px 0 var(--accent-deep)}
 
 #wipe{position:absolute;inset:0;z-index:30;pointer-events:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;
-  background-color:#ff9ec4;background-image:radial-gradient(rgba(255,255,255,.45) 22%,transparent 23%);background-size:34px 34px;
+  background-color:var(--wipe,#ff9ec4);background-image:radial-gradient(rgba(255,255,255,.45) 22%,transparent 23%);background-size:34px 34px;
   clip-path:circle(0% at 50% 55%)}
 #wipe.in{clip-path:circle(150% at 50% 55%);transition:clip-path .48s cubic-bezier(.6,0,.4,1)}
 #wipe.out{clip-path:circle(0% at 50% 55%);transition:clip-path .48s cubic-bezier(.6,0,.4,1)}
@@ -650,4 +650,18 @@ body.editing .hot-layer,.farm-editing .hot-layer{display:none}
   .emote-bar .eb-line{justify-content:space-between}.emote-bar .eb-row{flex-wrap:wrap}
   .hot.near{min-height:34px}.eb-toggle{min-height:36px}
   .tab,.btn-sm{min-height:36px}
+}
+
+/* ---------- Vùng cuộn cho sheet không có .hs-body (Sổ loài, Nhà của bé) ---------- */
+.hs-scroll{flex:1;min-height:0;overflow:auto;padding-bottom:16px;overscroll-behavior:contain}
+.hs-scroll .tiles{padding-bottom:4px}
+/* chip bệnh không đè lên bảng Chỉ số */
+#app:has(#stats:not([hidden])) .sick-chip{display:none}
+/* máy tính: sheet cao hơn một chút, hàng tab tự xuống dòng (chuột không vuốt ngang được) */
+@media (min-width:900px){
+  .hsheet{bottom:128px;max-height:min(74vh,740px,calc(100vh - 230px))}
+}
+@media (hover:hover) and (pointer:fine){
+  .tabs-row{flex-wrap:wrap;overflow:visible}
+  .tabs-row.fade-r,.tabs-row.fade-l,.tabs-row.fade-l.fade-r{-webkit-mask-image:none;mask-image:none}
 }
