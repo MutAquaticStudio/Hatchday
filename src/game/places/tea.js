@@ -17,6 +17,7 @@ export function initTea(c) {
   const arc = (a, b, k, h) => [lerp(a[0], b[0], k), lerp(a[1], b[1], k) + Math.sin(k * Math.PI) * h, lerp(a[2], b[2], k)];
   // sàn, tường sau, tường trái, ốp gỗ, xà ngang
   add(g, new THREE.BoxGeometry(W, 0.4, D), toon('#ffffff', plank), 0, -0.2, 0, '#9a5f4a', 0.04);
+  add(g, new THREE.BoxGeometry(W, 0.4, 7), toon('#ffffff', plank), 0, -0.2, D / 2 + 3.5, '#9a5f4a', 0.04); // sàn kéo dài tới sát camera (khỏi lộ khoảng trống)
   add(g, new THREE.BoxGeometry(W, 8.0, 0.3), toon('#ffffff', wallTex), 0, 3.8, -D / 2 - 0.15, '#8a7a9a', 0.04);
   const w2 = wallTex.clone(); w2.repeat.set(7, 3); w2.needsUpdate = true;
   add(g, new THREE.BoxGeometry(0.3, 8.0, D + 0.3), toon('#ffffff', w2), -W / 2 - 0.15, 3.8, 0, '#8a7a9a', 0.04);
@@ -40,7 +41,7 @@ export function initTea(c) {
   const kettle = add(counter, new THREE.SphereGeometry(0.28, 14, 10), toon('#7ec8a0'), -1.9, 1.35, -0.1, '#3f7a60', 0.02); kettle.scale.y = 0.85;
   add(counter, new THREE.CylinderGeometry(0.06, 0.06, 0.2, 8), toon('#7ec8a0'), -1.9, 1.7, -0.1, '#3f7a60', 0.015); add(counter, new THREE.TorusGeometry(0.2, 0.03, 6, 14), toon('#7ec8a0'), -1.9, 1.62, -0.1, '#3f7a60', 0.01);
   const steam = [0, 1, 2, 3].map(i => { const m = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 6), new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.5 })); m.userData.i = i; counter.add(m); return m; });
-  kit.npc({ x: -1.5, z: -4.2, color: '#d4f5e6', hat: 'chef' });
+  kit.npc({ x: 1.45, z: -3.7, color: '#d4f5e6', hat: 'chef', ry: -0.35, parent: g });
   // kệ hũ trà trên tường sau
   const shelf = new THREE.Group(); shelf.position.set(2.8, 0, -D / 2 + 0.3); g.add(shelf);
   const jars = []; [2.2, 3.1].forEach(y => { add(shelf, new THREE.BoxGeometry(3.2, 0.1, 0.5), toon('#a8744a'), 0, y, 0, '#5a3a22', 0.015); for (let i = 0; i < 6; i++) jars.push({ x: shelf.position.x - 1.35 + i * 0.54, y: y + 0.27, z: shelf.position.z, sy: 1 + (i % 2) * 0.2, color: ['#ff9ec4', '#ffd36e', '#9fd8ff', '#c9a6ff', '#7edb72', '#ffb347'][i] }); });
