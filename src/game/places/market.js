@@ -1,7 +1,7 @@
 // Chợ Xanh (~30 ngang, camera bám thú): sáu điểm chạm ở khu giữa (rau quả, tiệm hôm nay, chợ cuối tuần, nội thất, thu mua nông sản, sổ sưu tập),
 // hai dãy hàng trang trí ở khu tây (bánh trái, hoa, giếng) và khu đông (cá, gốm, đèn lồng) dựng dần khi bé tới gần, cổng chợ ở hai đầu, chim bồ câu.
 import { makeKit } from './kit.js';
-import { makeProps, makeWorld } from './world.js';
+import { bakeStatic, makeProps, makeWorld } from './world.js';
 
 export function initMarket(c) {
   const { THREE, add, toon, canvasTex, scene } = c, kit = makeKit(c);
@@ -61,7 +61,7 @@ export function initMarket(c) {
 
   // chim bồ câu: đặt xa chỗ bé đứng (bé vào chợ ở giữa) để không chồng lên chân bé
   const pigeons = [[-3.4, 3.2, 0.5], [3.3, 2.6, -0.6], [-2.2, 4.2, 2.4]].map(([x, z, ry], i) => {
-    const p = new THREE.Group(); p.position.set(x, 0, z); p.rotation.y = ry; g.add(p);
+    const p = new THREE.Group(); p.userData.keep = true; p.position.set(x, 0, z); p.rotation.y = ry; g.add(p);
     const body = add(p, new THREE.SphereGeometry(0.17, 12, 10), toon('#b9c2d4'), 0, 0.2, 0, '#5a6278', 0.018); body.scale.set(1.25, 0.9, 0.95);
     add(p, new THREE.SphereGeometry(0.1, 10, 8), toon('#8fa0c0'), 0.15, 0.3, 0, '#5a6278', 0.015); // cổ ánh tím
     add(p, new THREE.SphereGeometry(0.085, 10, 8), toon('#c9d2e4'), 0.23, 0.38, 0, '#5a6278', 0.015); // đầu
@@ -69,7 +69,7 @@ export function initMarket(c) {
     add(p, new THREE.SphereGeometry(0.014, 6, 6), toon('#2a2230'), 0.27, 0.41, 0.06, null); add(p, new THREE.SphereGeometry(0.014, 6, 6), toon('#2a2230'), 0.27, 0.41, -0.06, null);
     const tail = add(p, new THREE.ConeGeometry(0.07, 0.2, 6), toon('#9aa6c0'), -0.27, 0.22, 0, '#5a6278', 0.012); tail.rotation.z = Math.PI / 2 + 0.3;
     [-0.05, 0.05].forEach(dz => add(p, new THREE.CylinderGeometry(0.01, 0.01, 0.1, 5), toon('#ff8a7a'), 0.02, 0.05, dz, null));
-    return { p, ph: i * 2 };
+    bakeStatic(THREE, p); return { p, ph: i * 2 };
   });
   kit.plant(g, -4.2, 0.6, 0.9); kit.plant(g, 4.2, 0.6, 0.9);
   // trạm giao hàng (mini-game): xe đẩy chở thùng hàng
@@ -128,6 +128,8 @@ export function initMarket(c) {
     () => { basket(z, 7.6, -1.9, '#ffd95a'); crates(z, 10.4, -2.2); barrel(z, 5.6, -2.0); barrel(z, 6.3, -2.2); props.lamp(z, 7.9, -2.4); },
   ]; } });
 
+  // gộp vật tĩnh của khu giữa và bên trong từng sạp có điểm chạm (bớt lệnh vẽ trên điện thoại)
+  bakeStatic(THREE, g); g.traverse(o => { if (o.userData.hotRoot && !o.isMesh) bakeStatic(THREE, o, { inHotspot: o.userData.hotRoot }); });
   return {
     group: g,
     enter() { kit.show(true); setTimeout(() => { if (c.getArea() === 'market') c.say('Rau tươi nè! Bạn mua cho mình món ngon nha.', 3000); }, 700); },

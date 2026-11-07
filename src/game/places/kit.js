@@ -1,5 +1,6 @@
 // Bộ dựng chung cho các địa điểm: điểm chạm (nhãn DOM + vật 3D), NPC dựng bằng khối, biển chữ, ghế dài, cây.
 // Mỗi địa điểm nhận `c` (ngữ cảnh) từ game.js: { THREE, add, toon, canvasTex, shell, windowOn, scene, camera, canvas, ray, ndcFrom, walkPetTo, say, startAction, toast, sfx, spawn, hideHint, open }.
+import { bakeStatic } from './world.js';
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
 export function makeKit(c, opts = {}) {
@@ -17,7 +18,7 @@ export function makeKit(c, opts = {}) {
   /** def: { id, label, at:[x,y,z] vị trí nhãn, stand:[x,z] nơi thú đứng khi chạm, act() }. mesh: vật 3D bấm được (tuỳ chọn). */
   function hotspot(def, mesh) {
     ensureLayer();
-    if (mesh) { mesh.traverse(o => { o.userData.hotspot = def.id; }); def.mesh = mesh; }
+    if (mesh) { mesh.traverse(o => { o.userData.hotspot = def.id; }); mesh.userData.hotRoot = def.id; def.mesh = mesh; }
     const b = document.createElement('button'); b.type = 'button'; b.className = 'hot'; b.dataset.hot = def.id; b.setAttribute('aria-label', def.label); b.innerHTML = `<span class="hd"></span><span class="hl">${def.label}</span>`;
     layer.appendChild(b); def.el = b; hots.push(def); return def;
   }
@@ -81,7 +82,7 @@ export function makeKit(c, opts = {}) {
     if (hat === 'tailor') add(g, new THREE.TorusGeometry(0.32, 0.03, 8, 24), toon('#ffd36e'), 0, 0.5, 0, null).rotation.x = Math.PI / 2;
     if (hat === 'librarian') [-1, 1].forEach(sx => add(g, new THREE.TorusGeometry(0.09, 0.016, 8, 16), toon('#6b4a3a'), sx * 0.16, 0.6, 0.43, null));
     if (hat === 'vendor') { add(g, new THREE.CylinderGeometry(0.34, 0.34, 0.04, 20), toon('#f0c36b'), 0, 1.04, 0, '#a77', 0.02); add(g, new THREE.CylinderGeometry(0.17, 0.2, 0.14, 14), toon('#f0c36b'), 0, 1.12, 0, '#a77', 0.02); }
-    g.traverse(o => { if (o.isMesh) o.userData.noRecv = true; });
+    bakeStatic(THREE, g); g.userData.keep = true; g.traverse(o => { if (o.isMesh) o.userData.noRecv = true; });
     const n = { group: g, tick: t => { g.position.y = y + Math.abs(Math.sin(t * 2 + x)) * 0.03; g.rotation.z = Math.sin(t * 1.4 + z) * 0.025; } };
     npcs.push(n); return n;
   }

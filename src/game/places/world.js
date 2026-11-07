@@ -4,7 +4,40 @@
 //  - scatter: vật lặp (cây, hoa, cỏ, hàng rào, đèn) dựng bằng InstancedMesh (một lần vẽ cho cả loạt) kèm viền;
 //  - cache hình/vật liệu dùng chung; chất lượng Thấp giảm bớt số vật trang trí (density).
 // Mỗi nơi gọi makeWorld(c), khai báo zones rồi gọi world.update(dt, petX, petZ) mỗi khung hình.
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 const BUDGET_MS = 4;
+
+/**
+ * Gộp các mesh tĩnh cùng vật liệu trong `root` thành một mesh mỗi loại (giảm số lệnh vẽ rất nhiều: mỗi món trang trí nhỏ
+ * vốn tốn 2 lệnh vẽ, thân và viền). Bỏ qua: điểm chạm (userData.hotspot), vật động (userData.keep), bóng đèn (userData.lamp),
+ * InstancedMesh, vật trong suốt và vật bị lật gương. Bóng đổ giữ như trước nhờ userData.cast.
+ */
+export function bakeStatic(THREE, root, { inHotspot = null } = {}) {
+  root.updateMatrixWorld(true);
+  const inv = new THREE.Matrix4().copy(root.matrixWorld).invert(), m = new THREE.Matrix4(), buckets = new Map();
+  const kept = o => { for (let p = o; p && p !== root; p = p.parent) if (p.userData.keep || (p.userData.hotspot && !inHotspot) || p.userData.lamp) return true; return false; };
+  root.traverse(o => {
+    if (!o.isMesh || o.isInstancedMesh || kept(o)) return;
+    const mat = o.material, geo = o.geometry;
+    if (Array.isArray(mat) || mat.transparent || mat.blending !== THREE.NormalBlending || !geo.attributes.position || !geo.attributes.normal || geo.morphAttributes.position) return;
+    m.multiplyMatrices(inv, o.matrixWorld); if (m.determinant() <= 0) return;
+    const key = [mat.type, mat.color ? mat.color.getHexString() : '', mat.map ? mat.map.uuid : '', mat.side, mat.gradientMap ? mat.gradientMap.uuid : '', geo.index ? 'i' : 'n', Object.keys(geo.attributes).sort().join(','), o.userData.outline ? 'o' : ''].join('|');
+    let b = buckets.get(key); if (!b) buckets.set(key, b = { mat, outline: !!o.userData.outline, geos: [], objs: [], cast: false });
+    b.geos.push(geo.clone().applyMatrix4(m)); b.objs.push(o);
+    if (!o.userData.outline) { geo.computeBoundingSphere(); if (geo.boundingSphere.radius * Math.max(o.scale.x, o.scale.y, o.scale.z) < 2) b.cast = true; }
+  });
+  const removed = new Set(), added = [];
+  for (const b of buckets.values()) {
+    if (b.objs.length < 2) { b.geos.forEach(g => g.dispose()); continue; }
+    const merged = mergeGeometries(b.geos, false); b.geos.forEach(g => g.dispose()); if (!merged) continue;
+    const mesh = new THREE.Mesh(merged, b.mat); mesh.userData.baked = true; mesh.userData.cast = b.cast; if (inHotspot) mesh.userData.hotspot = inHotspot;
+    if (b.outline) mesh.userData.outline = true;
+    mesh.matrixAutoUpdate = false; added.push(mesh); b.objs.forEach(o => removed.add(o));
+  }
+  for (const o of removed) { for (const ch of [...o.children]) if (!removed.has(ch)) root.attach(ch); o.parent && o.parent.remove(o); }
+  added.forEach(x => { root.add(x); x.updateMatrix(); });
+  return { before: removed.size, after: added.length };
+}
 
 export function makeWorld(c, group) {
   const { THREE, toon } = c;
@@ -34,11 +67,18 @@ export function makeWorld(c, group) {
     return m;
   }
 
+  /** Gộp vật tĩnh của khu, rồi gộp riêng bên trong từng vật có điểm chạm (giữ cờ điểm chạm để chạm vẫn trúng). */
+  const hotspotRoots = new Set();
+  function bakeZone(g) {
+    bakeStatic(THREE, g);
+    g.traverse(o => { if (o.userData.hotRoot && !o.isMesh && !o.userData.keep) hotspotRoots.add(o); });
+    for (const r of hotspotRoots) { let inside = false; for (let p = r; p; p = p.parent) if (p === g) inside = true; if (inside) { bakeStatic(THREE, r, { inHotspot: r.userData.hotRoot }); hotspotRoots.delete(r); } }
+  }
   /** Khai báo một khu. build(g): dựng ngay (khu lõi) hoặc trả về mảng việc nhỏ (hàm) để dựng dần. */
   function zone(def) {
     const z = { id: def.id, cx: def.cx, cz: def.cz, show: def.show ?? 16, g: new THREE.Group(), state: def.core ? 'building' : 'idle', def, tasks: null };
     z.g.visible = !!def.core; group.add(z.g); zones.push(z);
-    if (def.core) { const t = def.build(z.g); if (Array.isArray(t)) t.forEach(f => f()); z.state = 'ready'; c.applyShadows?.(z.g); }
+    if (def.core) { const t = def.build(z.g); if (Array.isArray(t)) t.forEach(f => f()); z.state = 'ready'; bakeZone(z.g); c.applyShadows?.(z.g); }
     return z;
   }
   const near = (z, x, zz) => Math.hypot(z.cx - x, z.cz - zz) < z.show;
@@ -52,11 +92,11 @@ export function makeWorld(c, group) {
     const t0 = performance.now();
     while (queue.length && performance.now() - t0 < BUDGET_MS) {
       const z = queue[0], f = z.tasks.shift();
-      if (f) f(); else { queue.shift(); z.state = 'ready'; c.applyShadows?.(z.g); }
+      if (f) f(); else { queue.shift(); z.state = 'ready'; bakeZone(z.g); c.applyShadows?.(z.g); }
     }
   }
   /** Dựng xong mọi khu ngay (kiểm thử). */
-  function finishAll() { for (const z of zones) { if (z.state === 'idle') { const t = z.def.build(z.g); z.tasks = Array.isArray(t) ? t : []; z.state = 'building'; if (!queue.includes(z)) queue.push(z); } } while (queue.length) { const z = queue[0], f = z.tasks.shift(); if (f) f(); else { queue.shift(); z.state = 'ready'; c.applyShadows?.(z.g); } } zones.forEach(z => { z.g.visible = true; }); }
+  function finishAll() { for (const z of zones) { if (z.state === 'idle') { const t = z.def.build(z.g); z.tasks = Array.isArray(t) ? t : []; z.state = 'building'; if (!queue.includes(z)) queue.push(z); } } while (queue.length) { const z = queue[0], f = z.tasks.shift(); if (f) f(); else { queue.shift(); z.state = 'ready'; bakeZone(z.g); c.applyShadows?.(z.g); } } zones.forEach(z => { z.g.visible = true; }); }
   const status = () => zones.map(z => ({ id: z.id, state: z.state, visible: z.g.visible }));
   /** Giải phóng mọi hình, vật liệu và InstancedMesh của nơi này (gọi khi rời nếu máy yếu). */
   function dispose() { gCache.forEach(g => g.dispose()); mCache.forEach(m => m.dispose()); gCache.clear(); mCache.clear(); }
@@ -162,7 +202,7 @@ export function makeProps({ THREE, add, toon, canvasTex, kit, world }) {
     for (let i = 0; i <= n; i++) { const t = i / n; items.push({ x: x0 + (x1 - x0) * t, y: y - Math.sin(t * Math.PI) * 0.35 - 0.12, z: z0 + (z1 - z0) * t, rx: Math.PI, ry: Math.atan2(x1 - x0, z1 - z0), s: 1, color: cols[i % cols.length] }); }
     return world.scatter(g, tri, world.toonC('#ffffff'), items, null);
   };
-  const cloud = (g, x, y, z, s = 1) => { const c = new THREE.Group(); c.position.set(x, y, z); c.scale.setScalar(s); g.add(c); const m = new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.92 }); [[0, 0, 0, 1.2], [1.1, -0.1, 0, 0.9], [-1.1, -0.15, 0, 0.8], [0.4, 0.5, 0, 0.8]].forEach(([dx, dy, dz, r]) => { const b = new THREE.Mesh(world.geo('cloud', () => new THREE.SphereGeometry(1, 12, 8)), m); b.position.set(dx, dy, dz); b.scale.set(r, r * 0.7, r * 0.8); c.add(b); }); return c; };
+  const cloud = (g, x, y, z, s = 1) => { const c = new THREE.Group(); c.userData.keep = true; c.position.set(x, y, z); c.scale.setScalar(s); g.add(c); const m = new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.92 }); [[0, 0, 0, 1.2], [1.1, -0.1, 0, 0.9], [-1.1, -0.15, 0, 0.8], [0.4, 0.5, 0, 0.8]].forEach(([dx, dy, dz, r]) => { const b = new THREE.Mesh(world.geo('cloud', () => new THREE.SphereGeometry(1, 12, 8)), m); b.position.set(dx, dy, dz); b.scale.set(r, r * 0.7, r * 0.8); c.add(b); }); return c; };
   /** Đồi xa làm nền: các nửa quả cầu xanh nhạt xếp theo hàng. */
   const hills = (g, z, xs, cols = ['#bfe8a8', '#aee09a', '#c9eeb5']) => xs.forEach((x, i) => { const h = new THREE.Mesh(world.geo('hill', () => new THREE.SphereGeometry(1, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2)), world.toonC(cols[i % cols.length])); h.position.set(x, -0.2, z); h.scale.set(7 + (i % 3) * 2, 2.2 + (i % 2) * 1.4, 4); g.add(h); });
   const stripeTex = (a, b, n = 4) => canvasTex(64, 32, d => { d.fillStyle = b; d.fillRect(0, 0, 64, 32); d.fillStyle = a; for (let i = 0; i < n; i++) d.fillRect(i * 64 / n, 0, 32 / n, 32); }, [1, 1]);

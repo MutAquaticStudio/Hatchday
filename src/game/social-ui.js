@@ -14,7 +14,7 @@ const KIND = { update: 'Cập nhật', event: 'Sự kiện', maintenance: 'Bảo
 const POLL_MS = 60000, FOCUS_MIN_MS = 15000;
 
 export function initSocial({ ctx, S, store, esc, head, open, closeAll, thumb, fillThumbs, app, $, onChange = () => {} }) {
-  const D = { tab: 'friends', state: null, friends: [], req: { incoming: [], outgoing: [] }, inbox: [], news: [], sum: { mail_unread: 0, news_unread: 0, requests_in: 0, dm_unread: 0 }, dm: { threads: [], open: null, msgs: [] }, armed: new Set(), busy: false };
+  const D = { together: { playdates: [], notes: [] }, noteFor: null, tab: 'friends', state: null, friends: [], req: { incoming: [], outgoing: [] }, inbox: [], news: [], sum: { mail_unread: 0, news_unread: 0, requests_in: 0, dm_unread: 0 }, dm: { threads: [], open: null, msgs: [] }, armed: new Set(), busy: false };
   let visit = null, gift = null, lastPoll = 0, lastMail = -1;
 
   const nameOf = id => BY_ID[id]?.name || FOODS.find(f => f.id === id)?.name || MEDICINES.find(m => m.id === id)?.name || id;
@@ -35,7 +35,9 @@ export function initSocial({ ctx, S, store, esc, head, open, closeAll, thumb, fi
     } catch { /* mạng chập chờn: lần sau thử lại */ }
   }
   async function loadAll() {
-    const r = await Promise.allSettled([api.getSocialState(), api.listFriends(), api.listRequests(), api.getInbox(), api.getNews(), loadSummary(), api.listDmThreads()]);
+    const r = await Promise.allSettled([api.getSocialState(), api.listFriends(), api.listRequests(), api.getInbox(), api.getNews(), loadSummary(), api.listDmThreads(), api.listPlaydates(), api.getGuestNotes()]);
+    if (r[7].status === 'fulfilled') D.together.playdates = r[7].value;
+    if (r[8].status === 'fulfilled') D.together.notes = r[8].value;
     if (r[6].status === 'fulfilled') D.dm.threads = r[6].value;
     if (r[0].status === 'fulfilled') D.state = r[0].value;
     if (r[1].status === 'fulfilled') D.friends = r[1].value;
@@ -57,15 +59,27 @@ export function initSocial({ ctx, S, store, esc, head, open, closeAll, thumb, fi
   }
   function tabs() {
     const t = (id, label, n) => `<button type="button" class="tab" role="tab" data-soc-tab="${id}" aria-selected="${D.tab === id}">${label}${n ? ` <i class="soc-badge">${n}</i>` : ''}</button>`;
-    return `<div class="tabs soc-tabs" role="tablist">${t('friends', 'Bạn bè', D.sum.requests_in)}${t('mail', 'Hộp thư', D.sum.mail_unread)}${t('news', 'Tin tức', D.sum.news_unread)}${t('dm', 'Tin nhắn', D.sum.dm_unread)}</div>`;
+    return `<div class="tabs soc-tabs" role="tablist">${t('friends', 'Bạn bè', D.sum.requests_in)}${t('mail', 'Hộp thư', D.sum.mail_unread + pendingIn())}${t('news', 'Tin tức', D.sum.news_unread)}${t('dm', 'Tin nhắn', D.sum.dm_unread)}</div>`;
   }
   function render() {
     const el = $('social'); if (!el) return;
-    el.innerHTML = head('Bạn bè &amp; thư', sub()) + tabs() + `<div class="hs-body soc-body">${({ friends: friendsTab, mail: mailTab, news: newsTab, dm: dmTab })[D.tab]()}</div>`;
+    el.innerHTML = head('Bạn bè &amp; thư', sub()) + tabs() + `<div class="hs-body soc-body">${({ friends: friendsTab, mail: () => togetherTab() + mailTab(), news: newsTab, dm: dmTab })[D.tab]()}</div>`;
     fillThumbs(el);
     if (D.tab === 'news') markNewsRead();
   }
 
+  const pendingIn = () => D.together.playdates.filter(x => x.incoming && x.status === 'pending').length;
+  const noteForm = p => `<form class="chat-box note-form" data-soc-form="note" data-who="${esc(p.pid)}" autocomplete="off"><input id="note-in" maxlength="100" placeholder="Lời nhắn cho ${esc(p.name)}…" aria-label="Lời nhắn"><button class="btn-sm" type="submit">Gửi</button></form>`;
+  function togetherTab() {
+    const pd = D.together.playdates, notes = D.together.notes, when = iso => new Date(iso).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' });
+    const pdRows = pd.length ? `<ul class="soc-list">${pd.map(x => `<li class="soc-row"><div class="soc-info"><b>${x.incoming ? `${esc(x.from_name)} rủ bé đi chơi` : `Bạn đã rủ ${esc(x.to_name)}`}</b><small>${x.status === 'done' ? 'Đã chơi cùng nhau 🎈' : x.incoming ? 'Đang chờ bạn đồng ý' : 'Đang chờ bạn ấy đồng ý'} · ${when(x.at)}</small></div>
+      <div class="soc-act">${x.incoming && x.status === 'pending' ? `<button type="button" class="btn-sm" data-soc="pdyes" data-id="${x.id}">Đi chơi (+15 xu)</button><button type="button" class="btn-sm ghost" data-soc="pdno" data-id="${x.id}">Để sau</button>` : ''}</div></li>`).join('')}</ul>`
+      : '<p class="hs-note">Chưa có lời hẹn nào. Vào tab Bạn bè, bấm "Hẹn chơi" để rủ bé nhà bạn đi chơi.</p>';
+    const noteRows = notes.length ? `<ul class="soc-list">${notes.map(n => `<li class="soc-row"><div class="soc-info"><b>${esc(n.author)}</b><small>${esc(n.body)}</small><small>${when(n.at)}</small></div><div class="soc-act"><button type="button" class="btn-sm ghost" data-soc="delnote" data-id="${n.id}">Xoá</button></div></li>`).join('')}</ul>`
+      : '<p class="hs-note">Chưa có lời nhắn nào. Bạn bè có thể để lại lời nhắn cho bạn mỗi ngày một lần.</p>';
+    return `<h3 class="qh">Hẹn chơi</h3>${pdRows}<p class="hs-note">Hẹn chơi: mỗi cặp bạn một lần mỗi ngày. Khi bạn ấy đồng ý, cả hai bé được +15 xu, +3 Gắn bó và một ký ức mới.</p>
+      <h3 class="qh">Lời nhắn bạn bè gửi bạn</h3>${noteRows}<h3 class="qh">Thư và quà</h3>`;
+  }
   function person(p, actions, extra = '') {
     return `<li class="soc-row">${petImg(p)}<div class="soc-info"><b>${esc(p.name)}</b><small>${esc(speciesOf(p))} · Gắn bó ${p.bond_level}${extra}</small></div><div class="soc-act">${actions}</div></li>`;
   }
@@ -81,7 +95,7 @@ export function initSocial({ ctx, S, store, esc, head, open, closeAll, thumb, fi
       `<button type="button" class="btn-sm" data-soc="accept" data-who="${esc(p.pid)}">Đồng ý</button><button type="button" class="btn-sm ghost" data-soc="decline" data-who="${esc(p.pid)}">Từ chối</button>`)).join('')}</ul>` : '';
     const out = D.req.outgoing.length ? `<p class="hs-note">Đang chờ ${D.req.outgoing.length} người trả lời lời mời của bạn.</p>` : '';
     const list = D.friends.length ? `<ul class="soc-list">${D.friends.map(p => person(p,
-      `<button type="button" class="btn-sm" data-soc="visit" data-who="${esc(p.pid)}">Ghé thăm</button><button type="button" class="btn-sm ghost" data-soc="gift" data-who="${esc(p.pid)}">Tặng quà</button><button type="button" class="btn-sm ghost" data-soc="dm" data-who="${esc(p.pid)}">Nhắn tin</button>${armBtn('remove', 'Bỏ bạn', '', p.pid)}${armBtn('block', 'Chặn', '', p.pid)}`)).join('')}</ul>`
+      `<button type="button" class="btn-sm" data-soc="visit" data-who="${esc(p.pid)}">Ghé thăm</button><button type="button" class="btn-sm ghost" data-soc="gift" data-who="${esc(p.pid)}">Tặng quà</button><button type="button" class="btn-sm ghost" data-soc="dm" data-who="${esc(p.pid)}">Nhắn tin</button><button type="button" class="btn-sm ghost" data-soc="playdate" data-who="${esc(p.pid)}">Hẹn chơi</button><button type="button" class="btn-sm ghost" data-soc="note" data-who="${esc(p.pid)}">Lời nhắn</button>${D.noteFor === p.pid ? noteForm(p) : ''}${armBtn('remove', 'Bỏ bạn', '', p.pid)}${armBtn('block', 'Chặn', '', p.pid)}`)).join('')}</ul>`
       : '<p class="hs-note">Chưa có bạn nào. Nhập mã bạn bè của người khác ở trên để kết bạn.</p>';
     return `<section class="soc-card"><div><small>Mã bạn bè của bạn</small><b class="soc-code" id="soc-mycode">${esc(st?.friend_code || '········')}</b></div><button type="button" class="btn-sm ghost" data-soc="copy">Sao chép</button></section>
       <form class="soc-add" data-soc-form="add" autocomplete="off"><input id="soc-code" maxlength="12" inputmode="text" autocapitalize="characters" placeholder="Nhập mã bạn bè (8 ký tự)" aria-label="Mã bạn bè"><button class="btn-sm" type="submit">Kết bạn</button></form>
@@ -222,6 +236,10 @@ export function initSocial({ ctx, S, store, esc, head, open, closeAll, thumb, fi
     if (k === 'dm') { open('social'); openDm(who); return; }
     if (k === 'dmback') { D.dm.open = null; render(); loadAll(); return; }
     if (k === 'visit') { openVisit(who); return; }
+    if (k === 'playdate') { const r = await run(b, () => api.invitePlaydate(who), 'Đã rủ bạn đi chơi! Khi bạn ấy đồng ý, cả hai bé cùng nhận quà.'); if (r) sfx('badge'); await loadAll(); return; }
+    if (k === 'note') { D.noteFor = D.noteFor === who ? null : who; render(); $('note-in')?.focus({ preventScroll: true }); return; }
+    if (k === 'pdyes' || k === 'pdno') { const r = await run(b, () => api.respondPlaydate(+b.dataset.id, k === 'pdyes'), k === 'pdyes' ? 'Hai bé chơi vui ghê! +15 xu, +3 Gắn bó.' : 'Đã để sau.'); if (r && k === 'pdyes') { sfx('cheer'); ctx.spawn?.('heart', 4); await syncCoins(); } await loadAll(); return; }
+    if (k === 'delnote') { await run(b, () => api.deleteGuestNote(+b.dataset.id)); await loadAll(); return; }
     if (k === 'gift') { openGift(who); return; }
     if (k === 'back') { gift = null; openSocial('friends'); return; }
     if (k === 'claim') { const r = await run(b, () => api.claimMail(+b.dataset.id), r => `Đã nhận${r.coins ? ` ${r.coins} xu` : ''}${r.items?.length ? ' ' + itemsText(r.items) : ''}.`); if (r) { sfx('coin'); ctx.buzz?.(10); await syncCoins(); } await loadAll(); return; }
@@ -236,6 +254,13 @@ export function initSocial({ ctx, S, store, esc, head, open, closeAll, thumb, fi
       catch (err) { ctx.toast(viError(err)); inp.disabled = false; }
       return;
     }
+    const nf = e.target.closest('[data-soc-form="note"]');
+    if (nf) {
+      e.preventDefault(); const inp = $('note-in'), text = inp.value.trim(); if (!text) return; inp.disabled = true;
+      try { const r = await api.writeGuestNote(nf.dataset.who, text); if (r.ok) { say('Đã gửi lời nhắn!'); sfx('coin'); D.noteFor = null; render(); } else { say(CHAT_REASON_TEXT[r.reason] || 'Chưa gửi được.'); inp.disabled = false; } }
+      catch (err) { say(viError(err)); inp.disabled = false; }
+      return;
+    }
     const f = e.target.closest('[data-soc-form="add"]'); if (!f) return; e.preventDefault();
     const code = $('soc-code').value.trim(); if (!code) { say('Bạn chưa nhập mã bạn bè.'); return; }
     const r = await run(f.querySelector('button'), () => api.sendFriendRequest(code), r => (r.status === 'accepted' ? 'Hai bạn đã là bạn bè!' : 'Đã gửi lời mời kết bạn.'));
@@ -245,5 +270,5 @@ export function initSocial({ ctx, S, store, esc, head, open, closeAll, thumb, fi
   app.addEventListener('change', e => { if (e.target.id === 'gift-note' && gift) gift.note = e.target.value; });
 
   startPolling();
-  return { open: openSocial, openMail: () => openSocial('mail'), openNews: () => openSocial('news'), badge: total, summary: () => D.sum, tileText: () => (total() ? sub() : 'Bạn bè, hộp thư, quà tặng, tin tức'), refresh: loadSummary };
+  return { open: openSocial, openMail: () => openSocial('mail'), openNews: () => openSocial('news'), badge: () => total() + pendingIn(), summary: () => D.sum, tileText: () => (total() ? sub() : 'Bạn bè, hộp thư, quà tặng, tin tức'), refresh: loadSummary };
 }

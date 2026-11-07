@@ -48,7 +48,7 @@ export function makeShared(c, { placeId, group }) {
     c.sfx('coin');
   }
   const setCount = t => { if (countEl) countEl.textContent = t; };
-  const updateCount = () => { if (room) setCount(`${actors.size + 1}/${room.cap} người ở đây`); };
+  const updateCount = () => { if (room) setCount(`${[...actors.values()].filter(a => !a.peer.ghost).length + 1}/${room.cap} người ở đây`); };
 
   function look() {
     const S = c.state, [x, z] = c.getPetXZ();
@@ -56,7 +56,7 @@ export function makeShared(c, { placeId, group }) {
   }
   function addActor(p) {
     if (actors.has(p.pid)) return;
-    const el = document.createElement('div'); el.className = 'actor'; el.innerHTML = `<span class="actor-emote"></span><b>${esc(p.name)}</b>`; labels.appendChild(el);
+    const el = document.createElement('div'); el.className = 'actor' + (p.ghost ? ' ghost' : ''); el.innerHTML = `<span class="actor-emote"></span><b>${esc(p.name)}</b>${p.ghost ? '<small>ghé chơi</small>' : ''}`; labels.appendChild(el);
     const root = new THREE.Group(); root.position.set(p.x, 0, p.z); root.userData.pid = p.pid; group.add(root);
     const a = { peer: p, root, body: null, parts: null, x: p.x, z: p.z, tx: p.x, tz: p.z, yaw: 0, ph: Math.random() * 6, el, emoteUntil: 0, k: STAGE_SCALE[p.stage] || 1, moving: false };
     actors.set(p.pid, a); queue.push(a); updateCount();
@@ -119,6 +119,12 @@ export function makeShared(c, { placeId, group }) {
   let cardPid = null;
   function openCard(a) {
     const p = a.peer; cardPid = p.pid;
+    if (p.ghost) {
+      card.innerHTML = `<div class="pc-top"><div><b>${esc(p.name)}</b><small>Bé nhà ${esc(p.family || 'bạn')} ghé chơi lúc chủ vắng · Gắn bó ${p.bond_level}</small></div><button type="button" class="hs-close" data-pc="close" aria-label="Đóng">✕</button></div>
+        <div class="pc-act"><button type="button" class="btn-sm" data-pc="playdate">Hẹn chơi</button><button type="button" class="btn-sm ghost" data-pc="note">Để lại lời nhắn</button></div>
+        <form class="chat-box pc-note" data-pc-form hidden autocomplete="off"><input maxlength="100" placeholder="Lời nhắn cho ${esc(p.name)}…" aria-label="Lời nhắn"><button class="btn-sm" type="submit">Gửi</button></form>`;
+      card.hidden = false; return;
+    }
     card.innerHTML = `<div class="pc-top"><div><b>${esc(p.name)}</b><small>${esc(SPECIES_BY_ID[p.species]?.name || p.species)} · Gắn bó ${p.bond_level}${p.family ? ' · ' + esc(p.family) : ''}</small></div><button type="button" class="hs-close" data-pc="close" aria-label="Đóng">✕</button></div>
       <div class="pc-act"><button type="button" class="btn-sm" data-pc="friend">Kết bạn</button><button type="button" class="btn-sm ghost" data-pc="block">Chặn</button><button type="button" class="btn-sm ghost" data-pc="report">Báo cáo</button></div>`;
     card.hidden = false;
@@ -126,6 +132,9 @@ export function makeShared(c, { placeId, group }) {
   async function onCard(e) {
     const b = e.target.closest('[data-pc]'); if (!b) return;
     const k = b.dataset.pc, pid = cardPid; if (k === 'close') { card.hidden = true; return; }
+    const ghost = actors.get(pid)?.peer;
+    if (ghost?.ghost && k === 'note') { const f = card.querySelector('[data-pc-form]'); f.hidden = false; f.querySelector('input').focus({ preventScroll: true }); return; }
+    if (ghost?.ghost && k === 'playdate') { b.disabled = true; try { await api.invitePlaydate(ghost.friendPid); c.toast('Đã rủ bạn đi chơi! Khi bạn ấy đồng ý, cả hai bé cùng nhận quà.'); c.sfx('badge'); } catch (err) { c.toast(viError(err)); } b.disabled = false; return; }
     b.disabled = true;
     try {
       if (k === 'friend') { const r = await api.sendFriendRequest(pid); c.toast(r.status === 'accepted' ? 'Hai bạn đã là bạn bè!' : 'Đã gửi lời mời kết bạn.'); }
@@ -135,6 +144,26 @@ export function makeShared(c, { placeId, group }) {
     b.disabled = false;
   }
 
+  /* ---------- Bé của bạn bè ghé chơi khi chủ vắng (get_visitors): đi dạo quanh đây, chạm để rủ chơi hoặc để lại lời nhắn ---------- */
+  async function loadVisitors(mine) {
+    try {
+      const vs = await api.getVisitors(placeId); if (mine !== token || !active) return;
+      const [px, pz] = c.getPetXZ();
+      vs.forEach((p, i) => {
+        if ([...actors.values()].some(a => a.peer.pid === p.pid)) return; // đang online ở đây thì đã có rồi
+        const ang = i * 2.1 + 0.7, x = px + Math.cos(ang) * 2.6, z = pz + Math.sin(ang) * 1.6;
+        addActor({ ...p, pid: 'v:' + p.pid, friendPid: p.pid, ghost: true, x, z, home: [x, z] });
+      });
+    } catch { /* chưa đăng nhập hoặc mạng chập chờn: bỏ qua */ }
+  }
+  document.addEventListener('submit', async e => {
+    const f = e.target.closest?.('[data-pc-form]'); if (!f) return; e.preventDefault();
+    const a = actors.get(cardPid), inp = f.querySelector('input'), text = inp.value.trim(); if (!a?.peer.ghost || !text) return;
+    inp.disabled = true;
+    try { const r = await api.writeGuestNote(a.peer.friendPid, text); if (r.ok) { c.toast(`Đã để lại lời nhắn cho ${a.peer.name}.`); c.sfx('coin'); card.hidden = true; } else c.toast(CHAT_REASON_TEXT[r.reason] || 'Chưa gửi được.'); }
+    catch (err) { c.toast(viError(err)); }
+    inp.disabled = false;
+  });
   const inst = {
     emote, onCard, sendChat, sendAct: id => { if (room) room.sendAct(id); }, reportLine, pagehide: () => { if (room) room.leave(); },
     async enter() {
@@ -149,6 +178,7 @@ export function makeShared(c, { placeId, group }) {
         r.on('emote', showEmote); r.on('act', showAct); r.on('chat', onChat);
         r.peers().forEach(addActor); updateCount();
       } catch (e) { setCount('Chưa vào được kênh chung'); c.toast(viError(e)); }
+      loadVisitors(mine);
     },
     leave() {
       active = false; token++; if (cur === inst) cur = null;
@@ -164,6 +194,7 @@ export function makeShared(c, { placeId, group }) {
       camera.updateMatrixWorld(true);
       const cw = c.canvas.clientWidth, ch = c.canvas.clientHeight;
       for (const a of actors.values()) {
+        if (a.peer.ghost && !a.moving && now > (a.nextWalk || 0)) { a.nextWalk = now + 3500 + Math.random() * 4000; const [hx, hz] = a.peer.home; a.tx = hx + (Math.random() - 0.5) * 4; a.tz = hz + (Math.random() - 0.5) * 2.4; }
         const dx = a.tx - a.x, dz = a.tz - a.z, d = Math.hypot(dx, dz);
         a.moving = d > 0.06;
         if (a.moving) { const s = Math.min(d, SPEED * dt); a.x += dx / d * s; a.z += dz / d * s; const want = Math.atan2(dx, dz); let dy = want - a.yaw; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); a.yaw += dy * Math.min(1, dt * 8); }

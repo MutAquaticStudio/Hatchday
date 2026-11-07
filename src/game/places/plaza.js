@@ -76,7 +76,7 @@ export function initPlaza(c) {
     add(f, new THREE.CylinderGeometry(0.95, 0.95, 0.06, 28), toon('#ffffff', water), 0, 1.62, 0, null);
     add(f, new THREE.CylinderGeometry(0.16, 0.22, 0.9, 12), toon('#e9eef7'), 0, 2.0, 0, '#8896b0', 0.03);
     add(f, new THREE.SphereGeometry(0.3, 14, 10), toon('#e9eef7'), 0, 2.55, 0, '#8896b0', 0.03);
-    jets = [0, 1, 2, 3, 4, 5, 6, 7].map(i => { const m = add(f, new THREE.SphereGeometry(0.07, 8, 6), toon('#bfe8ff'), 0, 2.2, 0, null); m.userData.i = i; return m; });
+    jets = [0, 1, 2, 3, 4, 5, 6, 7].map(i => { const m = add(f, new THREE.SphereGeometry(0.07, 8, 6), toon('#bfe8ff'), 0, 2.2, 0, null); m.userData.i = i; m.userData.keep = true; return m; });
     kit.hotspot({ id: 'fountain', label: 'Đài phun nước', at: [0, 3.9, -0.6], stand: [0, 2.9], act: () => splashFountain() }, f);
     // ghế đá và đèn quanh đài (hai ghế gần có thể ngồi)
     for (let i = 0; i < 6; i++) {
@@ -131,7 +131,7 @@ export function initPlaza(c) {
     add(tower, new THREE.BoxGeometry(0.02, 0.24, 0.4), toon('#ff9ec4'), 0, 8.55, 0.2, null); // cờ
     const face = canvasTex(128, 128, d => { d.fillStyle = '#fffdf5'; d.beginPath(); d.arc(64, 64, 58, 0, 7); d.fill(); d.strokeStyle = '#7a5a4a'; d.lineWidth = 6; d.stroke(); d.fillStyle = '#7a5a4a'; for (let i = 0; i < 12; i++) { const a = i * Math.PI / 6; d.fillRect(64 + Math.sin(a) * 46 - 3, 64 - Math.cos(a) * 46 - 3, 6, 6); } });
     const faceM = new THREE.Mesh(new THREE.CircleGeometry(0.8, 28), new THREE.MeshBasicMaterial({ map: face })); faceM.position.set(0, 4.7, 1.01); tower.add(faceM);
-    const hand = (len, w, col) => { const p = new THREE.Group(); p.position.set(0, 4.7, 1.04); tower.add(p); const m = new THREE.Mesh(new THREE.BoxGeometry(w, len, 0.03), new THREE.MeshBasicMaterial({ color: col })); m.position.y = len / 2; p.add(m); return p; };
+    const hand = (len, w, col) => { const p = new THREE.Group(); p.userData.keep = true; p.position.set(0, 4.7, 1.04); tower.add(p); const m = new THREE.Mesh(new THREE.BoxGeometry(w, len, 0.03), new THREE.MeshBasicMaterial({ color: col })); m.position.y = len / 2; p.add(m); return p; };
     clockHands = { h: hand(0.45, 0.07, '#5a3a2a'), m: hand(0.68, 0.05, '#5a3a2a') };
     const stage = new THREE.Group(); stage.position.set(0, 0, -7.6); z.add(stage);
     spot = new THREE.Mesh(new THREE.ConeGeometry(1.9, 4.4, 24, 1, true), new THREE.MeshBasicMaterial({ color: '#ffe9a8', transparent: true, opacity: 0.26, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })); spot.position.set(0, 2.4, 0.3); spot.visible = false; stage.add(spot);
@@ -157,7 +157,7 @@ export function initPlaza(c) {
     kit.hotspot({ id: 'rhythm', label: 'Nhảy theo nhịp', at: [3.55, 2.3, -7.4], stand: [4.4, -6.0], act: () => c.open.mini('rhythm') }, spk);
     // chim bồ câu mổ thóc quanh đài, bay đi khi bé lại gần rồi đáp xuống chỗ khác
     for (let i = 0; i < Math.max(3, Math.round(6 * dens)); i++) {
-      const p = new THREE.Group(), hx = Math.cos(i * 1.9) * (3.8 + (i % 3)), hz = 3.2 + Math.sin(i * 2.3) * 1.6; p.position.set(hx, 0, hz); z.add(p);
+      const p = new THREE.Group(), hx = Math.cos(i * 1.9) * (3.8 + (i % 3)), hz = 3.2 + Math.sin(i * 2.3) * 1.6; p.userData.keep = true; p.position.set(hx, 0, hz); z.add(p);
       const body = add(p, new THREE.SphereGeometry(0.15, 10, 8), toon(i % 2 ? '#cfd8e3' : '#e4d6c8'), 0, 0.17, 0, '#667', 0.015), head = add(p, new THREE.SphereGeometry(0.09, 8, 8), toon('#e4eaf2'), 0.12, 0.3, 0, '#667', 0.015);
       add(p, new THREE.ConeGeometry(0.03, 0.07, 4), toon('#ffb347'), 0.2, 0.29, 0, null).rotation.z = -Math.PI / 2;
       const wing = add(p, new THREE.SphereGeometry(0.11, 8, 6), toon('#b9c4d4'), -0.02, 0.2, 0.1, null); wing.scale.set(1.3, 0.35, 0.8);

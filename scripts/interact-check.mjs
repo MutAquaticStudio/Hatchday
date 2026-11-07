@@ -62,7 +62,7 @@ const until = async (p, fn, ms = 10000, arg) => { const t = Date.now(); while (D
   const tab = async k => { await p.evaluate(k => document.querySelector(`#quests [data-quest-tab="${k}"]`).click(), k); await p.waitForTimeout(150); };
   const probe = () => p.evaluate(() => { const e = document.querySelector('#quests'), b = [...document.querySelectorAll('#quests .btn-sm:not(:disabled)')].map(x => x.getBoundingClientRect().height); return { over: e.scrollWidth - e.clientWidth, explore: !!e.querySelector('.explore'), badges: e.querySelectorAll('.badge').length, minBtn: Math.min(...b, 99) }; });
   await tab('explore'); let q = await probe(); ok('sheet Nhiệm vụ > Khám phá: hiện đủ, không tràn ngang', q.explore && q.over <= 0, JSON.stringify(q));
-  await tab('badges'); q = await probe(); ok('sheet Nhiệm vụ > Huy hiệu: 12 huy hiệu, không tràn ngang, nút đủ cao', q.badges === 12 && q.over <= 0 && q.minBtn >= 28, JSON.stringify(q));
+  await tab('badges'); q = await probe(); ok('sheet Nhiệm vụ > Huy hiệu: 17 huy hiệu, không tràn ngang, nút đủ cao', q.badges === 17 && q.over <= 0 && q.minBtn >= 28, JSON.stringify(q));
   // Bóng ở vườn: bé đi tới chạm thì bóng bị đá đi (không đi xuyên); nấu ăn phải vào Bếp và đi tới bếp lò
   await p.goto(URL0); await start();
   await p.evaluate(() => document.querySelector('#a-play').click()); await p.waitForTimeout(2200);
