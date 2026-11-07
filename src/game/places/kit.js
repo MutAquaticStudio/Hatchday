@@ -58,7 +58,7 @@ export function makeKit(c, opts = {}) {
   function tick(now) { const t = now / 1000; npcs.forEach(n => n.tick(t)); if (now - labelAt >= 33) { labelAt = now; updateLabels(); } }
 
   /** Nhân vật NPC tròn xinh. hat: nurse | doctor | chef | tailor | librarian | vendor | none. */
-  function npc({ x, z, color = '#ffd0dc', hat = 'none', ry = 0, s = 1, parent }) {
+  function npc({ x, z, y = 0, color = '#ffd0dc', hat = 'none', ry = 0, s = 1, parent }) { // y: đứng trên bục sau quầy để lộ mặt
     const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = ry; g.scale.setScalar(s); (parent || c.scene).add(g);
     const body = toon(color), dark = toon('#3b2a3a'), pink = toon('#ff9fbe'), white = toon('#ffffff');
     add(g, new THREE.SphereGeometry(0.46, 20, 16), body, 0, 0.46, 0, '#8a6a7a', 0.03);
@@ -68,13 +68,21 @@ export function makeKit(c, opts = {}) {
       add(g, new THREE.SphereGeometry(0.07, 8, 8), pink, sx * 0.27, 0.5, 0.38, null);
       add(g, new THREE.SphereGeometry(0.1, 10, 8), body, sx * 0.22, 0.07, 0.2, '#8a6a7a', 0.03);
     });
+    // tay, miệng cười, má hồng nhạt và tạp dề cho người bán/đầu bếp/thợ may
+    [-1, 1].forEach(sx => { const arm = add(g, new THREE.SphereGeometry(0.11, 10, 8), body, sx * 0.44, 0.42, 0.12, '#8a6a7a', 0.025); arm.scale.set(0.8, 1.15, 0.8); });
+    add(g, new THREE.TorusGeometry(0.05, 0.014, 6, 12, Math.PI), dark, 0, 0.53, 0.44, null).rotation.z = Math.PI;
+    if (hat === 'vendor' || hat === 'chef' || hat === 'tailor') {
+      const apron = add(g, new THREE.SphereGeometry(0.47, 18, 12, Math.PI / 2 - 0.9, 1.8, Math.PI * 0.52, Math.PI * 0.36), toon(hat === 'chef' ? '#ffffff' : hat === 'tailor' ? '#c9a6ff' : '#7edb72'), 0, 0.46, 0.005, null);
+      add(g, new THREE.BoxGeometry(0.16, 0.08, 0.02), toon('#fff7ef'), 0, 0.3, 0.45, null); // túi tạp dề
+    }
     if (hat === 'nurse') { add(g, new THREE.BoxGeometry(0.4, 0.16, 0.22), white, 0, 1.0, 0.08, '#c98', 0.02); add(g, new THREE.BoxGeometry(0.1, 0.03, 0.02), toon('#ff4d6d'), 0, 1.01, 0.2, null); add(g, new THREE.BoxGeometry(0.03, 0.1, 0.02), toon('#ff4d6d'), 0, 1.01, 0.2, null); }
     if (hat === 'doctor') { add(g, new THREE.CylinderGeometry(0.1, 0.1, 0.03, 16), toon('#cfd8e3'), 0, 0.92, 0.38, '#556', 0.02).rotation.x = Math.PI / 2; add(g, new THREE.BoxGeometry(0.62, 0.05, 0.05), toon('#6ab7ff'), 0, 0.68, 0.36, null); }
     if (hat === 'chef') add(g, new THREE.CylinderGeometry(0.2, 0.17, 0.34, 14), white, 0, 1.16, 0, '#bbb', 0.02);
     if (hat === 'tailor') add(g, new THREE.TorusGeometry(0.32, 0.03, 8, 24), toon('#ffd36e'), 0, 0.5, 0, null).rotation.x = Math.PI / 2;
     if (hat === 'librarian') [-1, 1].forEach(sx => add(g, new THREE.TorusGeometry(0.09, 0.016, 8, 16), toon('#6b4a3a'), sx * 0.16, 0.6, 0.43, null));
     if (hat === 'vendor') { add(g, new THREE.CylinderGeometry(0.34, 0.34, 0.04, 20), toon('#f0c36b'), 0, 1.04, 0, '#a77', 0.02); add(g, new THREE.CylinderGeometry(0.17, 0.2, 0.14, 14), toon('#f0c36b'), 0, 1.12, 0, '#a77', 0.02); }
-    const n = { group: g, tick: t => { g.position.y = Math.abs(Math.sin(t * 2 + x)) * 0.03; g.rotation.z = Math.sin(t * 1.4 + z) * 0.025; } };
+    g.traverse(o => { if (o.isMesh) o.userData.noRecv = true; });
+    const n = { group: g, tick: t => { g.position.y = y + Math.abs(Math.sin(t * 2 + x)) * 0.03; g.rotation.z = Math.sin(t * 1.4 + z) * 0.025; } };
     npcs.push(n); return n;
   }
 

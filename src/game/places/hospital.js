@@ -53,7 +53,7 @@ export function initHospital(c) {
   { const pc = add(desk, new THREE.CylinderGeometry(0.07, 0.06, 0.14, 10), toon('#9fdcc8'), 0.15, 1.16, 0.15, '#4a8a78', 0.01); [[-0.02, '#ff6a8a'], [0.03, '#6ab7ff']].forEach(([dx, col]) => add(pc, new THREE.CylinderGeometry(0.012, 0.012, 0.2, 5), toon(col), dx, 0.14, 0, null));
     [0, 0.03].forEach((dy, i) => add(desk, new THREE.BoxGeometry(0.34, 0.025, 0.24), toon(i ? '#fff3c4' : '#ffffff'), -0.9, 1.1 + dy, 0.1, '#bbb', 0.008).rotation.y = i * 0.2);
     const sp = add(desk, new THREE.CylinderGeometry(0.08, 0.06, 0.1, 10), toon('#e8a07a'), 0.95, 1.14, 0.2, '#9a5f4a', 0.01); add(sp, new THREE.SphereGeometry(0.1, 10, 8), toon('#7edb72'), 0, 0.12, 0, '#3f8a55', 0.01); }
-  kit.npc({ x: -1.7, z: -3.05, color: '#ffffff', hat: 'nurse' });
+  kit.npc({ x: -0.25, z: -2.75, color: '#ffffff', hat: 'nurse', ry: -0.2, parent: g });
   kit.hotspot({ id: 'desk', label: 'Quầy tiếp đón', at: [-1.7, 2.0, -2.45], stand: [-1.7, -1.35], act: () => inspect(Math.PI, () => c.open.clinic('status')) }, desk);
 
   // kệ thuốc 8 lọ
@@ -85,14 +85,15 @@ export function initHospital(c) {
     add(iv, new THREE.CylinderGeometry(0.075, 0.075, 0.18, 12), toon('#7ec8ff'), 0.18, 1.94, 0, null); }
   const curtain = add(g, new THREE.BoxGeometry(0.06, 1.9, 1.7), toon('#ffe0ec'), 3.35, 1.5, -0.35, '#c98aa8', 0.02);
   add(g, new THREE.BoxGeometry(0.08, 0.08, 1.9), toon('#cfd8e3'), 3.35, 2.5, -0.35, null);
-  kit.npc({ x: 1.05, z: -0.55, color: '#e0f2ff', hat: 'doctor', ry: Math.PI / 2 });
+  kit.npc({ x: 1.05, z: -0.55, color: '#e0f2ff', hat: 'doctor', ry: Math.PI / 2, parent: g });
   kit.hotspot({ id: 'bed', label: 'Giường khám', at: [2.2, 1.5, -0.35], stand: [2.3, 0.85], act: () => lieOnBed() }, bed);
   void curtain;
 
   // ghế chờ, thảm, cây
   const bn = kit.bench(g, -2.45, 1.5, Math.PI / 2, '#a8e6cf');
   kit.hotspot({ id: 'bench', label: 'Ghế chờ', at: [-2.45, 1.4, 1.5], stand: [-1.4, 1.5], act: () => sitWait() }, bn);
-  add(g, new THREE.CylinderGeometry(1.4, 1.4, 0.05, 36), toon('#d6f3e8'), 0.2, 0.03, 0.8, '#7cc9b0', 0.02);
+  { const mat = canvasTex(128, 80, d => { d.fillStyle = '#d6f3e8'; d.fillRect(0, 0, 128, 80); d.strokeStyle = '#9fdcc8'; d.lineWidth = 6; d.strokeRect(6, 6, 116, 68); d.fillStyle = '#ffffff'; d.fillRect(58, 24, 12, 32); d.fillRect(48, 34, 32, 12); }); // thảm chữ nhật có chữ thập
+    const rm = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 2.1), toon('#ffffff', mat)); rm.rotation.x = -Math.PI / 2; rm.position.set(-1.6, 0.015, 1.2); rm.receiveShadow = true; g.add(rm); }
   kit.plant(g, -3.7, -2.9); kit.plant(g, 3.8, 1.8, 0.85);
 
   return {

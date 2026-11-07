@@ -1099,10 +1099,10 @@ function setupShadows() {
 function applyShadows(root) {
   root.traverse(o => {
     if (o.isInstancedMesh) { o.receiveShadow = true; return; } // vật lặp không đổ bóng (nhẹ)
-    if (!o.isMesh || o.userData.outline || o === face || o === shadow || o.material.blending === THREE.AdditiveBlending || o.material.transparent) return;
+    if (!o.isMesh || o.userData.noShadow || o.userData.outline || o === face || o === shadow || o.material.blending === THREE.AdditiveBlending || o.material.transparent) return;
     o.geometry.computeBoundingSphere();
     o.castShadow = o.geometry.boundingSphere.radius * Math.max(o.scale.x, o.scale.y, o.scale.z) < 2;
-    o.receiveShadow = true;
+    o.receiveShadow = !o.userData.noRecv; // NPC sau quầy không nhận bóng mái che (khỏi xám mặt)
   });
 }
 let blobBase = 1;

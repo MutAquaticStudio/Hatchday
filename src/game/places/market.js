@@ -25,7 +25,7 @@ export function initMarket(c) {
     const aw = add(s, new THREE.BoxGeometry(2.2, 0.08, 1.1), toon('#ffffff', stripe(col, '#ffffff')), 0, 2.15, 0.05, '#7a5a5a', 0.02); aw.rotation.x = 0.22;
     const sg = kit.sign(label, 1.5, 0.4, '#fff7ef', '#5a3a4a', 34); sg.position.set(0, 1.78, 0.5); s.add(sg);
     goods(s);
-    kit.npc({ x: 0, z: -0.65, color: '#ffe7c9', hat, parent: s });
+    kit.npc({ x: 0, z: -0.7, y: 0.42, color: '#ffe7c9', hat, parent: s });
     return s;
   }
   const ball = (s, col, x, y, z, r = 0.12) => add(s, new THREE.SphereGeometry(r, 10, 8), toon(col), x, y, z, '#6a4a3a', 0.02);
@@ -82,7 +82,7 @@ export function initMarket(c) {
     const aw = add(s, new THREE.BoxGeometry(2.2, 0.08, 1.1), toon('#ffffff', stripe(col, '#ffffff')), 0, 2.15, 0.05, '#7a5a5a', 0.02); aw.rotation.x = 0.22;
     for (let i = 0; i < 8; i++) add(s, new THREE.ConeGeometry(0.11, 0.18, 3), toon(i % 2 ? col : '#ffffff'), -0.96 + i * 0.275, 1.98, 0.6, null).rotation.x = Math.PI;
     const sg = kit.sign(label, 1.4, 0.38, '#fff7ef', '#5a3a4a', 32); sg.position.set(0, 0.5, 0.42); s.add(sg);
-    goods(s); kit.npc({ x: 0, z: -0.65, color: hat === 'chef' ? '#fff0d9' : '#ffe7c9', hat: hat || 'vendor', parent: s });
+    goods(s); kit.npc({ x: 0, z: -0.7, y: 0.42, color: hat === 'chef' ? '#fff0d9' : '#ffe7c9', hat: hat || 'vendor', parent: s });
     return s;
   }
   const basket = (z, x, zz, col) => { add(z, new THREE.CylinderGeometry(0.34, 0.26, 0.3, 12), toon('#d9a86a'), x, 0.15, zz, '#7a5a3a', 0.012); for (let i = 0; i < 5; i++) add(z, new THREE.SphereGeometry(0.11, 8, 6), toon(col), x + Math.cos(i * 1.3) * 0.15, 0.34, zz + Math.sin(i * 1.3) * 0.13, null); };
