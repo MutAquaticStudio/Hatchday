@@ -282,6 +282,42 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline
 .badge .btn-sm,.badge .pill-ok{margin-top:2px}
 .badge.ready{background:#fff8e0;border-color:#e8b34a}.badge.got{background:#f2fbf5}
 
+/* Chơi miễn phí: Việc làm & kỹ năng, Thi biểu diễn, Lễ hội, Album, Sổ mùa, Sticker */
+.job-chip{position:absolute;top:calc(env(safe-area-inset-top,0px) + 104px);right:max(16px,env(safe-area-inset-right,0px));z-index:8;max-width:calc(100% - 140px);min-height:36px;padding:6px 12px;border-radius:999px;border:2px solid #6ab7ff;background:#eef7ff;color:#24527a;font:inherit;font-weight:800;font-size:12.5px;box-shadow:0 3px 0 #6ab7ff;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.job-chip[hidden]{display:none}.job-chip.done{border-color:#3f9a63;background:#e8f8ec;color:#2a6a43;box-shadow:0 3px 0 #3f9a63}
+#app.photo .job-chip,#app:has(#stats:not([hidden])) .job-chip{display:none}
+.skills{list-style:none;margin:0 0 6px;padding:0;display:flex;flex-direction:column;gap:8px}
+.skills li{display:flex;align-items:center;gap:10px;background:#fff;border:2px solid var(--candy-edge);border-radius:14px;padding:8px 12px}
+.skills li>div{flex:1;min-width:0}.skills b{font-size:13px}.skills small{font-size:11px;font-weight:700;color:var(--ink-soft)}
+.sk-ico{font-size:24px;line-height:1}
+.jobs{list-style:none;margin:0 0 12px;padding:0;display:flex;flex-direction:column;gap:10px}
+.jobs li{display:flex;align-items:center;justify-content:space-between;gap:10px;background:#fff;border:2px solid var(--candy-edge);border-radius:16px;padding:10px 12px;flex-wrap:wrap}
+.jobs li>div{flex:1;min-width:180px}.jobs li b{display:block;font-size:14px}.jobs li span{font-size:12px;font-weight:700;color:var(--ink-soft)}
+.hours{display:flex;gap:6px;margin-top:6px}
+.job-now,.contest-me,.contest-last,.fest-card{display:flex;flex-direction:column;gap:6px;background:#fff;border:2px solid var(--candy-edge);border-radius:16px;padding:12px 14px;margin-bottom:12px}
+.job-now b,.contest-me b,.contest-last b,.fest-card b{font-size:15px}.job-now span,.contest-me span{font-size:12.5px;font-weight:700;color:var(--ink-soft)}
+.contest-last{background:#fff8e0;border-color:#e8b34a;flex-direction:row;align-items:center;justify-content:space-between}
+.row-btns{display:flex;gap:8px;flex-wrap:wrap}
+.hs-note.warn{color:#8a5a12;background:#fff7e6;border-radius:12px;padding:8px 10px}
+.leader{list-style:none;margin:0 0 10px;padding:0;display:flex;flex-direction:column;gap:6px}
+.leader li{display:flex;align-items:center;gap:10px;background:#fff;border:2px solid var(--candy-edge);border-radius:12px;padding:6px 12px;font-size:13px}
+.leader li b{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.leader li.mine{background:#fff0f6;border-color:#ff9ec4}
+.leader .rk{width:28px;text-align:center;font-weight:800}
+.fest-card{align-items:center;text-align:center}.fest-card p{margin:0;font-weight:700}.fest-ico{font-size:48px;line-height:1}
+.fest-list{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.fest-list li{display:flex;flex-direction:column;gap:2px;background:#fff;border:2px solid var(--candy-edge);border-radius:12px;padding:8px 10px;font-size:13px}
+.fest-list li span{font-size:22px}.fest-list small{font-size:11px;font-weight:700;color:var(--ink-soft)}
+.album{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.album figure{margin:0;background:#fff;border:2px solid var(--candy-edge);border-radius:14px;padding:6px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.album img{width:100%;border-radius:10px;display:block}.album figcaption{font-size:11px;font-weight:700;color:var(--ink-soft)}
+.album a.btn-sm{text-decoration:none;display:inline-flex;align-items:center}
+.season-bar{margin:6px 0 10px}.quests.season li b{display:block}.quests.season li.ready{background:#fff8e0;border-color:#e8b34a}.quests.season li.got{background:#f2fbf5}
+.stickers{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.sticker{display:flex;flex-direction:column;align-items:flex-start;gap:4px;background:#fff;border:2px solid var(--candy-edge);border-radius:16px;padding:10px 12px;min-width:0}
+.sticker .st-ico{font-size:30px;line-height:1;filter:grayscale(1);opacity:.45}.sticker.ready .st-ico,.sticker.got .st-ico{filter:none;opacity:1}
+.sticker b{font-size:13px}.sticker .b-desc{font-size:11px;font-weight:700;color:var(--ink-soft);line-height:1.3}.sticker .b-num{font-size:11px;font-weight:800;color:var(--ink-soft)}
+.sticker.ready{background:#fff8e0;border-color:#e8b34a}.sticker.got{background:#f2fbf5}
+
 .ration,.nutri{background:#fff;border:2px solid var(--candy-edge);border-radius:16px;padding:10px 14px;margin-bottom:10px}
 .ration{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .ration>div,.nutri{font-size:13px}.ration b,.nutri b{display:block;font-size:14px}

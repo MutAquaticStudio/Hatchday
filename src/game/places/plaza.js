@@ -210,7 +210,7 @@ export function initPlaza(c) {
 
   let decor = { theme: null, group: null };
   function applyDecor() {
-    const th = (c.events && c.events.decor()) || null;
+    const th = (c.events && c.events.decor()) || (c.festivalTheme && c.festivalTheme()) || null;
     if (th === decor.theme) return;
     if (decor.group) { g.remove(decor.group); decor.group = null; }
     decor.theme = th; if (th) { decor.group = festival(c, th); g.add(decor.group); }

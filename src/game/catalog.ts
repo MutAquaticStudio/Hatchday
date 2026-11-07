@@ -6,10 +6,8 @@ export type Kind = 'food' | 'decor' | 'outfit';
 /** 'farm': đồ trang trí nông trại, đặt ngoài vườn (không dùng trong phòng). */
 export type Layer = 'floor' | 'rug' | 'wall' | 'wallpaper' | 'flooring' | 'farm';
 export type Slot = 'head' | 'face' | 'neck' | 'back';
-/** Bật quầy trả phí trong cửa hàng (tạm ẩn cho tới khi có cổng thanh toán). */
-export const PAID_SHOP_ENABLED = false;
-
-export type Source = 'starter' | 'market' | 'rotating' | 'weekend' | 'event' | 'paid';
+/** Game chơi miễn phí: mọi món chỉ mua bằng xu kiếm được trong game, không có quầy trả phí. */
+export type Source = 'starter' | 'market' | 'rotating' | 'weekend' | 'event';
 export type Rarity = 'thuong' | 'dep' | 'hiem' | 'ky-niem';
 export type Theme = 'go-moc' | 'pastel' | 'tuoi-tho-9x' | 'rung' | 'bien' | 'pho-cu' | 'le-hoi';
 export type Tag = 'mem' | 'sach' | 'cay' | 'choi' | 'sang' | 'retro';

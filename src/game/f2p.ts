@@ -56,11 +56,11 @@ export const contestReward = (rank: number) => (rank === 1 ? 100 : rank <= 3 ? 6
 export interface Festival { id: string; name: string; icon: string; theme: string; line: string }
 export const FESTIVALS: readonly Festival[] = [
   { id: 'tet', name: 'Tết Nguyên Đán', icon: '🧧', theme: 'tet', line: 'Chúc mừng năm mới! Bé nhận lì xì nè!' },
-  { id: 'trungthu', name: 'Tết Trung thu', icon: '🏮', theme: 'trungthu', line: 'Trung thu rồi! Cùng rước đèn ở Chợ nha!' },
-  { id: 'thieunhi', name: 'Quốc tế Thiếu nhi', icon: '🎈', theme: 'thieunhi', line: 'Hôm nay là ngày của các bé!' },
+  { id: 'trungthu', name: 'Tết Trung thu', icon: '🏮', theme: 'trung-thu', line: 'Trung thu rồi! Cùng rước đèn ở Chợ nha!' },
+  { id: 'thieunhi', name: 'Quốc tế Thiếu nhi', icon: '🎈', theme: 'he', line: 'Hôm nay là ngày của các bé!' },
   { id: 'halloween', name: 'Halloween', icon: '🎃', theme: 'halloween', line: 'Hù! Bé hoá trang thành gì nhỉ?' },
-  { id: 'noel', name: 'Giáng sinh', icon: '🎄', theme: 'noel', line: 'Giáng sinh an lành! Có quà dưới cây thông nè.' },
-  { id: 'nammoi', name: 'Năm mới', icon: '🎆', theme: 'nammoi', line: 'Đếm ngược nào! Chúc mừng năm mới!' },
+  { id: 'noel', name: 'Giáng sinh', icon: '🎄', theme: 'giang-sinh', line: 'Giáng sinh an lành! Có quà dưới cây thông nè.' },
+  { id: 'nammoi', name: 'Năm mới', icon: '🎆', theme: 'tet', line: 'Đếm ngược nào! Chúc mừng năm mới!' },
 ];
 export const FESTIVAL_BY_ID: Record<string, Festival> = Object.fromEntries(FESTIVALS.map(f => [f.id, f]));
 /** Các đợt lễ 2026–2030 (Tết và Trung thu theo âm lịch, đã đổi sang dương lịch). Khớp bảng festival_days. */

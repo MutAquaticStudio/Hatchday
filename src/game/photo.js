@@ -55,9 +55,10 @@ export function initPhoto({ ctx, app, $ }) {
       blob = await new Promise(r => cv.toBlob(r, 'image/png'));
       if (!blob) throw new Error('capture');
       url = URL.createObjectURL(blob); ctx.sfx('badge');
+      const inAlbum = ctx.toAlbum ? await ctx.toAlbum(blob, ctx.placeName()) : false;
       const canShare = typeof navigator.canShare === 'function' && navigator.canShare({ files: [new File([blob], 'x.png', { type: 'image/png' })] });
       view.hidden = false;
-      view.innerHTML = `<div class="mini-card photo-card"><header class="mini-head"><div><h2>Ảnh của ${esc(ctx.state.name)}</h2><span>Đẹp quá! Lưu lại nhé</span></div></header>
+      view.innerHTML = `<div class="mini-card photo-card"><header class="mini-head"><div><h2>Ảnh của ${esc(ctx.state.name)}</h2><span>${inAlbum ? 'Đã thêm vào Album ảnh · ' : ''}Đẹp quá! Lưu lại nhé</span></div></header>
         <img class="photo-img" src="${url}" alt="Ảnh vừa chụp">
         <div class="mini-actions"><button type="button" class="btn-sm" data-photo-save>Lưu ảnh</button>${canShare ? '<button type="button" class="btn-sm" data-photo-share>Chia sẻ</button>' : ''}<button type="button" class="btn-sm ghost" data-photo-retake>Chụp lại</button><button type="button" class="btn-sm ghost" data-photo-done>Xong</button></div></div>`;
     } catch (e) { ctx.toast('Chưa chụp được, thử lại nhé.'); console.warn(e); }

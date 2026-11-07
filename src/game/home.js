@@ -1,5 +1,5 @@
 // Nhà của bé: bố cục phòng, chế độ trang trí, cửa hàng, tủ đồ, nhiệm vụ ngày (theo GDD).
-import { SELL, sellPrice, BY_ID, DEFAULT_LAYOUT, FOOD_BY_ID, FOOD_GROUPS, FOOD_STOCK, FOODS, FRIDGE, GRID, ITEMS, PAID_SHOP_ENABLED, PET_ZONE, RARITY, RECIPES, SET_LINES, SLOTS, TAGS, THEMES, WINDOW_CELLS } from './catalog';
+import { SELL, sellPrice, BY_ID, DEFAULT_LAYOUT, FOOD_BY_ID, FOOD_GROUPS, FOOD_STOCK, FOODS, FRIDGE, GRID, ITEMS, PET_ZONE, RARITY, RECIPES, SET_LINES, SLOTS, TAGS, THEMES, WINDOW_CELLS } from './catalog';
 import { BALANCED_BONUS, BALANCED_GROUPS, tastesLine } from './nutrition';
 import { FOOD_SVG } from './food.js';
 import { BADGE_ICONS } from './badge-icons';
@@ -16,6 +16,8 @@ import { priceOf, salePct } from './pricing';
 import { setIsolation } from './store';
 import { initAds } from './ads-ui.js';
 import { initToys } from './toys-ui.js';
+import { initF2P } from './f2p-ui.js';
+import { refreshProgress } from './store';
 import { SPACES } from './places/registry';
 import { bondLevel } from './bond';
 import { ILLNESS_BY_ID, MEDICINE_BY_ID } from './health';
@@ -116,15 +118,16 @@ export function initHome(ctx) {
     if (!el) { el = document.createElement('section'); el.id = id; el.className = 'sheet hsheet ' + cls; el.hidden = true; el.setAttribute('aria-label', id); app.appendChild(el); }
     return el;
   }
-  const sheets = ['house', 'shop', 'wardrobe', 'quests', 'dex', 'family', 'cooking', 'clinic', 'map', 'sell', 'social', 'visit', 'gift', 'spaces', 'ads', 'toys'];
+  const sheets = ['house', 'shop', 'wardrobe', 'quests', 'dex', 'family', 'cooking', 'clinic', 'map', 'sell', 'social', 'visit', 'gift', 'spaces', 'ads', 'toys', 'jobs', 'contest', 'festival', 'album'];
   function closeAll(except) { sheets.forEach(s => { if (s !== except && $(s)) $(s).hidden = true; }); ctx.setZoom(0); $('a-house').setAttribute('aria-pressed', 'false'); }
   function open(id) { ctx.closeGameSheets(); closeAll(id); const el = sheet(id); el.hidden = false; $('a-house').setAttribute('aria-pressed', String(id !== 'none')); el.querySelector('button, input')?.focus({ preventScroll: true }); return el; }
   const head = (title, sub = '') => `<header class="hs-head"><div><h2>${title}</h2>${sub ? `<p>${sub}</p>` : ''}</div><button type="button" class="hs-close" data-close aria-label="Đóng">✕</button></header>`;
   app.addEventListener('click', e => { if (e.target.closest('[data-close]')) { closeAll(); $('a-house').focus(); } });
+  const f2p = initF2P({ ctx, app, $, open, head, COIN_SVG, onChange: () => { if ($('quests') && !$('quests').hidden) renderQuests(); } });
 
   /* ---------- Menu Nhà ---------- */
   const worldReady = () => !!S.world && (S.world.explore.some(t => t.ready && !t.claimed) || S.world.badges.some(b => !b.claimed && b.progress >= b.target));
-  const questReady = () => S.quests.some(q => !q.claimed && q.progress >= q.target) || (S.questBonus.ready && !S.questBonus.claimed) || S.weekly.some(q => !q.claimed && q.progress >= q.target) || worldReady();
+  const questReady = () => S.quests.some(q => !q.claimed && q.progress >= q.target) || (S.questBonus.ready && !S.questBonus.claimed) || S.weekly.some(q => !q.claimed && q.progress >= q.target) || worldReady() || f2p.seasonReady() || f2p.stickerReady();
   function openHouse() {
     const el = open('house');
     el.innerHTML = head('Nhà của bé', `Thoải mái cấp ${S.comfort} · ${S.coins.toLocaleString('vi-VN')} xu`) + `<div class="tiles">
@@ -135,6 +138,10 @@ export function initHome(ctx) {
       <button type="button" class="tile" data-go="shop"><b>Cửa hàng</b><span>Thức ăn, đồ trang trí, trang phục</span></button>
       <button type="button" class="tile" data-go="wardrobe"><b>Tủ đồ</b><span>Trang phục cho bé</span></button>
       <button type="button" class="tile${questReady() ? ' ready' : ''}" data-go="quests"><b>Nhiệm vụ</b><span>${S.quests.filter(q => q.claimed).length}/${S.quests.length} hôm nay · ${S.weekly.filter(q => q.claimed).length}/${S.weekly.length} tuần này</span></button>
+      ${S.festival?.festival ? `<button type="button" class="tile${f2p.festivalReady() ? ' ready' : ''}" data-go="festival"><b>Lễ hội</b><span>Đang có lễ hội! Nhận quà lễ</span></button>` : ''}
+      <button type="button" class="tile${f2p.jobReady() ? ' ready' : ''}" data-go="jobs"><b>Việc làm & kỹ năng</b><span>${esc(f2p.jobTileText())}</span></button>
+      <button type="button" class="tile${f2p.contestReady() ? ' ready' : ''}" data-go="contest"><b>Thi biểu diễn</b><span>${S.contest?.entered ? `Tuần này: hạng ${S.contest.rank}` : 'Mỗi tuần một lần, theo kỹ năng'}</span></button>
+      <button type="button" class="tile" data-go="album"><b>Album ảnh</b><span>Ảnh chụp cùng bé</span></button>
       <button type="button" class="tile${S.garden?.plots.some(p => p.ready) ? ' ready' : ''}" data-go="garden"><b>Vườn rau</b><span>${S.garden ? `Ra vườn · ${S.garden.plots.length}/${S.garden.parcels.reduce((n, p) => n + p.size, 0)} ô đang trồng` : 'Ra vườn trồng rau'}</span></button>
       <button type="button" class="tile${S.illness ? ' ready' : ''}" data-go="clinic"><b>Sức khoẻ</b><span>${S.illness ? `Đang ${esc(ILLNESS_BY_ID[S.illness].name.toLowerCase())}` : 'Thuốc, phòng khám, sổ bệnh'}</span></button>
       <button type="button" class="tile" data-go="cooking"><b>Nấu ăn</b><span>${RECIPES.length} công thức</span></button>
@@ -150,7 +157,7 @@ export function initHome(ctx) {
   $('a-house').addEventListener('click', () => { ctx.hideHint(); const hs = $('house'); if (hs && !hs.hidden) { closeAll(); return; } openHouse(); });
   app.addEventListener('click', e => {
     const b = e.target.closest('.tile'); if (!b) return;
-    ({ decor: () => enterEdit(), shop: () => openShop('market'), wardrobe: openWardrobe, quests: openQuests, dex: () => openDex(), family: openFamily, garden: () => { closeAll(); ctx.goTo('garden'); }, cooking: openCooking, clinic: () => openClinic(), map: () => worldMap.open(), social: () => social.open(), spaces: () => openSpaces() })[b.dataset.go]();
+    ({ decor: () => enterEdit(), shop: () => openShop('market'), wardrobe: openWardrobe, quests: openQuests, dex: () => openDex(), family: openFamily, garden: () => { closeAll(); ctx.goTo('garden'); }, cooking: openCooking, clinic: () => openClinic(), map: () => worldMap.open(), social: () => social.open(), spaces: () => openSpaces(), jobs: f2p.openJobs, contest: f2p.openContest, album: f2p.openAlbum, festival: f2p.openFestival })[b.dataset.go]();
   });
 
   /* ---------- Ảnh thu nhỏ 3D ---------- */
@@ -371,13 +378,11 @@ export function initHome(ctx) {
       }).join('')}</div>`;
   }
   function renderShop(el = $('shop')) {
-    const tabs = { food: 'Thức ăn', market: 'Chợ', rotating: 'Tiệm hôm nay', weekend: 'Chợ cuối tuần', ...(PAID_SHOP_ENABLED ? { paid: 'Trả phí' } : {}), book: 'Sổ sưu tập' };
+    const tabs = { food: 'Thức ăn', market: 'Chợ', rotating: 'Tiệm hôm nay', weekend: 'Chợ cuối tuần', book: 'Sổ sưu tập' };
     if (!tabs[shopTab]) shopTab = 'market';
     let body = '';
     if (shopTab === 'food') {
       body = foodBody();
-    } else if (shopTab === 'paid') {
-      body = '<p class="hs-note">Gian hàng trả phí sẽ mở khi game đã ổn định. Mọi món ở đây chỉ để trang trí, không tăng chỉ số, giá ghi rõ bằng tiền thật và luôn có bước xác nhận.</p>';
     } else if (shopTab === 'book') {
       body = '<div class="book">' + Object.entries(THEMES).filter(([t]) => t !== 'le-hoi').map(([t, name]) => {
         const all = ITEMS.filter(i => i.theme === t), have = all.filter(i => S.owned[i.id]).length, done = have === all.length, claimed = S.collections.includes(t);
@@ -474,7 +479,7 @@ export function initHome(ctx) {
   });
 
   /* ---------- Nhiệm vụ ---------- */
-  function openQuests() { open('quests'); renderQuests(); store.refreshQuests().then(() => { if (!$('quests').hidden) renderQuests(); }); store.refreshWorld().then(() => { if (!$('quests').hidden) renderQuests(); }).catch(() => {}); }
+  function openQuests() { open('quests'); renderQuests(); refreshProgress().then(() => { if (!$('quests').hidden) renderQuests(); }).catch(() => {}); store.refreshQuests().then(() => { if (!$('quests').hidden) renderQuests(); }); store.refreshWorld().then(() => { if (!$('quests').hidden) renderQuests(); }).catch(() => {}); }
   const questRow = (q, def, attr) => {
     const done = q.progress >= q.target;
     return `<li><div><b>${def.label}</b><div class="bar-track"><i style="width:${Math.min(100, q.progress / q.target * 100)}%"></i></div><span>${Math.min(q.progress, q.target)}/${q.target}</span></div>
@@ -487,10 +492,10 @@ export function initHome(ctx) {
     const b = S.questBonus, n = S.quests.filter(q => q.claimed).length, left = weekDaysLeft();
     const boost = ctx.events ? ctx.events.boost() : 1;
     const dotDaily = S.quests.some(q => !q.claimed && q.progress >= q.target) || (b.ready && !b.claimed) || S.weekly.some(q => !q.claimed && q.progress >= q.target);
-    const tabs = [['daily', 'Nhiệm vụ', dotDaily], ['explore', 'Khám phá', exploreReady()], ['badges', 'Huy hiệu', badgeReady()]];
+    const tabs = [['daily', 'Nhiệm vụ', dotDaily], ['explore', 'Khám phá', exploreReady()], ['badges', 'Huy hiệu', badgeReady()], ['season', 'Sổ mùa', f2p.seasonReady()], ['stickers', 'Sticker', f2p.stickerReady()]];
     const nav = `<nav class="tabs-row" role="tablist">${tabs.map(([k, l, dot]) => `<button type="button" role="tab" class="tab${dot ? ' dot' : ''}" data-quest-tab="${k}" aria-selected="${k === questTab}">${l}</button>`).join('')}</nav>`;
-    const sub = questTab === 'explore' ? 'chơi nhiều hoạt động khác nhau để nhận xu' : questTab === 'badges' ? 'sưu tầm huy hiệu bằng cách chơi cùng bé' : 'chăm sóc hằng ngày cho thêm tối đa 50 xu';
-    if (questTab !== 'daily') { el.innerHTML = head('Nhiệm vụ', `${COIN_SVG}<b class="coin-inline">${S.coins.toLocaleString('vi-VN')}</b> xu · ${sub}`) + nav + `<div class="hs-body">${questTab === 'explore' ? exploreHtml() : badgesHtml()}</div>`; return; }
+    const sub = questTab === 'explore' ? 'chơi nhiều hoạt động khác nhau để nhận xu' : questTab === 'badges' ? 'sưu tầm huy hiệu bằng cách chơi cùng bé' : questTab === 'season' ? 'miễn phí, đổi mới mỗi tháng' : questTab === 'stickers' ? 'sưu tầm sticker từ mọi hoạt động' : 'chăm sóc hằng ngày cho thêm tối đa 50 xu';
+    if (questTab !== 'daily') { el.innerHTML = head('Nhiệm vụ', `${COIN_SVG}<b class="coin-inline">${S.coins.toLocaleString('vi-VN')}</b> xu · ${sub}`) + nav + `<div class="hs-body">${questTab === 'explore' ? exploreHtml() : questTab === 'season' ? f2p.seasonHtml() : questTab === 'stickers' ? f2p.stickersHtml() : badgesHtml()}</div>`; return; }
     el.innerHTML = head('Nhiệm vụ', `${COIN_SVG}<b class="coin-inline">${S.coins.toLocaleString('vi-VN')}</b> xu · ${sub}`) + nav + `<div class="hs-body">${boost > 1 ? `<p class="hs-note">🎉 Sự kiện: thưởng nhiệm vụ nhân ${String(boost).replace('.', ',')} lần!</p>` : ''}
       <h3 class="qh">Hôm nay <small>${n}/${S.quests.length} đã nhận</small></h3>
       <ul class="quests">${S.quests.map(q => questRow(q, QUEST_POOL[q.quest], 'data-quest')).join('')}</ul>
@@ -825,5 +830,5 @@ export function initHome(ctx) {
     return { checked: n, bad };
   };
 
-  return { update, pickVisit, thumb, isEditing: () => editing, openShop, openCooking, openClinic, openSell, openMap: () => worldMap.open(), openSocial: social.open, openAds: ads.open, openToys: toys.open, closeAll, openMail: social.openMail, openNews: social.openNews, openWardrobe, openFamily, enterEdit, closeAll, openDex, refreshOutfit: () => renderOutfit(S.outfit) };
+  return { f2p, update, pickVisit, thumb, isEditing: () => editing, openShop, openCooking, openClinic, openSell, openMap: () => worldMap.open(), openSocial: social.open, openAds: ads.open, openToys: toys.open, closeAll, openMail: social.openMail, openNews: social.openNews, openWardrobe, openFamily, enterEdit, closeAll, openDex, refreshOutfit: () => renderOutfit(S.outfit) };
 }

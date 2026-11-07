@@ -1,5 +1,8 @@
 // Lớp hiển thị & tương tác 3D (chuyển từ bản mẫu). Sẽ tách nhỏ và chuyển sang TypeScript dần.
 import * as THREE from 'three';
+import { jobActive } from './store';
+import { addPhoto } from './album';
+import { FESTIVAL_BY_ID } from './f2p';
 import { S, save, act, playToy as playToyStore, actBatched, addTalkMemory, renamePet, onSync, onSyncError, onTraitShift, recordActivity, onWorldReady, refreshWorld, claimExplore, claimBadge, startPeriodicSync,
   buy, saveLayout, equip, savePreset, claimQuest, claimQuestBonus, claimWeeklyQuest, claimCollection, buyFood, claimRation, nutritionNow, refreshFamily, familyMemories, refreshGarden, plantCrop, waterCrop, harvestCrop, upgradeParcel, buyParcel, saveFarm, cook, upgradeFridge, serverNow, onSpoil, refreshQuests, activeLayout, previewComfort, onIllness, healthNow, buyMedicine, useMedicine, visitClinic, refreshHealth, onBondLevel, claimBond, sellFood, refreshSell, refreshEconomy, refreshOwned } from './store';
 import { BOND, bondLevel, bondProgress, unclaimedLevels } from './bond';
@@ -317,6 +320,7 @@ let going = false;
 function goTo(name, instant, opts) {
   if (going) return;
   if (name === area) { onEnter(name); return; }
+  if (name !== 'home' && awayBlock()) return;
   if (PLACE_BY_ID[name]) {
     const blk = enterBlock(name, { bondLevel: bondLevel(S.bondXp), asleep: S.asleep });
     if (blk) { toast(BLOCK_TEXT[blk](MAP_NODES.find(n => n.id === name))); return; }
@@ -376,7 +380,7 @@ const placeOpen = {
 function loadPlace(name) {
   if (placeInst[name]) return Promise.resolve(placeInst[name]);
   return placeLoading[name] || (placeLoading[name] = PLACE_LOADERS[name]().then(init => {
-    const inst = init({ THREE, add, toon, canvasTex, shell, windowOn, scene, camera, canvas, ray, ndcFrom, walkPetTo, say, startAction, toast, sfx, spawn, hideHint, playToy: toyPlay, script: runScript, spawnAt, reduce, sfxPlay: sfx, activity: kind => { recordActivity(kind); }, applyShadows, quality: () => quality, isNight: () => period === 'dem', getArea: () => area, state: S, open: placeOpen, goTo, setTemp, play: spinPlay, grad, events, petBuilder, bondLevel: () => bondLevel(S.bondXp), getPetXZ: () => [petBase.x + petOff.x, petBase.z + petOff.z] });
+    const inst = init({ THREE, add, toon, canvasTex, shell, windowOn, scene, camera, canvas, ray, ndcFrom, walkPetTo, say, startAction, toast, sfx, spawn, hideHint, playToy: toyPlay, script: runScript, spawnAt, reduce, sfxPlay: sfx, activity: kind => { recordActivity(kind); }, festivalTheme: () => FESTIVAL_BY_ID[S.festival?.festival?.id]?.theme || null, applyShadows, quality: () => quality, isNight: () => period === 'dem', getArea: () => area, state: S, open: placeOpen, goTo, setTemp, play: spinPlay, grad, events, petBuilder, bondLevel: () => bondLevel(S.bondXp), getPetXZ: () => [petBase.x + petOff.x, petBase.z + petOff.z] });
     inst.group.visible = false; areas[name] = inst.group; applyShadows(inst.group); placeInst[name] = inst; return inst;
   }));
 }
@@ -425,6 +429,13 @@ function rinse() {
   setTimeout(() => { if (area === 'bath') goTo('home'); }, 2600);
 }
 /** Bé đang ốm nên chưa làm được việc này? Nếu vậy nói một câu và trả về true. */
+/** Bé đang đi làm thêm: vắng nhà nên chưa chăm, chưa đi đâu được; mở bảng Việc làm để xem giờ về. */
+function awayBlock() {
+  if (!jobActive()) return false;
+  const left = Date.parse(S.job.ends_at) - Date.now();
+  toast(left > 0 ? `${S.name} đang đi làm thêm, về rồi mới chơi được nha.` : `${S.name} làm xong rồi! Mở Việc làm để nhận lương nhé.`);
+  home?.f2p?.openJobs(); return true;
+}
 function sickBlocks(what) {
   if (!blockedNow(S).includes(what)) return false;
   const il = ILLNESS_BY_ID[S.illness];
@@ -727,7 +738,7 @@ function impulse(v) { sqv += v; }
 /* ---------------- tương tác con trỏ ---------------- */
 const ray = new THREE.Raycaster();
 function ndcFrom(e) { const r = canvas.getBoundingClientRect(); return new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1); }
-function hitPet(e) { ray.setFromCamera(ndcFrom(e), camera); return ray.intersectObject(pivot, true).length > 0; }
+function hitPet(e) { if (jobActive()) return false; ray.setFromCamera(ndcFrom(e), camera); return ray.intersectObject(pivot, true).length > 0; }
 let down = null;
 const hint = $('hint');
 const seenHotHint = () => { try { return !!localStorage.getItem('hatchday-hot-hint'); } catch { return true; } };
@@ -784,11 +795,11 @@ function toggleSheet(which) {
   const map = { talk: ['chat', 'a-talk'] };
   Object.entries(map).forEach(([k, [el, btn]]) => { const on = k === which && $(el).hidden; $(el).hidden = !on; $(btn).setAttribute('aria-pressed', String(on)); if (on && k === 'talk') $('chat-input').focus(); });
 }
-$('a-eat').onclick = () => { hideHint(); toggleSheet(null); if (S.asleep) { say('Suỵt… mình đang ngủ mà.', 2200); return; } goTo('kitchen'); };
+$('a-eat').onclick = () => { hideHint(); toggleSheet(null); if (awayBlock()) return; if (S.asleep) { say('Suỵt… mình đang ngủ mà.', 2200); return; } goTo('kitchen'); };
 $('a-talk').onclick = () => toggleSheet('talk');
-$('a-bath').onclick = () => { hideHint(); toggleSheet(null); if (S.asleep) { say('Để sáng mai tắm nha…', 2200); return; } if (sickBlocks('bath')) return; goTo('bath'); };
-$('a-play').onclick = () => { hideHint(); toggleSheet(null); if (S.asleep) { say('Zzz… mai chơi tiếp nha…', 2200); return; } if (S.illness && blockedNow(S).includes('play')) { toast(`${S.name} đang ốm nên chưa chơi đồ chơi được. Ra vườn vẫn đi dạo, trồng rau được nhé.`); } goTo('garden'); };
-$('a-sleep').onclick = () => { hideHint(); toggleSheet(null); S.asleep ? wake() : goSleep(); };
+$('a-bath').onclick = () => { hideHint(); toggleSheet(null); if (awayBlock()) return; if (S.asleep) { say('Để sáng mai tắm nha…', 2200); return; } if (sickBlocks('bath')) return; goTo('bath'); };
+$('a-play').onclick = () => { hideHint(); toggleSheet(null); if (awayBlock()) return; if (S.asleep) { say('Zzz… mai chơi tiếp nha…', 2200); return; } if (S.illness && blockedNow(S).includes('play')) { toast(`${S.name} đang ốm nên chưa chơi đồ chơi được. Ra vườn vẫn đi dạo, trồng rau được nhé.`); } goTo('garden'); };
+$('a-sleep').onclick = () => { hideHint(); toggleSheet(null); if (awayBlock()) return; S.asleep ? wake() : goSleep(); };
 function goSleep() { sfx('sleep'); count('sleep'); act('sleep'); S.asleep = true; applySleep(); goTo('bedroom'); setTimeout(() => say(`Chúc ${S.name} ngủ ngon… Zzz`, 2600), reduce ? 0 : 700); save(); }
 function wake() { sfx('wake'); act('wake'); S.asleep = false; applySleep(); goTo('home'); setTimeout(() => { say('Chào buổi sáng! Mình ngủ ngon lắm.', 2600); startAction('stretch'); spawn('sparkle', 2); }, reduce ? 0 : 700); save(); }
 $('ctx').addEventListener('click', e => {
@@ -1155,7 +1166,8 @@ function snapshot() {
   const h = Math.min(cv.height, Math.round(cv.width * 1.25)), top = Math.max(0, Math.min(cv.height - h, Math.round((1 - v.y) / 2 * cv.height - h * 0.55)));
   const out = document.createElement('canvas'); out.width = cv.width; out.height = h; out.getContext('2d').drawImage(cv, 0, top, cv.width, h, 0, 0, cv.width, h); return out;
 }
-const photo = initPhoto({ ctx: { state: S, toast, sfx, hideHint, closeAllSheets: () => home.closeAll?.(), capture, pose: () => startAction('hop'), placeName: () => AREA_NAME[area] || 'Nhà' }, app: $('app'), $ });
+const photo = initPhoto({ ctx: { state: S, toast, sfx, hideHint, closeAllSheets: () => home.closeAll?.(), capture, pose: () => startAction('hop'), placeName: () => AREA_NAME[area] || 'Nhà', toAlbum: (blob, place) => addPhoto(blob, place) }, app: $('app'), $ });
+setTimeout(() => { const f = S.festival?.festival, d = f && FESTIVAL_BY_ID[f.id]; if (d && !S.festival.claimed) toast(`${d.icon} Hôm nay là ${d.name}! Mở Nhà → Lễ hội để nhận quà lễ.`); }, 4500);
 $('btn-photo')?.addEventListener('click', () => photo.enter());
 const mini = initMinigames({ ctx: { catchGame: o => (placeInst[area] && placeInst[area].catchGame ? placeInst[area].catchGame(o) : null), catchState: () => (placeInst[area] && placeInst[area].catchState ? placeInst[area].catchState() : null), toast, popText, spawn, buzz, closeAllSheets: () => home.closeAll?.() }, app: $('app'), $, reduce, sfx });
 initNotify({ S, $ });
@@ -1165,6 +1177,7 @@ home = initHome({
   store: { S, refreshWorld, claimExplore, claimBadge, refreshEconomy, refreshOwned, sellFood, refreshSell, healthNow, buyMedicine, useMedicine, visitClinic, refreshHealth, buy, saveLayout, equip, savePreset, claimQuest, claimQuestBonus, claimWeeklyQuest, claimCollection, buyFood, claimRation, nutritionNow, refreshFamily, familyMemories, refreshGarden, plantCrop, harvestCrop, cook, upgradeFridge, serverNow, refreshQuests, activeLayout, previewComfort, onSync, today: () => localDay() },
   say, setTemp, spawn, popText, impulse, startAction, addTrauma, buzz, toast, hideHint, applyShadows, ndcFrom, playToy: toyPlay, closeAllSheets: () => home.closeAll?.(),
   getArea: () => area, goTo, goCook, atStove, isIdle: () => !busy(performance.now()), isNight: () => period === 'dem',
+  onJob: () => { if (jobActive() && area !== 'home') goTo('home'); },
   setZoom: z => { zoomExtra = z; },
   closeGameSheets: () => { toggleSheet(null); ['stats', 'diary'].forEach(id => { $(id).hidden = true; }); $('btn-stats').setAttribute('aria-expanded', 'false'); $('btn-diary').setAttribute('aria-expanded', 'false'); },
   setEditing: on => {
@@ -1230,7 +1243,8 @@ function tick(now, dt) {
   if (!reduce && key === 'sleepy') roll += Math.sin(t * 1.4) * 0.06;
   if (!reduce && key === 'sick') roll += Math.sin(t * 22) * 0.012;
   petRoot.position.set(petBase.x + petOff.x, petBase.y + hop, petBase.z + petOff.z);
-  shadow.position.set(petRoot.position.x, 0.075, petRoot.position.z + 0.05); shadow.visible = area !== 'bath' && area !== 'bedroom';
+  const away = jobActive(); petRoot.visible = !away;
+  shadow.position.set(petRoot.position.x, 0.075, petRoot.position.z + 0.05); shadow.visible = !away && area !== 'bath' && area !== 'bedroom';
   updateArea(dt, t); updateLights(dt); updateWeather(dt); updateSunFollow();
   /* nhìn theo con trỏ, quay đi khi dỗi */
   /* dáng bốn chân / bay lượn đứng hơi nghiêng 3/4 để thấy cả thân */
