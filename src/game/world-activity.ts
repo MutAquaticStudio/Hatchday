@@ -5,12 +5,13 @@ export const ACTIVITY_KINDS = ['bench', 'fountain', 'stage', 'tea', 'cat'] as co
 export type ActivityKind = (typeof ACTIVITY_KINDS)[number];
 /** Đồ chơi cố định ngoài trời: đếm từ `toy_logs` (play_toy), không cần báo thêm. */
 export const TOY_KINDS = ['swing', 'seesaw', 'slide', 'ducks'] as const;
-export const MINI_KINDS = ['butterfly', 'brew'] as const;
+export const MINI_KINDS = ['butterfly', 'brew', 'fish', 'quiz', 'delivery', 'rhythm', 'bugs'] as const;
 export type MiniKind = (typeof MINI_KINDS)[number];
 
 export const ACTIVITY_LABEL: Record<string, string> = {
   swing: 'Xích đu', seesaw: 'Bập bênh', slide: 'Cầu trượt', ducks: 'Cho vịt ăn', bench: 'Ngồi ghế đá', fountain: 'Đài phun nước',
   stage: 'Sân khấu', tea: 'Nhấp trà', cat: 'Vuốt mèo', butterfly: 'Bắt bướm', brew: 'Pha trà', bubbles: 'Thổi bong bóng', kite: 'Thả diều',
+  fish: 'Câu cá', quiz: 'Đố vui', delivery: 'Giao hàng', rhythm: 'Nhảy theo nhịp', bugs: 'Bắt sâu',
 };
 
 /** Bậc thưởng "Khám phá hôm nay": chơi đủ số hoạt động khác nhau trong ngày. */
@@ -31,6 +32,11 @@ export const BADGES: readonly BadgeDef[] = [
   { id: 'butterfly40', kind: 'butterfly', target: 40, reward: 50, name: 'Thợ săn bướm', desc: 'Bắt tổng cộng 40 con bướm', icon: '🦋' },
   { id: 'brew5', kind: 'brew', target: 5, reward: 50, name: 'Bậc thầy pha trà', desc: 'Pha trà hoàn hảo 5 lần', icon: '🫖' },
   { id: 'explore7', kind: 'explore', target: 7, reward: 60, name: 'Nhà thám hiểm', desc: 'Hoàn thành mục Khám phá 7 ngày', icon: '🧭' },
+  { id: 'fish20', kind: 'fish', target: 20, reward: 50, name: 'Cần thủ nhí', desc: 'Câu tổng cộng 20 con cá', icon: '🎣' },
+  { id: 'quiz5', kind: 'quiz', target: 5, reward: 50, name: 'Mọt sách', desc: 'Trả lời đúng hết 5 câu đố 5 lần', icon: '📚' },
+  { id: 'delivery30', kind: 'delivery', target: 30, reward: 50, name: 'Shipper chăm chỉ', desc: 'Giao đúng 30 đơn hàng ở Chợ', icon: '📦' },
+  { id: 'rhythm5', kind: 'rhythm', target: 5, reward: 50, name: 'Vũ công nhí', desc: 'Nhảy trúng từ 16 nhịp trở lên 5 lần', icon: '💃' },
+  { id: 'bugs60', kind: 'bugs', target: 60, reward: 50, name: 'Người giữ vườn', desc: 'Bắt tổng cộng 60 con sâu', icon: '🐛' },
 ];
 export const BADGE_BY_ID: Record<string, BadgeDef> = Object.fromEntries(BADGES.map(b => [b.id, b]));
 
@@ -39,7 +45,18 @@ export const MINI = {
   plays: 2,
   butterfly: { max: 12, per: 1, seconds: 30 },
   brew: { max: 5, per: 3 },
+  fish: { max: 8, per: 2, seconds: 40 },
+  quiz: { max: 5, per: 3 },
+  delivery: { max: 6, per: 2, seconds: 45 },
+  rhythm: { max: 20, per: 1 },
+  bugs: { max: 15, per: 1, seconds: 30 },
 } as const;
+/** Điểm cộng vào tổng cho huy hiệu sau một lượt (khớp submit_minigame): đếm số con/đơn, hoặc 1 khi đạt "hoàn hảo". */
+export function miniTotalAdd(kind: MiniKind, score: number): number {
+  if (kind === 'brew' || kind === 'quiz') return score === MINI[kind].max ? 1 : 0;
+  if (kind === 'rhythm') return score >= 16 ? 1 : 0;
+  return score;
+}
 export const miniReward = (kind: MiniKind, score: number) => Math.max(0, Math.min(MINI[kind].max, Math.floor(score))) * MINI[kind].per;
 
 export interface ExploreTier { tier: number; need: number; reward: number; claimed: boolean; ready: boolean }
@@ -49,4 +66,4 @@ export interface WorldProgress {
   day: string; kinds: string[]; explore: ExploreTier[]; badges: BadgeState[]; mini: Record<MiniKind, MiniState>;
 }
 export interface ActivityResult { kinds: string[]; counted: boolean; newly: string[] }
-export interface MiniResult { reward: number; rewarded: boolean; coins: number; plays: number; left: number; best: number; newly: string[] }
+export interface MiniResult { reward: number; rewarded: boolean; coins: number; plays: number; left: number; best: number; newly: string[]; skill?: string; skill_xp?: number }

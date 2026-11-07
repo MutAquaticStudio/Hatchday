@@ -103,9 +103,11 @@ describe('push_mark và tổng hợp', () => {
     expect(await h.one('select status from push_log where id = 900')).toBe('fail');
   });
   it('cron_tick tổng hợp push_sent / push_fail / push_return và thiết bị; admin_push_stats', async () => {
+    // giờ gửi nằm trong "hôm nay" giờ VN kể cả khi test chạy ngay sau nửa đêm (trước đây lỗi trong 30 phút đầu ngày)
+    const sent = `greatest(now() - interval '30 minutes', (private.vn_today()::timestamp at time zone 'Asia/Ho_Chi_Minh') + interval '1 second')`;
     await h.db.exec(`delete from push_log; delete from client_sessions;
-      insert into push_log (user_id, kind, sent_at, status) values ('${A}', 'care', now() - interval '30 minutes', 'ok'), ('${B}', 'mail', now() - interval '30 minutes', 'fail');
-      insert into client_sessions (user_id, started_at, last_seen_at) values ('${A}', now() - interval '10 minutes', now() - interval '5 minutes')`);
+      insert into push_log (user_id, kind, sent_at, status) values ('${A}', 'care', ${sent}, 'ok'), ('${B}', 'mail', ${sent}, 'fail');
+      insert into client_sessions (user_id, started_at, last_seen_at) values ('${A}', ${sent} + interval '20 seconds', ${sent} + interval '25 minutes')`);
     await h.withRole(null, () => rpc('cron_tick'), { role: 'service_role' });
     const m = async (k: string) => Number(await h.one("select value from stats_daily where day = private.vn_today() and metric = $1 and dim = ''", [k]));
     expect(await m('push_sent')).toBe(1); expect(await m('push_fail')).toBe(1); expect(await m('push_return')).toBe(1); expect(await m('snap_push_devices')).toBeGreaterThanOrEqual(1);
