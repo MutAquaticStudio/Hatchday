@@ -292,9 +292,9 @@ ok('bạn ảo vào kênh: thấy ít nhất 2 thú khác và đếm người',a
 await p.click('[data-eb-toggle]:visible'); // biểu cảm gập sau nút "Biểu cảm"
 await p.click('.eb[data-emote="heart"]');
 ok('bấm emote: bé nói biểu tượng',await until(async()=>(await p.textContent('#bubble')).includes('❤️'),4000));
-await p.fill('#chat-in','Xin chào mọi người');await p.click('#chat-box button');
+await p.fill('#chat-in','Xin chào mọi người');await p.click('#chat-box button[type=submit]');
 ok('chat: tin của mình hiện trong nhật ký chat',await until(()=>p.evaluate(()=>!!document.querySelector('.chat-line.mine')),6000));
-await p.fill('#chat-in','gọi 0912345678 nhé');await p.click('#chat-box button');
+await p.fill('#chat-in','gọi 0912345678 nhé');await p.click('#chat-box button[type=submit]');
 ok('chat: số điện thoại bị chặn kèm lý do',await until(async()=>(await p.textContent('#toast')).includes('số điện thoại'),4000),await p.textContent('#toast'));
 await p.fill('#chat-in','');
 await p.click('.hot[data-hot="news"]');
