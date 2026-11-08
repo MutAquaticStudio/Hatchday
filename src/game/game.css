@@ -52,7 +52,7 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline
 .axis-track::after{content:"";position:absolute;left:50%;top:1px;bottom:1px;width:2px;margin-left:-1px;background:#fff;border-radius:2px}
 .axis-track i{position:absolute;top:50%;width:12px;height:12px;margin:-6px 0 0 -6px;border-radius:50%;background:var(--accent);border:2px solid #fff;box-shadow:0 1px 2px rgba(74,33,64,.3);transition:left .4s}
 
-#bubble{position:absolute;left:0;top:0;max-width:min(240px,70vw);background:#fff;border:3px solid var(--ink);border-radius:20px;padding:8px 14px;
+#bubble{position:absolute;left:0;top:0;width:max-content;max-width:min(240px,70vw);background:#fff;border:3px solid var(--ink);border-radius:20px;padding:8px 14px;
   font-weight:800;font-size:15px;line-height:1.35;transform:translate(-50%,-100%);pointer-events:none;box-shadow:0 4px 0 rgba(74,33,64,.25)}
 #bubble::after{content:"";position:absolute;left:50%;bottom:-12px;width:16px;height:16px;background:#fff;border-right:3px solid var(--ink);border-bottom:3px solid var(--ink);transform:translateX(-50%) rotate(45deg)}
 
@@ -808,3 +808,37 @@ body.editing .hot-layer,.farm-editing .hot-layer{display:none}
 .sp-top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin:2px 0 8px}.sp-top b{overflow-wrap:anywhere}
 .sp-thread{max-height:38vh}.dm-msg.team{background:#eef7ff;border-color:#bcd9f2}.dm-msg.team small:first-child{color:#3f6f9a;font-weight:800}
 .hs-note a{color:var(--accent-deep,#c2457a);font-weight:800;overflow-wrap:anywhere}
+
+/* ---------- Điện thoại dọc: bảng là "bottom sheet" thấp, chừa nửa trên cho cảnh và bé (camera tự dịch lên, xem updateLift) ---------- */
+@media (max-width:640px) and (orientation:portrait){
+  .hsheet,.stats,.diary{top:auto;left:max(10px,env(safe-area-inset-left,0px));right:max(10px,env(safe-area-inset-right,0px));width:auto;margin:0;
+    bottom:calc(env(safe-area-inset-bottom,0px) + 8px);max-height:min(58%,calc(100% - 250px));border-radius:22px 22px 18px 18px}
+  .hsheet::before,.stats::before,.diary::before{content:'';display:block;flex:none;width:44px;height:5px;border-radius:3px;background:var(--candy-edge);margin:8px auto -4px;opacity:.9}
+  .stats{max-height:min(58%,calc(100% - 250px));padding-top:6px}
+  .diary{max-height:min(58%,calc(100% - 250px))}
+  /* bảng mở thì thanh nút dưới, khay đồ ăn, gợi ý và chip nhường chỗ (bảng có nút ✕ để đóng) */
+  #app:has(.hsheet:not([hidden])) .bottom,#app:has(#stats:not([hidden])) .bottom,#app:has(#diary:not([hidden])) .bottom,
+  #app:has(.hsheet:not([hidden])) #hint,#app:has(#stats:not([hidden])) #hint,
+  #app:has(.hsheet:not([hidden])) .job-chip,#app:has(.hsheet:not([hidden])) .sick-chip,#app:has(.hsheet:not([hidden])) .event-banner{display:none!important}
+  .hs-head{padding:12px 16px 8px}
+}
+/* nút biểu cảm nhỏ cạnh ô chat: chỉ dùng trên điện thoại (máy tính giữ nút "Biểu cảm" có chữ) */
+.eb-mini{display:none;flex:none;width:40px;height:40px;border-radius:50%;border:2px solid var(--candy-edge);background:#fff;font-size:20px;line-height:1;padding:0}
+.eb-mini[aria-expanded="true"]{background:var(--accent);border-color:var(--accent-deep)}
+@media (max-width:640px) and (orientation:portrait){
+  .eb-mini{display:inline-grid;place-items:center}
+  .emote-bar .eb-line{display:none}
+  .scene-tag[data-count]::after{content:' · ' attr(data-count);font-weight:800;opacity:.9}
+  .emote-bar{gap:4px;margin-bottom:4px}
+  .chat-log{max-height:66px}
+}
+@media (max-width:640px) and (orientation:portrait){
+  /* nút ngữ cảnh (Ném bóng, Bắt sâu, Về phòng…) xếp một hàng vuốt ngang thay vì xuống hai dòng */
+  .ctx{flex-wrap:nowrap;overflow-x:auto;justify-content:flex-start;max-width:100%;scrollbar-width:none;padding:0 2px 4px}
+  .ctx::-webkit-scrollbar{display:none}
+  .ctx-btn{flex:none}.ctx-btn:first-child{margin-left:auto}.ctx-btn:last-child{margin-right:auto}
+}
+/* màn rộng: bảng nép sang phải để bé ở giữa màn hình vẫn hiện */
+@media (min-width:1100px){
+  .hsheet{left:auto;right:max(24px,env(safe-area-inset-right,0px));margin:0;width:min(540px,42vw)}
+}

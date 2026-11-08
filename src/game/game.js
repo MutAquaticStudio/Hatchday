@@ -715,10 +715,19 @@ function current(now) { if (override) return override; if (temp && now < temp.un
 const bubbleEl = $('bubble'); let bubbleUntil = 0;
 function say(text, ms = 3600) { bubbleEl.textContent = text; bubbleEl.hidden = false; bubbleUntil = performance.now() + ms; bubbleEl.classList.remove('pop'); void bubbleEl.offsetWidth; bubbleEl.classList.add('pop'); }
 const pv = new THREE.Vector3();
+let bubbleTopAt = 0, bubbleTopY = 0;
 function placeBubble() {
   petRoot.localToWorld(pv.set(0, (petParts.headY + 0.62) * grow.scale.y, 0)); pv.project(camera);
   const r = canvas.getBoundingClientRect();
-  bubbleEl.style.left = `${(pv.x + 1) / 2 * r.width}px`; bubbleEl.style.top = `${(1 - pv.y) / 2 * r.height}px`;
+  // không để bóng thoại chui dưới thanh trên cùng (điện thoại, lúc khung hình dịch lên vì đang mở bảng)
+  const now = performance.now();
+  if (now > bubbleTopAt) { // đáy thấp nhất của các thanh/thẻ ở mép trên (thanh trên, thanh mảnh đất, biểu ngữ, thông báo), đo 3 lần/giây
+    bubbleTopAt = now + 330; bubbleTopY = 0;
+    document.querySelectorAll('.top, #parcel-bar, .event-banner, #toast').forEach(el => { if (el.offsetParent && !el.hidden) { const b = el.getBoundingClientRect(); if (b.top < r.height * 0.4) bubbleTopY = Math.max(bubbleTopY, b.bottom); } });
+  }
+  const minTop = bubbleTopY + 18 + bubbleEl.offsetHeight;
+  const half = bubbleEl.offsetWidth / 2 + 8; // giữ bóng thoại trọn trong màn hình theo chiều ngang
+  bubbleEl.style.left = `${Math.min(r.width - half, Math.max(half, (pv.x + 1) / 2 * r.width))}px`; bubbleEl.style.top = `${Math.max(minTop, (1 - pv.y) / 2 * r.height)}px`;
 }
 
 /* ---------------- squash & stretch, hoạt cảnh ---------------- */
@@ -1033,6 +1042,36 @@ function updateCamera(dt, t) {
   camera.lookAt(lookNow);
 }
 
+/* Điện thoại: khi một bảng (sheet) đang mở che nửa dưới màn hình, dịch khung hình lên để bé vẫn hiện ở khoảng trống phía trên
+   (camera.setViewOffset: nhãn, điểm chạm và bóng thoại dùng cùng phép chiếu nên đi theo). Máy tính/màn ngang thì không cần. */
+const SHEET_SEL = '.hsheet:not([hidden]), #stats:not([hidden]), #diary:not([hidden])';
+let liftNow = 0, liftWant = 0, liftXNow = 0, liftXWant = 0, liftCheckAt = 0;
+const liftV = new THREE.Vector3();
+function updateLift(dt, now) {
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  if (now > liftCheckAt) {
+    liftCheckAt = now + 200; liftWant = 0; liftXWant = 0;
+    if (h > w * 1.15 && w < 700) {
+      let top = h;
+      document.querySelectorAll(SHEET_SEL).forEach(el => { const r = el.getBoundingClientRect(); if (r.height > 40 && r.bottom > h * 0.6) top = Math.min(top, r.top); });
+      if (top < h * 0.92) {
+        petRoot.localToWorld(liftV.set(0, 0.7, 0)); liftV.project(camera);
+        const petY = (1 - liftV.y) / 2 * h + liftNow, petX = (liftV.x + 1) / 2 * w + liftXNow; // vị trí khi chưa dịch
+        const barB = (document.querySelector('.top')?.getBoundingClientRect().bottom || 60) + 24;
+        if (petY > top - 40) liftWant = Math.max(0, Math.min(h * 0.45, petY - (barB + top) / 2 - 10));
+        // bé đi lang thang sát mép (màn hẹp) thì dịch ngang cho bé vào giữa vùng nhìn
+        const lo = w * 0.3, hi = w * 0.7; liftXWant = petX < lo ? petX - lo : petX > hi ? petX - hi : 0;
+        liftXWant = Math.max(-w * 0.5, Math.min(w * 0.5, liftXWant));
+      }
+    }
+  }
+  const k = Math.min(1, dt * 6), ny = liftNow + (liftWant - liftNow) * k, nx = liftXNow + (liftXWant - liftXNow) * k;
+  const settled = Math.abs(ny - liftNow) < 0.05 && Math.abs(nx - liftXNow) < 0.05 && Math.abs(liftWant - ny) < 0.5 && Math.abs(liftXWant - nx) < 0.5;
+  if (settled) { if (liftWant === 0 && liftXWant === 0 && (liftNow !== 0 || liftXNow !== 0)) { liftNow = 0; liftXNow = 0; camera.clearViewOffset(); } return; }
+  liftNow = ny; liftXNow = nx;
+  if (Math.abs(liftNow) < 0.5 && Math.abs(liftXNow) < 0.5) camera.clearViewOffset(); else camera.setViewOffset(w, h, liftXNow, liftNow, w, h);
+}
+
 /* ---------------- phản hồi: số bay lên, rung tay, thông báo ---------------- */
 const popsEl = $('pops');
 function popText(text, color = '#ff5c9a') {
@@ -1277,7 +1316,7 @@ function tick(now, dt) {
   }
   if (home) home.update(dt, t);
   petBuilder.animate(petParts, t, reduce);
-  updateCamera(dt, t);
+  updateCamera(dt, t); updateLift(dt, now);
   if (!bubbleEl.hidden) { if (now > bubbleUntil) bubbleEl.hidden = true; else placeBubble(); }
   renderer.render(scene, camera);
   if (capReq) { const r = capReq; capReq = null; r(snapshot()); }
