@@ -6,6 +6,7 @@ import { getMyPet, listFamily, setTimezone } from './data/api';
 import { viError } from './lib/errors';
 import { captureReferral, startTelemetry } from './lib/telemetry';
 import { installErrorReporting } from './lib/report-errors';
+import { isSteam } from './lib/platform';
 
 const root = document.getElementById('root')!;
 let started = false;
@@ -29,7 +30,7 @@ async function startGame(): Promise<void> {
   const logout = document.getElementById('btn-logout');
   if (logout && !isConfigured) {
     logout.textContent = 'Thoát bản chơi thử';
-    const note = document.querySelector('#stats .note');
+    const note = document.getElementById('stats-note');
     if (note) note.textContent = 'Chỉ số giảm theo giờ thật, kể cả khi bạn đóng trang. Bản chơi thử lưu dữ liệu trên trình duyệt này.';
   }
   logout?.addEventListener('click', async () => { if (isConfigured) await supabase.auth.signOut(); location.replace(location.pathname); });
@@ -55,7 +56,7 @@ async function onSignedIn(): Promise<void> {
 
 /** Service worker: chỉ ở bản chạy thật (mở nhanh, mở được khi mất mạng, nhận thông báo đẩy sau này). */
 function registerSW(): void {
-  if (!import.meta.env.PROD || !('serviceWorker' in navigator)) return;
+  if (!import.meta.env.PROD || isSteam || !('serviceWorker' in navigator)) return;
   window.addEventListener('load', () => { navigator.serviceWorker.register('./sw.js').catch(() => { /* bỏ qua */ }); });
 }
 

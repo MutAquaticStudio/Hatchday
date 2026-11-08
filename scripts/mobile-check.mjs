@@ -146,9 +146,11 @@ const out = []; const ok = (n, c, x = '') => { out.push((c ? 'OK  ' : 'FAIL') + 
   await tap('#btn-stats'); await p.waitForTimeout(500);
   const bondBtn = await p.evaluate(() => { const b = document.querySelector('#bond [data-bond]'); return b ? Math.round(b.getBoundingClientRect().height) : 0; });
   ok('Gắn bó cấp 3: có quà để nhận, nút đủ cao để chạm', bondBtn >= 36, `h=${bondBtn}`);
+  await p.evaluate(() => { document.querySelector('#a-house').click(); document.querySelector('[data-go="settings"]').click(); }); await p.waitForTimeout(400);
+  ok('Cài đặt mở từ menu Nhà trên điện thoại (nút ⚙ ẩn để thanh trên không tràn)', await p.isVisible('#settings') && !(await p.isVisible('#btn-settings')));
   const cpBtn = await p.$$eval('[data-cp]', els => els.map(e => Math.round(e.getBoundingClientRect().height)));
   ok('nút Đồng hành giờ làm việc đủ cao để chạm (≥ 36px)', cpBtn.length === 3 && cpBtn.every(h => h >= 36), JSON.stringify(cpBtn));
-  await tap('#btn-stats'); await p.waitForTimeout(300);
+  await tap('#settings-close'); await p.waitForTimeout(300);
 
   // ---- bản đồ và địa điểm trên điện thoại ----
   await p.goto(`http://localhost:${PORT}/?dev`); await p.waitForTimeout(800); // trang đăng nhập: chưa ghi mốc "lần cuối thấy bé"

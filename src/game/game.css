@@ -843,3 +843,20 @@ body.editing .hot-layer,.farm-editing .hot-layer{display:none}
   .hsheet{left:auto;right:max(24px,env(safe-area-inset-right,0px));margin:0;width:min(540px,42vw)}
   #app:has(.hsheet:not([hidden])) .tour{left:max(24px,env(safe-area-inset-left,0px));transform:none;top:auto;bottom:128px}
 }
+
+/* ---------- Cài đặt ---------- */
+.pill.icon{display:inline-grid;place-items:center;padding:6px 9px;min-width:40px}
+.pill.icon svg{width:22px;height:22px}
+.settings{gap:8px}
+.set-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.set-head h2{margin:0;font-family:var(--f-display);font-size:20px;line-height:1}
+.set-h{margin:8px 0 0;font-size:12.5px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-soft)}
+.settings .row[hidden],.settings .pill[hidden]{display:none}
+.fps-chip{position:absolute;left:12px;bottom:calc(env(safe-area-inset-bottom,0px) + 8px);z-index:40;pointer-events:none;font:800 11px/1 ui-monospace,monospace;color:#fff;background:#4a2140cc;border-radius:8px;padding:4px 7px}
+.fps-chip[hidden]{display:none}
+#app:has(#settings:not([hidden])) .job-chip,#app:has(#settings:not([hidden])) .sick-chip{display:none}
+@media (max-width:640px) and (orientation:portrait){
+  #app:has(#settings:not([hidden])) .bottom,#app:has(#settings:not([hidden])) #hint{display:none!important}
+}
+/* điện thoại: thanh trên chật nên Cài đặt nằm trong menu Nhà (ô "Cài đặt"), nút ⚙ chỉ có ở màn rộng */
+@media (max-width:700px){#btn-settings{display:none}}

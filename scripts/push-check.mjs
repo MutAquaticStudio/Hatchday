@@ -47,7 +47,7 @@ const out = []; const ok = (n, c, x = '') => out.push((c ? 'OK  ' : 'FAIL') + ' 
 
   // bản Chơi thử: bật thông báo trong Chỉ số → dùng nhắc nhở cục bộ, không lỗi
   await p.click('#demo'); await p.click('button[type=submit]').catch(() => {}); await p.waitForSelector('#a-house', { timeout: 30000 }); await p.waitForTimeout(1200);
-  await p.evaluate(() => document.querySelector('#btn-stats').click()); await p.waitForTimeout(400);
+  await p.evaluate(() => document.querySelector('#btn-settings').click()); await p.waitForTimeout(400);
   const toggle = await p.evaluate(() => { const el = document.querySelector('#btn-notify'); if (!el) return 'none'; el.click(); return el.id || el.name || 'ok'; });
   await p.waitForTimeout(800);
   ok('bật nhắc nhở trong Chỉ số không gây lỗi trang', toggle !== 'none' && errs.length === 0, toggle + ' ' + errs.join('|'));

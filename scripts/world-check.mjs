@@ -71,7 +71,7 @@ const until = async (p, fn, ms = 10000, arg) => { const t = Date.now(); while (D
   await p.click('[data-ad="watch"]'); await until(p, () => !!document.querySelector('.ad-overlay'), 5000); await p.click('[data-ad-skip]');
   await p.waitForTimeout(500);
   ok('bỏ qua giữa chừng thì không nhận thêm xu', await p.evaluate(c => JSON.parse(localStorage.getItem('hatchday-demo')).coins === c + 20, coins0));
-  ok('nút Nhắc nhở có trong Chỉ số', await p.evaluate(() => !!document.getElementById('btn-notify')));
+  ok('nút Nhắc nhở có trong Cài đặt', await p.evaluate(() => !!document.getElementById('btn-notify')));
   ok('không có lỗi console/trang', errs.length === 0, errs.slice(0, 3).join(' | '));
   await b.close(); srv.close();
   console.log(out.join('\n')); process.exit(out.some(l => l.startsWith('FAIL')) ? 1 : 0);

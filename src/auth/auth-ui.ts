@@ -3,6 +3,8 @@ import { viError } from '../lib/errors';
 import { mountCaptcha } from '../lib/captcha';
 import './auth.css';
 import { hydrateLanding, landingHtml } from './landing';
+import { isSteam } from '../lib/platform';
+import { bindTitle, titleHtml } from './title';
 
 /** Phiên bản Điều khoản/Chính sách đang dùng (ghi vào hồ sơ người dùng lúc đăng ký). Đổi khi sửa public/dieu-khoan.html. */
 export const TOS_VERSION = '2026-11';
@@ -60,8 +62,10 @@ export function mountAuth(root: HTMLElement, view: AuthView, onSignedIn: () => v
     'check-email': `${device}<h1>Kiểm tra email nhé</h1><p class="notice" role="status">${esc(info || 'Chúng mình đã gửi thư xác minh. Mở thư và bấm vào link để bắt đầu.')}</p>
       <button class="btn ghost" data-go="login">Về trang đăng nhập</button>`,
   };
-  root.innerHTML = view === 'gate' ? landingHtml(views.gate, cfg) : `<main class="screen"><section class="card" aria-live="polite">${views[view]}</section></main>`;
-  if (view === 'gate') void hydrateLanding(root);
+  // bản Steam: không có trang giới thiệu (đã có trang cửa hàng Steam) và không có liên kết ủng hộ bên ngoài
+  root.innerHTML = view === 'gate' && isSteam ? titleHtml(views.gate, cfg) : view === 'gate' ? landingHtml(views.gate, cfg) : `<main class="screen"><section class="card" aria-live="polite">${views[view]}</section></main>`;
+  if (view === 'gate' && !isSteam) void hydrateLanding(root);
+  if (view === 'gate' && isSteam) bindTitle(root);
   const $ = <T extends HTMLElement = HTMLInputElement>(id: string) => root.querySelector<T>('#' + id);
 
   $<HTMLButtonElement>('demo')?.addEventListener('click', () => onSignedIn());

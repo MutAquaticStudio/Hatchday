@@ -36,5 +36,5 @@ export function initDiary() {
   $('dpanel').addEventListener('click', e => { const b = e.target.closest('button[data-i]'); if (!b) return; const m = S.mem[Number(b.dataset.i)]; if (m) delMem(m).then(renderDiary); renderDiary(); });
   function setTab(t) { dTab = t; $('tab-pages').setAttribute('aria-selected', String(t === 'pages')); $('tab-mem').setAttribute('aria-selected', String(t === 'mem')); renderDiary(); }
   $('tab-pages').onclick = () => setTab('pages'); $('tab-mem').onclick = () => setTab('mem');
-  $('btn-diary').onclick = () => { const s = $('diary'); s.hidden = !s.hidden; $('btn-diary').setAttribute('aria-expanded', String(!s.hidden)); if (!s.hidden) { $('stats').hidden = true; $('btn-stats').setAttribute('aria-expanded', 'false'); renderDiary(); } };
+  $('btn-diary').onclick = () => { const s = $('diary'); s.hidden = !s.hidden; $('btn-diary').setAttribute('aria-expanded', String(!s.hidden)); if (!s.hidden) { $('settings').hidden = true; $('btn-settings')?.setAttribute('aria-expanded', 'false'); $('stats').hidden = true; $('btn-stats').setAttribute('aria-expanded', 'false'); renderDiary(); } };
 }

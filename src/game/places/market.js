@@ -1,6 +1,7 @@
 // Chợ Xanh (~30 ngang, camera bám thú): sáu điểm chạm ở khu giữa (rau quả, tiệm hôm nay, chợ cuối tuần, nội thất, thu mua nông sản, sổ sưu tập),
 // hai dãy hàng trang trí ở khu tây (bánh trái, hoa, giếng) và khu đông (cá, gốm, đèn lồng) dựng dần khi bé tới gần, cổng chợ ở hai đầu, chim bồ câu.
 import { makeKit } from './kit.js';
+import { isSteam } from '../../lib/platform';
 import { bakeStatic, makeProps, makeWorld } from './world.js';
 
 export function initMarket(c) {
@@ -55,7 +56,7 @@ export function initMarket(c) {
   kit.hotspot({ id: 'furn', label: 'Nội thất', at: [-2.65, 2.5, -1.45], stand: [-2.2, -0.4], act: () => c.open.shop('market') }, furn);
   kit.hotspot({ id: 'sell', label: 'Thu mua rau', at: [2.65, 2.5, -1.45], stand: [2.2, -0.4], act: () => c.open.sell() }, sell);
   kit.hotspot({ id: 'book', label: 'Sổ sưu tập', at: [0, 2.3, -1.9], stand: [0, -0.5], act: () => c.open.shop('book') }, book);
-  kit.hotspot({ id: 'video', label: 'Video thưởng', at: [-4.4, 2.2, -0.2], stand: [-3.6, 1.0], act: () => c.open.ads() }, video);
+  if (!isSteam) kit.hotspot({ id: 'video', label: 'Video thưởng', at: [-4.4, 2.2, -0.2], stand: [-3.6, 1.0], act: () => c.open.ads() }, video);
   kit.hotspot({ id: 'toys', label: 'Đồ chơi', at: [4.4, 2.2, -0.2], stand: [3.6, 1.0], act: () => c.open.toys() }, toyPost);
   void T;
 

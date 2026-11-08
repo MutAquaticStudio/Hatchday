@@ -148,7 +148,8 @@ export function initHome(ctx) {
       <button type="button" class="tile${S.illness ? ' ready' : ''}" data-go="clinic"><b>Sức khoẻ</b><span>${S.illness ? `Đang ${esc(ILLNESS_BY_ID[S.illness].name.toLowerCase())}` : 'Thuốc, phòng khám, sổ bệnh'}</span></button>
       <button type="button" class="tile" data-go="cooking"><b>Nấu ăn</b><span>${RECIPES.length} công thức</span></button>
       <button type="button" class="tile" data-go="family"><b>Gia phả</b><span>${S.lineage.length > 1 ? `${S.lineage.length} đời của ${esc(S.family)}` : `Đời ${S.generation} của ${esc(S.family)}`}</span></button>
-      <button type="button" class="tile" data-go="dex"><b>Sổ loài</b><span>Đã gặp ${S.seen.length}/${SPECIES.length} loài</span></button></div>`;
+      <button type="button" class="tile" data-go="dex"><b>Sổ loài</b><span>Đã gặp ${S.seen.length}/${SPECIES.length} loài</span></button>
+      <button type="button" class="tile" data-go="settings"><b>Cài đặt</b><span>Hình ảnh, âm thanh, nhắc nhở, hỗ trợ</span></button></div>`;
     scrollWrap(el);
   }
   /* Hàng tab cuộn ngang: mờ dần ở mép còn nội dung để người chơi biết vuốt thêm */
@@ -159,7 +160,7 @@ export function initHome(ctx) {
   $('a-house').addEventListener('click', () => { ctx.hideHint(); const hs = $('house'); if (hs && !hs.hidden) { closeAll(); return; } openHouse(); });
   app.addEventListener('click', e => {
     const b = e.target.closest('.tile'); if (!b) return;
-    ({ decor: () => enterEdit(), shop: () => openShop('market'), wardrobe: openWardrobe, quests: openQuests, dex: () => openDex(), family: openFamily, garden: () => { closeAll(); ctx.goTo('garden'); }, cooking: openCooking, clinic: () => openClinic(), map: () => worldMap.open(), social: () => social.open(), spaces: () => openSpaces(), jobs: f2p.openJobs, contest: f2p.openContest, album: f2p.openAlbum, festival: f2p.openFestival })[b.dataset.go]();
+    ({ decor: () => enterEdit(), shop: () => openShop('market'), wardrobe: openWardrobe, quests: openQuests, dex: () => openDex(), family: openFamily, garden: () => { closeAll(); ctx.goTo('garden'); }, cooking: openCooking, clinic: () => openClinic(), map: () => worldMap.open(), social: () => social.open(), spaces: () => openSpaces(), jobs: f2p.openJobs, settings: () => { closeAll(); ctx.openSettings?.(); }, contest: f2p.openContest, album: f2p.openAlbum, festival: f2p.openFestival })[b.dataset.go]();
   });
 
   /* ---------- Ảnh thu nhỏ 3D ---------- */
@@ -832,5 +833,5 @@ export function initHome(ctx) {
     return { checked: n, bad };
   };
 
-  return { f2p, update, pickVisit, thumb, isEditing: () => editing, openShop, openCooking, openClinic, openSell, openMap: () => worldMap.open(), openSocial: social.open, openAds: ads.open, openToys: toys.open, closeAll, openMail: social.openMail, openNews: social.openNews, openWardrobe, openFamily, enterEdit, closeAll, openDex, refreshOutfit: () => renderOutfit(S.outfit) };
+  return { closeSheets: () => closeAll(), closeAll: () => closeAll(), f2p, update, pickVisit, thumb, isEditing: () => editing, openShop, openCooking, openClinic, openSell, openMap: () => worldMap.open(), openSocial: social.open, openAds: ads.open, openToys: toys.open, closeAll, openMail: social.openMail, openNews: social.openNews, openWardrobe, openFamily, enterEdit, closeAll, openDex, refreshOutfit: () => renderOutfit(S.outfit) };
 }

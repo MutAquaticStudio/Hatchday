@@ -35,6 +35,7 @@ import { makeDecor } from './decor3d.js';
 import { FOOD_BY_ID } from './catalog';
 import { tastesLine } from './nutrition';
 import { sfx, music, initAudio } from './audio.js';
+import { initSettings } from './settings.js';
 import { STAGES } from './species';
 import { AXES, TRAITS, describe as describePersona, greeting, idleGapFactor, idleWeights, petLine, pickWeighted, walkSpeedFactor } from './personality';
 let home = null, editing = false;
@@ -857,7 +858,11 @@ onWorldReady(list => { // huy hiệu/bậc Khám phá vừa đủ điều kiện
   else if (e) { sfx('badge'); toast('Khám phá đủ rồi! Vào Nhiệm vụ để nhận thưởng.'); }
 });
 onTraitShift(name => { toast(`${S.name} đang dần trở nên ${name.toLowerCase()} hơn.`); if (!$('stats').hidden) renderPersona(); });
-$('btn-stats').onclick = () => { const s = $('stats'); s.hidden = !s.hidden; $('btn-stats').setAttribute('aria-expanded', String(!s.hidden)); renderStats(); if (!s.hidden) growth.renderSpecies(); if (!s.hidden) { $('diary').hidden = true; $('btn-diary').setAttribute('aria-expanded', 'false'); } };
+$('btn-stats').onclick = () => { const s = $('stats'); s.hidden = !s.hidden; if (!s.hidden) settings.close(); $('btn-stats').setAttribute('aria-expanded', String(!s.hidden)); renderStats(); if (!s.hidden) growth.renderSpecies(); if (!s.hidden) { $('diary').hidden = true; $('btn-diary').setAttribute('aria-expanded', 'false'); } };
+const settings = initSettings({ closeOthers: () => {
+  ['stats', 'diary'].forEach(id => { $(id).hidden = true; }); $('btn-stats').setAttribute('aria-expanded', 'false'); $('btn-diary').setAttribute('aria-expanded', 'false');
+  if (home && home.closeSheets) home.closeSheets();
+} });
 $('pet-name').value = S.name;
 $('pet-name').addEventListener('input', e => { const v = e.target.value.trim().slice(0, 16); if (v) renamePet(v); });
 
@@ -1044,7 +1049,7 @@ function updateCamera(dt, t) {
 
 /* Điện thoại: khi một bảng (sheet) đang mở che nửa dưới màn hình, dịch khung hình lên để bé vẫn hiện ở khoảng trống phía trên
    (camera.setViewOffset: nhãn, điểm chạm và bóng thoại dùng cùng phép chiếu nên đi theo). Máy tính/màn ngang thì không cần. */
-const SHEET_SEL = '.hsheet:not([hidden]), #stats:not([hidden]), #diary:not([hidden])';
+const SHEET_SEL = '.hsheet:not([hidden]), #stats:not([hidden]), #diary:not([hidden]), #settings:not([hidden])';
 let liftNow = 0, liftWant = 0, liftXNow = 0, liftXWant = 0, liftCheckAt = 0;
 const liftV = new THREE.Vector3();
 function updateLift(dt, now) {
@@ -1131,9 +1136,11 @@ addEventListener('keydown', e => {
   if (e.key === 'Escape') {
     if (!$('chat').hidden) { toggleSheet(null); $('a-talk').focus(); }
     else if (!$('diary').hidden) { $('btn-diary').click(); $('btn-diary').focus(); }
+    else if (settings.isOpen()) { settings.close(); $('btn-settings').focus(); }
     else if (!$('stats').hidden) { $('btn-stats').click(); $('btn-stats').focus(); }
     else if (PLACE_BY_ID[area]) home.openMap();
     else if (area !== 'home' && area !== 'bedroom') goTo('home');
+    else settings.open(); // ở nhà, không có gì đang mở: Esc mở Cài đặt (như menu tạm dừng)
     return;
   }
   if (typing || e.ctrlKey || e.metaKey || e.altKey || e.repeat) return;
@@ -1169,11 +1176,11 @@ function applyQuality() {
     scene.traverse(o => { if (o.material) o.material.needsUpdate = true; });
   }
   blobBase = on ? 0.55 : 1;
-  document.querySelectorAll('.qbtn').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.q === quality)));
+  document.querySelectorAll('.qbtn[data-q]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.q === quality)));
   resize();
 }
 document.querySelector('.quality')?.addEventListener('click', e => {
-  const b = e.target.closest('.qbtn'); if (!b) return;
+  const b = e.target.closest('.qbtn[data-q]'); if (!b) return;
   quality = b.dataset.q; try { localStorage.setItem('hatchday-quality', quality); } catch (err) { /* bỏ qua */ }
   applyQuality();
 });
@@ -1217,11 +1224,11 @@ home = initHome({
   events, THREE, scene, camera, canvas, renderer, room, toon, add, canvasTex, grad, $, reduce,
   homeFloor, homeWalls: [homeWall, homeWall2], pivot, petBase, petBuilder, getPetParts: () => petParts,
   store: { S, refreshWorld, claimExplore, claimBadge, refreshEconomy, refreshOwned, sellFood, refreshSell, healthNow, buyMedicine, useMedicine, visitClinic, refreshHealth, buy, saveLayout, equip, savePreset, claimQuest, claimQuestBonus, claimWeeklyQuest, claimCollection, buyFood, claimRation, nutritionNow, refreshFamily, familyMemories, refreshGarden, plantCrop, harvestCrop, cook, upgradeFridge, serverNow, refreshQuests, activeLayout, previewComfort, onSync, today: () => localDay() },
-  say, setTemp, spawn, popText, impulse, startAction, addTrauma, buzz, toast, hideHint, applyShadows, ndcFrom, playToy: toyPlay, closeAllSheets: () => home.closeAll?.(),
+  say, setTemp, spawn, popText, impulse, startAction, addTrauma, buzz, toast, hideHint, applyShadows, ndcFrom, playToy: toyPlay, closeAllSheets: () => home.closeAll?.(), openSettings: () => settings.open(),
   getArea: () => area, goTo, goCook, atStove, isIdle: () => !busy(performance.now()), isNight: () => period === 'dem',
   onJob: () => { if (jobActive() && area !== 'home') goTo('home'); },
   setZoom: z => { zoomExtra = z; },
-  closeGameSheets: () => { toggleSheet(null); ['stats', 'diary'].forEach(id => { $(id).hidden = true; }); $('btn-stats').setAttribute('aria-expanded', 'false'); $('btn-diary').setAttribute('aria-expanded', 'false'); },
+  closeGameSheets: () => { toggleSheet(null); settings.close(); ['stats', 'diary'].forEach(id => { $(id).hidden = true; }); $('btn-stats').setAttribute('aria-expanded', 'false'); $('btn-diary').setAttribute('aria-expanded', 'false'); },
   setEditing: on => {
     editing = on; wander = null; action = null; moveYaw = null; petOff.set(0, 0, 0);
     const portrait = canvas.clientHeight > canvas.clientWidth * 1.05;

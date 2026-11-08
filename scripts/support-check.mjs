@@ -20,14 +20,14 @@ const out = []; const ok = (n, c, x = '') => out.push((c ? 'OK  ' : 'FAIL') + ' 
   ok('trang chủ có email liên hệ và liên kết Hỗ trợ', await p.evaluate(() => /m\.thuanwork@gmail\.com/.test(document.querySelector('#ung-ho')?.textContent || '') && !!document.querySelector('.ld-foot a[href^="mailto:"]')));
   await p.click('#demo'); await p.click('button[type=submit]'); await until(p, () => !!document.querySelector('#a-house'), 30000); await p.waitForTimeout(1000);
   await p.evaluate(() => localStorage.setItem('hatchday-tour', '1')); await p.goto(URL0); await p.click('#demo'); await until(p, () => !!document.querySelector('#a-house'), 30000); await p.waitForTimeout(1500);
-  await p.click('#btn-stats'); await p.waitForTimeout(300); await p.evaluate(() => document.querySelector('#btn-support').scrollIntoView()); await p.click('#btn-support');
+  await p.evaluate(() => { document.querySelector('#a-house').click(); document.querySelector('[data-go="settings"]').click(); }); await p.waitForTimeout(400); await p.evaluate(() => document.querySelector('#btn-support').scrollIntoView()); await p.click('#btn-support');
   await until(p, () => !!document.querySelector('#support:not([hidden]) .sp-new')); await p.waitForTimeout(300);
   await p.click('[data-sp="new"]'); await p.click('[data-sp-kind="bug"]'); await p.fill('#sp-subject', 'Bé kẹt ở Công viên'); await p.fill('#sp-body', 'Bé đứng yên gần ao vịt, bấm đâu cũng không đi được.');
   await p.click('[data-sp="send"]'); await until(p, () => !!document.querySelector('#sp-thread'));
   ok('gửi thư mở luồng trò chuyện', await p.evaluate(() => document.querySelectorAll('#sp-thread .dm-msg.mine').length === 1));
   await p.click('[data-sp="list"]'); await p.waitForTimeout(4800);
   await p.click('[data-sp="list"]').catch(() => {}); await p.evaluate(() => { document.querySelector('#support [data-close]')?.click(); }); await p.waitForTimeout(200);
-  await p.click('#btn-stats'); await p.waitForTimeout(200); await p.evaluate(() => document.querySelector('#btn-support').click()); await p.waitForTimeout(800);
+  await p.evaluate(() => { document.querySelector('#a-house').click(); document.querySelector('[data-go="settings"]').click(); }); await p.waitForTimeout(400); await p.evaluate(() => document.querySelector('#btn-support').click()); await p.waitForTimeout(800);
   ok('có chấm/dấu thư mới khi đội ngũ trả lời', await p.evaluate(() => !!document.querySelector('.sp-item.unread')));
   await p.click('[data-sp-open]'); await p.waitForTimeout(300);
   ok('thấy câu trả lời của đội ngũ', await p.evaluate(() => !!document.querySelector('#sp-thread .dm-msg.team')));

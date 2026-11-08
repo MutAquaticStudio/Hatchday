@@ -2,12 +2,13 @@
  * Đăng ký Web Push (thông báo đẩy khi đóng hẳn trình duyệt). Chỉ bật ở bản chạy thật có khoá VAPID công khai (VITE_VAPID_PUBLIC_KEY)
  * và trình duyệt hỗ trợ. Máy chủ gửi từ Cloudflare Worker (workers/cron). Trên iPhone chỉ chạy khi đã Thêm vào Màn hình chính.
  */
+import { isSteam } from './platform';
 import { getPushState, isDemo, removePushSubscription, savePushSubscription } from '../data/api';
 import { isStandalone } from './telemetry';
 
 const KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined;
 
-export const pushSupported = (): boolean => !isDemo && !!KEY && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+export const pushSupported = (): boolean => !isDemo && !isSteam && !!KEY && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
 export const isIos = (): boolean => /iPhone|iPad|iPod/i.test(navigator.userAgent);
 /** iPhone/iPad chỉ nhận push khi đã cài PWA. */
 export const needsInstall = (): boolean => isIos() && !isStandalone();

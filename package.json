@@ -12,7 +12,9 @@
     "test": "vitest run",
     "test:db": "vitest run supabase/tests",
     "dev:admin": "vite -c vite.admin.config.ts",
-    "build:admin": "tsc -p admin --noEmit && vite build -c vite.admin.config.ts"
+    "build:admin": "tsc -p admin --noEmit && vite build -c vite.admin.config.ts",
+    "build:steam": "VITE_PLATFORM=steam vite build --outDir desktop/dist --emptyOutDir",
+    "desktop": "npm run build:steam && cd desktop && npm start"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.117.3",

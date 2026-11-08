@@ -72,6 +72,7 @@ function scan() {
   await openTile('quests'); await p.evaluate(() => document.querySelector('[data-quest-tab="explore"]').click()); await shot('sheet_quests_explore');
   await p.evaluate(() => document.querySelector('[data-quest-tab="badges"]').click()); await shot('sheet_quests_badges');
   await closeAll(); await p.evaluate(() => document.querySelector('#btn-stats').click()); await p.waitForTimeout(500); await shot('sheet_stats');
+  await p.evaluate(() => document.querySelector('#btn-settings').click()); await p.waitForTimeout(400); await shot('sheet_settings'); await p.evaluate(() => document.querySelector('#btn-settings').click());
   await closeAll(); await p.evaluate(() => document.querySelector('#btn-diary')?.click()); await p.waitForTimeout(500); await shot('sheet_diary');
   await closeAll(); await p.evaluate(() => document.querySelector('#a-eat').click()); await p.waitForTimeout(1500); await shot('kitchen');
   await p.evaluate(() => document.querySelector('#a-bath').click()); await p.waitForTimeout(1500); await shot('bath');

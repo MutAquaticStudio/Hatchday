@@ -38,7 +38,7 @@ export function initPhoto({ ctx, app, $ }) {
   }
   function enter() {
     if (ctx.state.asleep) { ctx.toast('Bé đang ngủ, chụp ảnh sau nhé.'); return; }
-    ensure(); ctx.closeAllSheets?.(); $('stats').hidden = true; app.classList.add('photo'); bar.hidden = false;
+    ensure(); ctx.closeAllSheets?.(); $('stats').hidden = true; $('settings').hidden = true; app.classList.add('photo'); bar.hidden = false;
     ctx.hideHint?.(); setTimeout(() => ctx.toast('Bé sẽ tạo dáng cho bạn. Bấm nút tròn để chụp!'), 250);
   }
   function exit() { if (!bar) return; app.classList.remove('photo'); bar.hidden = true; closeView(); }

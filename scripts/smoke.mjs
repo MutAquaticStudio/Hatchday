@@ -90,13 +90,13 @@ await p.click('#a-house');await p.click('.tile[data-go="shop"]');await p.waitFor
 await p.click('.hsheet:not([hidden]) [data-close]');await p.waitForTimeout(300);
 // âm thanh: nhạc theo buổi, nút tắt nhạc lưu lại
 ok('nhạc ban ngày/đêm',['day','night'].includes((await au()).mood),JSON.stringify(await au()));
-await p.click('#btn-stats');await p.click('#snd-music');await p.waitForTimeout(200);
+await p.click('#btn-stats');await p.click('#btn-settings');await p.click('#snd-music');await p.waitForTimeout(200);
 // cá tính: hiện trong bảng Chỉ số, đã dịch theo các lần chăm ở trên
 const pd=await demo();ok('cá tính hiện trong bảng Chỉ số',(await p.textContent('#persona-desc')).startsWith('Bé')&&(await p.$$('#persona-axes .axis')).length===5,JSON.stringify(pd.pet.personality));
 ok('cá tính dịch theo cách chăm',Object.values(pd.pet.personality).some(v=>!Number.isInteger(v)));
 ok('tắt nhạc',(await au()).mood===''&&(await p.getAttribute('#snd-music','aria-pressed'))==='false'&&JSON.parse(await p.evaluate(()=>localStorage.getItem('hatchday-audio'))).music===false);
 await p.click('#snd-music');
-// hướng dẫn lần đầu chơi: xem lại từ bảng Chỉ số, làm đủ 5 bước thật
+// hướng dẫn lần đầu chơi: xem lại từ bảng Cài đặt, làm đủ 5 bước thật
 await p.click('#btn-tour');await p.waitForTimeout(600);
 const tourStep=async()=>(await p.textContent('.tour .tour-step').catch(()=>''))||'';
 ok('hướng dẫn bước 1/5',(await tourStep()).includes('1/5'),await tourStep());
@@ -236,11 +236,11 @@ await p.evaluate(()=>window.__remind('break'));await p.waitForTimeout(400);
 ok('nhắc giải lao: bé nói lời nhắc',/vươn vai|Nghỉ tay|Mắt bạn/.test(await p.textContent('#bubble')),await p.textContent('#bubble'));
 await p.evaluate(()=>window.__remind('water'));await p.waitForTimeout(400);
 ok('nhắc uống nước: bé nói lời nhắc',/nước/.test(await p.textContent('#bubble')),await p.textContent('#bubble'));
-await p.click('#btn-stats');await p.waitForTimeout(400);
-ok('Chỉ số có 3 nút Đồng hành (Giải lao, Uống nước, Chào sáng/tối) đang bật',(await p.$$('[data-cp][aria-pressed="true"]')).length===3);
+await p.click('#btn-settings');await p.waitForTimeout(400);
+ok('Cài đặt có 3 nút Đồng hành (Giải lao, Uống nước, Chào sáng/tối) đang bật',(await p.$$('[data-cp][aria-pressed="true"]')).length===3);
 await p.click('[data-cp="water"]');
 ok('tắt nhắc uống nước: lưu vào máy',JSON.parse(await p.evaluate(()=>localStorage.getItem('hatchday-companion'))).water===false);
-await p.click('[data-cp="water"]');await p.click('#btn-stats');await p.waitForTimeout(300);
+await p.click('[data-cp="water"]');await p.click('#btn-settings');await p.waitForTimeout(300);
 // bản đồ và địa điểm: khoá theo Gắn bó, Bệnh viện, Chợ (bán rau), Tiệm may, Thư viện
 await setDemo("d.pet.bond_xp=0;d.pet.illness=null;d.pet.sick_since=null;d.pet.recover_at=null;d.pet.critical_since=null;d.coins=500;d.owned.carot=6;d.sold={};d.pet.no=70;d.pet.sach=70;d.pet.vui=70;d.pet.nl=90;d.pet.stats_at=new Date().toISOString();");
 await reload();

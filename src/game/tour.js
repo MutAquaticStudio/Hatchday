@@ -50,7 +50,7 @@ export function initTour(c = {}) {
   function start() {
     stop(false); show(0); timer = setInterval(tick, 350);
   }
-  $('btn-tour')?.addEventListener('click', () => { write(false); $('btn-stats')?.click(); start(); });
+  $('btn-tour')?.addEventListener('click', () => { write(false); start(); }); // bảng Cài đặt tự đóng khi bấm nút này
   if (!read() && !new URLSearchParams(location.search).has('fitcheck')) {
     // chờ lời chào đầu tiên xong; bé đang ngủ thì thôi, lần sau mở game sẽ hiện
     setTimeout(() => { if (!S.asleep && !c.isBusy?.() && !read()) start(); }, 5000);
