@@ -69,7 +69,7 @@ export function initF2P({ ctx, app, $, open, head, COIN_SVG, onChange }) {
     const levels = (S.job?.skills || []).reduce((n, r) => n + r.level, 0);
     const last = c.last && !c.last.claimed ? `<div class="contest-last"><b>Kết quả tuần trước: hạng ${c.last.rank}</b><button type="button" class="btn-sm" data-contest-claim>${COIN_SVG}Nhận +${c.last.reward}</button></div>` : '';
     const me = c.entered ? `<div class="contest-me"><b>${esc(S.name)} đã dự thi · ${c.score} điểm</b><span>Đang xếp hạng ${c.rank}/${c.entries}. Kết quả chốt vào thứ Hai tuần sau.</span></div>`
-      : `<div class="contest-me"><b>Thi tài tuần này</b><span>Điểm = tổng cấp kỹ năng × 10 + cấp Gắn bó × 5 + chút may mắn. Hiện bé có ${levels} cấp kỹ năng.</span><button type="button" class="btn-sm" data-contest-enter>Cho bé dự thi</button></div>`;
+      : `<div class="contest-me"><b>Thi biểu diễn tuần này</b><span>Điểm = tổng cấp kỹ năng × 10 + cấp Gắn bó × 5 + chút may mắn. Hiện bé có ${levels} cấp kỹ năng.</span><button type="button" class="btn-sm" data-contest-enter>Cho bé dự thi</button></div>`;
     return last + me + `<h3 class="qh">Bảng xếp hạng tuần <small>${c.entries} bé dự thi</small></h3>
       <ol class="leader">${c.top.map((r, i) => `<li class="${r.mine ? 'mine' : ''}"><span class="rk">${i < 3 ? ['🥇', '🥈', '🥉'][i] : i + 1}</span><b>${esc(r.name)}</b><span>${r.score} điểm</span></li>`).join('') || '<li><em>Chưa có bé nào dự thi.</em></li>'}</ol>
       <p class="hs-note">Thưởng (xu kiếm được): hạng 1 +${contestReward(1)}, hạng 2–3 +${contestReward(2)}, top 10 +${contestReward(4)}, còn lại +${contestReward(11)}. Luyện kỹ năng bằng mini-game và việc làm để lên hạng.</p>`;
@@ -97,7 +97,7 @@ export function initF2P({ ctx, app, $, open, head, COIN_SVG, onChange }) {
     el.innerHTML = head('Album ảnh', `${ps.length}/${ALBUM_MAX} ảnh · lưu ngay trong máy này`) + `<div class="hs-body">${ps.length
       ? `<div class="album">${ps.map(p => { const u = URL.createObjectURL(p.blob); albumUrls.push(u); return `<figure><img src="${u}" alt="Ảnh ở ${esc(p.place)}" loading="lazy"><figcaption>${esc(p.place)} · ${new Date(p.at).toLocaleDateString('vi-VN')}</figcaption>
           <div class="row-btns"><a class="btn-sm ghost" href="${u}" download="hatchday-${p.id}.png">Lưu</a><button type="button" class="btn-sm ghost" data-album-del="${p.id}">Xoá</button></div></figure>`; }).join('')}</div>`
-      : '<p class="hs-note">Chưa có ảnh nào. Mở Chỉ số → Chụp ảnh, ảnh chụp sẽ tự vào album.</p>'}
+      : '<p class="hs-note">Chưa có ảnh nào. Mở Chỉ số → Chụp ảnh, ảnh sẽ tự lưu vào album.</p>'}
       <p class="hs-note">Album chỉ lưu trong trình duyệt này (không tải lên máy chủ). Xoá dữ liệu trình duyệt sẽ mất album, nhớ bấm Lưu ảnh nào bạn thích.</p></div>`;
   }
   function openAlbum() { open('album'); renderAlbum(); }

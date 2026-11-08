@@ -54,7 +54,7 @@ export function initFood(c) {
   function renderTray() {
     if (drag) return; // đang kéo thì đừng dựng lại nút
     const have = EDIBLES.filter(f => (S.owned[f.id] || 0) > 0);
-    tray.innerHTML = `<span class="tray-hint">${have.length ? 'Kéo món ăn vào thú, hoặc chạm' : 'Hết thức ăn rồi. Mua thêm nhé!'}</span>` +
+    tray.innerHTML = `<span class="tray-hint">${have.length ? 'Kéo món ăn vào bé, hoặc chạm' : 'Hết thức ăn rồi. Mua thêm nhé!'}</span>` +
       have.map(f => `<button class="food" type="button" data-id="${f.id}" title="${f.name} · +${f.no} No, +${f.vui} Vui · ${FOOD_GROUPS[f.group].name}${f.group2 ? ' + ' + FOOD_GROUPS[f.group2].name : ''}">${FOOD_SVG[f.id]}${f.name}<small>×${S.owned[f.id]} · +${f.no}</small></button>`).join('') +
       '<button class="food more" type="button" data-more title="Mua thêm thức ăn"><svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="14" fill="#ffd36e" stroke="#a8742e" stroke-width="2.2"/><path d="M20 12v16M12 20h16" stroke="#a8742e" stroke-width="3" stroke-linecap="round"/></svg>Mua thêm<small>cửa hàng</small></button>';
   }

@@ -89,7 +89,7 @@ export function initSocial({ ctx, S, store, esc, head, open, closeAll, thumb, fi
 
   function friendsTab() {
     const st = D.state;
-    if (st && st.ready === false) return '<p class="hs-note">Hãy đón một bé thú trước, rồi bạn sẽ có mã bạn bè.</p>';
+    if (st && st.ready === false) return '<p class="hs-note">Hãy đón một bé trước, rồi bạn sẽ có mã bạn bè.</p>';
     const priv = st?.privacy || { friends: 'all', online: 'friends' };
     const reqs = D.req.incoming.length ? `<h3 class="soc-h">Lời mời kết bạn</h3><ul class="soc-list">${D.req.incoming.map(p => person(p,
       `<button type="button" class="btn-sm" data-soc="accept" data-who="${esc(p.pid)}">Đồng ý</button><button type="button" class="btn-sm ghost" data-soc="decline" data-who="${esc(p.pid)}">Từ chối</button>`)).join('')}</ul>` : '';

@@ -34,7 +34,7 @@ export const BADGES: readonly BadgeDef[] = [
   { id: 'explore7', kind: 'explore', target: 7, reward: 60, name: 'Nhà thám hiểm', desc: 'Hoàn thành mục Khám phá 7 ngày', icon: '🧭' },
   { id: 'fish20', kind: 'fish', target: 20, reward: 50, name: 'Cần thủ nhí', desc: 'Câu tổng cộng 20 con cá', icon: '🎣' },
   { id: 'quiz5', kind: 'quiz', target: 5, reward: 50, name: 'Mọt sách', desc: 'Trả lời đúng hết 5 câu đố 5 lần', icon: '📚' },
-  { id: 'delivery30', kind: 'delivery', target: 30, reward: 50, name: 'Shipper chăm chỉ', desc: 'Giao đúng 30 đơn hàng ở Chợ', icon: '📦' },
+  { id: 'delivery30', kind: 'delivery', target: 30, reward: 50, name: 'Bưu tá nhí', desc: 'Giao đúng 30 đơn hàng ở Chợ', icon: '📦' },
   { id: 'rhythm5', kind: 'rhythm', target: 5, reward: 50, name: 'Vũ công nhí', desc: 'Nhảy trúng từ 16 nhịp trở lên 5 lần', icon: '💃' },
   { id: 'bugs60', kind: 'bugs', target: 60, reward: 50, name: 'Người giữ vườn', desc: 'Bắt tổng cộng 60 con sâu', icon: '🐛' },
 ];

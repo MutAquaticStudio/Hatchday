@@ -69,7 +69,7 @@ export const QUIZ_BANK: readonly { q: string; a: readonly string[]; c: number }[
   { q: 'Ngày Quốc tế Thiếu nhi là ngày nào?', a: ['1 tháng 6', '2 tháng 9', '8 tháng 3', '20 tháng 11'], c: 0 },
   { q: 'Con gì có cái vòi rất dài?', a: ['Con voi', 'Con thỏ', 'Con gà', 'Con cá'], c: 0 },
   { q: 'Nước đông lại thành gì?', a: ['Nước đá', 'Hơi nước', 'Cát', 'Mây'], c: 0 },
-  { q: 'Bé thú ngủ ở phòng nào?', a: ['Phòng ngủ', 'Nhà bếp', 'Nhà tắm', 'Vườn'], c: 0 },
+  { q: 'Bé ngủ ở phòng nào?', a: ['Phòng ngủ', 'Nhà bếp', 'Nhà tắm', 'Vườn'], c: 0 },
   { q: 'Ánh sáng ban đêm trên trời là gì?', a: ['Mặt trăng và sao', 'Cầu vồng', 'Mặt trời', 'Đèn giao thông'], c: 0 },
 ];
 /** Chọn n câu không trùng, xáo thứ tự đáp án; `c` là chỉ số đáp án đúng sau khi xáo. */

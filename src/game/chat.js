@@ -11,7 +11,7 @@ export function initChat(c) {
   const { reduce, hideHint, say, setTemp, spawn } = c;
   function reply(t) {
     const s = t.toLowerCase();
-    if (S.asleep) return 'Zzz… (thú đang ngủ, mai nói tiếp nha)';
+    if (S.asleep) return 'Zzz… (bé đang ngủ, mai nói tiếp nha)';
     if (/chào|hello|\bhi\b|alo/.test(s)) return `Chào bạn! ${S.name} nhớ bạn quá trời. Hôm nay bạn thế nào?`;
     if (/đói|ăn|cơm|kem/.test(s)) return S.no < 45 ? 'Đói lắm luôn á… cho mình ăn đi mà~' : 'Mình vừa ăn xong, no căng bụng rồi nè!';
     if (/buồn|mệt|chán|áp lực|stress/.test(s)) { setTemp('love', 2600); spawn('heart', 2); return 'Lại đây mình ôm một cái. Hôm nay bạn vất vả rồi ha.'; }

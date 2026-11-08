@@ -1,6 +1,6 @@
 <div id="app">
   <div id="sky"></div>
-  <canvas id="c" aria-label="Căn phòng 3D có thú cưng. Vuốt lên thú để vuốt ve, chạm để chọc."></canvas>
+  <canvas id="c" aria-label="Căn phòng 3D có bé thú cưng. Vuốt lên bé để vuốt ve, chạm để chọc."></canvas>
   <div id="vignette" aria-hidden="true"></div>
   <div id="dim"></div>
   <div id="wipe" aria-hidden="true"><span class="runner"></span><span id="wipe-label"></span></div>
@@ -12,17 +12,17 @@
   <button class="scene-tag" id="scene-tag" type="button" aria-label="Mở bản đồ">Phòng khách</button>
   <button class="sick-chip" id="sick-chip" type="button" hidden aria-label="Sức khoẻ của bé: mở sổ sức khoẻ"></button>
 
-  <div class="hint" id="hint">Vuốt lên thú để vuốt ve · chạm để chọc</div>
+  <div class="hint" id="hint">Vuốt lên bé để vuốt ve · chạm để chọc</div>
   <div id="bubble" hidden></div>
   <div id="pops" aria-hidden="true"></div>
   <div id="toast" role="status" hidden></div>
   <div id="devhud" hidden></div>
 
-  <section id="stats" class="sheet stats" hidden aria-label="Chỉ số của thú">
+  <section id="stats" class="sheet stats" hidden aria-label="Chỉ số của bé">
     <h2>Chỉ số</h2>
     <div id="species-card" class="species-card"></div>
     <div id="bond" class="bond"></div>
-    <label class="name">Tên riêng của thú<input id="pet-name" maxlength="16" autocomplete="off"></label>
+    <label class="name">Tên của bé<input id="pet-name" maxlength="16" autocomplete="off"></label>
     <div id="bars"></div>
     <div class="persona"><h3>Cá tính</h3><p id="persona-desc" class="note"></p><div id="persona-axes"></div><p class="note" id="tastes"></p></div>
     <div class="row quality" role="group" aria-label="Chất lượng hình ảnh">Hình ảnh <button type="button" class="qbtn" data-q="thap" aria-pressed="false">Thấp</button><button type="button" class="qbtn" data-q="vua" aria-pressed="true">Vừa</button><button type="button" class="qbtn" data-q="cao" aria-pressed="false">Cao</button></div>
@@ -40,7 +40,7 @@
     <p hidden></p>
   </section>
 
-  <section id="diary" class="sheet diary" hidden aria-label="Nhật ký của thú">
+  <section id="diary" class="sheet diary" hidden aria-label="Nhật ký của bé">
     <div class="tabs" role="tablist"><button class="tab" id="tab-pages" role="tab" type="button" aria-selected="true">Nhật ký</button><button class="tab" id="tab-mem" role="tab" type="button" aria-selected="false">Ký ức</button></div>
     <div class="dpanel" id="dpanel"></div>
   </section>
@@ -49,7 +49,7 @@
     <div id="ctx" class="ctx" hidden></div>
     <div id="tray" class="tray" hidden></div>
     <form id="chat" class="chat" hidden autocomplete="off">
-      <input id="chat-input" maxlength="120" placeholder="Nói gì đó với thú… (AI sẽ được nối sau)">
+      <input id="chat-input" maxlength="120" placeholder="Nói gì đó với bé…">
       <button type="submit">Gửi</button>
     </form>
     <nav class="bar" aria-label="Hành động">
