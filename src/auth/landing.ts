@@ -5,6 +5,7 @@
  * Chưa có máy chủ hoặc chưa chỉnh thì dùng biến build (để trống hết thì hiện "sắp mở"):
  *   VITE_DONATE_URL, VITE_DONATE_LABEL, VITE_DONATE_BANK ("Ngân hàng|Số tài khoản|Chủ tài khoản"), VITE_DONATE_QR (ảnh trong public/landing/).
  */
+import { _t } from '../i18n';
 import './landing.css';
 import { supabase, isConfigured } from '../lib/supabase';
 
@@ -30,29 +31,29 @@ export function qrSrc(i: SiteInfo): string {
 }
 
 const SHOTS = [
-  { src: './landing/home.jpg', cap: 'Nhà của bé: chăm, trang trí, mặc đồ' },
-  { src: './landing/plaza.jpg', cap: 'Quảng trường: gặp gỡ bạn bè' },
-  { src: './landing/park.jpg', cap: 'Công viên: ao vịt, sân chơi, đồng hoa' },
-  { src: './landing/market.jpg', cap: 'Chợ Xanh: mua sắm bằng xu kiếm được' },
-  { src: './landing/minigame.jpg', cap: '7 mini-game: câu cá, nhảy theo nhịp…' },
+  { src: './landing/home.jpg', cap: _t('Nhà của bé: chăm, trang trí, mặc đồ') },
+  { src: './landing/plaza.jpg', cap: _t('Quảng trường: gặp gỡ bạn bè') },
+  { src: './landing/park.jpg', cap: _t('Công viên: ao vịt, sân chơi, đồng hoa') },
+  { src: './landing/market.jpg', cap: _t('Chợ Xanh: mua sắm bằng xu kiếm được') },
+  { src: './landing/minigame.jpg', cap: _t('7 mini-game: câu cá, nhảy theo nhịp…') },
 ];
 const FEATURES = [
-  ['🥚', 'Ấp trứng, nuôi bé', 'Hơn 50 loài, lớn lên theo cách bạn chăm. Ăn, tắm, ngủ, chơi, khám bệnh, và gia phả qua nhiều đời.'],
-  ['🗺️', 'Thế giới để khám phá', 'Quảng trường, Công viên, Chợ, Tiệm trà, Thư viện, Bệnh viện, Tiệm may. Thời tiết và ngày đêm thay đổi thật.'],
-  ['🎣', '7 mini-game', 'Bắt bướm, pha trà, câu cá, đố vui, giao hàng, nhảy theo nhịp, bắt sâu. Chơi để kiếm xu và luyện kỹ năng.'],
-  ['💼', 'Việc làm & thi tài', 'Cho bé đi làm thêm, lên cấp kỹ năng và tham gia thi biểu diễn mỗi tuần.'],
-  ['🤝', 'Bạn bè', 'Kết bạn, tặng quà, thăm nhà, hẹn chơi, để lại lời nhắn. Bé của bạn còn ghé chơi khi bạn vắng.'],
-  ['🏮', 'Lễ hội theo mùa', 'Tết, Trung thu, Thiếu nhi, Halloween, Giáng sinh… Sổ mùa và sổ sticker đổi mới mỗi tháng.'],
+  ['🥚', _t('Ấp trứng, nuôi bé'), _t('Hơn 50 loài, lớn lên theo cách bạn chăm. Ăn, tắm, ngủ, chơi, khám bệnh, và gia phả qua nhiều đời.')],
+  ['🗺️', _t('Thế giới để khám phá'), _t('Quảng trường, Công viên, Chợ, Tiệm trà, Thư viện, Bệnh viện, Tiệm may. Thời tiết và ngày đêm thay đổi thật.')],
+  ['🎣', '7 mini-game', _t('Bắt bướm, pha trà, câu cá, đố vui, giao hàng, nhảy theo nhịp, bắt sâu. Chơi để kiếm xu và luyện kỹ năng.')],
+  ['💼', _t('Việc làm & thi tài'), _t('Cho bé đi làm thêm, lên cấp kỹ năng và tham gia thi biểu diễn mỗi tuần.')],
+  ['🤝', _t('Bạn bè'), _t('Kết bạn, tặng quà, thăm nhà, hẹn chơi, để lại lời nhắn. Bé của bạn còn ghé chơi khi bạn vắng.')],
+  ['🏮', _t('Lễ hội theo mùa'), _t('Tết, Trung thu, Thiếu nhi, Halloween, Giáng sinh… Sổ mùa và sổ sticker đổi mới mỗi tháng.')],
 ] as const;
 
 export function donateHtml(info: SiteInfo = envSiteInfo()): string {
-  const url = safeUrl(info.donate_url), label = info.donate_label || 'Ủng hộ Hatchday', qr = qrSrc(info);
+  const url = safeUrl(info.donate_url), label = info.donate_label || _t('Ủng hộ Hatchday'), qr = qrSrc(info);
   const ways = [
     url ? `<a class="btn ld-donate-btn" href="${esc(url)}" target="_blank" rel="noopener">☕ ${esc(label)}</a>` : '',
-    info.bank_name && info.bank_account ? `<div class="ld-bank"><span>Chuyển khoản</span><b>${esc(info.bank_name)}</b><b class="ld-acc">${esc(info.bank_account)}</b>${info.bank_holder ? `<small>${esc(info.bank_holder)}</small>` : ''}<small>Nội dung: <i>Ung ho Hatchday</i></small></div>` : '',
-    qr ? `<img class="ld-qr" src="${esc(qr)}" alt="Mã QR ủng hộ Hatchday" loading="lazy" width="180" height="180">` : '',
+    info.bank_name && info.bank_account ? _t`<div class="ld-bank"><span>Chuyển khoản</span><b>${esc(info.bank_name)}</b><b class="ld-acc">${esc(info.bank_account)}</b>${info.bank_holder ? `<small>${esc(info.bank_holder)}</small>` : ''}<small>Nội dung: <i>Ung ho Hatchday</i></small></div>` : '',
+    qr ? _t`<img class="ld-qr" src="${esc(qr)}" alt="Mã QR ủng hộ Hatchday" loading="lazy" width="180" height="180">` : '',
   ].filter(Boolean);
-  return ways.length ? `<div class="ld-ways">${ways.join('')}</div>` : '<p class="ld-soon">Kênh ủng hộ sẽ sớm mở. Cảm ơn bạn đã quan tâm! Trong lúc chờ, chia sẻ Hatchday với bạn bè cũng là một cách ủng hộ tuyệt vời.</p>';
+  return ways.length ? `<div class="ld-ways">${ways.join('')}</div>` : _t('<p class="ld-soon">Kênh ủng hộ sẽ sớm mở. Cảm ơn bạn đã quan tâm! Trong lúc chờ, chia sẻ Hatchday với bạn bè cũng là một cách ủng hộ tuyệt vời.</p>');
 }
 
 /** Lấy thông tin trang từ máy chủ rồi vẽ lại phần Ủng hộ và email liên hệ. Lỗi mạng thì giữ bản dự phòng. */
@@ -69,7 +70,7 @@ export async function hydrateLanding(root: ParentNode): Promise<void> {
 
 /** HTML trang chủ; `cta` là cụm nút đăng nhập / tạo tài khoản / Chơi thử (giữ nguyên id để luồng cũ chạy như trước). */
 export function landingHtml(cta: string, notice = ''): string {
-  return `<div class="landing">
+  return _t`<div class="landing">
   <header class="ld-nav"><a class="ld-logo" href="#top" aria-label="Hatchday">🥚 Hatchday</a>
     <nav aria-label="Trang chủ"><a href="#tinh-nang">Tính năng</a><a href="#mien-phi">Miễn phí</a><a href="#ung-ho">Ủng hộ</a></nav></header>
   <section class="ld-hero" id="top">

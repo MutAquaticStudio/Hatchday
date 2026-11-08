@@ -1,6 +1,7 @@
 // Dựng 3D cho đồ trang trí và trang phục (toon + viền, cùng phong cách với thú).
 // Quy ước: đồ sàn/thảm có gốc ở tâm diện tích chiếm chỗ, đáy y = 0, mặt trước hướng +z.
 // Đồ treo tường có gốc ở tâm khối, mặt sau sát tường (z = 0), hướng +z.
+import { _t } from '../i18n';
 
 export function makeDecor(K) {
   const { THREE, toon, add, canvasTex } = K;
@@ -186,7 +187,7 @@ export function makeDecor(K) {
     },
     'bien-nong-trai': g => {
       [-0.5, 0.5].forEach(x => add(g, Cy(0.05, 0.06, 0.9, 8), toon(WOOD_D), x, 0.45, 0, WOOD_INK, 0.015));
-      const t = tex(256, 96, c => { c.fillStyle = '#e8b47a'; c.fillRect(0, 0, 256, 96); c.strokeStyle = '#a8742e'; c.lineWidth = 6; c.strokeRect(5, 5, 246, 86); c.fillStyle = '#7a4a2e'; c.font = '800 34px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('NÔNG TRẠI', 128, 50); });
+      const t = tex(256, 96, c => { c.fillStyle = '#e8b47a'; c.fillRect(0, 0, 256, 96); c.strokeStyle = '#a8742e'; c.lineWidth = 6; c.strokeRect(5, 5, 246, 86); c.fillStyle = '#7a4a2e'; c.font = '800 34px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(_t('NÔNG TRẠI'), 128, 50); });
       const b = add(g, Bx(1.3, 0.45, 0.07), toon('#ffffff', t), 0, 0.78, 0.03, WOOD_INK, 0.015);
       add(g, S(0.07, 8, 6), toon('#ff7a7a'), -0.55, 1.03, 0.04, null); add(g, S(0.07, 8, 6), toon('#ffd36e'), 0.55, 1.03, 0.04, null);
     },

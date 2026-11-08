@@ -2,6 +2,7 @@
  * Xã hội: bạn bè, quà, thăm nhà. Luật thuần, song song với supabase/migrations/20261203..20261205 (test: supabase/tests/social.test.ts).
  * Mọi con số ở đây phải khớp SQL.
  */
+import { _t } from '../i18n';
 export const SOCIAL = {
   /** Hạn mức bạn bè theo cấp Gắn bó: 30 ở cấp 2 trở xuống, tăng đều tới 100 ở cấp 10. */
   friendCapBase: 30, friendCapMax: 100,
@@ -22,14 +23,14 @@ export const isCodeShape = (s: string): boolean => /^[A-HJ-NP-Z2-9]{8}$/.test(no
 
 /** Dấu vết để lại ở nhà bạn (không gõ tự do). */
 export const GUESTBOOK = [
-  { id: 'heart', label: 'Trái tim' }, { id: 'star', label: 'Ngôi sao' }, { id: 'smile', label: 'Mặt cười' },
-  { id: 'cake', label: 'Bánh ngọt' }, { id: 'flower', label: 'Bông hoa' },
+  { id: 'heart', label: _t('Trái tim') }, { id: 'star', label: _t('Ngôi sao') }, { id: 'smile', label: _t('Mặt cười') },
+  { id: 'cake', label: _t('Bánh ngọt') }, { id: 'flower', label: _t('Bông hoa') },
 ] as const;
 
 export const PRIVACY_KEYS = { friends: ['all', 'none'], online: ['friends', 'none'] } as const;
 
 /** Mẫu lời nhắn kèm quà. */
-export const GIFT_NOTES = ['Chúc bạn khoẻ!', 'Cảm ơn bạn nhé!', 'Tặng bạn món nhỏ.', 'Chúc bé của bạn vui!'] as const;
+export const GIFT_NOTES = [_t('Chúc bạn khoẻ!'), _t('Cảm ơn bạn nhé!'), _t('Tặng bạn món nhỏ.'), _t('Chúc bé của bạn vui!')] as const;
 
 export interface PublicProfile {
   pid: string; name: string; family: string | null; species: string; stage: string; form: string | null;

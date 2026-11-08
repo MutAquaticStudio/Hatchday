@@ -1,5 +1,6 @@
 // Khuôn mặt của thú: vẽ lên canvas 2D rồi dán lên quả cầu đầu. Biểu cảm (EXPR) và vẽ mặt (drawFace) nằm ở đây.
 // Muốn thêm biểu cảm mới: thêm vào EXPR; muốn thêm kiểu mắt/miệng: thêm hàm vẽ rồi nối vào drawFace/mouth.
+import { _t } from '../i18n';
 
 export function makeFace({ THREE, renderer }) {
   const FW = 600, FH = 496;
@@ -84,17 +85,17 @@ export function makeFace({ THREE, renderer }) {
   function gloom() { fx.strokeStyle = 'rgba(100,120,210,.5)'; fx.lineWidth = 6; for (let i = 0; i < 7; i++) { const x = FW * 0.3 + i * FW * 0.067; fx.beginPath(); fx.moveTo(x, 8); fx.lineTo(x, 70 + (i % 2) * 22); fx.stroke(); } }
 
   const EXPR = {
-    vui:      { label: 'Vui',        eyes: 'open',  mouth: 'w',      blush: .45, msg: 'đang vui' },
-    excited:  { label: 'Phấn khích', eyes: 'star',  mouth: 'open',   blush: .7,  fx: 'sparkle', msg: 'phấn khích quá!' },
-    hungry:   { label: 'Đói',        eyes: 'open',  lookY: -12, mouth: 'o', blush: .3, drool: true, msg: 'hơi đói' },
-    sleepy:   { label: 'Buồn ngủ',   eyes: 'open',  lid: .58, mouth: 'line', blush: .25, msg: 'buồn ngủ rồi' },
-    sleep:    { label: 'Ngủ',        eyes: 'sleep', mouth: 'smallo', blush: .35, fx: 'zzz', msg: 'đang ngủ' },
-    sick:     { label: 'Ốm',         eyes: 'swirl', mouth: 'wavy',   blush: 0, cold: true, gloom: true, fx: 'sweat', msg: 'bị cảm lạnh' },
-    sulky:    { label: 'Dỗi',        eyes: 'open',  lid: .36, lidCurve: -6, brows: 'angry', mouth: 'pout', blush: .65, fx: 'anger', msg: 'đang dỗi' },
-    sad:      { label: 'Buồn',       eyes: 'open',  tears: true, brows: 'sad', mouth: 'frown', blush: .2, msg: 'hơi buồn' },
-    love:     { label: 'Âu yếm',     eyes: 'happy', mouth: 'open',   blush: .9, fx: 'heart', msg: 'thích được vuốt ve' },
-    yawn:     { label: 'Ngáp',       eyes: 'squeeze', mouth: 'open', blush: .3, msg: 'đang ngáp' },
-    chew:     { label: 'Nhai',       eyes: 'happy', mouth: 'chew',   blush: .5, msg: 'đang nhai nhóp nhép' },
+    vui:      { label: 'Vui',        eyes: 'open',  mouth: 'w',      blush: .45, msg: _t('đang vui') },
+    excited:  { label: _t('Phấn khích'), eyes: 'star',  mouth: 'open',   blush: .7,  fx: 'sparkle', msg: _t('phấn khích quá!') },
+    hungry:   { label: _t('Đói'),        eyes: 'open',  lookY: -12, mouth: 'o', blush: .3, drool: true, msg: _t('hơi đói') },
+    sleepy:   { label: _t('Buồn ngủ'),   eyes: 'open',  lid: .58, mouth: 'line', blush: .25, msg: _t('buồn ngủ rồi') },
+    sleep:    { label: _t('Ngủ'),        eyes: 'sleep', mouth: 'smallo', blush: .35, fx: 'zzz', msg: _t('đang ngủ') },
+    sick:     { label: _t('Ốm'),         eyes: 'swirl', mouth: 'wavy',   blush: 0, cold: true, gloom: true, fx: 'sweat', msg: _t('bị cảm lạnh') },
+    sulky:    { label: _t('Dỗi'),        eyes: 'open',  lid: .36, lidCurve: -6, brows: 'angry', mouth: 'pout', blush: .65, fx: 'anger', msg: _t('đang dỗi') },
+    sad:      { label: _t('Buồn'),       eyes: 'open',  tears: true, brows: 'sad', mouth: 'frown', blush: .2, msg: _t('hơi buồn') },
+    love:     { label: _t('Âu yếm'),     eyes: 'happy', mouth: 'open',   blush: .9, fx: 'heart', msg: _t('thích được vuốt ve') },
+    yawn:     { label: _t('Ngáp'),       eyes: 'squeeze', mouth: 'open', blush: .3, msg: _t('đang ngáp') },
+    chew:     { label: 'Nhai',       eyes: 'happy', mouth: 'chew',   blush: .5, msg: _t('đang nhai nhóp nhép') },
   };
   let faceKey = '';
   function drawFace(key, blink, phase, gx = 0, gy = 0) {

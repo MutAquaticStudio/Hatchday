@@ -1,5 +1,6 @@
 // Tiệm trà "Gió" (~13×10, nội thất đầy đủ): nơi chung (shared.js). Sàn gỗ, tường ốp gỗ, xà ngang, cửa sổ có rèm, quầy pha trà có kệ hũ và ấm đun hơi nước,
 // bảng thực đơn viết tay, 4 bàn tròn bốn chỗ trên thảm, quầy ghế cao, góc cửa sổ có gối, mèo ngủ (chạm để vuốt), chậu cây treo, đèn thả và dây đèn.
+import { _t } from '../../i18n';
 import { makeKit } from './kit.js';
 import { makeShared } from './shared.js';
 import { makeWorld } from './world.js';
@@ -48,11 +49,11 @@ export function initTea(c) {
   world.scatter(g, new THREE.CylinderGeometry(0.16, 0.15, 0.4, 10), world.toonC('#ffffff'), jars, '#7a5a5a', 0.015);
   add(shelf, new THREE.BoxGeometry(0.1, 1.5, 0.5), toon('#a8744a'), -1.65, 2.65, 0, '#5a3a22', 0.015); add(shelf, new THREE.BoxGeometry(0.1, 1.5, 0.5), toon('#a8744a'), 1.65, 2.65, 0, '#5a3a22', 0.015);
   // bảng thực đơn viết tay
-  const menu = canvasTex(256, 192, d => { d.fillStyle = '#3a4a42'; d.fillRect(0, 0, 256, 192); d.strokeStyle = '#b98a5e'; d.lineWidth = 10; d.strokeRect(5, 5, 246, 182); d.fillStyle = '#fff'; d.font = '800 24px "Baloo 2", system-ui'; d.textAlign = 'center'; d.fillText('Thực đơn hôm nay', 128, 40);
-    d.font = '600 18px "Baloo 2", system-ui'; d.textAlign = 'left'; ['Trà gừng mật ong', 'Trà hoa cúc', 'Trà đào cam sả', 'Bánh dorayaki', 'Bánh bông lan trứng'].forEach((t, i) => d.fillText('· ' + t, 28, 76 + i * 26)); });
+  const menu = canvasTex(256, 192, d => { d.fillStyle = '#3a4a42'; d.fillRect(0, 0, 256, 192); d.strokeStyle = '#b98a5e'; d.lineWidth = 10; d.strokeRect(5, 5, 246, 182); d.fillStyle = '#fff'; d.font = '800 24px "Baloo 2", system-ui'; d.textAlign = 'center'; d.fillText(_t('Thực đơn hôm nay'), 128, 40);
+    d.font = '600 18px "Baloo 2", system-ui'; d.textAlign = 'left'; [_t('Trà gừng mật ong'), _t('Trà hoa cúc'), _t('Trà đào cam sả'), _t('Bánh dorayaki'), _t('Bánh bông lan trứng')].forEach((t, i) => d.fillText('· ' + t, 28, 76 + i * 26)); });
   const mb = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 1.65), new THREE.MeshBasicMaterial({ map: menu })); mb.position.set(5.0, 2.7, -D / 2 + 0.03); g.add(mb);
-  kit.hotspot({ id: 'brew', label: 'Pha trà', at: [-1.9, 2.2, -0.1], stand: [-1.9, -1.7], act: () => { steamBoost = 1; c.sfx('kettle'); c.open.mini('brew'); } }, kettle);
-  kit.hotspot({ id: 'order', label: 'Gọi món', at: [-1.5, 2.6, -3.3], stand: [-1.5, -1.7], act: () => { steamBoost = 1; c.sfx('kettle'); c.say('Ấm trà sôi rồi kìa, thơm ghê!', 1800); c.open.shop('food'); } }, counter);
+  kit.hotspot({ id: 'brew', label: _t('Pha trà'), at: [-1.9, 2.2, -0.1], stand: [-1.9, -1.7], act: () => { steamBoost = 1; c.sfx('kettle'); c.open.mini('brew'); } }, kettle);
+  kit.hotspot({ id: 'order', label: _t('Gọi món'), at: [-1.5, 2.6, -3.3], stand: [-1.5, -1.7], act: () => { steamBoost = 1; c.sfx('kettle'); c.say(_t('Ấm trà sôi rồi kìa, thơm ghê!'), 1800); c.open.shop('food'); } }, counter);
   // quầy ghế cao
   [-3.2, -1.5, 0.2].forEach(x => { const s = new THREE.Group(); s.position.set(x, 0, -2.3); g.add(s); add(s, new THREE.CylinderGeometry(0.3, 0.3, 0.12, 14), toon(['#ff9ec4', '#9fd8ff', '#ffd36e'][Math.round((x + 3.2) / 1.7)]), 0, 0.85, 0, '#7a5a6a', 0.02); add(s, new THREE.CylinderGeometry(0.06, 0.1, 0.8, 8), toon('#8a6a4a'), 0, 0.4, 0, '#5a3a22', 0.015); });
 
@@ -65,7 +66,7 @@ export function initTea(c) {
     add(t, new THREE.CylinderGeometry(0.08, 0.14, 0.76, 10), toon('#b98a5e'), 0, 0.38, 0, '#6a4a3a', 0.02);
     add(t, new THREE.CylinderGeometry(0.09, 0.07, 0.1, 12), toon('#ffffff'), 0.15, 0.87, 0.05, '#aaa', 0.015); add(t, new THREE.SphereGeometry(0.07, 8, 6), toon(['#ff9ec4', '#ffd36e', '#c9a6ff', '#7edb72'][i]), -0.2, 0.9, -0.1, null);
     for (let k = 0; k < 4; k++) { const a = k * Math.PI / 2 + 0.4; chairs.push({ x: x + Math.cos(a) * 1.0, y: 0.42, z: z + Math.sin(a) * 1.0, color: ['#ff9ec4', '#9fd8ff', '#ffd36e', '#c9a6ff'][k] }); legs.push({ x: x + Math.cos(a) * 1.0, y: 0.2, z: z + Math.sin(a) * 1.0 }); }
-    kit.hotspot({ id: 'table' + i, label: `Bàn ${i + 1}`, at: [x, 1.8, z], stand: [x, z + 1.2], act: () => sipTea(x, z, ['Trà thơm quá~', 'Ngồi đây thích ghê!', 'Mình nhâm nhi một chút nha.', 'Gió mát ghê!'][i]) }, t);
+    kit.hotspot({ id: 'table' + i, label: _t`Bàn ${i + 1}`, at: [x, 1.8, z], stand: [x, z + 1.2], act: () => sipTea(x, z, [_t('Trà thơm quá~'), _t('Ngồi đây thích ghê!'), _t('Mình nhâm nhi một chút nha.'), _t('Gió mát ghê!')][i]) }, t);
   });
 
   world.scatter(g, new THREE.CylinderGeometry(0.28, 0.28, 0.08, 14), world.toonC('#ffffff'), chairs, '#7a5a6a', 0.02); world.scatter(g, new THREE.CylinderGeometry(0.07, 0.07, 0.4, 6), world.toonC('#8a6a4a'), legs, null);
@@ -86,7 +87,7 @@ export function initTea(c) {
       if (u < 0.2) return { pos: arc([fx, 0, fz], spot, ease(u / 0.2), 0.1), face: -Math.PI / 2 };
       if (Math.random() < 0.06) c.spawnAt('heart', -5.5, 1.6, 3.3, { vy: 0.7, scale: 0.34, max: 1 });
       return { pos: [spot[0] + Math.sin(t * 5) * 0.06, 0, spot[2]], stretch: Math.sin(t * 5) * 0.04, roll: Math.sin(t * 5) * 0.06, face: -Math.PI / 2 };
-    }, done: ok => { if (!ok) return; c.say('Mèo mềm quá, rù rù~', 2200); if (ok) c.activity('cat'); } });
+    }, done: ok => { if (!ok) return; c.say(_t('Mèo mềm quá, rù rù~'), 2200); if (ok) c.activity('cat'); } });
   }
   // góc cửa sổ trái: ghế dài có gối, mèo ngủ
   const nook = new THREE.Group(); nook.position.set(-5.6, 0, 2.2); g.add(nook);
@@ -97,7 +98,7 @@ export function initTea(c) {
   add(cat, new THREE.SphereGeometry(0.22, 12, 10), toon('#ffcf9a'), 0, 0.12, 0.4, '#a8744a', 0.02);
   [-0.12, 0.12].forEach(x => add(cat, new THREE.ConeGeometry(0.07, 0.14, 4), toon('#ffcf9a'), x, 0.34, 0.4, '#a8744a', 0.015));
   const tail = add(cat, new THREE.CylinderGeometry(0.05, 0.04, 0.5, 8), toon('#ffb878'), 0, 0.05, -0.45, null); tail.rotation.x = Math.PI / 2;
-  kit.hotspot({ id: 'cat', label: 'Mèo ngủ', at: [-5.6, 2.2, 3.3], stand: [-4.2, 3.0], act: () => { c.setTemp('love', 1600); petTheCat(); } }, cat);
+  kit.hotspot({ id: 'cat', label: _t('Mèo ngủ'), at: [-5.6, 2.2, 3.3], stand: [-4.2, 3.0], act: () => { c.setTemp('love', 1600); petTheCat(); } }, cat);
   // chậu cây treo, đèn thả, dây đèn, đồng hồ
   [[-5.8, -3.6], [5.6, -3.6], [5.8, 1.6]].forEach(([x, z], i) => { const p = new THREE.Group(); p.position.set(x, 3.4, z); g.add(p); add(p, new THREE.CylinderGeometry(0.01, 0.01, 1.0, 4), toon('#7a5a4a'), 0, 0.5, 0, null); add(p, new THREE.CylinderGeometry(0.26, 0.2, 0.3, 12), toon('#e8a07a'), 0, 0, 0, '#9a5f4a', 0.02); for (let k = 0; k < 5; k++) add(p, new THREE.SphereGeometry(0.2, 8, 6), toon('#7edb72'), Math.cos(k * 1.3) * 0.25, -0.2 - k * 0.12 - (i % 2) * 0.1, Math.sin(k * 1.3) * 0.2, '#3f8a55', 0.015); });
   const pend = [[-1.8, -0.2], [2.2, -0.9], [-2.6, 2.4], [2.6, 2.2]].map(([x, z]) => { const l = new THREE.Group(); l.position.set(x, 3.6, z); g.add(l); add(l, new THREE.CylinderGeometry(0.01, 0.01, 1.2, 4), toon('#7a5a4a'), 0, 0.6, 0, null); const b = add(l, new THREE.SphereGeometry(0.3, 14, 10), new THREE.MeshBasicMaterial({ color: '#ffe9a8' }), 0, 0, 0, '#c9a050', 0.02); b.scale.y = 0.85; return b; });
@@ -110,7 +111,7 @@ export function initTea(c) {
 
   return {
     group: g,
-    enter() { kit.show(true); shared.enter(); setTimeout(() => { if (c.getArea() === 'tea') c.say('Chạm vào một bàn để ngồi nhâm nhi nhé.', 3000); }, 900); },
+    enter() { kit.show(true); shared.enter(); setTimeout(() => { if (c.getArea() === 'tea') c.say(_t('Chạm vào một bàn để ngồi nhâm nhi nhé.'), 3000); }, 900); },
     leave() { kit.show(false); shared.leave(); },
     update(dt, now) {
       kit.tick(now); const t = now / 1000;

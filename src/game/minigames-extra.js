@@ -1,6 +1,7 @@
 // Năm mini-game mới chơi trong lớp phủ (cùng khung với Pha trà ở minigames.js): Câu cá, Đố vui, Giao hàng, Nhảy theo nhịp, Bắt sâu.
 // Mỗi trò nhận `g` = { root, head, finish(score, extra), sfx, buzz, reduce, ctx, live(fn) } và trả về hàm dọn dẹp.
 // Luật thuần (điểm, đề, nhịp) nằm ở minigame-rules.ts (có test); máy chủ chặn điểm vượt trần như các trò cũ.
+import { _t } from '../i18n';
 import {
   BUGS, bugShowMs, bugsScore, DELIVERY, DELIVERY_STALLS, deliveryOrders, deliveryScore, FISH, fishBiteWindow, fishScore,
   pickQuiz, QUIZ, quizScore, RHYTHM, rhythmChart, rhythmHit, rhythmScore, seeded, shuffled,
@@ -16,7 +17,7 @@ function fish(g) {
   const { root, head, sfx, buzz, reduce } = g, W = 340, H = 230, TIP = { x: 214, y: 84 }, HOME = { x: 222, y: 112 };
   const st = { phase: 'cast', caught: 0, t0: performance.now(), timer: 0, raf: 0, ended: false, bob: { ...HOME }, from: null, to: null, castT: 0, biteAt: 0, waitEnd: 0, jump: null, land: null, ripples: [], last: performance.now() };
   const shadows = [0, 1, 2].map(i => ({ x: 60 + i * 90, y: 70 + (i % 2) * 60, vx: (i % 2 ? -1 : 1) * 12, vy: 4, tx: 0, ty: 0, hook: false }));
-  root.innerHTML = `<div class="mini-card play">${head('fish', `Câu tối đa ${FISH.target} con trong ${FISH.seconds} giây`)}
+  root.innerHTML = _t`<div class="mini-card play">${head('fish', _t`Câu tối đa ${FISH.target} con trong ${FISH.seconds} giây`)}
     ${timerBar()}<div class="mg-row"><span class="mg-pill" id="f-n">🐟 0/${FISH.target}</span><span class="mg-order" id="f-hint">Chờ phao chìm rồi giật!</span></div>
     <svg class="fish-scene" id="f-scene" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Ao câu cá">
       <defs><radialGradient id="fw" cx="50%" cy="35%" r="75%"><stop offset="0" stop-color="#d4f2ff"/><stop offset=".55" stop-color="#8fd3f5"/><stop offset="1" stop-color="#4f9fd2"/></radialGradient></defs>
@@ -40,28 +41,28 @@ function fish(g) {
   const $ = s => root.querySelector(s), btn = $('#f-btn'), sh = [...$('#f-sh').children], bobEl = $('#f-bob'), lineEl = $('#f-line'), rodEl = $('#f-rod'), ex = $('#f-ex'), jump = $('#f-jump'), rip = $('#f-rip'), mouth = $('#f-mouth'), bucket = $('#f-bucket'), plus = $('#f-plus');
   const say = m => { $('#f-msg').textContent = m; };
   const ripple = (x, y, big = false) => st.ripples.push({ x, y, t: 0, max: big ? 28 : 18 });
-  const reel = () => { st.phase = 'cast'; btn.textContent = 'Thả câu'; st.from = { ...st.bob }; st.to = { ...HOME }; st.castT = 0; shadows.forEach(f => { f.hook = false; }); };
+  const reel = () => { st.phase = 'cast'; btn.textContent = _t('Thả câu'); st.from = { ...st.bob }; st.to = { ...HOME }; st.castT = 0; shadows.forEach(f => { f.hook = false; }); };
   const cast = () => {
-    st.phase = 'wait'; btn.textContent = 'Giật cần!'; say('Suỵt… chờ phao chìm…'); sfx('splash');
+    st.phase = 'wait'; btn.textContent = _t('Giật cần!'); say(_t('Suỵt… chờ phao chìm…')); sfx('splash');
     st.from = { ...st.bob }; st.to = { x: 90 + Math.random() * 160, y: 62 + Math.random() * 70 }; st.castT = 0;
     const wait = FISH.waitMin + Math.random() * (FISH.waitMax - FISH.waitMin); st.waitEnd = performance.now() + wait;
     const f = shadows[Math.floor(Math.random() * shadows.length)]; f.hook = true; // con cá sẽ cắn câu bơi dần lại gần phao
     clearTimeout(st.timer); st.timer = setTimeout(() => {
-      if (st.ended || st.phase !== 'wait') return; st.phase = 'bite'; st.biteAt = performance.now(); say('Cắn câu rồi! Giật nhanh!'); buzz(20); sfx('boing'); ripple(st.bob.x, st.bob.y, true);
-      st.timer = setTimeout(() => { if (st.phase === 'bite' && !st.ended) { say('Cá chạy mất rồi, thử lại nha.'); sfx('miss'); reel(); } }, fishBiteWindow(st.caught));
+      if (st.ended || st.phase !== 'wait') return; st.phase = 'bite'; st.biteAt = performance.now(); say(_t('Cắn câu rồi! Giật nhanh!')); buzz(20); sfx('boing'); ripple(st.bob.x, st.bob.y, true);
+      st.timer = setTimeout(() => { if (st.phase === 'bite' && !st.ended) { say(_t('Cá chạy mất rồi, thử lại nha.')); sfx('miss'); reel(); } }, fishBiteWindow(st.caught));
     }, wait);
   };
   const pull = () => {
     if (st.ended) return;
     if (st.phase === 'cast') { cast(); return; }
     clearTimeout(st.timer);
-    if (st.phase === 'wait') { say('Sớm quá, cá giật mình bơi đi mất!'); sfx('miss'); shadows.forEach(f => { if (f.hook) { f.vx = (f.x - st.bob.x) * 3; f.vy = (f.y - st.bob.y) * 3; } }); reel(); return; }
+    if (st.phase === 'wait') { say(_t('Sớm quá, cá giật mình bơi đi mất!')); sfx('miss'); shadows.forEach(f => { if (f.hook) { f.vx = (f.x - st.bob.x) * 3; f.vy = (f.y - st.bob.y) * 3; } }); reel(); return; }
     if (st.phase === 'bite') {
       st.caught++; sfx('catch'); buzz(12);
       const kinds = ['#ffb347', '#ff7a9a', '#6ab7ff', '#7edb72']; jump.querySelector('path').setAttribute('fill', kinds[st.caught % 4]);
       st.jump = { t: 0, x0: st.bob.x, y0: st.bob.y, x: st.bob.x, y: st.bob.y }; ripple(st.bob.x, st.bob.y, true);
       const f = shadows.find(x => x.hook); if (f) { f.x = Math.random() < 0.5 ? -30 : W + 30; f.y = 60 + Math.random() * 100; }
-      $('#f-n').textContent = `🐟 ${st.caught}/${FISH.target}`; say(st.caught >= FISH.target ? 'Đủ rồi! Câu giỏi ghê!' : `Được ${st.caught} con! Thả câu tiếp nào.`);
+      $('#f-n').textContent = `🐟 ${st.caught}/${FISH.target}`; say(st.caught >= FISH.target ? _t('Đủ rồi! Câu giỏi ghê!') : _t`Được ${st.caught} con! Thả câu tiếp nào.`);
       reel(); st.from = null; st.bob = { ...HOME }; if (st.caught >= FISH.target) end();
     }
   };
@@ -121,7 +122,7 @@ function quiz(g) {
   const st = { i: 0, right: 0, t0: 0, raf: 0, ended: false, locked: false };
   const render = () => {
     const x = qs[st.i]; st.t0 = performance.now(); st.locked = false;
-    root.innerHTML = `<div class="mini-card play">${head('quiz', `Câu ${st.i + 1}/${qs.length} · đúng ${st.right}`)}${timerBar()}
+    root.innerHTML = _t`<div class="mini-card play">${head('quiz', _t`Câu ${st.i + 1}/${qs.length} · đúng ${st.right}`)}${timerBar()}
       <div class="quiz-board"><span class="quiz-chalk" aria-hidden="true">✎ Câu ${st.i + 1}</span><h3 class="quiz-q">${esc(x.q)}</h3></div><div class="quiz-a">${x.a.map((t, k) => `<button type="button" class="quiz-opt o${k}" data-quiz="${k}"><i aria-hidden="true">${'ABCD'[k]}</i><span>${esc(t)}</span></button>`).join('')}</div></div>`;
   };
   const answer = k => {
@@ -148,12 +149,12 @@ function delivery(g) {
   const tiles = shuffled(DELIVERY_STALLS, rnd), orders = deliveryOrders(Math.floor(rnd() * 1e9));
   const st = { n: 0, i: 0, t0: performance.now(), penalty: 0, raf: 0, ended: false, open: true, lock: false };
   const byId = Object.fromEntries(DELIVERY_STALLS.map(s => [s.id, s]));
-  root.innerHTML = `<div class="mini-card play">${head('delivery', 'Nhớ sạp nào bán gì, rồi giao đúng chỗ')}${timerBar()}
+  root.innerHTML = _t`<div class="mini-card play">${head('delivery', _t('Nhớ sạp nào bán gì, rồi giao đúng chỗ'))}${timerBar()}
     <div class="mg-row"><span class="mg-pill" id="d-n">📦 0/${DELIVERY.target}</span></div><div class="deliv-order"><span class="deliv-cust" aria-hidden="true">🧑‍🍳</span><span class="mg-order" id="d-order">Nhìn kỹ các sạp nhé…</span></div>
     <div class="deliv-grid">${tiles.map(s => `<button type="button" class="deliv-tile open st-${s.id}" data-stall="${s.id}"><span class="dt-roof" aria-hidden="true"></span><span class="dt-slot"><span class="dt-icon">${s.icon}</span><span class="dt-box" aria-hidden="true">?</span></span><b>${esc(s.name)}</b></button>`).join('')}</div>
     <p class="mini-hint">Đơn sai bị trừ ${DELIVERY.penalty} giây</p></div>`;
   const $ = s => root.querySelector(s);
-  const showOrder = () => { const s = byId[orders[st.i]]; $('#d-order').innerHTML = `Giao <span class="dt-big">${s.icon}</span> tới sạp nào?`; };
+  const showOrder = () => { const s = byId[orders[st.i]]; $('#d-order').innerHTML = _t`Giao <span class="dt-big">${s.icon}</span> tới sạp nào?`; };
   const closeAll = () => { st.open = false; root.querySelectorAll('.deliv-tile').forEach(b => b.classList.remove('open')); showOrder(); };
   const t1 = setTimeout(closeAll, reduce ? DELIVERY.preview + 800 : DELIVERY.preview);
   const pick = id => {
@@ -183,11 +184,11 @@ function rhythm(g) {
   const { root, head, sfx, buzz, ctx } = g, chart = rhythmChart(Math.floor(Math.random() * 1e9)), done = chart.map(() => false);
   const st = { hits: 0, miss: 0, t0: performance.now(), raf: 0, ended: false, combo: 0 };
   const LANE_ICON = ['🎵', '⭐', '💖'];
-  root.innerHTML = `<div class="mini-card play rhythm">${head('rhythm', 'Chạm đúng làn khi nốt rơi tới vạch')}
+  root.innerHTML = _t`<div class="mini-card play rhythm">${head('rhythm', _t('Chạm đúng làn khi nốt rơi tới vạch'))}
     <div class="mg-row"><span class="mg-pill" id="r-n">🎵 0/${chart.length}</span><span class="mg-pill" id="r-combo"></span></div>
     <div class="rh-field" id="r-field"><span class="rh-spot s1"></span><span class="rh-spot s2"></span><span class="rh-spot s3"></span>${[0, 1, 2].map(l => `<div class="rh-lane l${l}" data-lane-col="${l}"></div>`).join('')}<div class="rh-line"></div><div class="rh-floor"></div>
       ${chart.map((n, i) => `<span class="rh-note" id="rn-${i}" style="left:${(n.lane + 0.5) / 3 * 100}%">${LANE_ICON[n.lane]}</span>`).join('')}</div>
-    <div class="rh-pads">${[0, 1, 2].map(l => `<button type="button" class="rh-pad p${l}" data-lane="${l}" aria-label="Làn ${l + 1}">${LANE_ICON[l]}</button>`).join('')}</div>
+    <div class="rh-pads">${[0, 1, 2].map(l => _t`<button type="button" class="rh-pad p${l}" data-lane="${l}" aria-label="Làn ${l + 1}">${LANE_ICON[l]}</button>`).join('')}</div>
     <p class="mini-hint">Bàn phím: A · S · D hoặc ← ↓ →</p></div>`;
   const notes = chart.map((_, i) => root.querySelector(`#rn-${i}`)), field = root.querySelector('#r-field');
   const now = () => (performance.now() - st.t0) / 1000;
@@ -196,7 +197,7 @@ function rhythm(g) {
     pad.classList.remove('hit', 'miss'); void pad.offsetWidth;
     if (i >= 0) { done[i] = true; st.hits++; st.combo++; notes[i].classList.add('got'); pad.classList.add('hit'); sfx('catch'); buzz(6); if (st.combo % 4 === 0) ctx.startAction?.('dance'); }
     else { st.combo = 0; pad.classList.add('miss'); }
-    root.querySelector('#r-n').textContent = `🎵 ${st.hits}/${chart.length}`; root.querySelector('#r-combo').textContent = st.combo >= 3 ? `Liên tiếp ×${st.combo}` : '';
+    root.querySelector('#r-n').textContent = `🎵 ${st.hits}/${chart.length}`; root.querySelector('#r-combo').textContent = st.combo >= 3 ? _t`Liên tiếp ×${st.combo}` : '';
   };
   const onDown = e => { const b = e.target.closest('[data-lane]'); if (b) { e.preventDefault(); tap(+b.dataset.lane); } };
   const KEYS = { a: 0, s: 1, d: 2, A: 0, S: 1, D: 2, ArrowLeft: 0, ArrowDown: 1, ArrowRight: 2 };
@@ -223,9 +224,9 @@ function rhythm(g) {
 function bugs(g) {
   const { root, head, sfx, buzz } = g;
   const st = { n: 0, t0: performance.now(), raf: 0, ended: false, cell: -1, kind: '', until: 0, next: 0 };
-  root.innerHTML = `<div class="mini-card play">${head('bugs', `Bắt sâu bảo vệ vườn rau · ${BUGS.seconds} giây`)}${timerBar()}
+  root.innerHTML = _t`<div class="mini-card play">${head('bugs', _t`Bắt sâu bảo vệ vườn rau · ${BUGS.seconds} giây`)}${timerBar()}
     <div class="mg-row"><span class="mg-pill" id="b-n">🐛 0/${BUGS.target}</span><span class="mg-order" id="b-msg">Bọ rùa 🐞 là bạn, đừng bắt nhé!</span></div>
-    <div class="bug-grid bug-bed">${Array.from({ length: BUGS.cells }, (_, i) => `<button type="button" class="bug-cell" data-cell="${i}" aria-label="Lá ${i + 1}"><span class="bug-leaf">🥬</span><span class="bug-who"></span></button>`).join('')}</div></div>`;
+    <div class="bug-grid bug-bed">${Array.from({ length: BUGS.cells }, (_, i) => _t`<button type="button" class="bug-cell" data-cell="${i}" aria-label="Lá ${i + 1}"><span class="bug-leaf">🥬</span><span class="bug-who"></span></button>`).join('')}</div></div>`;
   const cells = [...root.querySelectorAll('.bug-cell')];
   const hide = () => { if (st.cell >= 0) cells[st.cell].classList.remove('up', 'friend'); st.cell = -1; };
   const show = (now, prog) => {
@@ -236,8 +237,8 @@ function bugs(g) {
   };
   const hit = i => {
     if (st.ended || i !== st.cell) return;
-    if (st.kind === 'bug') { st.n = Math.min(BUGS.target, st.n + 1); sfx('catch'); buzz(8); root.querySelector('#b-msg').textContent = 'Bắt được rồi!'; }
-    else { st.n = Math.max(0, st.n - 1); sfx('miss'); buzz(4); root.querySelector('#b-msg').textContent = 'Ối, bọ rùa là bạn mà!'; }
+    if (st.kind === 'bug') { st.n = Math.min(BUGS.target, st.n + 1); sfx('catch'); buzz(8); root.querySelector('#b-msg').textContent = _t('Bắt được rồi!'); }
+    else { st.n = Math.max(0, st.n - 1); sfx('miss'); buzz(4); root.querySelector('#b-msg').textContent = _t('Ối, bọ rùa là bạn mà!'); }
     root.querySelector('#b-n').textContent = `🐛 ${st.n}/${BUGS.target}`; hide(); st.next = performance.now() + 200;
     if (st.n >= BUGS.target) end();
   };
@@ -257,12 +258,12 @@ function bugs(g) {
 }
 
 export const EXTRA_GAMES = { fish, quiz, delivery, rhythm, bugs };
-export const EXTRA_TITLE = { fish: 'Câu cá', quiz: 'Đố vui', delivery: 'Giao hàng', rhythm: 'Nhảy theo nhịp', bugs: 'Bắt sâu' };
+export const EXTRA_TITLE = { fish: _t('Câu cá'), quiz: _t('Đố vui'), delivery: _t('Giao hàng'), rhythm: _t('Nhảy theo nhịp'), bugs: _t('Bắt sâu') };
 export const EXTRA_INTRO = {
-  fish: `Thả câu xuống ao, chờ phao chìm rồi bấm "Giật cần!" thật nhanh. Giật sớm quá cá sẽ chạy mất. Câu tối đa ${FISH.target} con trong ${FISH.seconds} giây.`,
-  quiz: `${QUIZ.questions} câu đố vui, mỗi câu ${QUIZ.seconds} giây. Chọn đáp án đúng để giúp bé thông minh hơn!`,
-  delivery: `Nhìn kỹ sạp nào bán gì trong ${DELIVERY.preview / 1000} giây, rồi hàng sẽ được che lại. Giao đúng ${DELIVERY.target} đơn hàng trong ${DELIVERY.seconds} giây nhé.`,
-  rhythm: `Nốt nhạc rơi xuống 3 làn. Chạm đúng làn khi nốt rơi tới vạch để bé nhảy theo. ${RHYTHM.notes} nốt, trúng càng nhiều, xu càng nhiều.`,
-  bugs: `Sâu đang ăn lá rau! Chạm vào sâu 🐛 để bắt, nhưng đừng bắt bọ rùa 🐞 vì bọ rùa là bạn của vườn. ${BUGS.seconds} giây.`,
+  fish: _t`Thả câu xuống ao, chờ phao chìm rồi bấm "Giật cần!" thật nhanh. Giật sớm quá cá sẽ chạy mất. Câu tối đa ${FISH.target} con trong ${FISH.seconds} giây.`,
+  quiz: _t`${QUIZ.questions} câu đố vui, mỗi câu ${QUIZ.seconds} giây. Chọn đáp án đúng để giúp bé thông minh hơn!`,
+  delivery: _t`Nhìn kỹ sạp nào bán gì trong ${DELIVERY.preview / 1000} giây, rồi hàng sẽ được che lại. Giao đúng ${DELIVERY.target} đơn hàng trong ${DELIVERY.seconds} giây nhé.`,
+  rhythm: _t`Nốt nhạc rơi xuống 3 làn. Chạm đúng làn khi nốt rơi tới vạch để bé nhảy theo. ${RHYTHM.notes} nốt, trúng càng nhiều, xu càng nhiều.`,
+  bugs: _t`Sâu đang ăn lá rau! Chạm vào sâu 🐛 để bắt, nhưng đừng bắt bọ rùa 🐞 vì bọ rùa là bạn của vườn. ${BUGS.seconds} giây.`,
 };
-export const EXTRA_UNIT = { fish: 'con cá', quiz: 'câu đúng', delivery: 'đơn giao đúng', rhythm: 'nhịp trúng', bugs: 'con sâu' };
+export const EXTRA_UNIT = { fish: _t('con cá'), quiz: _t('câu đúng'), delivery: _t('đơn giao đúng'), rhythm: _t('nhịp trúng'), bugs: _t('con sâu') };

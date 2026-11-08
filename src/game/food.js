@@ -1,5 +1,6 @@
 // Thức ăn và khay thức ăn: kéo món vào thú hoặc chạm. Số liệu từng món (No, Vui, nhóm, giá) nằm ở catalog.ts (FOODS).
 // Mỗi lần ăn dùng hết một phần trong kho; mua thêm ở tab "Thức ăn" của cửa hàng. feed() cập nhật chỉ số tại chỗ rồi gửi act('feed') lên server.
+import { _t } from '../i18n';
 import * as THREE from 'three';
 import { S, act, save, onSync, refreshOwned } from './store';
 import { EDIBLES, FOOD_BY_ID, FOOD_GROUPS } from './catalog';
@@ -54,9 +55,9 @@ export function initFood(c) {
   function renderTray() {
     if (drag) return; // đang kéo thì đừng dựng lại nút
     const have = EDIBLES.filter(f => (S.owned[f.id] || 0) > 0);
-    tray.innerHTML = `<span class="tray-hint">${have.length ? 'Kéo món ăn vào bé, hoặc chạm' : 'Hết thức ăn rồi. Mua thêm nhé!'}</span>` +
+    tray.innerHTML = _t`<span class="tray-hint">${have.length ? _t('Kéo món ăn vào bé, hoặc chạm') : _t('Hết thức ăn rồi. Mua thêm nhé!')}</span>` +
       have.map(f => `<button class="food" type="button" data-id="${f.id}" title="${f.name} · +${f.no} No, +${f.vui} Vui · ${FOOD_GROUPS[f.group].name}${f.group2 ? ' + ' + FOOD_GROUPS[f.group2].name : ''}">${FOOD_SVG[f.id]}${f.name}<small>×${S.owned[f.id]} · +${f.no}</small></button>`).join('') +
-      '<button class="food more" type="button" data-more title="Mua thêm thức ăn"><svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="14" fill="#ffd36e" stroke="#a8742e" stroke-width="2.2"/><path d="M20 12v16M12 20h16" stroke="#a8742e" stroke-width="3" stroke-linecap="round"/></svg>Mua thêm<small>cửa hàng</small></button>';
+      _t('<button class="food more" type="button" data-more title="Mua thêm thức ăn"><svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="14" fill="#ffd36e" stroke="#a8742e" stroke-width="2.2"/><path d="M20 12v16M12 20h16" stroke="#a8742e" stroke-width="3" stroke-linecap="round"/></svg>Mua thêm<small>cửa hàng</small></button>');
   }
   renderTray(); onSync(renderTray);
   tray.addEventListener('pointerdown', e => {
@@ -96,27 +97,27 @@ export function initFood(c) {
   }
   function feed(f) {
     hideHint();
-    if (S.asleep) { say('Suỵt… mình đang ngủ mà.', 2400); return; }
-    if ((S.owned[f.id] || 0) < 1) { say(`Hết ${f.name} rồi. Mua thêm ở cửa hàng nhé!`, 2800); return; }
+    if (S.asleep) { say(_t('Suỵt… mình đang ngủ mà.'), 2400); return; }
+    if ((S.owned[f.id] || 0) < 1) { say(_t`Hết ${f.name} rồi. Mua thêm ở cửa hàng nhé!`, 2800); return; }
     const sweet = f.group === 'ngot' || f.group2 === 'ngot';
-    if (sweet && c.sweetsBlocked()) { setTemp('sulky', 1600); say('Răng mình đang đau, mình không ăn đồ ngọt được đâu…', 3000); return; }
-    if (S.no >= 90) { setTemp('sulky', 1600); c.shake(); say('Mình no căng rồi mà~', 2400); return; }
+    if (sweet && c.sweetsBlocked()) { setTemp('sulky', 1600); say(_t('Răng mình đang đau, mình không ăn đồ ngọt được đâu…'), 3000); return; }
+    if (S.no >= 90) { setTemp('sulky', 1600); c.shake(); say(_t('Mình no căng rồi mà~'), 2400); return; }
     S.no = clamp(S.no + f.no); S.vui = clamp(S.vui + f.vui); S.sach = clamp(S.sach - 2);
     S.owned = { ...S.owned, [f.id]: S.owned[f.id] - 1 }; // dùng một phần; số thật do server trả về
     popText(`+${f.no} No`, '#f08a24');
     count('fed'); dayRec().foods.push(f.name); dayRec().groups.push(f.group); if (f.group2) dayRec().groups.push(f.group2);
     setTemp('chew', 1500); impulse(-1.5); sfx('feed');
-    if (sweet && dayRec().groups.filter(g => g === "ngot").length === c.sweetsLimit - 1) c.toast(`Hôm nay bé đã ăn ${c.sweetsLimit - 1} món ngọt. Thêm một món ngọt nữa là bé bị sâu răng đó!`);
+    if (sweet && dayRec().groups.filter(g => g === "ngot").length === c.sweetsLimit - 1) c.toast(_t`Hôm nay bé đã ăn ${c.sweetsLimit - 1} món ngọt. Thêm một món ngọt nữa là bé bị sâu răng đó!`);
     const req = act('feed', f.id);
     setTimeout(async () => {
       const r = await req;
       if (!r || r.refused) refreshOwned().catch(() => {}); // lấy lại số phần thật từ server
       if (!r) { /* mất mạng: giữ bản dự đoán trên máy */ }
-      else if (r.refused === 'full') { setTemp('sulky', 1400); say('Mình no căng rồi mà~', 2400); }
-      else if (r.dislike) { setTemp('sulky', 1500); say('Hừm… món này mình không thích lắm.', 2800); }
-      else if (r && r.fav) { setTemp('love', 1800); spawn('heart', 4, 1); spawn('sparkle', 2); say(S.favFound ? 'Món tủ của mình nè!!' : 'Ơ… đây là món tủ của mình! Sao bạn biết hay vậy?', 3400); S.favFound = true; }
+      else if (r.refused === 'full') { setTemp('sulky', 1400); say(_t('Mình no căng rồi mà~'), 2400); }
+      else if (r.dislike) { setTemp('sulky', 1500); say(_t('Hừm… món này mình không thích lắm.'), 2800); }
+      else if (r && r.fav) { setTemp('love', 1800); spawn('heart', 4, 1); spawn('sparkle', 2); say(S.favFound ? _t('Món tủ của mình nè!!') : _t('Ơ… đây là món tủ của mình! Sao bạn biết hay vậy?'), 3400); S.favFound = true; }
       else { spawn('sparkle'); say(f.line, 2600); }
-      if (r && r.balanced) setTimeout(() => { popText(`Ăn cân bằng +${BALANCED_BONUS} Vui`, '#3f9a63'); spawn('sparkle', 2); }, 600);
+      if (r && r.balanced) setTimeout(() => { popText(_t`Ăn cân bằng +${BALANCED_BONUS} Vui`, '#3f9a63'); spawn('sparkle', 2); }, 600);
       save(); renderStats(); renderTray();
     }, 1500);
   }

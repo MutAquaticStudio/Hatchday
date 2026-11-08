@@ -2,6 +2,7 @@
  * Giao thức tin nhắn trong nơi chung. Mọi bên nhận phải qua parseMsg: bỏ tin hỏng, quá lớn, toạ độ ngoài sân, emote lạ.
  * Chat gõ chữ KHÔNG đi qua đây (xem PLAN-social-admin, mục D): người gửi chat do máy chủ đóng dấu.
  */
+import { _t } from '../i18n';
 export const PROTO = {
   v: 1,
   /** Giãn cách tối thiểu giữa hai lần gửi ý định đi và hai emote (ms), theo ngân sách tin của Realtime gói Free. */
@@ -16,16 +17,16 @@ export const PROTO = {
 
 /** Tám emote. Chọn bằng nút, không gõ tự do. */
 export const EMOTES = [
-  { id: 'wave', e: '👋', label: 'Chào' }, { id: 'heart', e: '❤️', label: 'Thương' }, { id: 'laugh', e: '😂', label: 'Cười' }, { id: 'star', e: '⭐', label: 'Tuyệt' },
-  { id: 'cheer', e: '🎉', label: 'Hoan hô' }, { id: 'sleepy', e: '😴', label: 'Buồn ngủ' }, { id: 'sad', e: '😢', label: 'Buồn' }, { id: 'hungry', e: '🍙', label: 'Đói' },
+  { id: 'wave', e: '👋', label: _t('Chào') }, { id: 'heart', e: '❤️', label: _t('Thương') }, { id: 'laugh', e: '😂', label: _t('Cười') }, { id: 'star', e: '⭐', label: _t('Tuyệt') },
+  { id: 'cheer', e: '🎉', label: _t('Hoan hô') }, { id: 'sleepy', e: '😴', label: _t('Buồn ngủ') }, { id: 'sad', e: '😢', label: _t('Buồn') }, { id: 'hungry', e: '🍙', label: _t('Đói') },
 ] as const;
 export type EmoteId = (typeof EMOTES)[number]['id'];
 
 /** Việc bé đang làm ở nơi chung (xích đu, ghế đá, sân khấu…): người khác thấy biểu tượng nổi trên đầu bé. Tự gửi khi bé làm xong một tương tác, không phải nút bấm. */
 export const ACTS = [
-  { id: 'swing', e: '🎠', text: 'đang đu xích đu' }, { id: 'seesaw', e: '⚖️', text: 'đang chơi bập bênh' }, { id: 'slide', e: '🛝', text: 'đang trượt cầu trượt' },
-  { id: 'ducks', e: '🦆', text: 'đang cho vịt ăn' }, { id: 'ball', e: '⚽', text: 'đang đá bóng' }, { id: 'bench', e: '🪑', text: 'đang ngồi nghỉ' },
-  { id: 'fountain', e: '⛲', text: 'đang nghịch nước' }, { id: 'stage', e: '🎤', text: 'đang biểu diễn' }, { id: 'tea', e: '🍵', text: 'đang nhấp trà' }, { id: 'cat', e: '🐈', text: 'đang vuốt mèo' },
+  { id: 'swing', e: '🎠', text: _t('đang đu xích đu') }, { id: 'seesaw', e: '⚖️', text: _t('đang chơi bập bênh') }, { id: 'slide', e: '🛝', text: _t('đang trượt cầu trượt') },
+  { id: 'ducks', e: '🦆', text: _t('đang cho vịt ăn') }, { id: 'ball', e: '⚽', text: _t('đang đá bóng') }, { id: 'bench', e: '🪑', text: _t('đang ngồi nghỉ') },
+  { id: 'fountain', e: '⛲', text: _t('đang nghịch nước') }, { id: 'stage', e: '🎤', text: _t('đang biểu diễn') }, { id: 'tea', e: '🍵', text: _t('đang nhấp trà') }, { id: 'cat', e: '🐈', text: _t('đang vuốt mèo') },
 ] as const;
 export type ActId = (typeof ACTS)[number]['id'];
 export const isAct = (id: unknown): id is ActId => ACTS.some(a => a.id === id);

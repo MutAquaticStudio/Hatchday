@@ -4,12 +4,13 @@
  * Luật song song với private.bond_level và claim_bond_reward trong supabase/migrations/20261122000000_bond.sql
  * (supabase/tests/bond.test.ts so khớp hai bên). Con số tự cân: bé sống 30–60 ngày, người chơi chăm đều khoảng 50–150 điểm mỗi ngày.
  */
+import { _t } from '../i18n';
 export const BOND = {
   /** Điểm tối thiểu để đạt cấp 1..10. */
   levels: [0, 25, 80, 170, 300, 480, 720, 1020, 1400, 1900],
   /** Quà xu khi đạt cấp 1..10 (cấp 1 không có quà). */
   rewards: [0, 50, 80, 120, 160, 220, 300, 400, 520, 700],
-  titles: ['Mới quen', 'Quen thuộc', 'Thân thiết', 'Gắn bó', 'Tin cậy', 'Bạn tốt', 'Tri âm', 'Tri kỷ', 'Khó tách rời', 'Một lòng'],
+  titles: [_t('Mới quen'), _t('Quen thuộc'), _t('Thân thiết'), _t('Gắn bó'), _t('Tin cậy'), _t('Bạn tốt'), _t('Tri âm'), _t('Tri kỷ'), _t('Khó tách rời'), _t('Một lòng')],
   max: 10,
 } as const;
 

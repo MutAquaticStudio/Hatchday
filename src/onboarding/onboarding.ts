@@ -1,3 +1,4 @@
+import { _t } from '../i18n';
 import { createPet, hatchHeir, listMemories } from '../data/api';
 import type { PetRow } from '../data/types';
 import { describe as describePersona, normalize } from '../game/personality';
@@ -31,9 +32,9 @@ export function mountOnboarding(root: HTMLElement, onDone: () => void, opts: Onb
 function mountMemorial(root: HTMLElement, par: PetRow, next: () => void): void {
   const sp = SPECIES_BY_ID[par.species], rar = sp ? RARITIES[sp.rarity] : null;
   const form = par.form ? FORMS[par.form]?.name : '';
-  root.innerHTML = `<main class="screen"><section class="card memorial">
+  root.innerHTML = _t`<main class="screen"><section class="card memorial">
     <h1>${esc(par.name)} đã ra đi</h1>
-    <p class="sub">${sp ? `Một bé <b>${esc(sp.name)}</b>${rar ? ` <span class="rar" style="--rc:${rar.color}">${rar.name}</span>` : ''}` : 'Bé'}${form ? ` dáng ${esc(form)}` : ''} · đời ${par.generation} của ${esc(par.family_name)}.</p>
+    <p class="sub">${sp ? _t`Một bé <b>${esc(sp.name)}</b>${rar ? ` <span class="rar" style="--rc:${rar.color}">${rar.name}</span>` : ''}` : _t('Bé')}${form ? _t` dáng ${esc(form)}` : ''} · đời ${par.generation} của ${esc(par.family_name)}.</p>
     <p class="memo-days">Bé đã sống <b>${par.lived_days ?? '?'}</b> ngày bên bạn.</p>
     <p class="sub">${esc(describePersona(normalize(par.personality)))}</p>
     <div class="memo-list" id="memo-list" aria-live="polite"><p class="sub">Đang nhớ lại…</p></div>
@@ -44,7 +45,7 @@ function mountMemorial(root: HTMLElement, par: PetRow, next: () => void): void {
   listMemories(par.id).then(rows => {
     const el = root.querySelector('#memo-list'); if (!el) return;
     const top = rows.filter(r => r.kind !== 'talk').slice(0, 3);
-    el.innerHTML = top.length ? '<p class="sub"><b>Những điều bé nhớ</b></p>' + top.map(r => `<p class="memo">“${esc(r.body)}”</p>`).join('') : '';
+    el.innerHTML = top.length ? _t('<p class="sub"><b>Những điều bé nhớ</b></p>') + top.map(r => `<p class="memo">“${esc(r.body)}”</p>`).join('') : '';
   }).catch(() => { const el = root.querySelector('#memo-list'); if (el) el.innerHTML = ''; });
 }
 
@@ -56,14 +57,14 @@ function mountEggs(root: HTMLElement, onDone: () => void, opts: OnboardingOpts):
   const others = [0, 1, 2, 3, 4].filter(r => r !== parRegion).sort(() => Math.random() - 0.5);
   const offer = (parRegion != null ? [parRegion, ...others.slice(0, 2)] : others.slice(0, 3)).sort(() => Math.random() - 0.5);
   let egg = offer[0];
-  root.innerHTML = `<main class="screen"><section class="card">
-    <h1>${par ? `Quả trứng của ${esc(par.family_name)}` : 'Chọn một quả trứng'}</h1><p class="sub">${par
-      ? `Bé đời ${par.generation + 1} sẽ thừa hưởng một phần cá tính và nét của ${esc(par.name)}. Chọn trứng ${esc(REGIONS[parRegion ?? 0].name)} thì có cơ hội nở ra đúng loài của ${esc(par.name)}.`
-      : 'Mỗi miền có 10 loài, từ Thường tới Huyền thoại. Bé nào nở ra là duyên, và không bé nào giống bé nào.'}</p>
+  root.innerHTML = _t`<main class="screen"><section class="card">
+    <h1>${par ? _t`Quả trứng của ${esc(par.family_name)}` : _t('Chọn một quả trứng')}</h1><p class="sub">${par
+      ? _t`Bé đời ${par.generation + 1} sẽ thừa hưởng một phần cá tính và nét của ${esc(par.name)}. Chọn trứng ${esc(REGIONS[parRegion ?? 0].name)} thì có cơ hội nở ra đúng loài của ${esc(par.name)}.`
+      : _t('Mỗi miền có 10 loài, từ Thường tới Huyền thoại. Bé nào nở ra là duyên, và không bé nào giống bé nào.')}</p>
     <form novalidate>
-      <div class="eggs" role="radiogroup" aria-label="Quả trứng">${offer.map((r, k) => `<button type="button" class="egg-pick" role="radio" aria-checked="${k === 0}" data-i="${r}"><span class="egg-shape" style="${eggBg(r)}"></span>${REGIONS[r].name}${r === parRegion ? '<small class="kin">miền của ' + esc(par!.name) + '</small>' : ''}</button>`).join('')}</div>
+      <div class="eggs" role="radiogroup" aria-label="Quả trứng">${offer.map((r, k) => _t`<button type="button" class="egg-pick" role="radio" aria-checked="${k === 0}" data-i="${r}"><span class="egg-shape" style="${eggBg(r)}"></span>${REGIONS[r].name}${r === parRegion ? _t('<small class="kin">miền của ') + esc(par!.name) + '</small>' : ''}</button>`).join('')}</div>
       <label class="field" for="pet-name">Tên của bé<input id="pet-name" maxlength="16" placeholder="Ví dụ: Bánh Bò" autocomplete="off" aria-describedby="pet-name-err"><span class="err" id="pet-name-err"></span></label>
-      ${par ? `<p class="sub" style="font-size:13px">Dòng họ <b>${esc(par.family_name)}</b>, đời ${par.generation + 1}.</p>` : `<label class="field" for="family">Tên dòng họ<input id="family" maxlength="16" placeholder="Ví dụ: Nhà Mây" autocomplete="off" aria-describedby="family-err"><span class="err" id="family-err"></span></label>
+      ${par ? _t`<p class="sub" style="font-size:13px">Dòng họ <b>${esc(par.family_name)}</b>, đời ${par.generation + 1}.</p>` : _t`<label class="field" for="family">Tên dòng họ<input id="family" maxlength="16" placeholder="Ví dụ: Nhà Mây" autocomplete="off" aria-describedby="family-err"><span class="err" id="family-err"></span></label>
       <p class="sub" style="font-size:13px">Tên dòng họ được giữ qua các thế hệ trong gia phả.</p>`}
       <p class="err" id="form-err" role="alert"></p>
       <button class="btn" type="submit">Ấp trứng</button>
@@ -73,29 +74,29 @@ function mountEggs(root: HTMLElement, onDone: () => void, opts: OnboardingOpts):
   const form = root.querySelector('form')!;
   form.addEventListener('submit', async ev => {
     ev.preventDefault();
-    const name = (root.querySelector<HTMLInputElement>('#pet-name')!.value || 'Bánh Bò').trim();
-    const family = par ? par.family_name : (root.querySelector<HTMLInputElement>('#family')!.value || 'Nhà Mây').trim();
+    const name = (root.querySelector<HTMLInputElement>('#pet-name')!.value || _t('Bánh Bò')).trim();
+    const family = par ? par.family_name : (root.querySelector<HTMLInputElement>('#family')!.value || _t('Nhà Mây')).trim();
     const btn = form.querySelector<HTMLButtonElement>('button[type="submit"]')!;
-    btn.disabled = true; btn.textContent = 'Đang ấp…';
+    btn.disabled = true; btn.textContent = _t('Đang ấp…');
     try {
       const pet = par ? await hatchHeir(name.slice(0, 16), egg) : await createPet(name.slice(0, 16), family.slice(0, 16), egg);
       const sp = SPECIES_BY_ID[pet.species], rar = sp ? RARITIES[sp.rarity] : null;
       const card = root.querySelector('.card')!;
-      card.innerHTML = `<div class="hatch"><span class="egg-shape" style="${eggBg(egg)}"></span><p class="flash" role="status">Trứng đang động đậy…</p><p class="hatch-sp" hidden></p></div>`;
+      card.innerHTML = _t`<div class="hatch"><span class="egg-shape" style="${eggBg(egg)}"></span><p class="flash" role="status">Trứng đang động đậy…</p><p class="hatch-sp" hidden></p></div>`;
       const hatch = card.querySelector('.hatch')!;
       setTimeout(() => {
         hatch.classList.add('cracked', 'r-' + (sp?.rarity || 'thuong'));
-        hatch.querySelector('.flash')!.textContent = `${name} đã chào đời!`;
+        hatch.querySelector('.flash')!.textContent = _t`${name} đã chào đời!`;
         if (sp && rar) {
           const el = hatch.querySelector<HTMLElement>('.hatch-sp')!; el.hidden = false;
-          const kin = par && pet.species === par.species ? `<br><b>Giống hệt ${esc(par.name)}!</b>` : '';
-          el.innerHTML = `Một bé <b>${esc(sp.name)}</b> <span class="rar" style="--rc:${rar.color}">${rar.name}</span>${kin}<br><i>${esc(sp.blurb)}</i>`;
+          const kin = par && pet.species === par.species ? _t`<br><b>Giống hệt ${esc(par.name)}!</b>` : '';
+          el.innerHTML = _t`Một bé <b>${esc(sp.name)}</b> <span class="rar" style="--rc:${rar.color}">${rar.name}</span>${kin}<br><i>${esc(sp.blurb)}</i>`;
         }
       }, reduce ? 0 : 1600);
       setTimeout(onDone, reduce ? 1800 : sp && sp.rarity !== 'thuong' ? 4600 : 3800);
     } catch (e) {
       root.querySelector('#form-err')!.textContent = viError(e);
-      btn.disabled = false; btn.textContent = 'Ấp trứng';
+      btn.disabled = false; btn.textContent = _t('Ấp trứng');
     }
   });
 }

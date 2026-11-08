@@ -1,4 +1,5 @@
 /** Thời tiết của thế giới: suy ra từ giờ địa phương nên mọi người cùng thấy một bầu trời mà không cần máy chủ. Thuần, có test. */
+import { _t } from '../i18n';
 export type Sky = 'clear' | 'cloudy' | 'rain';
 export type Fall = 'petal' | 'leaf' | null;
 export interface Weather { sky: Sky; /** 0–1: cường độ mưa / độ u ám */ amount: number }
@@ -41,4 +42,4 @@ export function weatherOverride(search: string): Sky | null {
 /** Hệ số ánh sáng ngoài trời theo thời tiết: [hemi, sun]. */
 export const SKY_LIGHT: Record<Sky, [number, number]> = { clear: [1, 1], cloudy: [0.9, 0.7], rain: [0.78, 0.42] };
 
-export const SKY_LABEL: Record<Sky, string> = { clear: 'Trời quang', cloudy: 'Trời âm u', rain: 'Trời đang mưa' };
+export const SKY_LABEL: Record<Sky, string> = { clear: _t('Trời quang'), cloudy: _t('Trời âm u'), rain: _t('Trời đang mưa') };

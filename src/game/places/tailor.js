@@ -1,4 +1,5 @@
 // Tiệm may "Kim Chỉ": gương lớn và bục thử đồ, giá treo, quầy bán trang phục, bảng bạn bè đang mặc (sau khi có bạn bè).
+import { _t } from '../../i18n';
 import { makeKit } from './kit.js';
 
 export function initTailor(c) {
@@ -21,7 +22,7 @@ export function initTailor(c) {
   [-0.7, 0.7].forEach(sx => add(stage, new THREE.SphereGeometry(0.08, 8, 8), toon('#fff6c9'), sx, 0.3, 0.7, null));
   add(stage, new THREE.TorusGeometry(1.02, 0.04, 6, 36), toon('#ffd36e'), 0, 0.18, 0, null).rotation.x = Math.PI / 2;
   add(stage, new THREE.CylinderGeometry(1.25, 1.25, 0.02, 36), toon('#c9a6ff'), 0, 0.01, 0, null); // thảm tròn dưới bục
-  kit.hotspot({ id: 'stage', label: 'Bục thử đồ', at: [-0.2, 1.4, -1.0], stand: [-0.2, -1.0], act: () => { c.startAction('dance'); c.spawn('sparkle', 4); c.open.wardrobe(); } }, stage);
+  kit.hotspot({ id: 'stage', label: _t('Bục thử đồ'), at: [-0.2, 1.4, -1.0], stand: [-0.2, -1.0], act: () => { c.startAction('dance'); c.spawn('sparkle', 4); c.open.wardrobe(); } }, stage);
   void disc;
 
   // giá treo đồ trái + quầy bán phải
@@ -36,7 +37,7 @@ export function initTailor(c) {
     add(sh, new THREE.SphereGeometry(0.03, 6, 5), toon('#ffffff'), 0, 0.22, 0.05, null);
   });
   [-0.5, 0.1, 0.6].forEach((x, i) => { add(rack, new THREE.CapsuleGeometry(0.06, 0.12, 4, 8), toon(['#ff7a8a', '#6ab7ff', '#ffd36e'][i]), x, 0.08, 0.15, '#6a4a5a', 0.008).rotation.z = Math.PI / 2; add(rack, new THREE.CapsuleGeometry(0.06, 0.12, 4, 8), toon(['#ff7a8a', '#6ab7ff', '#ffd36e'][i]), x + 0.15, 0.08, 0.15, '#6a4a5a', 0.008).rotation.z = Math.PI / 2; }); // giày dưới giá
-  kit.hotspot({ id: 'rack', label: 'Tủ đồ của bé', at: [-2.4, 2.4, -2.5], stand: [-2.0, -1.0], act: () => c.open.wardrobe() }, rack);
+  kit.hotspot({ id: 'rack', label: _t('Tủ đồ của bé'), at: [-2.4, 2.4, -2.5], stand: [-2.0, -1.0], act: () => c.open.wardrobe() }, rack);
   const counter = new THREE.Group(); counter.position.set(2.2, 0, -2.45); g.add(counter);
   add(counter, new THREE.BoxGeometry(2.0, 1.0, 0.8), toon('#ffffff'), 0, 0.5, 0, '#c9a6ff', 0.03);
   add(counter, new THREE.BoxGeometry(2.1, 0.1, 0.9), toon('#ffd9ec'), 0, 1.04, 0, '#a8507a', 0.03);
@@ -58,7 +59,7 @@ export function initTailor(c) {
   const drapeT = canvasTex(64, 64, d => { const gr = d.createLinearGradient(0, 0, 64, 0); for (let i = 0; i <= 8; i++) gr.addColorStop(i / 8, i % 2 ? '#e8a6d8' : '#ffc9ec'); d.fillStyle = gr; d.fillRect(0, 0, 64, 64); });
   const cur = add(booth, new THREE.CylinderGeometry(0.6, 0.62, 2.2, 20, 1, true, 0, Math.PI * 0.9), toon('#ffffff', drapeT), 0, 1.25, 0, '#a8507a', 0.012); cur.material.side = THREE.DoubleSide; cur.rotation.y = Math.PI * 0.55;
   [[1.45, 2.3], [1.95, 2.0], [-3.2, 1.4]].forEach(([x, y], i) => { add(g, new THREE.BoxGeometry(0.4, 0.5, 0.02), toon('#fffdf5'), x - 0.2, y, -3.47, '#c9a6ff', 0.006).rotation.z = (i - 1) * 0.1; add(g, new THREE.ConeGeometry(0.1, 0.24, 8), toon(['#ff9ec4', '#7ec8ff', '#ffd36e'][i]), x - 0.2, y - 0.04, -3.44, null); add(g, new THREE.SphereGeometry(0.025, 6, 5), toon('#ff6a8a'), x - 0.2, y + 0.22, -3.44, null); });
-  kit.hotspot({ id: 'counter', label: 'Quầy trang phục', at: [2.2, 2.0, -2.45], stand: [2.0, -1.2], act: () => c.open.shop('market', 'outfit') }, counter);
+  kit.hotspot({ id: 'counter', label: _t('Quầy trang phục'), at: [2.2, 2.0, -2.45], stand: [2.0, -1.2], act: () => c.open.shop('market', 'outfit') }, counter);
 
   const mannequin = new THREE.Group(); mannequin.position.set(2.7, 0, 0.6); g.add(mannequin);
   add(mannequin, new THREE.CylinderGeometry(0.06, 0.06, 1.1, 8), toon('#8a7a9a'), 0, 0.55, 0, null);
@@ -71,7 +72,7 @@ export function initTailor(c) {
 
   return {
     group: g,
-    enter() { kit.show(true); setTimeout(() => { if (c.getArea() === 'tailor') c.say('Lên bục thử đồ đi! Mình thích nhất cái nơ.', 3000); }, 700); },
+    enter() { kit.show(true); setTimeout(() => { if (c.getArea() === 'tailor') c.say(_t('Lên bục thử đồ đi! Mình thích nhất cái nơ.'), 3000); }, 700); },
     leave() { kit.show(false); }, update(dt, now) { kit.tick(now); }, tap: e => kit.tap(e), sync() {},
   };
 }

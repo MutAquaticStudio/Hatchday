@@ -1,4 +1,5 @@
 // Lớp hiển thị & tương tác 3D (chuyển từ bản mẫu). Sẽ tách nhỏ và chuyển sang TypeScript dần.
+import { _t } from '../i18n';
 import * as THREE from 'three';
 import { jobActive } from './store';
 import { addPhoto } from './album';
@@ -53,7 +54,7 @@ function decay(s, mins) {
 const canvas = $('c');
 let renderer;
 try { renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true }); }
-catch (e) { document.getElementById('app').insertAdjacentHTML('beforeend', '<div id="err">Trình duyệt này chưa mở được WebGL nên không vẽ được căn phòng 3D.</div>'); throw e; }
+catch (e) { document.getElementById('app').insertAdjacentHTML('beforeend', _t('<div id="err">Trình duyệt này chưa mở được WebGL nên không vẽ được căn phòng 3D.</div>')); throw e; }
 renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 1.5));
 renderer.shadowMap.type = THREE.PCFShadowMap; // r182+: PCF mặc định đã mềm
 /* Chất lượng hình ảnh: độ phân giải là ngân sách hiệu năng (skill threejs-scene-setup) */
@@ -184,7 +185,7 @@ beams.add(dust);
 const areas = { home: room };
 let area = 'home', moveYaw = null, fetchBall = null;
 const petBase = new THREE.Vector3(0, 0, 0.35), petOff = new THREE.Vector3();
-const AREA_NAME = { home: 'Phòng khách', kitchen: 'Bếp', bath: 'Phòng tắm', garden: 'Vườn', bedroom: 'Phòng ngủ' };
+const AREA_NAME = { home: _t('Phòng khách'), kitchen: _t('Bếp'), bath: _t('Phòng tắm'), garden: _t('Vườn'), bedroom: _t('Phòng ngủ') };
 const PET_POS = { home: [0, 0, 0.35], kitchen: [0, 0, 0], bath: [0, 0.12, 0.2], garden: [0, 0, 0.6], bedroom: [0, 0.78, -1.05] }; // y = mặt nệm (0,75) + chút khe; z gần gối, chăn nằm ở chân giường nên không đè lên thân bé
 /* [fov, camX, camY, camZ, lookX, lookY, lookZ] — ngang / dọc */
 const CAM = {
@@ -327,11 +328,11 @@ function goTo(name, instant, opts) {
     if (blk) { toast(BLOCK_TEXT[blk](MAP_NODES.find(n => n.id === name))); return; }
     if (!placeInst[name]) { // dựng lười nhóm 3D của địa điểm lần vào đầu tiên
       going = true;
-      loadPlace(name).then(() => { going = false; goTo(name, instant); }).catch(e => { going = false; console.warn(e); toast('Chưa mở được nơi này, thử lại nhé.'); });
+      loadPlace(name).then(() => { going = false; goTo(name, instant); }).catch(e => { going = false; console.warn(e); toast(_t('Chưa mở được nơi này, thử lại nhé.')); });
       return;
     }
   }
-  const label = opts?.label || (name === 'home' ? 'Về Phòng khách…' : `Đi tới ${AREA_NAME[name]}…`);
+  const label = opts?.label || (name === 'home' ? _t('Về Phòng khách…') : _t`Đi tới ${AREA_NAME[name]}…`);
   const swap = () => {
     if (placeInst[area] && placeInst[area].leave) placeInst[area].leave();
     Object.entries(areas).forEach(([k, g]) => { g.visible = k === name; });
@@ -353,10 +354,10 @@ function goTo(name, instant, opts) {
 }
 const CTX = {
   home: [],
-  kitchen: [['cook', 'Nấu ăn'], ['home', 'Ăn xong, về phòng']],
-  bath: [['rinse', 'Xả nước'], ['home', 'Về phòng']],
-  garden: [['ball', 'Ném bóng'], ['bugs', 'Bắt sâu'], ['toys', 'Đồ chơi'], ['farm', 'Trang trí'], ['home', 'Về phòng']],
-  bedroom: [['wake', 'Thức dậy']],
+  kitchen: [['cook', _t('Nấu ăn')], ['home', _t('Ăn xong, về phòng')]],
+  bath: [['rinse', _t('Xả nước')], ['home', _t('Về phòng')]],
+  garden: [['ball', _t('Ném bóng')], ['bugs', _t('Bắt sâu')], ['toys', _t('Đồ chơi')], ['farm', _t('Trang trí')], ['home', _t('Về phòng')]],
+  bedroom: [['wake', _t('Thức dậy')]],
 };
 for (const d of PLACES) { AREA_NAME[d.id] = d.name; PET_POS[d.id] = d.pet; CAM[d.id] = d.cam; CTX[d.id] = d.ctx; }
 /* Địa điểm (src/game/places): dựng lười khi vào lần đầu */
@@ -376,7 +377,7 @@ const PLACE_LOADERS = {
 const placeOpen = {
   mini: kind => mini.open(kind),
   clinic: sec => home.openClinic(sec), shop: (t, k) => home.openShop(t, k), wardrobe: () => home.openWardrobe(), dex: () => home.openDex(), family: () => home.openFamily(), sell: () => home.openSell(),
-  news: () => (home.openNews ? home.openNews() : toast('Chưa có tin mới.')), mail: () => (home.openMail ? home.openMail() : toast('Chưa có thư mới.')), toys: () => (home.openToys ? home.openToys() : toast('Chưa có đồ chơi.')), ads: () => (home.openAds ? home.openAds() : toast('Chưa có quảng cáo.')), ai: () => toast('Thủ thư AI sắp có. Đợi chút nhé!'),
+  news: () => (home.openNews ? home.openNews() : toast(_t('Chưa có tin mới.'))), mail: () => (home.openMail ? home.openMail() : toast(_t('Chưa có thư mới.'))), toys: () => (home.openToys ? home.openToys() : toast(_t('Chưa có đồ chơi.'))), ads: () => (home.openAds ? home.openAds() : toast(_t('Chưa có quảng cáo.'))), ai: () => toast(_t('Thủ thư AI sắp có. Đợi chút nhé!')),
 };
 function loadPlace(name) {
   if (placeInst[name]) return Promise.resolve(placeInst[name]);
@@ -391,9 +392,9 @@ function onEnter(name) {
   const ctx = document.getElementById('ctx');
   ctx.innerHTML = CTX[name].map(([k, l]) => `<button class="ctx-btn${k === 'home' || k === 'wake' ? ' ghosty' : ''}" type="button" data-k="${k}">${l}</button>`).join('');
   ctx.hidden = !CTX[name].length;
-  let line = (PLACE_BY_ID[name] && PLACE_BY_ID[name].enterLine) || { kitchen: 'Tới giờ ăn rồi! Hôm nay ăn gì đây?', bath: 'Nước ấm quá~ Vuốt lên người mình để kỳ cọ nha!', garden: 'Ra vườn thôi! Chạm vào đất để mình đi tới đó, chạm luống đất để trồng rau, hoặc ném bóng cho mình nhé!' }[name];
+  let line = (PLACE_BY_ID[name] && PLACE_BY_ID[name].enterLine) || { kitchen: _t('Tới giờ ăn rồi! Hôm nay ăn gì đây?'), bath: _t('Nước ấm quá~ Vuốt lên người mình để kỳ cọ nha!'), garden: _t('Ra vườn thôi! Chạm vào đất để mình đi tới đó, chạm luống đất để trồng rau, hoặc ném bóng cho mình nhé!') }[name];
   if (PLACE_BY_ID[name] && !seenHotHint()) hotHint();
-  if (PLACE_BY_ID[name] && PLACE_BY_ID[name].outdoor) { if (wx.sky === 'rain') line = 'Trời đang mưa… mình nghe tiếng mưa rơi nè~'; else if (period === 'dem') line = 'Khuya rồi, yên tĩnh ghê…'; }
+  if (PLACE_BY_ID[name] && PLACE_BY_ID[name].outdoor) { if (wx.sky === 'rain') line = _t('Trời đang mưa… mình nghe tiếng mưa rơi nè~'); else if (period === 'dem') line = _t('Khuya rồi, yên tĩnh ghê…'); }
   if (name === 'garden') refreshGarden().then(() => gardenFx.sync()).catch(() => {});
   if (line) setTimeout(() => say(line, 3200), reduce ? 0 : 350);
 }
@@ -421,12 +422,12 @@ function snapLights() { scene.fog.near = fogT.near; scene.fog.far = fogT.far; sc
 let scrubN = 0;
 function scrub() {
   sfx('bath'); actBatched('bath_scrub'); S.sach = clamp(S.sach + 3); spawn('bubble', 2, 0.9); setTemp('love', 1200); impulse(-0.9); scrubN++;
-  if (scrubN % 8 === 0) say(['Chỗ đó đó, ngứa quá!', 'Bọt nhiều ghê!', 'Sạch bong rồi nè!'][Math.floor(Math.random() * 3)], 1800);
+  if (scrubN % 8 === 0) say([_t('Chỗ đó đó, ngứa quá!'), _t('Bọt nhiều ghê!'), _t('Sạch bong rồi nè!')][Math.floor(Math.random() * 3)], 1800);
 }
 function rinse() {
-  sfx('bath'); count('bath'); act('bath_rinse'); popText('Sạch bong!', '#2fa8e0');
+  sfx('bath'); count('bath'); act('bath_rinse'); popText(_t('Sạch bong!'), '#2fa8e0');
   S.sach = 100; S.vui = clamp(S.vui + 4); spawn('sparkle', 4, 1); spawn('bubble', 10, 1.3);
-  startAction('shake'); setTemp('love', 2000); say('Thơm phức rồi nè!', 2200); save(); renderStats();
+  startAction('shake'); setTemp('love', 2000); say(_t('Thơm phức rồi nè!'), 2200); save(); renderStats();
   setTimeout(() => { if (area === 'bath') goTo('home'); }, 2600);
 }
 /** Bé đang ốm nên chưa làm được việc này? Nếu vậy nói một câu và trả về true. */
@@ -434,13 +435,13 @@ function rinse() {
 function awayBlock() {
   if (!jobActive()) return false;
   const left = Date.parse(S.job.ends_at) - Date.now();
-  toast(left > 0 ? `${S.name} đang đi làm thêm, về rồi mới chơi được nha.` : `${S.name} làm xong rồi! Mở Việc làm để nhận lương nhé.`);
+  toast(left > 0 ? _t`${S.name} đang đi làm thêm, về rồi mới chơi được nha.` : _t`${S.name} làm xong rồi! Mở Việc làm để nhận lương nhé.`);
   home?.f2p?.openJobs(); return true;
 }
 function sickBlocks(what) {
   if (!blockedNow(S).includes(what)) return false;
   const il = ILLNESS_BY_ID[S.illness];
-  setTemp('sick', 1800); say(what === 'play' ? `Mình đang ${il.name.toLowerCase()}, chưa chơi được đâu… Cho mình uống thuốc hoặc nghỉ ngơi nha.` : `Mình đang ${il.name.toLowerCase()}, tắm nước bây giờ lạnh lắm…`, 3200);
+  setTemp('sick', 1800); say(what === 'play' ? _t`Mình đang ${il.name.toLowerCase()}, chưa chơi được đâu… Cho mình uống thuốc hoặc nghỉ ngơi nha.` : _t`Mình đang ${il.name.toLowerCase()}, tắm nước bây giờ lạnh lắm…`, 3200);
   return true;
 }
 /* ---------------- nấu ăn: phải vào Bếp và đi lại gần bếp lò ---------------- */
@@ -449,19 +450,19 @@ const STOVE = { x: -2.25, z: -1.85 }; // chỗ bé đứng trước bếp lò (n
 const atStove = () => area === 'kitchen' && stoveHere;
 /** Bấm "Nấu ăn" ở đâu cũng được: đi tới Bếp (có hoạt cảnh chuyển cảnh), bé chạy lại bếp lò rồi mới mở bảng nấu. */
 function goCook() {
-  if (S.asleep) { say('Bé đang ngủ, để bé dậy rồi nấu nhé.', 2400); return; }
+  if (S.asleep) { say(_t('Bé đang ngủ, để bé dậy rồi nấu nhé.'), 2400); return; }
   if (going) return;
   home.closeAll?.();
   const run = () => {
     if (area !== 'kitchen' || S.asleep) return;
     const [fx, fz] = [petBase.x + petOff.x, petBase.z + petOff.z], dx = STOVE.x - fx, dz = STOVE.z - fz, dist = Math.hypot(dx, dz), yaw = Math.atan2(dx, dz);
-    const done = () => { stoveHere = true; say('Nấu món gì đây nhỉ?', 1800); spawn('sparkle', 2); sfx('place'); home.openCooking?.(true); };
+    const done = () => { stoveHere = true; say(_t('Nấu món gì đây nhỉ?'), 1800); spawn('sparkle', 2); sfx('place'); home.openCooking?.(true); };
     if (dist < 0.3) { done(); return; }
     runScript({ dur: Math.max(0.9, dist / 2.4), noWalk: false, update: (u, t) => ({ pos: [fx + dx * ease3(u), Math.abs(Math.sin(t * 9)) * 0.1, fz + dz * ease3(u)], face: u < 0.92 ? yaw : Math.PI, stretch: Math.sin(t * 9) * 0.03 }) })
       .then(ok => { if (ok || area === 'kitchen') done(); });
   };
   if (area === 'kitchen') { run(); return; }
-  goTo('kitchen', false, { label: 'Vào bếp nấu ăn…' });
+  goTo('kitchen', false, { label: _t('Vào bếp nấu ăn…') });
   const wait = setInterval(() => { if (area === 'kitchen' && !going) { clearInterval(wait); setTimeout(run, reduce ? 0 : 450); } }, 120); setTimeout(() => clearInterval(wait), 6000);
 }
 const ease3 = u => u * u * (3 - 2 * u);
@@ -505,29 +506,29 @@ function throwBall() {
   if (fetchBall) return;
   if (sickBlocks('play')) return;
   cancelCtrl();
-  if (S.nl < 15) { setTemp('sleepy', 1800); say('Mình mệt quá, cho mình nghỉ chút đã…', 2600); return; }
+  if (S.nl < 15) { setTemp('sleepy', 1800); say(_t('Mình mệt quá, cho mình nghỉ chút đã…'), 2600); return; }
   const tx = (Math.random() * 2 - 1) * 3.2, tz = -1.6 + Math.random() * 2.4;
   fetchBall = { phase: 'fly', t: 0, from: new THREE.Vector3(0.6, 2.8, 5.5), to: new THREE.Vector3(tx, 0.3, tz) };
   setTemp('excited', 900); sfx('play');
 }
 function spinPlay() {
   if (sickBlocks('play')) return;
-  if (S.nl < 15) { setTemp('sleepy', 1800); say('Mình mệt quá, cho mình nghỉ chút đã…', 2600); return; }
+  if (S.nl < 15) { setTemp('sleepy', 1800); say(_t('Mình mệt quá, cho mình nghỉ chút đã…'), 2600); return; }
   sfx('play'); act('play_spin'); popText('+6 Vui'); S.vui = clamp(S.vui + 6); S.nl = clamp(S.nl - 4); S.no = clamp(S.no - 2);
   anim = { type: 'spin', t: 0, dur: 1.1 }; setTemp('excited', 1600); spawn('note', 2); spawn('sparkle', 2);
-  setTimeout(() => say(['Yeah! Thêm vòng nữa!', 'Vui quá đi!', 'Chóng mặt mà vui ghê!'][Math.floor(Math.random() * 3)], 2200), 1100);
+  setTimeout(() => say([_t('Yeah! Thêm vòng nữa!'), _t('Vui quá đi!'), _t('Chóng mặt mà vui ghê!')][Math.floor(Math.random() * 3)], 2200), 1100);
   save(); renderStats();
 }
 /** Chơi một món đồ chơi (đồ cố định ở từng nơi hoặc đồ mang theo). Máy chủ quyết định hiệu ứng, trần ngày và việc bé ốm/ngủ/mệt; ở đây lo lời thoại và hoạt ảnh. */
-const TOY_LINES = { bubbles: 'Bong bóng lấp lánh quá!', kite: 'Diều bay cao quá!', scope: 'Nhìn thấy sao rồi! Lấp lánh quá!', train: 'Tu tu! Tàu hoả chạy rồi!', pit: 'Tùm! Bóng nhiều ghê!', blocks: 'Mình xếp được cái tháp cao này nè!',
-  swing: 'Đưa mình nhẹ thôi nha~ vù vù!', seesaw: 'Lên xuống lên xuống!', slide: 'Wheee! Trượt thêm lần nữa nha!', ducks: 'Cạp cạp! Vịt con ăn ngon nè.', frisbee: 'Bắt được rồi! Ném nữa đi!', puzzle: 'Ghép xong rồi, đẹp ghê!', musicbox: 'Nhạc dễ thương quá~' };
+const TOY_LINES = { bubbles: _t('Bong bóng lấp lánh quá!'), kite: _t('Diều bay cao quá!'), scope: _t('Nhìn thấy sao rồi! Lấp lánh quá!'), train: _t('Tu tu! Tàu hoả chạy rồi!'), pit: _t('Tùm! Bóng nhiều ghê!'), blocks: _t('Mình xếp được cái tháp cao này nè!'),
+  swing: _t('Đưa mình nhẹ thôi nha~ vù vù!'), seesaw: _t('Lên xuống lên xuống!'), slide: _t('Wheee! Trượt thêm lần nữa nha!'), ducks: _t('Cạp cạp! Vịt con ăn ngon nè.'), frisbee: _t('Bắt được rồi! Ném nữa đi!'), puzzle: _t('Ghép xong rồi, đẹp ghê!'), musicbox: _t('Nhạc dễ thương quá~') };
 const TOY_ACTS = { swing: 'hop', seesaw: 'dance', slide: 'hop', pit: 'hop', frisbee: 'hop', train: 'wave', blocks: 'look', puzzle: 'look', musicbox: 'dance', ducks: 'wave', kite: 'wave', bubbles: 'hop', scope: 'look' };
 /** Kiểm tra ngay tại chỗ trước khi chơi một món đồ chơi (ngủ, ốm, mệt, hết lượt): đạt thì mới chạy hoạt ảnh và gọi máy chủ. */
 function toyGate(id) {
   const t = TOY_BY_ID[id]; if (!t) return false;
-  if (S.asleep) { say('Zzz… mai chơi tiếp nha…', 2200); return false; }
+  if (S.asleep) { say(_t('Zzz… mai chơi tiếp nha…'), 2200); return false; }
   if (sickBlocks('play')) return false;
-  if (S.nl < 15) { setTemp('sleepy', 1800); say('Mình mệt quá, cho mình nghỉ chút đã…', 2600); return false; }
+  if (S.nl < 15) { setTemp('sleepy', 1800); say(_t('Mình mệt quá, cho mình nghỉ chút đã…'), 2600); return false; }
   if ((S.toys.used[id] || 0) >= t.cap) { toast(TOY_REFUSAL_TEXT.toy_cap); return false; }
   return true;
 }
@@ -539,8 +540,8 @@ async function toyApply(id) {
   if (r.refused) { toast(TOY_REFUSAL_TEXT[r.refused]); return; }
   const g = toyGain(t, used); popText(`+${Math.round(g.vui * 10) / 10} Vui`);
   setTemp('excited', 1400); spawn('note', 2); spawn('sparkle', 2); if (!script) startAction(TOY_ACTS[id] || 'hop');
-  setTimeout(() => say(TOY_LINES[id] || 'Vui quá đi!', 2400), 900);
-  if (r.mult < 1) setTimeout(() => toast('Chơi mãi món này thì bé bớt hứng, thử món khác nhé.'), 1800);
+  setTimeout(() => say(TOY_LINES[id] || _t('Vui quá đi!'), 2400), 900);
+  if (r.mult < 1) setTimeout(() => toast(_t('Chơi mãi món này thì bé bớt hứng, thử món khác nhé.')), 1800);
   save(); renderStats();
 }
 /** Chơi đồ chơi: trả true nếu được chơi (nơi gọi chạy hoạt ảnh ngay, không chờ mạng), false nếu bị chặn (đã báo lý do). */
@@ -564,7 +565,7 @@ function updateWeather(dt) {
   const sh = PLACE_BY_ID[area] && PLACE_BY_ID[area].shelter; // trời mưa thì bé tự chạy vào chỗ trú
   if (sh && now > shelterAt && !busy(now) && !ctrl && Math.hypot(px - sh[0], pz - sh[1]) > 2.2) {
     shelterAt = now + 45000;
-    walkPetTo(sh[0], sh[1]).then(ok => { if (ok) say(sh[2] || 'Mưa rồi, mình trú chút nha~', 2600); });
+    walkPetTo(sh[0], sh[1]).then(ok => { if (ok) say(sh[2] || _t('Mưa rồi, mình trú chút nha~'), 2600); });
   }
 }
 function updateArea(dt, t) {
@@ -594,7 +595,7 @@ function updateArea(dt, t) {
         fetchBall = null; moveYaw = null; ball.position.set(petBase.x + 1.0, 0.3, petBase.z + 0.9);
         count('ball'); act('play_ball'); popText('+8 Vui');
         S.vui = clamp(S.vui + 8); S.nl = clamp(S.nl - 4); S.no = clamp(S.no - 2);
-        setTemp('love', 1500); spawn('heart', 2); say(['Bắt được rồi nè! Ném nữa đi!', 'Mình chạy nhanh không?', 'Hihi, lần nữa nha!'][Math.floor(Math.random() * 3)], 2400);
+        setTemp('love', 1500); spawn('heart', 2); say([_t('Bắt được rồi nè! Ném nữa đi!'), _t('Mình chạy nhanh không?'), _t('Hihi, lần nữa nha!')][Math.floor(Math.random() * 3)], 2400);
         save(); renderStats();
       }
     }
@@ -756,7 +757,7 @@ let down = null;
 const hint = $('hint');
 const seenHotHint = () => { try { return !!localStorage.getItem('hatchday-hot-hint'); } catch { return true; } };
 /** Lần đầu vào một nơi: giải thích chấm hồng (điểm chạm) một lần duy nhất. */
-function hotHint() { try { localStorage.setItem('hatchday-hot-hint', '1'); } catch { /* bỏ qua */ } setTimeout(() => { hint.textContent = 'Chạm vào chấm hồng để chơi hoặc dùng đồ ở đây'; hint.classList.remove('gone'); setTimeout(() => hint.classList.add('gone'), 5200); }, 900); }
+function hotHint() { try { localStorage.setItem('hatchday-hot-hint', '1'); } catch { /* bỏ qua */ } setTimeout(() => { hint.textContent = _t('Chạm vào chấm hồng để chơi hoặc dùng đồ ở đây'); hint.classList.remove('gone'); setTimeout(() => hint.classList.add('gone'), 5200); }, 900); }
 function hideHint() { hint.classList.add('gone'); }
 canvas.addEventListener('pointerdown', e => {
   if (gardenFx.editing()) { gardenFx.editPointer('down', e); return; } // đang trang trí nông trại
@@ -799,7 +800,7 @@ function petStroke() {
 }
 function poke() {
   hideHint();
-  if (S.asleep) { spawn('zzz'); impulse(-2); say('Ư… cho mình ngủ thêm chút…', 2200); return; }
+  if (S.asleep) { spawn('zzz'); impulse(-2); say(_t('Ư… cho mình ngủ thêm chút…'), 2200); return; }
   sfx('pet'); impulse(-4.2); addTrauma(0.12); buzz(10); setTemp('excited', 900); spawn('note'); spawn('sparkle'); S.vui = clamp(S.vui + 1);
 }
 
@@ -808,30 +809,30 @@ function toggleSheet(which) {
   const map = { talk: ['chat', 'a-talk'] };
   Object.entries(map).forEach(([k, [el, btn]]) => { const on = k === which && $(el).hidden; $(el).hidden = !on; $(btn).setAttribute('aria-pressed', String(on)); if (on && k === 'talk') $('chat-input').focus(); });
 }
-$('a-eat').onclick = () => { hideHint(); toggleSheet(null); if (awayBlock()) return; if (S.asleep) { say('Suỵt… mình đang ngủ mà.', 2200); return; } goTo('kitchen'); };
+$('a-eat').onclick = () => { hideHint(); toggleSheet(null); if (awayBlock()) return; if (S.asleep) { say(_t('Suỵt… mình đang ngủ mà.'), 2200); return; } goTo('kitchen'); };
 $('a-talk').onclick = () => toggleSheet('talk');
-$('a-bath').onclick = () => { hideHint(); toggleSheet(null); if (awayBlock()) return; if (S.asleep) { say('Để sáng mai tắm nha…', 2200); return; } if (sickBlocks('bath')) return; goTo('bath'); };
-$('a-play').onclick = () => { hideHint(); toggleSheet(null); if (awayBlock()) return; if (S.asleep) { say('Zzz… mai chơi tiếp nha…', 2200); return; } if (S.illness && blockedNow(S).includes('play')) { toast(`${S.name} đang ốm nên chưa chơi đồ chơi được. Ra vườn vẫn đi dạo, trồng rau được nhé.`); } goTo('garden'); };
+$('a-bath').onclick = () => { hideHint(); toggleSheet(null); if (awayBlock()) return; if (S.asleep) { say(_t('Để sáng mai tắm nha…'), 2200); return; } if (sickBlocks('bath')) return; goTo('bath'); };
+$('a-play').onclick = () => { hideHint(); toggleSheet(null); if (awayBlock()) return; if (S.asleep) { say(_t('Zzz… mai chơi tiếp nha…'), 2200); return; } if (S.illness && blockedNow(S).includes('play')) { toast(_t`${S.name} đang ốm nên chưa chơi đồ chơi được. Ra vườn vẫn đi dạo, trồng rau được nhé.`); } goTo('garden'); };
 $('a-sleep').onclick = () => { hideHint(); toggleSheet(null); if (awayBlock()) return; S.asleep ? wake() : goSleep(); };
-function goSleep() { sfx('sleep'); count('sleep'); act('sleep'); S.asleep = true; applySleep(); goTo('bedroom'); setTimeout(() => say(`Chúc ${S.name} ngủ ngon… Zzz`, 2600), reduce ? 0 : 700); save(); }
-function wake() { sfx('wake'); act('wake'); S.asleep = false; applySleep(); goTo('home'); setTimeout(() => { say('Chào buổi sáng! Mình ngủ ngon lắm.', 2600); startAction('stretch'); spawn('sparkle', 2); }, reduce ? 0 : 700); save(); }
+function goSleep() { sfx('sleep'); count('sleep'); act('sleep'); S.asleep = true; applySleep(); goTo('bedroom'); setTimeout(() => say(_t`Chúc ${S.name} ngủ ngon… Zzz`, 2600), reduce ? 0 : 700); save(); }
+function wake() { sfx('wake'); act('wake'); S.asleep = false; applySleep(); goTo('home'); setTimeout(() => { say(_t('Chào buổi sáng! Mình ngủ ngon lắm.'), 2600); startAction('stretch'); spawn('sparkle', 2); }, reduce ? 0 : 700); save(); }
 $('ctx').addEventListener('click', e => {
   const b = e.target.closest('.ctx-btn'); if (!b) return; hideHint();
   ({ home: () => goTo('home'), cook: goCook, map: () => home.openMap(), rinse, ball: throwBall, spin: spinPlay, toys: () => home.openToys(), wake, farm: () => gardenFx.startEdit(), bugs: () => mini.open('bugs') })[b.dataset.k]();
 });
 /* Nhạc nền: lúc ngủ > ban đêm > theo khu vực */
 function updateMusic() { music(S.asleep ? 'sleep' : period === 'dem' ? 'night' : area); }
-function applySleep() { updateMusic(); $('dim').classList.toggle('on', S.asleep); $('sleep-label').textContent = S.asleep ? 'Thức dậy' : 'Ngủ'; $('a-sleep').setAttribute('aria-pressed', String(S.asleep)); }
+function applySleep() { updateMusic(); $('dim').classList.toggle('on', S.asleep); $('sleep-label').textContent = S.asleep ? _t('Thức dậy') : _t('Ngủ'); $('a-sleep').setAttribute('aria-pressed', String(S.asleep)); }
 
 /* ---------------- bảng chỉ số ---------------- */
-const STAT = [['no', 'No', '#ffb35c'], ['vui', 'Vui', '#ff6fa8'], ['nl', 'Năng lượng', '#8f7cff'], ['sach', 'Sạch sẽ', '#4fc3f7']];
+const STAT = [['no', 'No', '#ffb35c'], ['vui', 'Vui', '#ff6fa8'], ['nl', _t('Năng lượng'), '#8f7cff'], ['sach', _t('Sạch sẽ'), '#4fc3f7']];
 $('bars').innerHTML = STAT.map(([k, l, c]) => `<div class="stat"><span>${l}</span><div class="track"><div class="fill" id="f-${k}" style="background:${c}"></div></div><span class="lvl" id="l-${k}"></span></div>`).join('');
-const lvl = v => v >= 75 ? 'Đầy' : v >= 45 ? 'Ổn' : v >= 25 ? 'Hơi thấp' : 'Thấp';
+const lvl = v => v >= 75 ? _t('Đầy') : v >= 45 ? _t('Ổn') : v >= 25 ? _t('Hơi thấp') : _t('Thấp');
 function renderBond() {
   const b = bondProgress(S.bondXp), un = unclaimedLevels(S.bondXp, S.bondClaims);
-  $('bond').innerHTML = `<div class="bond-head"><b>Gắn bó · Cấp ${b.level} · ${b.title}</b><span>${b.max ? 'Cấp cao nhất' : `${b.into}/${b.need} điểm`}</span></div><div class="bar-track"><i style="width:${b.pct}%"></i></div>`
-    + (un.length ? `<div class="bond-gifts">${un.map(l => `<button type="button" class="btn-sm" data-bond="${l}">Nhận quà cấp ${l} · +${BOND.rewards[l - 1]} xu</button>`).join('')}</div>` : '')
-    + '<p class="note">Chăm bé đều đặn (cho ăn, tắm, chơi, nói chuyện, chữa bệnh) thì gắn bó lên cấp. Từ cấp 2, mỗi cấp có một phần quà xu.</p>';
+  $('bond').innerHTML = _t`<div class="bond-head"><b>Gắn bó · Cấp ${b.level} · ${b.title}</b><span>${b.max ? _t('Cấp cao nhất') : _t`${b.into}/${b.need} điểm`}</span></div><div class="bar-track"><i style="width:${b.pct}%"></i></div>`
+    + (un.length ? _t`<div class="bond-gifts">${un.map(l => _t`<button type="button" class="btn-sm" data-bond="${l}">Nhận quà cấp ${l} · +${BOND.rewards[l - 1]} xu</button>`).join('')}</div>` : '')
+    + _t('<p class="note">Chăm bé đều đặn (cho ăn, tắm, chơi, nói chuyện, chữa bệnh) thì gắn bó lên cấp. Từ cấp 2, mỗi cấp có một phần quà xu.</p>');
 }
 $('bond').addEventListener('click', async e => {
   const b = e.target.closest('[data-bond]'); if (!b) return; b.disabled = true;
@@ -839,25 +840,25 @@ $('bond').addEventListener('click', async e => {
   if ('error' in r) toast(viError(r.error)); else { sfx('coin'); buzz(12); popText(`+${r.reward} xu`, '#a8742e'); spawn('heart', 3); spawn('sparkle', 3); }
   renderBond();
 });
-onBondLevel(l => { sfx('wake'); spawn('heart', 4); spawn('sparkle', 3); setTemp('love', 1800); say(`Mình với bạn thân nhau hơn rồi nè!`, 3000); toast(`Gắn bó cấp ${l}: ${BOND.titles[l - 1]}. Mở Chỉ số để nhận quà ${BOND.rewards[l - 1]} xu.`); });
+onBondLevel(l => { sfx('wake'); spawn('heart', 4); spawn('sparkle', 3); setTemp('love', 1800); say(_t`Mình với bạn thân nhau hơn rồi nè!`, 3000); toast(_t`Gắn bó cấp ${l}: ${BOND.titles[l - 1]}. Mở Chỉ số để nhận quà ${BOND.rewards[l - 1]} xu.`); });
 function renderStats() { STAT.forEach(([k]) => { $('f-' + k).style.width = S[k] + '%'; $('l-' + k).textContent = lvl(S[k]); }); renderBond(); renderPersona(); renderTastes(); }
 /* Cá tính: mỗi trục là một thanh hai đầu, chấm nằm lệch về nét mạnh hơn */
 $('persona-axes').innerHTML = AXES.map(a => `<div class="axis" role="img" id="ax-${a}"><span>${TRAITS[a].lo}</span><div class="axis-track"><i id="axd-${a}"></i></div><span>${TRAITS[a].hi}</span></div>`).join('');
-function renderTastes() { $('tastes').textContent = 'Khẩu vị: ' + tastesLine(S.tastes); }
+function renderTastes() { $('tastes').textContent = _t('Khẩu vị: ') + tastesLine(S.tastes); }
 function renderPersona() {
   $('persona-desc').textContent = describePersona(S.personality);
   AXES.forEach(a => {
     const v = S.personality[a];
     $('axd-' + a).style.left = (50 + v / 2) + '%';
-    $('ax-' + a).setAttribute('aria-label', `${TRAITS[a].lo} – ${TRAITS[a].hi}: ${Math.abs(v) < 15 ? 'cân bằng' : (v > 0 ? TRAITS[a].hi : TRAITS[a].lo)}`);
+    $('ax-' + a).setAttribute('aria-label', _t`${TRAITS[a].lo} – ${TRAITS[a].hi}: ${Math.abs(v) < 15 ? _t('cân bằng') : (v > 0 ? TRAITS[a].hi : TRAITS[a].lo)}`);
   });
 }
 onWorldReady(list => { // huy hiệu/bậc Khám phá vừa đủ điều kiện nhận
   const b = list.find(x => x.kind === 'badge'), e = list.find(x => x.kind === 'explore');
-  if (b) { sfx('badge'); toast(`Huy hiệu mới: ${BADGE_BY_ID[b.id]?.name || ''}! Vào Nhiệm vụ để nhận xu.`); }
-  else if (e) { sfx('badge'); toast('Khám phá đủ rồi! Vào Nhiệm vụ để nhận thưởng.'); }
+  if (b) { sfx('badge'); toast(_t`Huy hiệu mới: ${BADGE_BY_ID[b.id]?.name || ''}! Vào Nhiệm vụ để nhận xu.`); }
+  else if (e) { sfx('badge'); toast(_t('Khám phá đủ rồi! Vào Nhiệm vụ để nhận thưởng.')); }
 });
-onTraitShift(name => { toast(`${S.name} đang dần trở nên ${name.toLowerCase()} hơn.`); if (!$('stats').hidden) renderPersona(); });
+onTraitShift(name => { toast(_t`${S.name} đang dần trở nên ${name.toLowerCase()} hơn.`); if (!$('stats').hidden) renderPersona(); });
 $('btn-stats').onclick = () => { const s = $('stats'); s.hidden = !s.hidden; if (!s.hidden) settings.close(); $('btn-stats').setAttribute('aria-expanded', String(!s.hidden)); renderStats(); if (!s.hidden) growth.renderSpecies(); if (!s.hidden) { $('diary').hidden = true; $('btn-diary').setAttribute('aria-expanded', 'false'); } };
 const settings = initSettings({ closeOthers: () => {
   ['stats', 'diary'].forEach(id => { $(id).hidden = true; }); $('btn-stats').setAttribute('aria-expanded', 'false'); $('btn-diary').setAttribute('aria-expanded', 'false');
@@ -987,7 +988,7 @@ function animStep(dt, t, now, key) {
   feet.forEach((f, i) => { const ph = walkPh + i * Math.PI; f.position.y = 0.1 + (walking ? Math.max(0, Math.sin(ph)) * 0.14 : 0); f.position.z = 0.38 + (walking ? Math.cos(ph) * 0.1 : 0); });
   if (action) {
     const a = action; a.t += dt; const p = a.t, u = Math.min(p / ACT_DUR[a.type], 1), bell = Math.sin(u * Math.PI);
-    if (a.type === 'yawn') { if (u < 0.85) setTemp('yawn', 150); o.stretch = bell * 0.12; o.arm = bell * 0.7; if (!a.fxAt) { a.fxAt = 1; if (Math.random() < 0.5) say('Oáp…', 1300); } }
+    if (a.type === 'yawn') { if (u < 0.85) setTemp('yawn', 150); o.stretch = bell * 0.12; o.arm = bell * 0.7; if (!a.fxAt) { a.fxAt = 1; if (Math.random() < 0.5) say(_t('Oáp…'), 1300); } }
     if (a.type === 'look') o.yaw = Math.sin(u * Math.PI * 2) * 0.75;
     if (a.type === 'dance') { setTemp('excited', 150); o.roll += Math.sin(p * 11) * 0.16; o.hop += Math.abs(Math.sin(p * 11)) * 0.1; o.arm = Math.abs(Math.sin(p * 11)) * 0.8; if (now > a.fxAt) { a.fxAt = now + 450; spawn('note'); } }
     if (a.type === 'hop') { if (u < 0.2) o.stretch = -0.14 * Math.sin(u / 0.2 * Math.PI / 2); else o.hop += Math.sin((u - 0.2) / 0.8 * Math.PI) * 0.6; if (u >= 1) { impulse(-2.8); addTrauma(0.08); } }
@@ -1090,12 +1091,12 @@ const coarse = matchMedia('(pointer: coarse)').matches;
 function buzz(ms = 8) { if (coarse && navigator.vibrate) navigator.vibrate(ms); }
 const toastEl = $('toast'); let toastTimer = 0, toastAt = 0;
 window.addEventListener('hatchday:toast', e => toast(String(e.detail || '')));
-window.addEventListener('hatchday:infected', () => { refreshHealth().catch(() => {}); toast(`${S.name} bị lây cảm lạnh ở chỗ đông người. Cho bé uống thuốc và nghỉ ngơi nhé.`); });
+window.addEventListener('hatchday:infected', () => { refreshHealth().catch(() => {}); toast(_t`${S.name} bị lây cảm lạnh ở chỗ đông người. Cho bé uống thuốc và nghỉ ngơi nhé.`); });
 function toast(msg) { toastEl.textContent = msg; toastEl.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => { toastEl.hidden = true; }, 3200); }
-addEventListener('offline', () => toast('Mất kết nối mạng. Bé vẫn ở đây, mình sẽ lưu lại khi có mạng.'));
-addEventListener('online', () => toast('Đã có mạng trở lại.'));
-onSpoil(lost => toast(`Thức ăn tươi bị hỏng: ${Object.entries(lost).map(([id, n]) => `${n} ${FOOD_BY_ID[id]?.name || id}`).join(', ')}. Mua tủ lạnh lớn hơn để giữ được lâu.`));
-onSyncError(() => { const n = performance.now(); if (n - toastAt > 15000) { toastAt = n; toast('Chưa lưu được lên máy chủ. Bạn kiểm tra mạng nhé.'); } });
+addEventListener('offline', () => toast(_t('Mất kết nối mạng. Bé vẫn ở đây, mình sẽ lưu lại khi có mạng.')));
+addEventListener('online', () => toast(_t('Đã có mạng trở lại.')));
+onSpoil(lost => toast(_t`Thức ăn tươi bị hỏng: ${Object.entries(lost).map(([id, n]) => `${n} ${FOOD_BY_ID[id]?.name || id}`).join(', ')}. Mua tủ lạnh lớn hơn để giữ được lâu.`));
+onSyncError(() => { const n = performance.now(); if (n - toastAt > 15000) { toastAt = n; toast(_t('Chưa lưu được lên máy chủ. Bạn kiểm tra mạng nhé.')); } });
 document.querySelector('.bar').addEventListener('click', e => { if (e.target.closest('.act')) buzz(8); });
 
 /* Chấm gợi ý nhu cầu trên nút (không đếm số, không màu đỏ) */
@@ -1108,19 +1109,19 @@ function updateHealth(now) {
   const hs = healthNow(), wall = Date.now(), risk = minutesToSick(hs, wall);
   if (S.illness) {
     const il = ILLNESS_BY_ID[S.illness], sev = isSevere(hs, wall);
-    sickChip.hidden = false; sickChip.className = 'sick-chip' + (sev ? ' severe' : ''); sickChip.textContent = `Đang ${il.name.toLowerCase()}${sev ? ' (nặng)' : ''}`;
+    sickChip.hidden = false; sickChip.className = 'sick-chip' + (sev ? ' severe' : ''); sickChip.textContent = _t`Đang ${il.name.toLowerCase()}${sev ? _t(' (nặng)') : ''}`;
     if (now > sickFxAt && !S.asleep && !editing && area !== 'bath') { sickFxAt = now + 25000 + Math.random() * 15000; spawn('sweat', 2); if (area === 'home') say(il.sign, 3000); }
   } else if (risk && risk.left <= 20) {
-    sickChip.hidden = false; sickChip.className = 'sick-chip warn'; sickChip.textContent = `Sắp ốm: ${STAT_NOUN[risk.stat]} · ${minutesVi(risk.left)}`;
-    if (now > warnAt) { warnAt = now + 5 * 60000; toast(`${S.name} sắp ốm: ${STAT_NOUN[risk.stat]} gần 0, còn khoảng ${minutesVi(risk.left)}. Chăm bé ngay nhé!`); if (area === 'home') say('Mình khó chịu quá… chăm mình đi mà…', 3200); }
+    sickChip.hidden = false; sickChip.className = 'sick-chip warn'; sickChip.textContent = _t`Sắp ốm: ${STAT_NOUN[risk.stat]} · ${minutesVi(risk.left)}`;
+    if (now > warnAt) { warnAt = now + 5 * 60000; toast(_t`${S.name} sắp ốm: ${STAT_NOUN[risk.stat]} gần 0, còn khoảng ${minutesVi(risk.left)}. Chăm bé ngay nhé!`); if (area === 'home') say(_t('Mình khó chịu quá… chăm mình đi mà…'), 3200); }
   } else sickChip.hidden = true;
 }
 onIllness((now, was) => {
   if (now) {
     const il = ILLNESS_BY_ID[now]; sfx('sleep'); buzz(30); spawn('sweat', 4); setTemp('sick', 2400); impulse(-1.2);
-    toast(`${S.name} bị ${il.name.toLowerCase()}. Mở Nhà → Sức khoẻ để chữa.`); say(il.sign, 3600);
+    toast(_t`${S.name} bị ${il.name.toLowerCase()}. Mở Nhà → Sức khoẻ để chữa.`); say(il.sign, 3600);
   } else if (was) {
-    sfx('wake'); spawn('sparkle', 5); spawn('heart', 2); setTemp('love', 1600); say('Mình khỏi ốm rồi! Cảm ơn bạn đã chăm mình.', 3200); toast(`${S.name} đã khỏi bệnh.`);
+    sfx('wake'); spawn('sparkle', 5); spawn('heart', 2); setTemp('love', 1600); say(_t('Mình khỏi ốm rồi! Cảm ơn bạn đã chăm mình.'), 3200); toast(_t`${S.name} đã khỏi bệnh.`);
   }
 });
 function updateNeeds() {
@@ -1130,7 +1131,7 @@ function updateNeeds() {
 }
 
 /* Phím tắt: 1–5 hành động, Enter trò chuyện, Esc đóng lớp trên cùng */
-[['a-eat', 'Ăn (phím 1)'], ['a-bath', 'Tắm (phím 2)'], ['a-play', 'Chơi (phím 3)'], ['a-talk', 'Nói (phím 4 hoặc Enter)'], ['a-sleep', 'Ngủ / Thức dậy (phím 5)']].forEach(([id, t]) => { $(id).title = t; });
+[['a-eat', _t('Ăn (phím 1)')], ['a-bath', _t('Tắm (phím 2)')], ['a-play', _t('Chơi (phím 3)')], ['a-talk', _t('Nói (phím 4 hoặc Enter)')], ['a-sleep', _t('Ngủ / Thức dậy (phím 5)')]].forEach(([id, t]) => { $(id).title = t; });
 addEventListener('keydown', e => {
   const typing = e.target instanceof Element && e.target.closest('input, textarea');
   if (e.key === 'Escape') {
@@ -1215,8 +1216,8 @@ function snapshot() {
   const h = Math.min(cv.height, Math.round(cv.width * 1.25)), top = Math.max(0, Math.min(cv.height - h, Math.round((1 - v.y) / 2 * cv.height - h * 0.55)));
   const out = document.createElement('canvas'); out.width = cv.width; out.height = h; out.getContext('2d').drawImage(cv, 0, top, cv.width, h, 0, 0, cv.width, h); return out;
 }
-const photo = initPhoto({ ctx: { state: S, toast, sfx, hideHint, closeAllSheets: () => home.closeAll?.(), capture, pose: () => startAction('hop'), placeName: () => AREA_NAME[area] || 'Nhà', toAlbum: (blob, place) => addPhoto(blob, place) }, app: $('app'), $ });
-setTimeout(() => { const f = S.festival?.festival, d = f && FESTIVAL_BY_ID[f.id]; if (d && !S.festival.claimed) toast(`${d.icon} Hôm nay là ${d.name}! Mở Nhà → Lễ hội để nhận quà lễ.`); }, 4500);
+const photo = initPhoto({ ctx: { state: S, toast, sfx, hideHint, closeAllSheets: () => home.closeAll?.(), capture, pose: () => startAction('hop'), placeName: () => AREA_NAME[area] || _t('Nhà'), toAlbum: (blob, place) => addPhoto(blob, place) }, app: $('app'), $ });
+setTimeout(() => { const f = S.festival?.festival, d = f && FESTIVAL_BY_ID[f.id]; if (d && !S.festival.claimed) toast(_t`${d.icon} Hôm nay là ${d.name}! Mở Nhà → Lễ hội để nhận quà lễ.`); }, 4500);
 $('btn-photo')?.addEventListener('click', () => photo.enter());
 const mini = initMinigames({ ctx: { catchGame: o => (placeInst[area] && placeInst[area].catchGame ? placeInst[area].catchGame(o) : null), catchState: () => (placeInst[area] && placeInst[area].catchState ? placeInst[area].catchState() : null), toast, popText, spawn, buzz, closeAllSheets: () => home.closeAll?.() }, app: $('app'), $, reduce, sfx });
 initNotify({ S, $ });
@@ -1256,7 +1257,7 @@ function tick(now, dt) {
   if (now > clockAt) { clockAt = now + 1000; const d = new Date(); hourNow = d.getHours(); $('clock').textContent = d.toTimeString().slice(0, 5); applyPeriod(); updateNeeds(); }
   const key = current(now), e = EXPR[key];
   if (key !== lastKey) { if (lastKey) impulse(-1.3); lastKey = key; }
-  $('lcdmsg').textContent = S.illness && key === 'sick' ? `${S.name} bị ${ILLNESS_BY_ID[S.illness].name.toLowerCase()}` : `${S.name} ${e.msg}`;
+  $('lcdmsg').textContent = S.illness && key === 'sick' ? _t`${S.name} bị ${ILLNESS_BY_ID[S.illness].name.toLowerCase()}` : `${S.name} ${e.msg}`;
   /* chớp mắt */
   if (now > blinkAt) { blinkUntil = now + 130; blinkAt = now + 2200 + Math.random() * 3000; }
   const gx = moveYaw !== null ? 0 : Math.round(clamp(pointerNdc.x * 1.6 - yaw * 0.8, -1, 1) * 3) * 4, gy = Math.round(clamp(-pointerNdc.y * 1.6, -1, 1) * 2) * 4;
@@ -1327,7 +1328,7 @@ function tick(now, dt) {
   if (!bubbleEl.hidden) { if (now > bubbleUntil) bubbleEl.hidden = true; else placeBubble(); }
   renderer.render(scene, camera);
   if (capReq) { const r = capReq; capReq = null; r(snapshot()); }
-  if (DEV) { fpsN++; if (now > fpsAt) { const i = renderer.info.render; devhud.textContent = `${fpsN * 2} FPS · ${i.calls} draw · ${(i.triangles / 1000).toFixed(1)}k tam giác · pr ${renderer.getPixelRatio()}`; fpsN = 0; fpsAt = now + 500; } }
+  if (DEV) { fpsN++; if (now > fpsAt) { const i = renderer.info.render; devhud.textContent = _t`${fpsN * 2} FPS · ${i.calls} draw · ${(i.triangles / 1000).toFixed(1)}k tam giác · pr ${renderer.getPixelRatio()}`; fpsN = 0; fpsAt = now + 500; } }
 }
 /* Vòng lặp theo skill threejs-scene-setup: setAnimationLoop + Timer, dt kẹp trong [0, 0.1] */
 const timer = new THREE.Timer(); timer.connect(document);

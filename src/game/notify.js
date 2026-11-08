@@ -3,6 +3,7 @@
 //     (iPhone cần Thêm vào Màn hình chính) và máy chủ bật cờ push.enabled. Người chơi chọn loại (chăm bé, thư, sự kiện); giờ yên lặng 22:00–07:00.
 //  2) Nhắc nhở cục bộ (dự phòng): khi rời tab ~40 phút mà bé đói/buồn/bẩn/ốm thì hiện thông báo, tối đa một lần mỗi 4 giờ. Chỉ chạy lúc trình duyệt còn mở,
 //     và tự nhường chỗ cho thông báo đẩy khi thiết bị này đã đăng ký push và máy chủ đang bật push.
+import { _t } from '../i18n';
 import { decayStats } from './rules';
 import { getPushState, setPushPrefs } from '../data/api';
 import { needsInstall, pushSupported, serverPushEnabled, subscribePush, unsubscribePush } from '../lib/push';
@@ -19,14 +20,14 @@ export function initNotify({ S, $ }) {
   let timer = null, serverOn = false, prefs = { care: true, events: true, mail: true, quiet_from: 22, quiet_to: 7 };
   const pushActive = () => flag(PUSH) && serverOn;
   const paint = () => {
-    if (!supported()) { btn.hidden = true; if (note) note.textContent = 'Trình duyệt này chưa hỗ trợ thông báo.'; return; }
+    if (!supported()) { btn.hidden = true; if (note) note.textContent = _t('Trình duyệt này chưa hỗ trợ thông báo.'); return; }
     const denied = Notification.permission === 'denied', on = wants() && Notification.permission === 'granted';
-    btn.setAttribute('aria-pressed', String(on)); btn.textContent = on ? 'Bật' : 'Tắt';
+    btn.setAttribute('aria-pressed', String(on)); btn.textContent = on ? _t('Bật') : _t('Tắt');
     if (note) {
-      note.textContent = denied ? 'Thông báo đang bị chặn trong cài đặt trình duyệt. Bật lại ở đó nếu bạn muốn nhận nhắc nhở.'
-        : on && pushActive() ? 'Mình sẽ nhắc nhẹ cả khi bạn đã đóng trang (không làm phiền 22:00–07:00).'
-        : needsInstall() && pushSupported() ? 'Trên iPhone, hãy Thêm vào Màn hình chính để nhận nhắc nhở khi đóng trang.'
-        : 'Khi bạn rời tab một lúc và bé cần chăm, mình sẽ nhắc nhẹ (tối đa 4 giờ một lần).';
+      note.textContent = denied ? _t('Thông báo đang bị chặn trong cài đặt trình duyệt. Bật lại ở đó nếu bạn muốn nhận nhắc nhở.')
+        : on && pushActive() ? _t('Mình sẽ nhắc nhẹ cả khi bạn đã đóng trang (không làm phiền 22:00–07:00).')
+        : needsInstall() && pushSupported() ? _t('Trên iPhone, hãy Thêm vào Màn hình chính để nhận nhắc nhở khi đóng trang.')
+        : _t('Khi bạn rời tab một lúc và bé cần chăm, mình sẽ nhắc nhẹ (tối đa 4 giờ một lần).');
     }
     if (row) {
       row.hidden = !(on && pushActive());
@@ -59,10 +60,10 @@ export function initNotify({ S, $ }) {
 
   const need = () => {
     const mins = (Date.now() - S.t) / 60000, d = decayStats({ no: S.no, vui: S.vui, nl: S.nl, sach: S.sach, asleep: S.asleep, illness: S.illness }, mins, S.comfort);
-    if (S.illness) return `${S.name} đang không khoẻ, ghé xem bé nhé.`;
-    if (d.no < 35) return `${S.name} đói rồi, ghé cho bé ăn nhé.`;
-    if (d.vui < 35) return `${S.name} hơi buồn, ghé chơi với bé nhé.`;
-    if (d.sach < 30) return `${S.name} bẩn rồi, ghé tắm cho bé nhé.`;
+    if (S.illness) return _t`${S.name} đang không khoẻ, ghé xem bé nhé.`;
+    if (d.no < 35) return _t`${S.name} đói rồi, ghé cho bé ăn nhé.`;
+    if (d.vui < 35) return _t`${S.name} hơi buồn, ghé chơi với bé nhé.`;
+    if (d.sach < 30) return _t`${S.name} bẩn rồi, ghé tắm cho bé nhé.`;
     return null;
   };
   async function remind() {

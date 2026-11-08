@@ -1,5 +1,6 @@
 // Màn hình Bản đồ: bản đồ minh hoạ có địa hình (sông, cầu, đồi, rừng cây, đường lát), khu đất riêng cho từng nơi, mây trôi, màu theo giờ trong ngày,
 // 9 ghim (Nhà, Vườn nhà và 7 địa điểm) với ổ khoá theo Gắn bó, chấm cảnh báo, huy hiệu số người ở nơi chung, thẻ "Đi tới" ở đáy.
+import { _t } from '../../i18n';
 import { BLOCK_TEXT, enterBlock, MAP_NODES, PLACE_BY_ID } from './registry';
 import * as api from '../../data/api';
 
@@ -59,17 +60,17 @@ export function initMap(h) {
     const level = h.bondLevel(), here = h.getArea(), alerts = h.alerts(), node = MAP_NODES.find(n => n.id === sel);
     const pins = MAP_NODES.filter(n => !n.hidden).map(n => {
       const locked = !n.ready || level < n.unlock, soon = !n.ready, cnt = counts[n.id];
-      return `<button type="button" class="pin${locked ? ' locked' : ''}${sel === n.id ? ' on' : ''}${here === n.id ? ' here' : ''}${alerts[n.id] ? ' alert' : ''}" data-pin="${n.id}" style="left:${n.map.x}%;top:${n.map.y}%" aria-label="${h.esc(n.name)}${cnt ? `, ${cnt} người ở đây` : ''}">
-        <span class="pin-ic"><svg viewBox="0 0 24 24" aria-hidden="true">${ICON[n.id] || ''}</svg>${cnt ? `<i class="pin-n" aria-hidden="true">${cnt}</i>` : ''}</span><b>${h.esc(PLACE_BY_ID[n.id]?.short || n.name)}</b>${soon ? '<small>Sắp mở</small>' : locked ? `<small>${LOCK} Cấp ${n.unlock}</small>` : ''}</button>`;
+      return _t`<button type="button" class="pin${locked ? ' locked' : ''}${sel === n.id ? ' on' : ''}${here === n.id ? ' here' : ''}${alerts[n.id] ? ' alert' : ''}" data-pin="${n.id}" style="left:${n.map.x}%;top:${n.map.y}%" aria-label="${h.esc(n.name)}${cnt ? _t`, ${cnt} người ở đây` : ''}">
+        <span class="pin-ic"><svg viewBox="0 0 24 24" aria-hidden="true">${ICON[n.id] || ''}</svg>${cnt ? `<i class="pin-n" aria-hidden="true">${cnt}</i>` : ''}</span><b>${h.esc(PLACE_BY_ID[n.id]?.short || n.name)}</b>${soon ? _t('<small>Sắp mở</small>') : locked ? _t`<small>${LOCK} Cấp ${n.unlock}</small>` : ''}</button>`;
     }).join('');
-    let card = '<div class="map-card empty"><p class="map-hint">Chạm một nơi trên bản đồ để xem và đi tới.</p></div>';
+    let card = _t('<div class="map-card empty"><p class="map-hint">Chạm một nơi trên bản đồ để xem và đi tới.</p></div>');
     if (node) {
       const block = enterBlock(node.id, { bondLevel: level, asleep: h.S.asleep });
-      const who = counts[node.id] ? `<p class="map-who">${counts[node.id]} người đang ở đây</p>` : '';
-      card = `<div class="map-card"><div><b>${h.esc(node.name)}</b><p>${h.esc(node.blurb)}</p>${who}</div>${here === node.id ? '<span class="pill-ok">Bạn đang ở đây</span>'
-        : block ? `<span class="map-block">${h.esc(BLOCK_TEXT[block](node))}</span>` : `<button type="button" class="btn-sm" data-go-place="${node.id}">Đi tới</button>`}</div>`;
+      const who = counts[node.id] ? _t`<p class="map-who">${counts[node.id]} người đang ở đây</p>` : '';
+      card = _t`<div class="map-card"><div><b>${h.esc(node.name)}</b><p>${h.esc(node.blurb)}</p>${who}</div>${here === node.id ? _t('<span class="pill-ok">Bạn đang ở đây</span>')
+        : block ? `<span class="map-block">${h.esc(BLOCK_TEXT[block](node))}</span>` : _t`<button type="button" class="btn-sm" data-go-place="${node.id}">Đi tới</button>`}</div>`;
     }
-    el.innerHTML = h.head('Bản đồ', `Gắn bó cấp ${level}`) + `<div class="hs-body">${card}<div class="worldmap">${terrain(MAP_NODES, new Date().getHours(), h.decor ? h.decor() : null)}${pins}</div></div>`;
+    el.innerHTML = h.head(_t('Bản đồ'), _t`Gắn bó cấp ${level}`) + `<div class="hs-body">${card}<div class="worldmap">${terrain(MAP_NODES, new Date().getHours(), h.decor ? h.decor() : null)}${pins}</div></div>`;
   }
   async function loadCounts() { try { counts = await api.getPlacesSummary(); } catch { counts = {}; } if (!h.$('map').hidden) render(); }
   const open = () => { sel = ''; h.open('map'); render(); loadCounts(); };

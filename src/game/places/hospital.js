@@ -1,4 +1,5 @@
 // Bệnh viện "Nhà thuốc Bông": sảnh có quầy tiếp đón, quầy thuốc 8 lọ, giường khám, bảng sổ bệnh, ghế chờ. Hotspot mở lại Sổ sức khoẻ.
+import { _t } from '../../i18n';
 import { makeKit } from './kit.js';
 import { MEDICINES } from '../health';
 
@@ -11,7 +12,7 @@ export function initHospital(c) {
   /** Nằm lên giường khám: nhảy lên, nằm thở nhẹ, rồi xuống lại chỗ đứng cạnh giường. */
   function lieOnBed() {
     const [fx, fz] = c.getPetXZ(), top = [2.45, 0.74, -0.35], out = [2.3, 0, 0.85];
-    c.say(c.state.illness ? 'Nằm xuống đây để bác sĩ khám nhé.' : 'Mình đang khoẻ mà, nhưng nằm thử cũng êm ghê!', 2600);
+    c.say(c.state.illness ? _t('Nằm xuống đây để bác sĩ khám nhé.') : _t('Mình đang khoẻ mà, nhưng nằm thử cũng êm ghê!'), 2600);
     return c.script({ dur: 3.4, noWalk: true, update: (u, t) => {
       if (u < 0.18) return { pos: arc([fx, 0, fz], top, ease(u / 0.18), 0.5), stretch: Math.sin(u / 0.18 * Math.PI) * 0.1 };
       if (u > 0.84) return { pos: arc(top, out, ease((u - 0.84) / 0.16), 0.45), face: 0 };
@@ -25,9 +26,9 @@ export function initHospital(c) {
       if (u < 0.1) return { pos: arc([fx, 0, fz], seat, ease(u / 0.1), 0.45), face: Math.PI / 2, stretch: Math.sin(u / 0.1 * Math.PI) * 0.1 };
       if (!sat) { sat = true; c.sfx('sit'); }
       if (u > 0.9) return { pos: arc(seat, front, ease((u - 0.9) / 0.1), 0.4), face: Math.PI / 2 };
-      if (!yawned && u > 0.5) { yawned = true; c.spawn('zzz', 1); c.say('Ngồi chờ hơi buồn ngủ nhỉ…', 2000); }
+      if (!yawned && u > 0.5) { yawned = true; c.spawn('zzz', 1); c.say(_t('Ngồi chờ hơi buồn ngủ nhỉ…'), 2000); }
       return { pos: seat, face: Math.PI / 2 + Math.sin(t * 0.9) * 0.55, roll: Math.sin(t * 2.2) * 0.04, stretch: -0.07 + Math.sin(t * 1.7) * 0.012, hop: Math.max(0, Math.sin(t * 4.4)) * 0.015 };
-    }, done: ok => { if (ok) c.say('Nghỉ xíu khoẻ hẳn!', 1800); } });
+    }, done: ok => { if (ok) c.say(_t('Nghỉ xíu khoẻ hẳn!'), 1800); } });
   }
   const floorTex = canvasTex(128, 128, g => { g.fillStyle = '#ffffff'; g.fillRect(0, 0, 128, 128); g.fillStyle = '#d6f3e8'; g.fillRect(0, 0, 64, 64); g.fillRect(64, 64, 64, 64); }, [6, 5]);
   const g = c.shell('#eafaf4', null, '#ffffff', floorTex, '#9fdcc8');
@@ -41,7 +42,7 @@ export function initHospital(c) {
   const board = new THREE.Group(); board.position.set(0.9, 2.2, -3.45); g.add(board);
   add(board, new THREE.BoxGeometry(1.5, 1.05, 0.08), toon('#d9b27a'), 0, 0, 0, '#8a5f3a', 0.03);
   [['#fff7ef', -0.42, 0.18], ['#ffe0ec', 0.1, 0.22], ['#e0f4ff', 0.46, 0.1], ['#fff3c4', -0.2, -0.22], ['#e3f7ea', 0.34, -0.24]].forEach(([col, px, py]) => add(board, new THREE.BoxGeometry(0.4, 0.34, 0.03), toon(col), px, py, 0.06, null));
-  kit.hotspot({ id: 'chart', label: 'Sổ bệnh', at: [0.9, 2.2, -3.2], stand: [0.9, -1.4], act: () => inspect(Math.PI, () => c.open.clinic('book')) }, board);
+  kit.hotspot({ id: 'chart', label: _t('Sổ bệnh'), at: [0.9, 2.2, -3.2], stand: [0.9, -1.4], act: () => inspect(Math.PI, () => c.open.clinic('book')) }, board);
 
   // quầy tiếp đón + y tá
   const desk = new THREE.Group(); desk.position.set(-1.7, 0, -2.45); g.add(desk);
@@ -54,7 +55,7 @@ export function initHospital(c) {
     [0, 0.03].forEach((dy, i) => add(desk, new THREE.BoxGeometry(0.34, 0.025, 0.24), toon(i ? '#fff3c4' : '#ffffff'), -0.9, 1.1 + dy, 0.1, '#bbb', 0.008).rotation.y = i * 0.2);
     const sp = add(desk, new THREE.CylinderGeometry(0.08, 0.06, 0.1, 10), toon('#e8a07a'), 0.95, 1.14, 0.2, '#9a5f4a', 0.01); add(sp, new THREE.SphereGeometry(0.1, 10, 8), toon('#7edb72'), 0, 0.12, 0, '#3f8a55', 0.01); }
   kit.npc({ x: -0.25, z: -2.75, color: '#ffffff', hat: 'nurse', ry: -0.2, parent: g });
-  kit.hotspot({ id: 'desk', label: 'Quầy tiếp đón', at: [-1.7, 2.0, -2.45], stand: [-1.7, -1.35], act: () => inspect(Math.PI, () => c.open.clinic('status')) }, desk);
+  kit.hotspot({ id: 'desk', label: _t('Quầy tiếp đón'), at: [-1.7, 2.0, -2.45], stand: [-1.7, -1.35], act: () => inspect(Math.PI, () => c.open.clinic('status')) }, desk);
 
   // kệ thuốc 8 lọ
   const shelf = new THREE.Group(); shelf.position.set(2.5, 0, -3.1); g.add(shelf);
@@ -65,7 +66,7 @@ export function initHospital(c) {
   MEDICINES.forEach((m, i) => { const row = i < 4 ? 1.45 : 0.55, col = i % 4, x = -0.7 + col * 0.46; // lọ đặt ở mép trước ván để nhìn thấy từ camera
     add(shelf, new THREE.CylinderGeometry(0.12, 0.13, 0.36, 12), toon(colors[i]), x, row + 0.22, 0.3, '#6a4a5a', 0.02); add(shelf, new THREE.CylinderGeometry(0.075, 0.075, 0.08, 10), toon('#ffffff'), x, row + 0.44, 0.3, '#6a4a5a', 0.012);
     add(shelf, new THREE.BoxGeometry(0.17, 0.13, 0.02), toon('#ffffff'), x, row + 0.2, 0.425, null); add(shelf, new THREE.BoxGeometry(0.1, 0.025, 0.02), toon(colors[i]), x, row + 0.2, 0.437, null); });
-  kit.hotspot({ id: 'shelf', label: 'Quầy thuốc', at: [2.5, 2.9, -2.7], stand: [2.3, -1.35], act: () => inspect(Math.PI, () => c.open.clinic('cabinet')) }, shelf);
+  kit.hotspot({ id: 'shelf', label: _t('Quầy thuốc'), at: [2.5, 2.9, -2.7], stand: [2.3, -1.35], act: () => inspect(Math.PI, () => c.open.clinic('cabinet')) }, shelf);
 
   // giường khám + bác sĩ
   const bed = new THREE.Group(); bed.position.set(2.2, 0, -0.35); bed.rotation.y = -Math.PI / 2; g.add(bed);
@@ -86,19 +87,19 @@ export function initHospital(c) {
   const curtain = add(g, new THREE.BoxGeometry(0.06, 1.9, 1.7), toon('#ffe0ec'), 3.35, 1.5, -0.35, '#c98aa8', 0.02);
   add(g, new THREE.BoxGeometry(0.08, 0.08, 1.9), toon('#cfd8e3'), 3.35, 2.5, -0.35, null);
   kit.npc({ x: 1.05, z: -0.55, color: '#e0f2ff', hat: 'doctor', ry: Math.PI / 2, parent: g });
-  kit.hotspot({ id: 'bed', label: 'Giường khám', at: [2.2, 1.5, -0.35], stand: [2.3, 0.85], act: () => lieOnBed() }, bed);
+  kit.hotspot({ id: 'bed', label: _t('Giường khám'), at: [2.2, 1.5, -0.35], stand: [2.3, 0.85], act: () => lieOnBed() }, bed);
   void curtain;
 
   // ghế chờ, thảm, cây
   const bn = kit.bench(g, -2.45, 1.5, Math.PI / 2, '#a8e6cf');
-  kit.hotspot({ id: 'bench', label: 'Ghế chờ', at: [-2.45, 1.4, 1.5], stand: [-1.4, 1.5], act: () => sitWait() }, bn);
+  kit.hotspot({ id: 'bench', label: _t('Ghế chờ'), at: [-2.45, 1.4, 1.5], stand: [-1.4, 1.5], act: () => sitWait() }, bn);
   { const mat = canvasTex(128, 80, d => { d.fillStyle = '#d6f3e8'; d.fillRect(0, 0, 128, 80); d.strokeStyle = '#9fdcc8'; d.lineWidth = 6; d.strokeRect(6, 6, 116, 68); d.fillStyle = '#ffffff'; d.fillRect(58, 24, 12, 32); d.fillRect(48, 34, 32, 12); }); // thảm chữ nhật có chữ thập
     const rm = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 2.1), toon('#ffffff', mat)); rm.rotation.x = -Math.PI / 2; rm.position.set(-1.6, 0.015, 1.2); rm.receiveShadow = true; g.add(rm); }
   kit.plant(g, -3.7, -2.9); kit.plant(g, 3.8, 1.8, 0.85);
 
   return {
     group: g,
-    enter() { kit.show(true); setTimeout(() => { if (c.getArea() === 'hospital') c.say(c.state.illness ? 'Bé ốm rồi à? Lại quầy tiếp đón hoặc giường khám nhé.' : 'Chào bạn! Bé khoẻ mạnh thì cứ ghé chơi nha.', 3200); }, 700); },
+    enter() { kit.show(true); setTimeout(() => { if (c.getArea() === 'hospital') c.say(c.state.illness ? _t('Bé ốm rồi à? Lại quầy tiếp đón hoặc giường khám nhé.') : _t('Chào bạn! Bé khoẻ mạnh thì cứ ghé chơi nha.'), 3200); }, 700); },
     leave() { kit.show(false); },
     update(dt, now) { kit.tick(now); },
     tap: e => kit.tap(e),

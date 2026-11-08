@@ -1,5 +1,6 @@
 // Lớn lên: cảnh tiến hoá khi thú sang giai đoạn mới, và thẻ loài trong bảng Chỉ số.
 // Vòng đời (chia tay, trứng đời sau, gia phả) sẽ được thêm ở đây hoặc trong file mới `lifecycle.js` gọi từ onGrow.
+import { _t } from '../i18n';
 import { S, onGrow, demoAge } from './store';
 import { STAGES, STAGE_ORDER, FORMS, RARITIES, REGIONS, SPECIES_BY_ID, formFromCare } from './species';
 import { isDemo } from '../data/api';
@@ -18,13 +19,13 @@ export function initGrowth(c) {
     if (STAGE_ORDER.indexOf(to) <= STAGE_ORDER.indexOf(from) && from !== 'elder') { buildLook(); return; }
     if (reduce) { buildLook(); growToast(to); return; }
     evo = { t: 0, swapped: false, to }; c.cancelMotion();
-    say(to === 'elder' ? 'Ơ… mình thấy hơi khác…' : 'Ơ ơ… người mình nóng ran nè!', 1500); buzz(30);
+    say(to === 'elder' ? _t('Ơ… mình thấy hơi khác…') : _t('Ơ ơ… người mình nóng ran nè!'), 1500); buzz(30);
   });
   function growToast(to) {
     const sp = SPECIES_BY_ID[S.species];
-    const msg = to === 'adult' || (to === 'elder' && S.form) ? `${S.name} đã ${STAGES[to].name.toLowerCase()} · dáng ${FORMS[S.form || 'thuong'].name}!` : `${S.name} đã lớn thành ${STAGES[to].name}!`;
+    const msg = to === 'adult' || (to === 'elder' && S.form) ? _t`${S.name} đã ${STAGES[to].name.toLowerCase()} · dáng ${FORMS[S.form || 'thuong'].name}!` : _t`${S.name} đã lớn thành ${STAGES[to].name}!`;
     toast(msg); popText(STAGES[to].name, '#ff8a3d');
-    say(to === 'child' ? `Mình là ${sp?.name || 'bé'} Nhí nè! Vỏ trứng rơi mất rồi.` : to === 'teen' ? 'Mình cao lên rồi đó, thấy không?' : to === 'adult' ? `Ta-da! Mình trưởng thành rồi. Cảm ơn bạn đã chăm mình!` : 'Mình già rồi, nhưng vẫn thương bạn lắm.', 3600);
+    say(to === 'child' ? _t`Mình là ${sp?.name || _t('bé')} Nhí nè! Vỏ trứng rơi mất rồi.` : to === 'teen' ? _t('Mình cao lên rồi đó, thấy không?') : to === 'adult' ? _t`Ta-da! Mình trưởng thành rồi. Cảm ơn bạn đã chăm mình!` : _t('Mình già rồi, nhưng vẫn thương bạn lắm.'), 3600);
   }
   function step(dt) {
     if (!evo) return { spin: 0, hop: 0 };
@@ -46,14 +47,14 @@ export function initGrowth(c) {
     const days = Math.max(0, (Date.now() - S.bornAt) / 86400000), st = S.stage;
     const next = { baby: 'child', child: 'teen', teen: 'adult' }[st];
     const left = next ? Math.max(0, STAGES[next].from - days) : 0;
-    const leftTxt = left >= 1 ? `${Math.ceil(left)} ngày` : `${Math.max(1, Math.ceil(left * 24))} giờ`;
+    const leftTxt = left >= 1 ? _t`${Math.ceil(left)} ngày` : _t`${Math.max(1, Math.ceil(left * 24))} giờ`;
     const lean = FORMS[formFromCare(S.care)];
-    el.innerHTML = `<div class="sp-head"><b>${esc(sp.name)}</b><span class="rar" style="--rc:${rar.color}">${rar.name}</span></div>
+    el.innerHTML = _t`<div class="sp-head"><b>${esc(sp.name)}</b><span class="rar" style="--rc:${rar.color}">${rar.name}</span></div>
       <p class="sp-sub">${REGIONS[sp.region].name} · ${esc(S.family)} · đời ${S.generation}</p>
-      <p class="sp-stage"><b>${STAGES[st].name}</b> · ${Math.floor(days)} ngày tuổi${S.form ? ` · dáng <b>${FORMS[S.form].name}</b>` : ''}</p>
-      ${next ? `<p class="sp-next">Còn ${leftTxt} nữa lên <b>${STAGES[next].name}</b>${st === 'teen' ? `. Bé đang nghiêng về dáng <b>${lean.name}</b> vì ${lean.hint}.` : '.'}</p>` : st === 'elder' ? '<p class="sp-next">Bé đang ở tuổi xế chiều. Hãy dành thật nhiều thời gian bên bé nhé. Khi bé ra đi, bạn sẽ đón được quả trứng đời sau.</p>' : ''}
+      <p class="sp-stage"><b>${STAGES[st].name}</b> · ${Math.floor(days)} ngày tuổi${S.form ? _t` · dáng <b>${FORMS[S.form].name}</b>` : ''}</p>
+      ${next ? _t`<p class="sp-next">Còn ${leftTxt} nữa lên <b>${STAGES[next].name}</b>${st === 'teen' ? _t`. Bé đang nghiêng về dáng <b>${lean.name}</b> vì ${lean.hint}.` : '.'}</p>` : st === 'elder' ? _t('<p class="sp-next">Bé đang ở tuổi xế chiều. Hãy dành thật nhiều thời gian bên bé nhé. Khi bé ra đi, bạn sẽ đón được quả trứng đời sau.</p>') : ''}
       <p class="sp-blurb">${esc(sp.blurb)}</p>
-      <div class="sp-actions"><button type="button" class="pill" id="btn-dex">Sổ loài</button>${isDemo ? '<button type="button" class="pill ghost-pill" id="btn-age">Tua 1 ngày (bản thử)</button><button type="button" class="pill ghost-pill" id="btn-age10">Tua 10 ngày</button>' : ''}</div>`;
+      <div class="sp-actions"><button type="button" class="pill" id="btn-dex">Sổ loài</button>${isDemo ? _t('<button type="button" class="pill ghost-pill" id="btn-age">Tua 1 ngày (bản thử)</button><button type="button" class="pill ghost-pill" id="btn-age10">Tua 10 ngày</button>') : ''}</div>`;
     $('btn-dex').onclick = () => { $('btn-stats').click(); getHome()?.openDex(); };
     const ab = $('btn-age'); if (ab) ab.onclick = async () => { ab.disabled = true; await demoAge(1); ab.disabled = false; renderSpecies(); };
     const ab10 = $('btn-age10'); if (ab10) ab10.onclick = async () => { ab10.disabled = true; await demoAge(10); ab10.disabled = false; renderSpecies(); };

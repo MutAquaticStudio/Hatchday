@@ -4,6 +4,7 @@
  * - act() gửi hành động, client đã áp dụng lạc quan trước đó, kết quả server ghi đè chỉ số.
  * - Vuốt ve và kỳ cọ được gộp theo lô 2 giây để không gửi quá nhiều yêu cầu.
  */
+import { _t } from '../i18n';
 import * as api from '../data/api';
 import type { EventGoal } from './events';
 import type { MiniResult, WorldProgress } from './world-activity';
@@ -51,7 +52,7 @@ export interface PetState {
 }
 
 export const S: PetState = {
-  id: '', name: 'Bé', family: '', palette: 0, species: 'mam-xanh', stage: 'baby', form: null, genes: null, bornAt: Date.now(), generation: 1, seen: [], care: { fed: 0, ball: 0, pet: 0, talk: 0, bath: 0 }, no: 70, vui: 70, nl: 80, sach: 80, asleep: false, t: Date.now(),
+  id: '', name: _t('Bé'), family: '', palette: 0, species: 'mam-xanh', stage: 'baby', form: null, genes: null, bornAt: Date.now(), generation: 1, seen: [], care: { fed: 0, ball: 0, pet: 0, talk: 0, bath: 0 }, no: 70, vui: 70, nl: 80, sach: 80, asleep: false, t: Date.now(),
   favFound: false, mem: [], day: null, diary: {}, firsts: {},
   coins: 0, earnedToday: 0, careCap: 50, rotation: [], weekend: false, owned: {}, layouts: [null, null, null], activeLayout: 0, comfort: 1,
   outfit: {}, presets: [{}, {}, {}], likes: [], dislike: '', quests: [], collections: [],

@@ -3,14 +3,15 @@
  * kỹ năng của bé, việc làm thêm, thi biểu diễn tuần, lễ hội theo lịch, sổ sticker, Sổ mùa, sổ lưu bút, hẹn chơi, bé bạn bè ghé chơi.
  * Mọi phần thưởng là xu kiếm được trong game hoặc sticker; không có tiền thật, không có tiền tệ trả phí.
  */
+import { _t } from '../i18n';
 import { MINI, type MiniKind } from './world-activity';
 
 /* ---------------- Kỹ năng ---------------- */
 export const SKILLS = [
-  { id: 'sing', name: 'Ca hát', icon: '🎵' },
-  { id: 'run', name: 'Nhanh nhẹn', icon: '💨' },
-  { id: 'craft', name: 'Khéo tay', icon: '🧶' },
-  { id: 'smart', name: 'Thông minh', icon: '💡' },
+  { id: 'sing', name: _t('Ca hát'), icon: '🎵' },
+  { id: 'run', name: _t('Nhanh nhẹn'), icon: '💨' },
+  { id: 'craft', name: _t('Khéo tay'), icon: '🧶' },
+  { id: 'smart', name: _t('Thông minh'), icon: '💡' },
 ] as const;
 export type SkillId = (typeof SKILLS)[number]['id'];
 export const SKILL_BY_ID: Record<string, (typeof SKILLS)[number]> = Object.fromEntries(SKILLS.map(s => [s.id, s]));
@@ -26,10 +27,10 @@ export const skillXpAt = (lv: number) => 5 * lv * lv;
 
 /* ---------------- Việc làm thêm ---------------- */
 export const JOBS = [
-  { id: 'tea', name: 'Phụ quán trà', place: 'tea', skill: 'craft', perHour: 12, line: 'Mình đi phụ pha trà nha, về kể bạn nghe!' },
-  { id: 'market', name: 'Phụ bán hàng ở Chợ', place: 'market', skill: 'smart', perHour: 12, line: 'Mình ra Chợ giúp cô bán rau nha!' },
-  { id: 'library', name: 'Xếp sách ở Thư viện', place: 'library', skill: 'smart', perHour: 10, line: 'Mình đi xếp sách, suỵt… nhẹ nhàng thôi.' },
-  { id: 'park', name: 'Tưới hoa Công viên', place: 'park', skill: 'run', perHour: 10, line: 'Mình đi tưới hoa cho Công viên xanh mướt nè!' },
+  { id: 'tea', name: _t('Phụ quán trà'), place: 'tea', skill: 'craft', perHour: 12, line: _t('Mình đi phụ pha trà nha, về kể bạn nghe!') },
+  { id: 'market', name: _t('Phụ bán hàng ở Chợ'), place: 'market', skill: 'smart', perHour: 12, line: _t('Mình ra Chợ giúp cô bán rau nha!') },
+  { id: 'library', name: _t('Xếp sách ở Thư viện'), place: 'library', skill: 'smart', perHour: 10, line: _t('Mình đi xếp sách, suỵt… nhẹ nhàng thôi.') },
+  { id: 'park', name: _t('Tưới hoa Công viên'), place: 'park', skill: 'run', perHour: 10, line: _t('Mình đi tưới hoa cho Công viên xanh mướt nè!') },
 ] as const;
 export type JobId = (typeof JOBS)[number]['id'];
 export const JOB_BY_ID: Record<string, (typeof JOBS)[number]> = Object.fromEntries(JOBS.map(j => [j.id, j]));
@@ -55,12 +56,12 @@ export const contestReward = (rank: number) => (rank === 1 ? 100 : rank <= 3 ? 6
 /* ---------------- Lễ hội theo lịch (ngày địa phương, gồm cả hai đầu) ---------------- */
 export interface Festival { id: string; name: string; icon: string; theme: string; line: string }
 export const FESTIVALS: readonly Festival[] = [
-  { id: 'tet', name: 'Tết Nguyên Đán', icon: '🧧', theme: 'tet', line: 'Chúc mừng năm mới! Bé nhận lì xì nè!' },
-  { id: 'trungthu', name: 'Tết Trung thu', icon: '🏮', theme: 'trung-thu', line: 'Trung thu rồi! Cùng rước đèn ở Chợ nha!' },
-  { id: 'thieunhi', name: 'Quốc tế Thiếu nhi', icon: '🎈', theme: 'he', line: 'Hôm nay là ngày của các bé!' },
-  { id: 'halloween', name: 'Halloween', icon: '🎃', theme: 'halloween', line: 'Hù! Bé hoá trang thành gì nhỉ?' },
-  { id: 'noel', name: 'Giáng sinh', icon: '🎄', theme: 'giang-sinh', line: 'Giáng sinh an lành! Có quà dưới cây thông nè.' },
-  { id: 'nammoi', name: 'Năm mới', icon: '🎆', theme: 'tet', line: 'Đếm ngược nào! Chúc mừng năm mới!' },
+  { id: 'tet', name: _t('Tết Nguyên Đán'), icon: '🧧', theme: 'tet', line: _t('Chúc mừng năm mới! Bé nhận lì xì nè!') },
+  { id: 'trungthu', name: _t('Tết Trung thu'), icon: '🏮', theme: 'trung-thu', line: _t('Trung thu rồi! Cùng rước đèn ở Chợ nha!') },
+  { id: 'thieunhi', name: _t('Quốc tế Thiếu nhi'), icon: '🎈', theme: 'he', line: _t('Hôm nay là ngày của các bé!') },
+  { id: 'halloween', name: 'Halloween', icon: '🎃', theme: 'halloween', line: _t('Hù! Bé hoá trang thành gì nhỉ?') },
+  { id: 'noel', name: _t('Giáng sinh'), icon: '🎄', theme: 'giang-sinh', line: _t('Giáng sinh an lành! Có quà dưới cây thông nè.') },
+  { id: 'nammoi', name: _t('Năm mới'), icon: '🎆', theme: 'tet', line: _t('Đếm ngược nào! Chúc mừng năm mới!') },
 ];
 export const FESTIVAL_BY_ID: Record<string, Festival> = Object.fromEntries(FESTIVALS.map(f => [f.id, f]));
 /** Các đợt lễ 2026–2030 (Tết và Trung thu theo âm lịch, đã đổi sang dương lịch). Khớp bảng festival_days. */
@@ -100,34 +101,34 @@ export const SEASON_TIERS = [
 export type StickerKind = 'badge' | 'skill' | 'jobs' | 'playdate' | 'contest' | 'contest_top' | 'festival' | 'season' | 'guestbook';
 export interface StickerDef { id: string; name: string; icon: string; kind: StickerKind; ref: string; target: number; desc: string }
 export const STICKERS: readonly StickerDef[] = [
-  { id: 'st-butterfly', name: 'Bướm xinh', icon: '🦋', kind: 'badge', ref: 'butterfly40', target: 1, desc: 'Nhận huy hiệu Thợ săn bướm' },
-  { id: 'st-teapot', name: 'Ấm trà', icon: '🫖', kind: 'badge', ref: 'brew5', target: 1, desc: 'Nhận huy hiệu Bậc thầy pha trà' },
-  { id: 'st-fish', name: 'Cá vàng', icon: '🐟', kind: 'badge', ref: 'fish20', target: 1, desc: 'Nhận huy hiệu Cần thủ nhí' },
-  { id: 'st-book', name: 'Sách hay', icon: '📖', kind: 'badge', ref: 'quiz5', target: 1, desc: 'Nhận huy hiệu Mọt sách' },
-  { id: 'st-box', name: 'Thùng hàng', icon: '📦', kind: 'badge', ref: 'delivery30', target: 1, desc: 'Nhận huy hiệu Bưu tá nhí' },
-  { id: 'st-disco', name: 'Quả cầu disco', icon: '🪩', kind: 'badge', ref: 'rhythm5', target: 1, desc: 'Nhận huy hiệu Vũ công nhí' },
-  { id: 'st-ladybug', name: 'Bọ rùa', icon: '🐞', kind: 'badge', ref: 'bugs60', target: 1, desc: 'Nhận huy hiệu Người giữ vườn' },
-  { id: 'st-compass', name: 'La bàn', icon: '🧭', kind: 'badge', ref: 'explore7', target: 1, desc: 'Nhận huy hiệu Nhà thám hiểm' },
-  { id: 'st-mic', name: 'Micro vàng', icon: '🎤', kind: 'skill', ref: 'sing', target: 3, desc: 'Ca hát đạt cấp 3' },
-  { id: 'st-shoe', name: 'Giày chạy', icon: '👟', kind: 'skill', ref: 'run', target: 3, desc: 'Nhanh nhẹn đạt cấp 3' },
-  { id: 'st-yarn', name: 'Cuộn len', icon: '🧶', kind: 'skill', ref: 'craft', target: 3, desc: 'Khéo tay đạt cấp 3' },
-  { id: 'st-bulb', name: 'Bóng đèn', icon: '💡', kind: 'skill', ref: 'smart', target: 3, desc: 'Thông minh đạt cấp 3' },
-  { id: 'st-star', name: 'Ngôi sao', icon: '🌟', kind: 'skill', ref: 'any', target: 6, desc: 'Một kỹ năng bất kỳ đạt cấp 6' },
-  { id: 'st-apron', name: 'Tạp dề', icon: '🧑‍🍳', kind: 'jobs', ref: '', target: 1, desc: 'Hoàn thành ca làm đầu tiên' },
-  { id: 'st-briefcase', name: 'Cặp xách', icon: '💼', kind: 'jobs', ref: '', target: 15, desc: 'Hoàn thành 15 ca làm' },
-  { id: 'st-balloon', name: 'Bóng bay', icon: '🎈', kind: 'playdate', ref: '', target: 1, desc: 'Hẹn chơi với bạn lần đầu' },
-  { id: 'st-hug', name: 'Ôm nhau', icon: '🤗', kind: 'playdate', ref: '', target: 10, desc: 'Hẹn chơi 10 lần' },
-  { id: 'st-ticket', name: 'Vé dự thi', icon: '🎟️', kind: 'contest', ref: '', target: 1, desc: 'Dự thi biểu diễn lần đầu' },
-  { id: 'st-trophy', name: 'Cúp vàng', icon: '🏆', kind: 'contest_top', ref: '', target: 1, desc: 'Vào top 3 cuộc thi biểu diễn' },
-  { id: 'st-letter', name: 'Lá thư', icon: '💌', kind: 'guestbook', ref: '', target: 5, desc: 'Viết 5 lời nhắn cho bạn bè' },
-  { id: 'st-season', name: 'Hoa mùa', icon: '🌸', kind: 'season', ref: '', target: 5, desc: 'Nhận 5 bậc trong một mùa' },
-  { id: 'st-season10', name: 'Vương miện mùa', icon: '👑', kind: 'season', ref: '', target: 10, desc: 'Nhận đủ 10 bậc trong một mùa' },
-  { id: 'st-tet', name: 'Bao lì xì', icon: '🧧', kind: 'festival', ref: 'tet', target: 1, desc: 'Nhận quà Tết' },
-  { id: 'st-lantern', name: 'Đèn ông sao', icon: '🏮', kind: 'festival', ref: 'trungthu', target: 1, desc: 'Nhận quà Trung thu' },
-  { id: 'st-kid', name: 'Bóng bay thiếu nhi', icon: '🪁', kind: 'festival', ref: 'thieunhi', target: 1, desc: 'Nhận quà ngày Thiếu nhi' },
-  { id: 'st-pumpkin', name: 'Bí ngô', icon: '🎃', kind: 'festival', ref: 'halloween', target: 1, desc: 'Nhận quà Halloween' },
-  { id: 'st-tree', name: 'Cây thông', icon: '🎄', kind: 'festival', ref: 'noel', target: 1, desc: 'Nhận quà Giáng sinh' },
-  { id: 'st-firework', name: 'Pháo hoa', icon: '🎆', kind: 'festival', ref: 'nammoi', target: 1, desc: 'Nhận quà Năm mới' },
+  { id: 'st-butterfly', name: _t('Bướm xinh'), icon: '🦋', kind: 'badge', ref: 'butterfly40', target: 1, desc: _t('Nhận huy hiệu Thợ săn bướm') },
+  { id: 'st-teapot', name: _t('Ấm trà'), icon: '🫖', kind: 'badge', ref: 'brew5', target: 1, desc: _t('Nhận huy hiệu Bậc thầy pha trà') },
+  { id: 'st-fish', name: _t('Cá vàng'), icon: '🐟', kind: 'badge', ref: 'fish20', target: 1, desc: _t('Nhận huy hiệu Cần thủ nhí') },
+  { id: 'st-book', name: _t('Sách hay'), icon: '📖', kind: 'badge', ref: 'quiz5', target: 1, desc: _t('Nhận huy hiệu Mọt sách') },
+  { id: 'st-box', name: _t('Thùng hàng'), icon: '📦', kind: 'badge', ref: 'delivery30', target: 1, desc: _t('Nhận huy hiệu Bưu tá nhí') },
+  { id: 'st-disco', name: _t('Quả cầu disco'), icon: '🪩', kind: 'badge', ref: 'rhythm5', target: 1, desc: _t('Nhận huy hiệu Vũ công nhí') },
+  { id: 'st-ladybug', name: _t('Bọ rùa'), icon: '🐞', kind: 'badge', ref: 'bugs60', target: 1, desc: _t('Nhận huy hiệu Người giữ vườn') },
+  { id: 'st-compass', name: _t('La bàn'), icon: '🧭', kind: 'badge', ref: 'explore7', target: 1, desc: _t('Nhận huy hiệu Nhà thám hiểm') },
+  { id: 'st-mic', name: _t('Micro vàng'), icon: '🎤', kind: 'skill', ref: 'sing', target: 3, desc: _t('Ca hát đạt cấp 3') },
+  { id: 'st-shoe', name: _t('Giày chạy'), icon: '👟', kind: 'skill', ref: 'run', target: 3, desc: _t('Nhanh nhẹn đạt cấp 3') },
+  { id: 'st-yarn', name: _t('Cuộn len'), icon: '🧶', kind: 'skill', ref: 'craft', target: 3, desc: _t('Khéo tay đạt cấp 3') },
+  { id: 'st-bulb', name: _t('Bóng đèn'), icon: '💡', kind: 'skill', ref: 'smart', target: 3, desc: _t('Thông minh đạt cấp 3') },
+  { id: 'st-star', name: _t('Ngôi sao'), icon: '🌟', kind: 'skill', ref: 'any', target: 6, desc: _t('Một kỹ năng bất kỳ đạt cấp 6') },
+  { id: 'st-apron', name: _t('Tạp dề'), icon: '🧑‍🍳', kind: 'jobs', ref: '', target: 1, desc: _t('Hoàn thành ca làm đầu tiên') },
+  { id: 'st-briefcase', name: _t('Cặp xách'), icon: '💼', kind: 'jobs', ref: '', target: 15, desc: _t('Hoàn thành 15 ca làm') },
+  { id: 'st-balloon', name: _t('Bóng bay'), icon: '🎈', kind: 'playdate', ref: '', target: 1, desc: _t('Hẹn chơi với bạn lần đầu') },
+  { id: 'st-hug', name: _t('Ôm nhau'), icon: '🤗', kind: 'playdate', ref: '', target: 10, desc: _t('Hẹn chơi 10 lần') },
+  { id: 'st-ticket', name: _t('Vé dự thi'), icon: '🎟️', kind: 'contest', ref: '', target: 1, desc: _t('Dự thi biểu diễn lần đầu') },
+  { id: 'st-trophy', name: _t('Cúp vàng'), icon: '🏆', kind: 'contest_top', ref: '', target: 1, desc: _t('Vào top 3 cuộc thi biểu diễn') },
+  { id: 'st-letter', name: _t('Lá thư'), icon: '💌', kind: 'guestbook', ref: '', target: 5, desc: _t('Viết 5 lời nhắn cho bạn bè') },
+  { id: 'st-season', name: _t('Hoa mùa'), icon: '🌸', kind: 'season', ref: '', target: 5, desc: _t('Nhận 5 bậc trong một mùa') },
+  { id: 'st-season10', name: _t('Vương miện mùa'), icon: '👑', kind: 'season', ref: '', target: 10, desc: _t('Nhận đủ 10 bậc trong một mùa') },
+  { id: 'st-tet', name: _t('Bao lì xì'), icon: '🧧', kind: 'festival', ref: 'tet', target: 1, desc: _t('Nhận quà Tết') },
+  { id: 'st-lantern', name: _t('Đèn ông sao'), icon: '🏮', kind: 'festival', ref: 'trungthu', target: 1, desc: _t('Nhận quà Trung thu') },
+  { id: 'st-kid', name: _t('Bóng bay thiếu nhi'), icon: '🪁', kind: 'festival', ref: 'thieunhi', target: 1, desc: _t('Nhận quà ngày Thiếu nhi') },
+  { id: 'st-pumpkin', name: _t('Bí ngô'), icon: '🎃', kind: 'festival', ref: 'halloween', target: 1, desc: _t('Nhận quà Halloween') },
+  { id: 'st-tree', name: _t('Cây thông'), icon: '🎄', kind: 'festival', ref: 'noel', target: 1, desc: _t('Nhận quà Giáng sinh') },
+  { id: 'st-firework', name: _t('Pháo hoa'), icon: '🎆', kind: 'festival', ref: 'nammoi', target: 1, desc: _t('Nhận quà Năm mới') },
 ];
 export const STICKER_BY_ID: Record<string, StickerDef> = Object.fromEntries(STICKERS.map(s => [s.id, s]));
 export const STICKER_COINS = 10;

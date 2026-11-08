@@ -4,6 +4,7 @@
 //  - scatter: vật lặp (cây, hoa, cỏ, hàng rào, đèn) dựng bằng InstancedMesh (một lần vẽ cho cả loạt) kèm viền;
 //  - cache hình/vật liệu dùng chung; chất lượng Thấp giảm bớt số vật trang trí (density).
 // Mỗi nơi gọi makeWorld(c), khai báo zones rồi gọi world.update(dt, petX, petZ) mỗi khung hình.
+import { _t } from '../../i18n';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 const BUDGET_MS = 4;
 
@@ -215,7 +216,7 @@ export function makeProps({ THREE, add, toon, canvasTex, kit, world }) {
     return w;
   };
   /** Xe đẩy bán hàng: thùng gỗ ô kính, bánh xe, càng đẩy, mái sọc, biển tên, hàng bày (goods: 'bread' | 'icecream' | 'fruit'). */
-  const cart = (g, x, z, { ry = 0, label = 'Bánh mì', body = '#ffcf8a', stripe = '#ff8f6a', goods = 'bread' } = {}) => {
+  const cart = (g, x, z, { ry = 0, label = _t('Bánh mì'), body = '#ffcf8a', stripe = '#ff8f6a', goods = 'bread' } = {}) => {
     const b = new THREE.Group(); b.position.set(x, 0, z); b.rotation.y = ry; g.add(b);
     add(b, new THREE.BoxGeometry(1.9, 0.75, 0.95), toon(body), 0, 0.72, 0, '#8a5a3a', 0.03);
     add(b, new THREE.BoxGeometry(1.98, 0.08, 1.03), toon('#fff8ef'), 0, 1.12, 0, '#8a7a6a', 0.012);
@@ -239,7 +240,7 @@ export function makeProps({ THREE, add, toon, canvasTex, kit, world }) {
     return b;
   };
   /** Sạp hoa: kệ bậc thang gỗ với chậu hoa nhiều màu, mái vải, xô hoa phía trước. */
-  const kiosk = (g, x, z, { ry = 0, roof = '#ff9ec4', label = 'Hoa tươi' } = {}) => {
+  const kiosk = (g, x, z, { ry = 0, roof = '#ff9ec4', label = _t('Hoa tươi') } = {}) => {
     const b = new THREE.Group(); b.position.set(x, 0, z); b.rotation.y = ry; g.add(b);
     [0, 1, 2].forEach(i => add(b, new THREE.BoxGeometry(1.9, 0.12, 0.42), toon('#d9b27a'), 0, 0.35 + i * 0.36, 0.3 - i * 0.36, '#8a5f3a', 0.015));
     [-0.92, 0.92].forEach(px => add(b, new THREE.BoxGeometry(0.08, 1.2, 1.2), toon('#c29a62'), px, 0.6, -0.06, '#8a5f3a', 0.015));

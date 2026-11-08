@@ -1,15 +1,16 @@
 /** Luật mini-game (thuần, có test): Bắt bướm và Pha trà. Điểm tối đa và xu khớp world-activity.ts / máy chủ. */
+import { _t } from '../i18n';
 import { MINI } from './world-activity';
 
 export const BUTTERFLY = { seconds: MINI.butterfly.seconds, target: MINI.butterfly.max, onScreen: 5, hitRadius: 30 } as const;
 
 /** Năm bước pha trà. Vùng xanh hẹp dần và thanh chạy nhanh dần. */
 export const BREW_STEPS = [
-  { id: 'boil', label: 'Đun nước', hint: 'Dừng khi nước sôi vừa tới', zone: 0.30, speed: 0.55 },
-  { id: 'leaf', label: 'Chọn lá trà', hint: 'Dừng ở lượng lá vừa đủ', zone: 0.26, speed: 0.68 },
-  { id: 'steep', label: 'Ủ trà', hint: 'Dừng khi trà vừa thơm', zone: 0.22, speed: 0.82 },
-  { id: 'pour', label: 'Rót trà', hint: 'Dừng khi chén đầy vừa', zone: 0.19, speed: 0.98 },
-  { id: 'honey', label: 'Thêm mật ong', hint: 'Một chút thôi nha', zone: 0.16, speed: 1.15 },
+  { id: 'boil', label: _t('Đun nước'), hint: _t('Dừng khi nước sôi vừa tới'), zone: 0.30, speed: 0.55 },
+  { id: 'leaf', label: _t('Chọn lá trà'), hint: _t('Dừng ở lượng lá vừa đủ'), zone: 0.26, speed: 0.68 },
+  { id: 'steep', label: _t('Ủ trà'), hint: _t('Dừng khi trà vừa thơm'), zone: 0.22, speed: 0.82 },
+  { id: 'pour', label: _t('Rót trà'), hint: _t('Dừng khi chén đầy vừa'), zone: 0.19, speed: 0.98 },
+  { id: 'honey', label: _t('Thêm mật ong'), hint: _t('Một chút thôi nha'), zone: 0.16, speed: 1.15 },
 ] as const;
 export const BREW_STARS = BREW_STEPS.length;
 
@@ -41,36 +42,36 @@ export const fishScore = (n: number) => clampScore('fish', n);
 /** Đố vui (Thư viện): 5 câu, 4 lựa chọn, 12 giây mỗi câu. `c` là chỉ số đáp án đúng trong `a`. */
 export const QUIZ = { questions: MINI.quiz.max, seconds: 12 } as const;
 export const QUIZ_BANK: readonly { q: string; a: readonly string[]; c: number }[] = [
-  { q: 'Thanh Năng lượng của bé thấp thì nên làm gì?', a: ['Cho bé đi ngủ', 'Cho bé ăn kẹo', 'Tắm cho bé', 'Cho bé chạy nhảy'], c: 0 },
-  { q: 'Ở Hatchday, mua thuốc cho bé ở đâu?', a: ['Bệnh viện', 'Thư viện', 'Tiệm may', 'Công viên'], c: 0 },
-  { q: 'Cá sống ở đâu?', a: ['Dưới nước', 'Trên cây', 'Trong cát', 'Trên mây'], c: 0 },
-  { q: 'Con vật nào biết bay?', a: ['Chim bồ câu', 'Cá vàng', 'Con mèo', 'Con rùa'], c: 0 },
-  { q: 'Mặt trời mọc ở hướng nào?', a: ['Hướng Đông', 'Hướng Tây', 'Hướng Nam', 'Hướng Bắc'], c: 0 },
-  { q: 'Một tuần có mấy ngày?', a: ['7 ngày', '5 ngày', '6 ngày', '8 ngày'], c: 0 },
-  { q: 'Tết Trung thu, các bé thường rước gì?', a: ['Đèn ông sao', 'Cây thông', 'Quả bí ngô', 'Trứng màu'], c: 0 },
-  { q: 'Cầu vồng có mấy màu?', a: ['7 màu', '5 màu', '6 màu', '9 màu'], c: 0 },
-  { q: 'Củ cà rốt thường có màu gì?', a: ['Màu cam', 'Màu tím', 'Màu xanh dương', 'Màu đen'], c: 0 },
-  { q: 'Muốn nhâm nhi trà thì ghé đâu?', a: ['Tiệm trà', 'Chợ Xanh', 'Bệnh viện', 'Tiệm may'], c: 0 },
-  { q: 'Muốn bé sạch sẽ thì làm gì?', a: ['Tắm cho bé', 'Cho bé ngủ', 'Đá bóng', 'Đọc sách'], c: 0 },
-  { q: 'Con ong làm ra gì?', a: ['Mật ong', 'Sữa', 'Trứng', 'Len'], c: 0 },
-  { q: 'Con gì kêu "quác quác"?', a: ['Con vịt', 'Con mèo', 'Con chó', 'Con bò'], c: 0 },
-  { q: 'Mùa nào thường lạnh nhất?', a: ['Mùa đông', 'Mùa hè', 'Mùa xuân', 'Mùa thu'], c: 0 },
-  { q: '2 + 3 bằng mấy?', a: ['5', '4', '6', '23'], c: 0 },
-  { q: 'Tết Nguyên Đán, các bé thường được nhận gì?', a: ['Bao lì xì', 'Bánh trung thu', 'Kẹo bí ngô', 'Trứng màu'], c: 0 },
-  { q: 'Lá cây thường có màu gì?', a: ['Xanh lá', 'Hồng', 'Tím', 'Đen'], c: 0 },
-  { q: 'Cây cần gì để lớn?', a: ['Nước và ánh nắng', 'Kẹo ngọt', 'Quả bóng', 'Đồng hồ'], c: 0 },
-  { q: 'Đồng hồ lớn ở Quảng trường nằm trên gì?', a: ['Tháp đồng hồ', 'Đài phun nước', 'Sân khấu', 'Cây cầu'], c: 0 },
-  { q: 'Bé bị ốm thì nên làm gì?', a: ['Đưa bé đi khám', 'Cho bé ăn thật nhiều kẹo', 'Cho bé chạy thật nhiều', 'Để bé một mình'], c: 0 },
-  { q: 'Con bướm có mấy cánh?', a: ['4 cánh', '2 cánh', '6 cánh', '8 cánh'], c: 0 },
-  { q: 'Con nhện có mấy chân?', a: ['8 chân', '6 chân', '4 chân', '10 chân'], c: 0 },
-  { q: 'Kem để ngoài nắng lâu sẽ thế nào?', a: ['Tan chảy', 'Cứng lại', 'To ra', 'Đổi màu xanh'], c: 0 },
-  { q: 'Ăn quá nhiều đồ ngọt dễ bị gì?', a: ['Sâu răng', 'Cao vọt lên', 'Biết bay', 'Mắt đổi màu'], c: 0 },
-  { q: 'Ở Chợ Xanh, sạp nào bán cá?', a: ['Cá tươi', 'Đồ gốm', 'Hoa tươi', 'Đèn lồng'], c: 0 },
-  { q: 'Ngày Quốc tế Thiếu nhi là ngày nào?', a: ['1 tháng 6', '2 tháng 9', '8 tháng 3', '20 tháng 11'], c: 0 },
-  { q: 'Con gì có cái vòi rất dài?', a: ['Con voi', 'Con thỏ', 'Con gà', 'Con cá'], c: 0 },
-  { q: 'Nước đông lại thành gì?', a: ['Nước đá', 'Hơi nước', 'Cát', 'Mây'], c: 0 },
-  { q: 'Bé ngủ ở phòng nào?', a: ['Phòng ngủ', 'Nhà bếp', 'Nhà tắm', 'Vườn'], c: 0 },
-  { q: 'Ánh sáng ban đêm trên trời là gì?', a: ['Mặt trăng và sao', 'Cầu vồng', 'Mặt trời', 'Đèn giao thông'], c: 0 },
+  { q: _t('Thanh Năng lượng của bé thấp thì nên làm gì?'), a: [_t('Cho bé đi ngủ'), _t('Cho bé ăn kẹo'), _t('Tắm cho bé'), _t('Cho bé chạy nhảy')], c: 0 },
+  { q: _t('Ở Hatchday, mua thuốc cho bé ở đâu?'), a: [_t('Bệnh viện'), _t('Thư viện'), _t('Tiệm may'), _t('Công viên')], c: 0 },
+  { q: _t('Cá sống ở đâu?'), a: [_t('Dưới nước'), _t('Trên cây'), _t('Trong cát'), _t('Trên mây')], c: 0 },
+  { q: _t('Con vật nào biết bay?'), a: [_t('Chim bồ câu'), _t('Cá vàng'), _t('Con mèo'), _t('Con rùa')], c: 0 },
+  { q: _t('Mặt trời mọc ở hướng nào?'), a: [_t('Hướng Đông'), _t('Hướng Tây'), _t('Hướng Nam'), _t('Hướng Bắc')], c: 0 },
+  { q: _t('Một tuần có mấy ngày?'), a: [_t('7 ngày'), _t('5 ngày'), _t('6 ngày'), _t('8 ngày')], c: 0 },
+  { q: _t('Tết Trung thu, các bé thường rước gì?'), a: [_t('Đèn ông sao'), _t('Cây thông'), _t('Quả bí ngô'), _t('Trứng màu')], c: 0 },
+  { q: _t('Cầu vồng có mấy màu?'), a: [_t('7 màu'), _t('5 màu'), _t('6 màu'), _t('9 màu')], c: 0 },
+  { q: _t('Củ cà rốt thường có màu gì?'), a: [_t('Màu cam'), _t('Màu tím'), _t('Màu xanh dương'), _t('Màu đen')], c: 0 },
+  { q: _t('Muốn nhâm nhi trà thì ghé đâu?'), a: [_t('Tiệm trà'), _t('Chợ Xanh'), _t('Bệnh viện'), _t('Tiệm may')], c: 0 },
+  { q: _t('Muốn bé sạch sẽ thì làm gì?'), a: [_t('Tắm cho bé'), _t('Cho bé ngủ'), _t('Đá bóng'), _t('Đọc sách')], c: 0 },
+  { q: _t('Con ong làm ra gì?'), a: [_t('Mật ong'), _t('Sữa'), _t('Trứng'), 'Len'], c: 0 },
+  { q: _t('Con gì kêu "quác quác"?'), a: [_t('Con vịt'), _t('Con mèo'), _t('Con chó'), _t('Con bò')], c: 0 },
+  { q: _t('Mùa nào thường lạnh nhất?'), a: [_t('Mùa đông'), _t('Mùa hè'), _t('Mùa xuân'), _t('Mùa thu')], c: 0 },
+  { q: _t('2 + 3 bằng mấy?'), a: ['5', '4', '6', '23'], c: 0 },
+  { q: _t('Tết Nguyên Đán, các bé thường được nhận gì?'), a: [_t('Bao lì xì'), _t('Bánh trung thu'), _t('Kẹo bí ngô'), _t('Trứng màu')], c: 0 },
+  { q: _t('Lá cây thường có màu gì?'), a: [_t('Xanh lá'), _t('Hồng'), _t('Tím'), _t('Đen')], c: 0 },
+  { q: _t('Cây cần gì để lớn?'), a: [_t('Nước và ánh nắng'), _t('Kẹo ngọt'), _t('Quả bóng'), _t('Đồng hồ')], c: 0 },
+  { q: _t('Đồng hồ lớn ở Quảng trường nằm trên gì?'), a: [_t('Tháp đồng hồ'), _t('Đài phun nước'), _t('Sân khấu'), _t('Cây cầu')], c: 0 },
+  { q: _t('Bé bị ốm thì nên làm gì?'), a: [_t('Đưa bé đi khám'), _t('Cho bé ăn thật nhiều kẹo'), _t('Cho bé chạy thật nhiều'), _t('Để bé một mình')], c: 0 },
+  { q: _t('Con bướm có mấy cánh?'), a: [_t('4 cánh'), _t('2 cánh'), _t('6 cánh'), _t('8 cánh')], c: 0 },
+  { q: _t('Con nhện có mấy chân?'), a: [_t('8 chân'), _t('6 chân'), _t('4 chân'), _t('10 chân')], c: 0 },
+  { q: _t('Kem để ngoài nắng lâu sẽ thế nào?'), a: [_t('Tan chảy'), _t('Cứng lại'), 'To ra', _t('Đổi màu xanh')], c: 0 },
+  { q: _t('Ăn quá nhiều đồ ngọt dễ bị gì?'), a: [_t('Sâu răng'), _t('Cao vọt lên'), _t('Biết bay'), _t('Mắt đổi màu')], c: 0 },
+  { q: _t('Ở Chợ Xanh, sạp nào bán cá?'), a: [_t('Cá tươi'), _t('Đồ gốm'), _t('Hoa tươi'), _t('Đèn lồng')], c: 0 },
+  { q: _t('Ngày Quốc tế Thiếu nhi là ngày nào?'), a: [_t('1 tháng 6'), _t('2 tháng 9'), _t('8 tháng 3'), _t('20 tháng 11')], c: 0 },
+  { q: _t('Con gì có cái vòi rất dài?'), a: ['Con voi', _t('Con thỏ'), _t('Con gà'), _t('Con cá')], c: 0 },
+  { q: _t('Nước đông lại thành gì?'), a: [_t('Nước đá'), _t('Hơi nước'), _t('Cát'), _t('Mây')], c: 0 },
+  { q: _t('Bé ngủ ở phòng nào?'), a: [_t('Phòng ngủ'), _t('Nhà bếp'), _t('Nhà tắm'), _t('Vườn')], c: 0 },
+  { q: _t('Ánh sáng ban đêm trên trời là gì?'), a: [_t('Mặt trăng và sao'), _t('Cầu vồng'), _t('Mặt trời'), _t('Đèn giao thông')], c: 0 },
 ];
 /** Chọn n câu không trùng, xáo thứ tự đáp án; `c` là chỉ số đáp án đúng sau khi xáo. */
 export function pickQuiz(seed: number, n: number = QUIZ.questions) {
@@ -82,8 +83,8 @@ export const quizScore = (correct: number) => clampScore('quiz', correct);
 /** Giao hàng (Chợ Xanh): nhớ sạp nào bán gì (xem 3 giây rồi úp), giao đúng 6 đơn trong 45 giây; sai bị trừ 3 giây. */
 export const DELIVERY = { seconds: MINI.delivery.seconds, target: MINI.delivery.max, preview: 3000, penalty: 3 } as const;
 export const DELIVERY_STALLS = [
-  { id: 'veg', name: 'Rau quả', icon: '🥕' }, { id: 'flower', name: 'Hoa tươi', icon: '🌷' }, { id: 'bakery', name: 'Bánh trái', icon: '🥐' },
-  { id: 'fish', name: 'Cá tươi', icon: '🐟' }, { id: 'pottery', name: 'Đồ gốm', icon: '🏺' }, { id: 'lantern', name: 'Đèn lồng', icon: '🏮' },
+  { id: 'veg', name: _t('Rau quả'), icon: '🥕' }, { id: 'flower', name: _t('Hoa tươi'), icon: '🌷' }, { id: 'bakery', name: _t('Bánh trái'), icon: '🥐' },
+  { id: 'fish', name: _t('Cá tươi'), icon: '🐟' }, { id: 'pottery', name: _t('Đồ gốm'), icon: '🏺' }, { id: 'lantern', name: _t('Đèn lồng'), icon: '🏮' },
 ] as const;
 /** Thứ tự đơn hàng: mỗi sạp xuất hiện đúng một lần (6 đơn), xáo theo hạt giống. */
 export const deliveryOrders = (seed: number) => shuffled(DELIVERY_STALLS.map(s => s.id), seeded(seed));

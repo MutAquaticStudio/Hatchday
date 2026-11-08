@@ -1,6 +1,7 @@
 // Công viên "Cỏ Non" (~40×28, rộng, camera bám thú): nơi chung (shared.js). Khu lõi: đồng cỏ, lối đi vòng, cây lớn, vườn hoa, khăn dã ngoại, bóng chung.
 // Khu tây: ao có cầu và vịt (cho vịt ăn). Khu đông: sân chơi (xích đu, bập bênh, cầu trượt, hố cát). Khu bắc: lùm cây và vòm nghỉ chân. Cổng về Quảng trường ở mép tây.
 // Đồ chơi dùng play_toy (ducks, swing, seesaw, slide). Chi tiết dựng/ẩn theo khu: xem world.js.
+import { _t } from '../../i18n';
 import { makeKit } from './kit.js';
 import { makeShared } from './shared.js';
 import { makeFireflies, makeProps, makeWorld } from './world.js';
@@ -69,7 +70,7 @@ export function initPark(c) {
       if (u < 0.45) return { pos: arc([fx, 0, fz], spot, ease(u / 0.45), 0.15), stretch: -0.1 * Math.sin(u / 0.45 * Math.PI / 2), face: -Math.PI / 2 };
       if (!kicked) { kicked = true; c.sfx('kick'); ballV = { vx: -2.2 - Math.random() * 1.3, vy: 3.4, vz: -1.8 - Math.random() * 1.6 }; c.spawnAt('sparkle', bp.x, 0.5, bp.z, { vy: 1, scale: 0.4, max: 0.5 }); }
       const k = (u - 0.45) / 0.55; return { pos: [spot[0] - 0.2 * Math.sin(Math.min(1, k * 2) * Math.PI), Math.sin(Math.min(1, k * 1.6) * Math.PI) * 0.25, spot[2]], stretch: 0.1 * Math.sin(k * Math.PI), roll: 0.12 * Math.sin(k * Math.PI), face: -Math.PI / 2 };
-    }, done: () => { setTimeout(() => { if (c.getArea() === 'park' && ball) c.walkPetTo(ball.position.x + 0.6, ball.position.z + 0.5).then(ok => { if (ok) c.say('Lấy lại được rồi nè!', 1800); }); }, 2600); } });
+    }, done: () => { setTimeout(() => { if (c.getArea() === 'park' && ball) c.walkPetTo(ball.position.x + 0.6, ball.position.z + 0.5).then(ok => { if (ok) c.say(_t('Lấy lại được rồi nè!'), 1800); }); }, 2600); } });
   }
 
   /* ---------- mini-game Bắt bướm ngay trong công viên: bướm bay quanh bé, chạm vào bướm để bé nhảy tới bắt ---------- */
@@ -149,15 +150,15 @@ export function initPark(c) {
     // bóng chung
     ball = add(z, new THREE.SphereGeometry(0.28, 14, 10), toon('#ff6a8a'), -1.4, 0.28, 1.8, '#a83a4a', 0.02);
     add(ball, new THREE.TorusGeometry(0.28, 0.025, 6, 20), toon('#ffffff'), 0, 0, 0, null);
-    kit.hotspot({ id: 'catch', label: 'Bắt bướm', at: [2.2, 1.4, 4.0], stand: [1.0, 5.0], act: () => c.open.mini('butterfly') }, pic);
-    kit.hotspot({ id: 'ball', label: 'Bóng chung', at: [-1.4, 1.1, 1.8], stand: [-0.7, 2.2], act: () => { c.say('Đá bóng nào! Ai chơi cùng không?', 2200); kickBall(); } }, ball);
+    kit.hotspot({ id: 'catch', label: _t('Bắt bướm'), at: [2.2, 1.4, 4.0], stand: [1.0, 5.0], act: () => c.open.mini('butterfly') }, pic);
+    kit.hotspot({ id: 'ball', label: _t('Bóng chung'), at: [-1.4, 1.1, 1.8], stand: [-0.7, 2.2], act: () => { c.say(_t('Đá bóng nào! Ai chơi cùng không?'), 2200); kickBall(); } }, ball);
     props.lamp(z, -5, 5.2); props.lamp(z, 5, 5.2);
     // cổng về Quảng trường (mép tây) + bướm
     const gate = new THREE.Group(); gate.position.set(-17.5, 0, 4.5); gate.rotation.y = Math.PI / 2; z.add(gate);
     [-1.6, 1.6].forEach(x => add(gate, new THREE.BoxGeometry(0.4, 2.8, 0.4), toon('#d9b27a'), x, 1.4, 0, '#8a5f3a', 0.03));
     add(gate, new THREE.BoxGeometry(4.0, 0.5, 0.5), toon('#ffb3c9'), 0, 3.0, 0, '#a8507a', 0.03);
-    const sg = kit.sign('← Quảng trường', 2.4, 0.5, '#fff0f6', '#8a3a5a', 30); sg.position.set(0, 3.0, 0.28); gate.add(sg);
-    kit.hotspot({ id: 'go-plaza', label: 'Quảng trường', at: [-17.5, 3.9, 4.5], stand: [-15.5, 4.5], act: () => c.goTo('plaza') }, gate);
+    const sg = kit.sign(_t('← Quảng trường'), 2.4, 0.5, '#fff0f6', '#8a3a5a', 30); sg.position.set(0, 3.0, 0.28); gate.add(sg);
+    kit.hotspot({ id: 'go-plaza', label: _t('Quảng trường'), at: [-17.5, 3.9, 4.5], stand: [-15.5, 4.5], act: () => c.goTo('plaza') }, gate);
     butterflies = Array.from({ length: Math.round(6 * dens) }, (_, i) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(0.22, 0.16), new THREE.MeshBasicMaterial({ color: ['#ff9ec4', '#ffd36e', '#c9a6ff'][i % 3], side: THREE.DoubleSide })); m.userData = { keep: true, ph: i * 1.3, cx: -8 + i * 3, cz: -2 + (i % 3) * 2 }; z.add(m); return m; });
     { // diều bay trên trời phía bắc, dây buộc vào cọc sau lùm cây
       add(z, new THREE.CylinderGeometry(0.05, 0.06, 0.6, 6), toon('#a8744a'), -7.5, 0.3, -7.6, null);
@@ -198,8 +199,8 @@ export function initPark(c) {
         const rod = add(dock, new THREE.CylinderGeometry(0.02, 0.03, 1.8, 6), toon('#7a5a3a'), 0.25, 0.9, -0.5, null); rod.rotation.x = -0.75;
         add(dock, new THREE.SphereGeometry(0.06, 8, 6), toon('#ff5a5a'), 0.25, 0.08, -1.55, null);
         add(dock, new THREE.CylinderGeometry(0.17, 0.14, 0.26, 12), toon('#6ab7ff'), -0.4, 0.4, 0.1, '#356a9a', 0.01);
-        kit.hotspot({ id: 'fish', label: 'Câu cá', at: [-13.6, 1.6, 0.1], stand: [-13.6, 1.3], act: () => c.open.mini('fish') }, dock);
-        kit.hotspot({ id: 'duck', label: 'Cho vịt ăn', at: [-12, 1.9, -2.4], stand: [-8.4, -0.6], act: () => { if (c.playToy('ducks')) { c.spawn('sparkle', 4, 0.8); feedDucks(); } } }, pond);
+        kit.hotspot({ id: 'fish', label: _t('Câu cá'), at: [-13.6, 1.6, 0.1], stand: [-13.6, 1.3], act: () => c.open.mini('fish') }, dock);
+        kit.hotspot({ id: 'duck', label: _t('Cho vịt ăn'), at: [-12, 1.9, -2.4], stand: [-8.4, -0.6], act: () => { if (c.playToy('ducks')) { c.spawn('sparkle', 4, 0.8); feedDucks(); } } }, pond);
       },
       () => { const rocks = []; for (let i = 0; i < Math.round(10 * dens); i++) { const a = i * 0.63; rocks.push({ x: -12 + Math.cos(a) * 3.9, z: -2.4 + Math.sin(a) * 2.8, y: 0.12, s: 0.18 + (i % 3) * 0.08, color: '#c9c2b4' }); } world.scatter(z, world.geo('rock', () => new THREE.DodecahedronGeometry(1, 0)), world.toonC('#ffffff'), rocks, '#7a7468', 0.02); },
       () => props.trees(z, [{ x: -17, z: -6, s: 1.3 }, { x: -16.5, z: 0.5, s: 1.1 }, { x: -9, z: -7.2, s: 1.15 }].slice(0, Math.round(3 * dens) || 2)),
@@ -217,7 +218,7 @@ export function initPark(c) {
         [-1.5, 1.5].forEach(x => { add(swing, new THREE.BoxGeometry(0.08, 0.08, 0.95), toon('#ffd36e'), x, 0.9, 0, '#a8742e', 0.01); add(swing, new THREE.SphereGeometry(0.11, 8, 6), toon('#ffd36e'), x, 2.56, 0, '#a8742e', 0.008); });
         add(swing, new THREE.BoxGeometry(3.4, 0.12, 0.12), toon('#ff9ec4'), 0, 2.5, 0, '#a8507a', 0.02);
         seats = [-0.6, 0.6].map(x => { const s = new THREE.Group(); s.userData.keep = true; s.position.set(x, 2.5, 0); swing.add(s); [-0.3, 0.3].forEach(dx => add(s, new THREE.CylinderGeometry(0.012, 0.012, 1.6, 4), toon('#6a4a5a'), dx, -0.8, 0, null)); add(s, new THREE.BoxGeometry(0.8, 0.07, 0.3), toon('#ffd36e'), 0, -1.6, 0, '#a8742e', 0.02); return s; });
-        kit.hotspot({ id: 'swing', label: 'Xích đu', at: [10, 3.1, -3.2], stand: [10, -0.8], act: () => { if (c.playToy('swing')) rideSwing(); } }, swing);
+        kit.hotspot({ id: 'swing', label: _t('Xích đu'), at: [10, 3.1, -3.2], stand: [10, -0.8], act: () => { if (c.playToy('swing')) rideSwing(); } }, swing);
       },
       () => { // bập bênh
         const see = new THREE.Group(); see.position.set(14.5, 0, 1.4); z.add(see);
@@ -226,7 +227,7 @@ export function initPark(c) {
         [-1, 1].forEach(sx => { add(plank, new THREE.BoxGeometry(0.5, 0.08, 0.46), toon(sx < 0 ? '#ff7a8a' : '#6ab7ff'), sx * 1.15, 0.08, 0, '#6a4a5a', 0.01); const hd = add(plank, new THREE.TorusGeometry(0.14, 0.03, 6, 12, Math.PI), toon('#7a6a8a'), sx * 0.8, 0.14, 0, null); hd.rotation.y = Math.PI / 2; });
         add(see, new THREE.CylinderGeometry(0.06, 0.06, 0.5, 8), toon('#7a6a8a'), 0, 0.58, 0, null).rotation.x = Math.PI / 2;
         [-1.2, 1.2].forEach(x => add(see, new THREE.CylinderGeometry(0.16, 0.2, 0.1, 12), toon('#9a9aaa'), x, 0.05, 0, '#5a5a6a', 0.008)); // lốp đệm
-        kit.hotspot({ id: 'seesaw', label: 'Bập bênh', at: [14.5, 1.7, 1.4], stand: [14.5, 3.0], act: () => { if (c.playToy('seesaw')) rideSeesaw(); } }, see);
+        kit.hotspot({ id: 'seesaw', label: _t('Bập bênh'), at: [14.5, 1.7, 1.4], stand: [14.5, 3.0], act: () => { if (c.playToy('seesaw')) rideSeesaw(); } }, see);
       },
       () => { // cầu trượt
         const sl = new THREE.Group(); sl.position.set(15.5, 0, -3.6); z.add(sl); slideGrp = sl;
@@ -241,7 +242,7 @@ export function initPark(c) {
         add(sl, new THREE.ConeGeometry(1.0, 0.7, 4), toon('#7edb72'), 0, 3.6, 0, '#3f8a55', 0.02).rotation.y = Math.PI / 4;
         add(sl, new THREE.BoxGeometry(0.02, 0.2, 0.3), toon('#ff9ec4'), 0, 4.1, 0.15, null); add(sl, new THREE.CylinderGeometry(0.02, 0.02, 0.4, 5), toon('#7a6a8a'), 0, 4.0, 0, null);
         for (let i = 0; i < 5; i++) add(sl, new THREE.BoxGeometry(0.66, 0.05, 0.06), toon('#ffffff'), 0, 0.25 + i * 0.36, -0.7 - (0.25 + i * 0.36) * Math.tan(0.15) + 0.14, null); // bậc thang
-        kit.hotspot({ id: 'slide', label: 'Cầu trượt', at: [15.5, 3.2, -3.6], stand: [15.5, 0.2], act: () => { if (c.playToy('slide')) rideSlide(); } }, sl);
+        kit.hotspot({ id: 'slide', label: _t('Cầu trượt'), at: [15.5, 3.2, -3.6], stand: [15.5, 0.2], act: () => { if (c.playToy('slide')) rideSlide(); } }, sl);
       },
       () => { // hố cát + xô
         const sb = new THREE.Group(); sb.position.set(10.5, 0, 3.8); z.add(sb);
@@ -289,7 +290,7 @@ export function initPark(c) {
         add(mill, new THREE.CylinderGeometry(0.12, 0.12, 0.2, 10), toon('#a8744a'), 0, 0, 0, null).rotation.x = Math.PI / 2;
         for (let i = 0; i < 4; i++) { const arm = new THREE.Group(); arm.rotation.z = i * Math.PI / 2; mill.add(arm); add(arm, new THREE.BoxGeometry(0.08, 1.7, 0.05), toon('#a8744a'), 0, 0.9, 0.05, null); add(arm, new THREE.BoxGeometry(0.42, 1.2, 0.03), toon('#fff8ef'), 0.24, 1.05, 0.07, '#8a7a7a', 0.01); }
       },
-      () => { props.cart(z, 4.5, 9.6, { ry: -0.15, label: 'Kem mát', body: '#ffd6e6', stripe: '#7ec8ff', goods: 'icecream' }); props.picnic(z, 9.5, 10.2, { ry: 0.2 }); props.picnic(z, 14.2, 9.4, { ry: -0.3, cloth: '#7ec8ff', umbrella: '#ffd36e' }); },
+      () => { props.cart(z, 4.5, 9.6, { ry: -0.15, label: _t('Kem mát'), body: '#ffd6e6', stripe: '#7ec8ff', goods: 'icecream' }); props.picnic(z, 9.5, 10.2, { ry: 0.2 }); props.picnic(z, 14.2, 9.4, { ry: -0.3, cloth: '#7ec8ff', umbrella: '#ffd36e' }); },
       () => { props.fence(z, -20.5, 13.2, 20.5, 13.2, 0.8); props.trees(z, [{ x: 18.5, z: 11.8, s: 1.2 }, { x: -19, z: 8.6, s: 1.0 }].slice(0, Math.round(2 * dens) || 1));
         props.topiary(z, -3.8, 8.0, { shape: 'cone', s: 0.8 }); props.topiary(z, 2.2, 8.0, { shape: 'ball', s: 0.8 }); props.lamp(z, -4.4, 8.1); props.lamp(z, 7.2, 8.1); kit.bench(z, 0.4, 10.6, Math.PI); },
       () => { const t = []; for (let i = 0, n = Math.round(50 * dens); i < n; i++) t.push({ x: -4 + ((i * 47) % 240) / 10, z: 8 + ((i * 61) % 50) / 10 }); props.tufts(z, t); },
@@ -298,7 +299,7 @@ export function initPark(c) {
 
   return {
     group: g,
-    enter() { kit.show(true); shared.enter(); setTimeout(() => { if (c.getArea() === 'park') c.say('Công viên rộng ghê! Mình chạy thử nha.', 2800); }, 900); },
+    enter() { kit.show(true); shared.enter(); setTimeout(() => { if (c.getArea() === 'park') c.say(_t('Công viên rộng ghê! Mình chạy thử nha.'), 2800); }, 900); },
     leave() { stopCatch(true); kit.show(false); shared.leave(); },
     update(dt, now) {
       kit.tick(now); const t = now / 1000, [px, pz] = c.getPetXZ(); world.update(px, pz);
