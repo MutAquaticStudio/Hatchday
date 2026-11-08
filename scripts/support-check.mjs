@@ -43,9 +43,9 @@ const out = []; const ok = (n, c, x = '') => out.push((c ? 'OK  ' : 'FAIL') + ' 
   ok('support không thấy tab Hệ thống', await a.evaluate(() => !document.querySelector('nav button[data-tab="sys"]')));
   await a.goto('http://localhost:4212/?role=ops'); await a.waitForSelector('nav button[data-tab="sys"]'); await a.click('nav button[data-tab="sys"]'); await a.waitForSelector('#si-save');
   await a.fill('#si-donate_url', 'https://ko-fi.com/hatchday'); await a.fill('#si-bank_name', 'Vietcombank'); await a.fill('#si-bank_account', '0123456789'); await a.fill('#si-bank_holder', 'NGUYEN VAN A'); await a.fill('#si-vietqr_bank', 'VCB');
-  await a.fill('#si-why', 'mở kênh ủng hộ'); await a.click('#si-save'); await a.waitForTimeout(400);
-  ok('lưu thông tin trang', await a.evaluate(() => /Đã lưu thông tin trang/.test(document.querySelector('#msg')?.textContent || '')));
-  await a.fill('#si-donate_url', 'http://khong-an-toan.com'); await a.fill('#si-why', 'thử sai'); await a.click('#si-save'); await a.waitForTimeout(600);
+  await a.fill('#si-why', 'mở kênh ủng hộ'); await a.click('#si-save');
+  ok('lưu thông tin trang', await until(a, () => /Đã lưu thông tin trang/.test(document.querySelector('#msg')?.textContent || '')));
+  await a.fill('#si-donate_url', 'http://khong-an-toan.com'); await a.fill('#si-why', 'thử sai'); await a.click('#si-save'); await until(a, () => /chưa hợp lệ/.test(document.querySelector('#msg')?.textContent || ''), 5000);
   { const m = await a.evaluate(() => document.querySelector('#msg')?.textContent || ''); ok('chặn link không https', /chưa hợp lệ/.test(m), m); }
   await a.evaluate(() => document.querySelector('#si-save').scrollIntoView());
   const errs2 = errs.filter(e => !/vietqr|ERR_|net::/.test(e)); ok('không có lỗi trang', !errs2.length, errs2.join(' | '));
