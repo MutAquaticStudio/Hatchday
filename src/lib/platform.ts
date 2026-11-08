@@ -18,5 +18,15 @@ export interface DesktopBridge {
   /** Hệ số cỡ giao diện người chơi chọn (nhân với tỉ lệ tự động theo chiều cao cửa sổ). */
   uiScale?(v: number): void;
   os: string;
+  /** Steamworks (chỉ bản Steam, khi Steam đang chạy). */
+  steam?: {
+    available: boolean; lang: string; deck: boolean;
+    user(): Promise<{ name: string; steamId: string } | null>;
+    ticket(): Promise<string | null>;
+    achieve(id: string): Promise<boolean>;
+    presence(key: string, value: string | null): Promise<boolean>;
+    dlc(appId: number): Promise<boolean>;
+    textInput(o: { desc: string; max: number; text?: string }): Promise<string | null>;
+  };
 }
 export const desktop: DesktopBridge | undefined = typeof window !== 'undefined' ? (window as unknown as { hatchdayDesktop?: DesktopBridge }).hatchdayDesktop : undefined;

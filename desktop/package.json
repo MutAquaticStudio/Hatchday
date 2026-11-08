@@ -18,11 +18,54 @@
   "build": {
     "appId": "co.noxelis.hatchday",
     "productName": "Hatchday",
-    "directories": { "output": "release" },
-    "files": ["main.cjs", "preload.cjs", "csp.cjs", "dist/**/*", "!dist/**/*.map"],
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "main.cjs",
+      "preload.cjs",
+      "csp.cjs",
+      "steam.cjs",
+      "dist/**/*",
+      "!dist/**/*.map"
+    ],
     "asar": true,
-    "win": { "target": [{ "target": "dir", "arch": ["x64"] }], "icon": "build/icon.png" },
-    "linux": { "target": [{ "target": "dir", "arch": ["x64"] }], "icon": "build/icon.png", "category": "Game" },
-    "mac": { "target": [{ "target": "dir" }], "category": "public.app-category.simulation-games" }
+    "win": {
+      "target": [
+        {
+          "target": "dir",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png"
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "dir",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png",
+      "category": "Game"
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dir"
+        }
+      ],
+      "category": "public.app-category.simulation-games"
+    },
+    "asarUnpack": [
+      "node_modules/steamworks.js/dist/**"
+    ]
+  },
+  "dependencies": {
+    "steamworks.js": "0.4.0"
   }
 }

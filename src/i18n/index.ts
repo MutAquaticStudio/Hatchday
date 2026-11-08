@@ -18,6 +18,8 @@ function detect(): Lang {
   try { const s = localStorage.getItem('hatchday-lang'); if (s === 'vi' || s === 'en') return s; } catch { /* bỏ qua */ }
   // bản web hướng tới người Việt: mặc định tiếng Việt; bản Steam theo ngôn ngữ hệ điều hành (vi → Việt, còn lại → Anh)
   if (!isSteamBuild) return 'vi';
+  // bản Steam: ngôn ngữ người chơi chọn cho game trong Steam, rồi tới ngôn ngữ hệ điều hành
+  try { const sl = (window as unknown as { hatchdayDesktop?: { steam?: { lang?: string } } }).hatchdayDesktop?.steam?.lang; if (sl) return sl === 'vietnamese' ? 'vi' : 'en'; } catch { /* bỏ qua */ }
   try { const n = (navigator.languages?.[0] || navigator.language || 'en').toLowerCase(); return n.startsWith('vi') ? 'vi' : 'en'; } catch { return 'en'; }
 }
 export const LANG: Lang = typeof window === 'undefined' ? 'vi' : detect();

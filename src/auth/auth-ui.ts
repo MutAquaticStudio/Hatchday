@@ -6,6 +6,7 @@ import './auth.css';
 import { hydrateLanding, landingHtml } from './landing';
 import { isSteam } from '../lib/platform';
 import { bindTitle, titleHtml } from './title';
+import { canSteamLogin, steamSignIn } from '../lib/steam';
 
 /** Phiên bản Điều khoản/Chính sách đang dùng (ghi vào hồ sơ người dùng lúc đăng ký). Đổi khi sửa public/dieu-khoan.html. */
 export const TOS_VERSION = '2026-11';
@@ -36,7 +37,8 @@ export function mountAuth(root: HTMLElement, view: AuthView, onSignedIn: () => v
   const cfg = isConfigured ? '' : _t('<p class="notice">Bản chơi thử: chưa nối máy chủ, dữ liệu chỉ lưu trên trình duyệt này.</p>');
   const back = _t('<button type="button" class="link back" data-go="gate">← Quay lại</button>');
   const views: Record<AuthView, string> = {
-    gate: `${isConfigured ? _t`<div class="stack"><button class="btn" data-go="login">Đăng nhập</button><button class="btn ghost" data-go="register">Tạo tài khoản</button>
+    gate: `${canSteamLogin() ? _t('<div class="stack"><button class="btn" id="steam-play">Chơi</button><p class="err" id="form-err" role="alert"></p><button class="link" data-go="login">Dùng tài khoản email</button></div>')
+      : isConfigured ? _t`<div class="stack"><button class="btn" data-go="login">Đăng nhập</button><button class="btn ghost" data-go="register">Tạo tài khoản</button>
       <div class="or">hoặc</div><p class="err" id="form-err" role="alert"></p><button class="btn ghost google" id="google">${GOOGLE_ICON}Đăng nhập bằng Google</button></div>`
       : _t('<div class="stack"><button class="btn" id="demo">Chơi thử ngay</button></div>')}`, // nằm trong trang chủ giới thiệu (landing.ts)
     login: _t`${back}<h1>Đăng nhập</h1>${info ? `<p class="notice">${esc(info)}</p>` : ''}<form novalidate>
@@ -70,6 +72,12 @@ export function mountAuth(root: HTMLElement, view: AuthView, onSignedIn: () => v
   const $ = <T extends HTMLElement = HTMLInputElement>(id: string) => root.querySelector<T>('#' + id);
 
   $<HTMLButtonElement>('demo')?.addEventListener('click', () => onSignedIn());
+  // bản Steam: một chạm là vào game bằng tài khoản Steam (lần đầu tự tạo tài khoản gắn SteamID)
+  $<HTMLButtonElement>('steam-play')?.addEventListener('click', async ev => {
+    const b = ev.currentTarget as HTMLButtonElement, err = $('form-err');
+    b.disabled = true; b.textContent = _t('Đang đăng nhập…');
+    try { await steamSignIn(); onSignedIn(); } catch { if (err) err.textContent = _t('Chưa đăng nhập được bằng Steam. Kiểm tra mạng rồi thử lại, hoặc dùng tài khoản email.'); b.disabled = false; b.textContent = _t('Chơi'); }
+  });
   root.querySelectorAll<HTMLElement>('[data-go]').forEach(b => b.addEventListener('click', () => go(b.dataset.go as AuthView)));
   root.querySelectorAll<HTMLButtonElement>('[data-toggle]').forEach(b => b.addEventListener('click', () => {
     const inp = $(b.dataset.toggle!)!; const show = inp.type === 'password';

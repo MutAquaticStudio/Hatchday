@@ -37,6 +37,7 @@ import { FOOD_BY_ID } from './catalog';
 import { tastesLine } from './nutrition';
 import { sfx, music, initAudio } from './audio.js';
 import { initSettings } from './settings.js';
+import { setPresence, syncAchievements } from '../lib/steam';
 import { STAGES } from './species';
 import { AXES, TRAITS, describe as describePersona, greeting, idleGapFactor, idleWeights, petLine, pickWeighted, walkSpeedFactor } from './personality';
 let home = null, editing = false;
@@ -322,6 +323,7 @@ let going = false;
 function goTo(name, instant, opts) {
   if (going) return;
   if (name === area) { onEnter(name); return; }
+  setPresence(PLACE_BY_ID[name] ? name : 'home');
   if (name !== 'home' && awayBlock()) return;
   if (PLACE_BY_ID[name]) {
     const blk = enterBlock(name, { bondLevel: bondLevel(S.bondXp), asleep: S.asleep });
@@ -1346,3 +1348,8 @@ if (DEV) window.__petXY = () => { const v = new THREE.Vector3(); petRoot.localTo
 setTimeout(() => { say(greeting(S.personality, S.name), 3200); if (!S.asleep && S.personality.social > -30) startAction('wave'); }, 700);
 setTimeout(hideHint, 9000);
 addEventListener('pagehide', save);
+
+/* Bản Steam: trạng thái cho bạn bè Steam và thành tựu (không có Steam thì không làm gì) */
+setPresence('home');
+const achievementTick = () => syncAchievements({ bondXp: S.bondXp, generation: S.generation, stage: S.stage, seen: S.seen || [], badges: S.world?.badges || [] });
+setTimeout(achievementTick, 3000); setInterval(achievementTick, 15000);

@@ -6,6 +6,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 const { readCsp } = require('./csp.cjs');
+const steam = require('./steam.cjs');
 
 const DIST = path.join(__dirname, 'dist');
 const DEV = process.env.HATCHDAY_DEV === '1';
@@ -15,6 +16,7 @@ const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '
 
 protocol.registerSchemesAsPrivileged([{ scheme: 'app', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true } }]);
 if (!app.requestSingleInstanceLock()) { app.quit(); }
+steam.init(); // trước khi tạo cửa sổ để overlay Steam gắn được vào
 
 const stateFile = () => path.join(app.getPath('userData'), 'window.json');
 function loadState() { try { return JSON.parse(fs.readFileSync(stateFile(), 'utf8')); } catch { return { width: 1280, height: 720, fullscreen: false }; } }
@@ -73,6 +75,7 @@ app.whenReady().then(() => {
   ipcMain.handle('hd:fullscreen', (_e, on) => { if (!win) return false; win.setFullScreen(typeof on === 'boolean' ? on : !win.isFullScreen()); return win.isFullScreen(); });
   ipcMain.handle('hd:is-fullscreen', () => !!win && win.isFullScreen());
   ipcMain.on('hd:quit', () => app.quit());
+  steam.register(ipcMain);
   ipcMain.on('hd:ui-scale', (_e, v) => { if (Number.isFinite(v)) { uiScale = Math.max(0.7, Math.min(1.5, v)); applyZoom(); } });
   ipcMain.on('hd:open-external', (_e, url) => { if (/^https:\/\/[^\s]+$/.test(url)) shell.openExternal(url); });
   createWindow();
