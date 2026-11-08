@@ -1145,7 +1145,8 @@ addEventListener('keydown', e => {
     else if (!$('stats').hidden) { $('btn-stats').click(); $('btn-stats').focus(); }
     else if (PLACE_BY_ID[area]) home.openMap();
     else if (area !== 'home' && area !== 'bedroom') goTo('home');
-    else settings.open(); // ở nhà, không có gì đang mở: Esc mở Cài đặt (như menu tạm dừng)
+    // ở nhà, không có gì đang mở: Esc mở Cài đặt (như menu tạm dừng). Đang mở bảng Nhà/mini-game thì để chúng tự đóng.
+    else if (!document.querySelector('.hsheet:not([hidden]), #mini:not([hidden]), .welcome:not([hidden]), body.editing')) settings.open();
     return;
   }
   if (typing || e.ctrlKey || e.metaKey || e.altKey || e.repeat) return;

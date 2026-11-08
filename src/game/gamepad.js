@@ -27,7 +27,8 @@ const candidates = root => [...(root || document.getElementById('app') || docume
 function moveFocus(dx, dy) {
   const layer = topLayer(), list = candidates(layer); if (!list.length) return;
   const cur = document.activeElement && list.includes(document.activeElement) ? document.activeElement : null;
-  if (!cur) { focus(list[0]); return; }
+  // chưa chọn gì trong lớp này: chọn nút nội dung đầu tiên (bỏ qua nút ✕ đóng)
+  if (!cur) { focus(list.find(el => !el.matches('.hs-close, [data-close], .x, #settings-close')) || list[0]); return; }
   const a = cur.getBoundingClientRect(), ax = a.left + a.width / 2, ay = a.top + a.height / 2;
   let best = null, bs = Infinity;
   for (const el of list) {
@@ -42,6 +43,22 @@ function moveFocus(dx, dy) {
 }
 function focus(el) { el.focus({ preventScroll: true }); el.scrollIntoView?.({ block: 'nearest', inline: 'nearest' }); }
 
+/* Bảng hay vẽ lại nội dung (đồng hồ, tiến độ…) làm nút đang chọn bị thay bằng nút mới y hệt: nhớ "danh tính" của nút
+   (id hoặc thuộc tính data-*) và chọn lại nút tương ứng sau khi vẽ lại, để vòng chọn không nhảy mất. */
+let lastKey = '';
+const keyOf = el => {
+  if (!el || el === document.body) return '';
+  if (el.id) return '#' + CSS.escape(el.id);
+  for (const a of el.attributes) if (a.name.startsWith('data-')) return `${el.tagName.toLowerCase()}[${a.name}="${CSS.escape(a.value)}"]`;
+  return '';
+};
+addEventListener('focusin', e => { const k = keyOf(e.target); if (k) lastKey = k; });
+function restoreFocus() {
+  if (!lastKey || (document.activeElement && document.activeElement !== document.body)) return;
+  const layer = topLayer(), el = (layer || document).querySelector(lastKey);
+  if (el && visible(el)) el.focus({ preventScroll: true });
+}
+
 /** Đổi tab trong lớp đang mở (LB / RB). */
 function switchTab(step) {
   const layer = topLayer(); if (!layer) return;
@@ -52,6 +69,7 @@ function switchTab(step) {
 }
 
 async function press() {
+  restoreFocus(); // nút vừa bị vẽ lại: chọn lại nút tương ứng rồi mới bấm
   const el = document.activeElement;
   if (!el || el === document.body) { const l = candidates(topLayer())[0]; if (l) focus(l); return; }
   if (el.matches('input:not([type=checkbox]):not([type=range]), textarea') && desktop?.steam?.deck) {
@@ -84,6 +102,7 @@ function frame(now) {
   const any = gp.buttons.some(b => b.pressed) || gp.axes.some(v => Math.abs(v) > DEAD);
   if (any) setPadMode(true);
 
+  if (padMode) restoreFocus();
   const layer = topLayer();
   const lx = Math.abs(gp.axes[0]) > DEAD ? gp.axes[0] : 0, ly = Math.abs(gp.axes[1]) > DEAD ? gp.axes[1] : 0;
   // cần trái: dắt bé khi không có bảng nào mở; có bảng thì dùng để chọn như D-pad

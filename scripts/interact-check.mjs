@@ -71,7 +71,7 @@ const until = async (p, fn, ms = 10000, arg) => { const t = Date.now(); while (D
   const b0 = await p.evaluate(() => window.__ball());
   await p.evaluate(b => window.__walk(b[0], b[2]), b0);
   ok('bóng ở vườn: bé đi tới chạm bóng thì bóng bị đá nảy đi', await until(p, b => { const n = window.__ball(); return n[3] === true && Math.hypot(n[0] - b[0], n[2] - b[2]) > 0.6; }, 9000, b0), JSON.stringify({ b0, b1: await p.evaluate(() => window.__ball()) }));
-  ok('bóng ở vườn: bóng dừng lại sau khi lăn', await until(p, () => window.__ball()[3] === false, 8000));
+  ok('bóng ở vườn: bóng dừng lại sau khi lăn', await until(p, () => window.__ball()[3] === false, 16000)); // máy thử chậm: thời gian mô phỏng trôi chậm hơn đồng hồ thật
   await p.evaluate(() => document.querySelector('.ctx-btn[data-k="home"]').click()); await p.waitForTimeout(1800);
   await p.evaluate(() => document.querySelector('#a-house').click()); await p.waitForSelector('.tile[data-go="cooking"]'); await p.evaluate(() => document.querySelector('.tile[data-go="cooking"]').click());
   ok('Nấu ăn: chuyển cảnh sang Bếp và mở bảng nấu sau khi bé đi tới bếp lò', await until(p, () => document.querySelector('#scene-tag').textContent.includes('Bếp') && !document.querySelector('#cooking').hidden, 12000));

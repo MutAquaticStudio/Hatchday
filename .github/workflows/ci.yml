@@ -46,4 +46,5 @@ jobs:
       - run: node scripts/f2p-check.mjs    # chơi miễn phí: 5 mini-game mới, việc làm, thi biểu diễn, lễ hội, Sổ mùa, sticker, hẹn chơi, lời nhắn, bé ghé chơi
       - run: node scripts/push-check.mjs   # service worker nhận push đúng định dạng push_pick: tiêu đề, tag, đường dẫn, payload hỏng
       - run: node scripts/admin-smoke.mjs  # trang quản trị: vai trò, quà, thông báo, sự kiện, kiểm duyệt, nhật ký
+      - run: node scripts/gamepad-check.mjs # tay cầm: chọn bằng D-pad, A/B/Y/Start, đổi tab, cần trái dắt bé
       - run: node scripts/support-check.mjs # Góp ý & Hỗ trợ: viết thư, nhận trả lời, admin trả lời; thông tin trang (ủng hộ, email)
