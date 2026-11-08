@@ -230,8 +230,8 @@ export function makeProps({ THREE, add, toon, canvasTex, kit, world }) {
     }
     wheel(b, -0.98, 0.33, 0.25); wheel(b, -0.98, 0.33, -0.25);
     add(b, new THREE.CylinderGeometry(0.05, 0.05, 0.36, 8), toon('#7a6a8a'), 0.78, 0.18, 0, '#443', 0.01);
-    [-0.3, 0.3].forEach(dz => { const h = add(b, new THREE.CylinderGeometry(0.03, 0.03, 0.7, 6), toon('#a8744a'), 1.2, 1.0, dz, null); h.rotation.z = -0.9; });
-    add(b, new THREE.CylinderGeometry(0.035, 0.035, 0.66, 6), toon('#a8744a'), 1.48, 1.2, 0, null).rotation.x = Math.PI / 2;
+    [-0.3, 0.3].forEach(dz => { const h = add(b, new THREE.CylinderGeometry(0.03, 0.03, 0.42, 6), toon('#a8744a'), 1.12, 1.02, dz, '#5a3a22', 0.008); h.rotation.z = Math.PI / 2 - 0.25; }); // tay đẩy ngắn, hơi chếch lên
+    add(b, new THREE.CylinderGeometry(0.04, 0.04, 0.7, 8), toon('#ffd36e'), 1.32, 1.08, 0, '#a8742e', 0.008).rotation.x = Math.PI / 2;
     [-0.82, 0.82].forEach(px => add(b, new THREE.CylinderGeometry(0.03, 0.03, 1.2, 6), toon('#c29a62'), px, 2.25, -0.32, '#8a5f3a', 0.01));
     const roofM = add(b, new THREE.BoxGeometry(2.2, 0.06, 1.3), toon('#ffffff', stripeTex(stripe, '#ffffff', 6)), 0, 2.86, 0.05, '#7a3a2a', 0.015); roofM.rotation.x = 0.12;
     const val = []; for (let i = 0; i < 9; i++) val.push(i); val.forEach(i => add(b, new THREE.ConeGeometry(0.12, 0.2, 3), toon(i % 2 ? stripe : '#ffffff'), -0.98 + i * 0.245, 2.68, 0.7, null).rotation.x = Math.PI);

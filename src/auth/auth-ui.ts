@@ -2,6 +2,10 @@ import { supabase, isConfigured } from '../lib/supabase';
 import { viError } from '../lib/errors';
 import { mountCaptcha } from '../lib/captcha';
 import './auth.css';
+import { landingHtml } from './landing';
+
+/** Phiên bản Điều khoản/Chính sách đang dùng (ghi vào hồ sơ người dùng lúc đăng ký). Đổi khi sửa public/dieu-khoan.html. */
+export const TOS_VERSION = '2026-11';
 
 export type AuthView = 'gate' | 'login' | 'register' | 'forgot' | 'reset' | 'check-email';
 
@@ -29,10 +33,9 @@ export function mountAuth(root: HTMLElement, view: AuthView, onSignedIn: () => v
   const cfg = isConfigured ? '' : '<p class="notice">Bản chơi thử: chưa nối máy chủ, dữ liệu chỉ lưu trên trình duyệt này.</p>';
   const back = '<button type="button" class="link back" data-go="gate">← Quay lại</button>';
   const views: Record<AuthView, string> = {
-    gate: `${device}<h1>Hatchday</h1><p class="sub">Một người bạn nhỏ đang chờ bạn.</p>${cfg}
-      ${isConfigured ? `<div class="stack"><button class="btn" data-go="login">Đăng nhập</button><button class="btn ghost" data-go="register">Tạo tài khoản</button>
+    gate: `${isConfigured ? `<div class="stack"><button class="btn" data-go="login">Đăng nhập</button><button class="btn ghost" data-go="register">Tạo tài khoản</button>
       <div class="or">hoặc</div><p class="err" id="form-err" role="alert"></p><button class="btn ghost google" id="google">${GOOGLE_ICON}Đăng nhập bằng Google</button></div>`
-      : '<div class="stack"><button class="btn" id="demo">Chơi thử ngay</button></div>'}`,
+      : '<div class="stack"><button class="btn" id="demo">Chơi thử ngay</button></div>'}`, // nằm trong trang chủ giới thiệu (landing.ts)
     login: `${back}<h1>Đăng nhập</h1>${info ? `<p class="notice">${esc(info)}</p>` : ''}<form novalidate>
       ${field('email', 'Email', 'email', 'email', 'inputmode="email" required')}
       ${field('password', 'Mật khẩu', 'password', 'current-password', 'required')}
@@ -43,7 +46,7 @@ export function mountAuth(root: HTMLElement, view: AuthView, onSignedIn: () => v
       ${field('email', 'Email', 'email', 'email', 'inputmode="email" required')}
       ${field('password', 'Mật khẩu (ít nhất 8 ký tự)', 'password', 'new-password', 'required minlength="8"')}
       ${field('password2', 'Nhập lại mật khẩu', 'password', 'new-password', 'required')}
-      <label class="check"><input type="checkbox" id="terms"> <span>Tôi đồng ý với Điều khoản sử dụng và Chính sách riêng tư</span></label><span class="err" id="terms-err"></span>
+      <label class="check"><input type="checkbox" id="terms"> <span>Tôi đã đọc và đồng ý với <a href="./dieu-khoan.html" target="_blank" rel="noopener">Điều khoản sử dụng</a> và <a href="./quyen-rieng-tu.html" target="_blank" rel="noopener">Chính sách quyền riêng tư</a>. Nếu dưới 16 tuổi, mình đã có sự đồng ý của cha mẹ.</span></label><span class="err" id="terms-err"></span>
       <div id="captcha"></div><p class="err" id="form-err" role="alert"></p><button class="btn" type="submit">Tạo tài khoản</button></form>
       <p class="sub">Đã có tài khoản? <button type="button" class="link" data-go="login">Đăng nhập</button></p>`,
     forgot: `<button type="button" class="link back" data-go="login">← Quay lại</button><h1>Quên mật khẩu</h1>
@@ -57,7 +60,7 @@ export function mountAuth(root: HTMLElement, view: AuthView, onSignedIn: () => v
     'check-email': `${device}<h1>Kiểm tra email nhé</h1><p class="notice" role="status">${esc(info || 'Chúng mình đã gửi thư xác minh. Mở thư và bấm vào link để bắt đầu.')}</p>
       <button class="btn ghost" data-go="login">Về trang đăng nhập</button>`,
   };
-  root.innerHTML = `<main class="screen"><section class="card" aria-live="polite">${views[view]}</section></main>`;
+  root.innerHTML = view === 'gate' ? landingHtml(views.gate, cfg) : `<main class="screen"><section class="card" aria-live="polite">${views[view]}</section></main>`;
   const $ = <T extends HTMLElement = HTMLInputElement>(id: string) => root.querySelector<T>('#' + id);
 
   $<HTMLButtonElement>('demo')?.addEventListener('click', () => onSignedIn());
@@ -105,7 +108,7 @@ export function mountAuth(root: HTMLElement, view: AuthView, onSignedIn: () => v
         onSignedIn();
       } else if (view === 'register') {
         busy(true, 'Đang tạo…');
-        const { data, error } = await supabase.auth.signUp({ email, password: pw, options: { emailRedirectTo: location.origin + location.pathname, captchaToken: await captcha.token() } });
+        const { data, error } = await supabase.auth.signUp({ email, password: pw, options: { emailRedirectTo: location.origin + location.pathname, captchaToken: await captcha.token(), data: { tos_version: TOS_VERSION, tos_accepted_at: new Date().toISOString() } } });
         if (error) throw error;
         if (data.session) onSignedIn();
         else go('check-email', `Chúng mình đã gửi thư xác minh tới ${email}. Mở thư và bấm vào link để bắt đầu.`);

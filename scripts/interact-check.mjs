@@ -13,7 +13,9 @@ const out = []; const ok = (n, c, x = '') => out.push((c ? 'OK  ' : 'FAIL') + ' 
 const until = async (p, fn, ms = 10000, arg) => { const t = Date.now(); while (Date.now() - t < ms) { if (await p.evaluate(fn, arg).catch(() => false)) return true; await p.waitForTimeout(100); } return false; };
 (async () => {
   const b = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
-  const p = await (await b.newContext({ viewport: { width: 390, height: 780 }, hasTouch: true, isMobile: true })).newPage();
+  const p = await (await b.newContext({ viewport: { width: 390, height: 780 }, hasTouch: true, isMobile: true, timezoneId: 'Asia/Ho_Chi_Minh' })).newPage();
+  // cố định 10 giờ sáng giờ VN: chơi đồ chơi ban đêm (22:00–05:00) dễ bị cảm lạnh và bị chặn chơi, làm test phụ thuộc giờ chạy
+  { const vn = new Date(Date.now() + 7 * 3600e3); vn.setUTCHours(3, 0, 0, 0); await p.clock.install({ time: vn }); await p.clock.resume(); }
   const errs = []; p.on('pageerror', e => errs.push('PAGE ' + e.message)); p.on('console', m => { if (m.type() === 'error') errs.push('CON ' + m.text()); });
   const URL0 = `http://localhost:${PORT}/?dev&weather=clear`; // thời tiết cố định để kịch bản không phụ thuộc giờ chạy (mưa làm bé tự chạy đi trú)
   const start = async () => { await p.waitForSelector('#demo'); await p.click('#demo'); await until(p, () => !!document.querySelector('#a-house'), 30000); await p.waitForTimeout(1200); };

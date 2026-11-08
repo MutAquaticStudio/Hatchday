@@ -18,6 +18,7 @@ const INTRO = {
   ...EXTRA_INTRO,
 };
 const UNIT = { butterfly: 'con bướm', brew: 'sao', ...EXTRA_UNIT };
+const BANNER = { butterfly: ['🦋', '🌸', '🦋'], brew: ['🫖', '🍵', '🍯'], fish: ['🐟', '🎣', '🐠'], quiz: ['📚', '💡', '❓'], delivery: ['📦', '🛒', '🏮'], rhythm: ['🎵', '💃', '⭐'], bugs: ['🐛', '🥬', '🐞'] };
 const PER = { butterfly: 'mỗi con', brew: 'mỗi sao', fish: 'mỗi con cá', quiz: 'mỗi câu đúng', delivery: 'mỗi đơn', rhythm: 'mỗi nhịp', bugs: 'mỗi con sâu' };
 
 export function initMinigames({ ctx, app, $, reduce, sfx }) {
@@ -54,6 +55,7 @@ export function initMinigames({ ctx, app, $, reduce, sfx }) {
     const { kind } = cur, l = left(kind);
     if (cur.phase === 'intro') {
       root.innerHTML = `<div class="mini-card">${head(kind, l > 0 ? `Hôm nay còn ${l} lượt có xu` : 'Hết lượt có xu hôm nay, vẫn chơi vui được nha')}
+        <div class="mini-banner b-${kind}" aria-hidden="true">${(BANNER[kind] || []).map((e, i) => `<span class="mb${i}">${e}</span>`).join('')}</div>
         <p class="mini-intro">${INTRO[kind]}</p>
         <p class="mini-reward">${COIN_SVG}<span>${MINI[kind].per} xu ${PER[kind]} · tối đa ${MINI[kind].max * MINI[kind].per} xu mỗi lượt${bestOf(kind) ? ` · kỷ lục hôm nay ${bestOf(kind)}` : ''}</span></p>
         <div class="mini-actions"><button type="button" class="btn-sm" data-mini-start>Bắt đầu</button><button type="button" class="btn-sm ghost" data-mini-close>Để sau</button></div></div>`;

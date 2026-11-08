@@ -80,7 +80,8 @@ export function initPlaza(c) {
     kit.hotspot({ id: 'fountain', label: 'Đài phun nước', at: [0, 3.9, -0.6], stand: [0, 2.9], act: () => splashFountain() }, f);
     // ghế đá và đèn quanh đài (hai ghế gần có thể ngồi)
     for (let i = 0; i < 6; i++) {
-      const a = (i / 6) * Math.PI * 2 + 0.5, r = 4.6, bx = Math.cos(a) * r, bz = -0.6 + Math.sin(a) * r * 0.8, ry = -a + Math.PI / 2, bench = kit.bench(z, bx, bz, ry);
+      // không đặt ghế ngay trước (lối bé đi vào) và ngay sau đài phun (che sân khấu)
+      const a = (i / 6) * Math.PI * 2, r = 4.6, bx = Math.cos(a) * r, bz = -0.6 + Math.sin(a) * r * 0.8, ry = -a + Math.PI / 2, bench = kit.bench(z, bx, bz, ry);
       if (i === 0 || i === 3 || i === 4) kit.hotspot({ id: 'bench' + i, label: 'Ngồi nghỉ', at: [bx, 1.5, bz], stand: [bx + Math.sin(ry) * 1.15, bz + Math.cos(ry) * 1.15], act: () => sitOn(bx, bz, ry, ['Ngồi đây ngắm đài phun thích ghê~', 'Ghế mát quá, mình ngồi thêm xíu nha.', 'Nhìn mọi người đi dạo vui thật.'][i % 3]) }, bench);
     }
     for (let i = 0; i < 4; i++) { const a = (i / 4) * Math.PI * 2 + Math.PI / 4; props.lamp(z, Math.cos(a) * 6.3, -0.6 + Math.sin(a) * 5.2); }
@@ -153,7 +154,9 @@ export function initPlaza(c) {
     const spk = new THREE.Group(); spk.position.set(3.55, 0, -7.4); spk.rotation.y = -0.3; z.add(spk);
     add(spk, new THREE.BoxGeometry(0.8, 1.3, 0.6), toon('#4a3a5a'), 0, 0.65, 0, '#2a2030', 0.02);
     [0.95, 0.4].forEach((y, i) => { add(spk, new THREE.CylinderGeometry(i ? 0.24 : 0.15, i ? 0.24 : 0.15, 0.04, 18), toon('#2a2030'), 0, y, 0.31, null).rotation.x = Math.PI / 2; add(spk, new THREE.CylinderGeometry(i ? 0.1 : 0.06, i ? 0.1 : 0.06, 0.05, 12), toon('#ffd36e'), 0, y, 0.33, null).rotation.x = Math.PI / 2; });
-    const rs = kit.sign('Nhảy theo nhịp', 1.3, 0.3, '#fff3c4', '#7a3a5a', 30); rs.position.set(0, 1.55, 0.05); spk.add(rs);
+    const rs = kit.sign('Nhảy theo nhịp', 1.7, 0.42, '#fff3c4', '#7a3a5a', 36); rs.position.set(0, 1.62, 0.05); spk.add(rs);
+    [-0.5, 0.5].forEach(x => add(spk, new THREE.BoxGeometry(0.05, 0.42, 0.05), toon('#7a6a8a'), x, 1.42, -0.02, null));
+    for (let i = 0; i < 3; i++) add(spk, new THREE.TorusGeometry(0.16 + i * 0.12, 0.018, 6, 16, Math.PI / 2), toon('#ffd36e'), 0.55, 1.1, 0.1, null).rotation.z = -Math.PI / 4; // sóng nhạc
     kit.hotspot({ id: 'rhythm', label: 'Nhảy theo nhịp', at: [3.55, 2.3, -7.4], stand: [4.4, -6.0], act: () => c.open.mini('rhythm') }, spk);
     // chim bồ câu mổ thóc quanh đài, bay đi khi bé lại gần rồi đáp xuống chỗ khác
     for (let i = 0; i < Math.max(3, Math.round(6 * dens)); i++) {

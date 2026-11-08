@@ -16,7 +16,7 @@ function fish(g) {
   const st = { phase: 'cast', caught: 0, t0: performance.now(), biteAt: 0, timer: 0, raf: 0, ended: false, msg: 'Chạm "Thả câu" rồi chờ phao chìm nhé!' };
   root.innerHTML = `<div class="mini-card play">${head('fish', `Câu tối đa ${FISH.target} con trong ${FISH.seconds} giây`)}
     ${timerBar()}<div class="mg-row"><span class="mg-pill" id="f-n">🐟 0/${FISH.target}</span></div>
-    <div class="fish-pond" id="f-pond"><span class="fish-line"></span><b class="fish-bob" id="f-bob">🔴</b><span class="fish-shadow s1"></span><span class="fish-shadow s2"></span><span class="fish-catch" id="f-catch"></span></div>
+    <div class="fish-pond" id="f-pond"><span class="fish-ripple r1"></span><span class="fish-ripple r2"></span><span class="fish-pad p1"></span><span class="fish-pad p2"><i></i></span><span class="fish-pad p3"></span><span class="fish-reeds l"><i></i><i></i><i></i></span><span class="fish-reeds r"><i></i><i></i></span><span class="fish-shadow s1"><svg class="fish-svg" viewBox="0 0 60 30" aria-hidden="true"><path d="M4 15c8-12 30-12 40 0-10 12-32 12-40 0z" fill="currentColor"/><path d="M42 15l14-9v18z" fill="currentColor"/></svg></span><span class="fish-shadow s2"><svg class="fish-svg" viewBox="0 0 60 30" aria-hidden="true"><path d="M4 15c8-12 30-12 40 0-10 12-32 12-40 0z" fill="currentColor"/><path d="M42 15l14-9v18z" fill="currentColor"/></svg></span><span class="fish-shadow s3"><svg class="fish-svg" viewBox="0 0 60 30" aria-hidden="true"><path d="M4 15c8-12 30-12 40 0-10 12-32 12-40 0z" fill="currentColor"/><path d="M42 15l14-9v18z" fill="currentColor"/></svg></span><span class="fish-line"></span><b class="fish-bob" id="f-bob" aria-hidden="true"><i></i></b><span class="fish-dock"></span><span class="fish-catch" id="f-catch"></span></div>
     <p class="mini-intro" id="f-msg">${st.msg}</p>
     <div class="mini-actions"><button type="button" class="btn-sm big" id="f-btn" data-fish>Thả câu</button></div></div>`;
   const $ = s => root.querySelector(s), btn = $('#f-btn'), bob = $('#f-bob'), pond = $('#f-pond');
@@ -58,7 +58,7 @@ function quiz(g) {
   const render = () => {
     const x = qs[st.i]; st.t0 = performance.now(); st.locked = false;
     root.innerHTML = `<div class="mini-card play">${head('quiz', `Câu ${st.i + 1}/${qs.length} · đúng ${st.right}`)}${timerBar()}
-      <h3 class="quiz-q">${esc(x.q)}</h3><div class="quiz-a">${x.a.map((t, k) => `<button type="button" class="quiz-opt" data-quiz="${k}">${esc(t)}</button>`).join('')}</div></div>`;
+      <div class="quiz-board"><span class="quiz-chalk" aria-hidden="true">✎ Câu ${st.i + 1}</span><h3 class="quiz-q">${esc(x.q)}</h3></div><div class="quiz-a">${x.a.map((t, k) => `<button type="button" class="quiz-opt o${k}" data-quiz="${k}"><i aria-hidden="true">${'ABCD'[k]}</i><span>${esc(t)}</span></button>`).join('')}</div></div>`;
   };
   const answer = k => {
     if (st.locked || st.ended) return; st.locked = true;
@@ -85,8 +85,8 @@ function delivery(g) {
   const st = { n: 0, i: 0, t0: performance.now(), penalty: 0, raf: 0, ended: false, open: true, lock: false };
   const byId = Object.fromEntries(DELIVERY_STALLS.map(s => [s.id, s]));
   root.innerHTML = `<div class="mini-card play">${head('delivery', 'Nhớ sạp nào bán gì, rồi giao đúng chỗ')}${timerBar()}
-    <div class="mg-row"><span class="mg-pill" id="d-n">📦 0/${DELIVERY.target}</span><span class="mg-order" id="d-order">Nhìn kỹ các sạp nhé…</span></div>
-    <div class="deliv-grid">${tiles.map(s => `<button type="button" class="deliv-tile open" data-stall="${s.id}"><span class="dt-icon">${s.icon}</span><b>${esc(s.name)}</b></button>`).join('')}</div>
+    <div class="mg-row"><span class="mg-pill" id="d-n">📦 0/${DELIVERY.target}</span></div><div class="deliv-order"><span class="deliv-cust" aria-hidden="true">🧑‍🍳</span><span class="mg-order" id="d-order">Nhìn kỹ các sạp nhé…</span></div>
+    <div class="deliv-grid">${tiles.map(s => `<button type="button" class="deliv-tile open st-${s.id}" data-stall="${s.id}"><span class="dt-roof" aria-hidden="true"></span><span class="dt-icon">${s.icon}</span><span class="dt-box" aria-hidden="true">?</span><b>${esc(s.name)}</b></button>`).join('')}</div>
     <p class="mini-hint">Đơn sai bị trừ ${DELIVERY.penalty} giây</p></div>`;
   const $ = s => root.querySelector(s);
   const showOrder = () => { const s = byId[orders[st.i]]; $('#d-order').innerHTML = `Giao <span class="dt-big">${s.icon}</span> tới sạp nào?`; };
@@ -121,9 +121,9 @@ function rhythm(g) {
   const LANE_ICON = ['🎵', '⭐', '💖'];
   root.innerHTML = `<div class="mini-card play rhythm">${head('rhythm', 'Chạm đúng làn khi nốt chạm vạch')}
     <div class="mg-row"><span class="mg-pill" id="r-n">🎵 0/${chart.length}</span><span class="mg-pill" id="r-combo"></span></div>
-    <div class="rh-field" id="r-field">${[0, 1, 2].map(l => `<div class="rh-lane" data-lane-col="${l}"></div>`).join('')}<div class="rh-line"></div>
+    <div class="rh-field" id="r-field"><span class="rh-spot s1"></span><span class="rh-spot s2"></span><span class="rh-spot s3"></span>${[0, 1, 2].map(l => `<div class="rh-lane l${l}" data-lane-col="${l}"></div>`).join('')}<div class="rh-line"></div><div class="rh-floor"></div>
       ${chart.map((n, i) => `<span class="rh-note" id="rn-${i}" style="left:${(n.lane + 0.5) / 3 * 100}%">${LANE_ICON[n.lane]}</span>`).join('')}</div>
-    <div class="rh-pads">${[0, 1, 2].map(l => `<button type="button" class="rh-pad" data-lane="${l}" aria-label="Làn ${l + 1}">${LANE_ICON[l]}</button>`).join('')}</div>
+    <div class="rh-pads">${[0, 1, 2].map(l => `<button type="button" class="rh-pad p${l}" data-lane="${l}" aria-label="Làn ${l + 1}">${LANE_ICON[l]}</button>`).join('')}</div>
     <p class="mini-hint">Bàn phím: A · S · D hoặc ← ↓ →</p></div>`;
   const notes = chart.map((_, i) => root.querySelector(`#rn-${i}`)), field = root.querySelector('#r-field');
   const now = () => (performance.now() - st.t0) / 1000;
@@ -161,7 +161,7 @@ function bugs(g) {
   const st = { n: 0, t0: performance.now(), raf: 0, ended: false, cell: -1, kind: '', until: 0, next: 0 };
   root.innerHTML = `<div class="mini-card play">${head('bugs', `Bắt sâu bảo vệ vườn rau · ${BUGS.seconds} giây`)}${timerBar()}
     <div class="mg-row"><span class="mg-pill" id="b-n">🐛 0/${BUGS.target}</span><span class="mg-order" id="b-msg">Bọ rùa 🐞 là bạn, đừng bắt nhé!</span></div>
-    <div class="bug-grid">${Array.from({ length: BUGS.cells }, (_, i) => `<button type="button" class="bug-cell" data-cell="${i}" aria-label="Lá ${i + 1}"><span class="bug-leaf">🥬</span><span class="bug-who"></span></button>`).join('')}</div></div>`;
+    <div class="bug-grid bug-bed">${Array.from({ length: BUGS.cells }, (_, i) => `<button type="button" class="bug-cell" data-cell="${i}" aria-label="Lá ${i + 1}"><span class="bug-leaf">🥬</span><span class="bug-who"></span></button>`).join('')}</div></div>`;
   const cells = [...root.querySelectorAll('.bug-cell')];
   const hide = () => { if (st.cell >= 0) cells[st.cell].classList.remove('up', 'friend'); st.cell = -1; };
   const show = (now, prog) => {

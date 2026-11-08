@@ -169,7 +169,7 @@ export function initPark(c) {
       const pts = []; for (let i = 0; i <= 12; i++) { const k = i / 12; pts.push(new THREE.Vector3(lerp(-7.5, -10, k), lerp(0.6, 7.6, k) - Math.sin(k * Math.PI) * 1.2, lerp(-7.6, -15, k))); }
       z.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: '#ffffff' })));
     }
-    props.hills(z, -17, [-15, -5, 6, 16]); props.hills(z, 17, [-12, 4, 15]);
+    props.hills(z, -17, [-15, -5, 6, 16]); props.hills(z, 23, [-14, 2, 16]);
     z.userData.clouds = [props.cloud(z, -10, 9, -13, 1.5), props.cloud(z, 10, 10.5, -15, 1.9)];
   } });
 
