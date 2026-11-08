@@ -223,7 +223,7 @@ begin
   insert into public.support_messages (ticket_id, from_admin, author, body) values (p_id, true, uid, bod);
   update public.support_tickets set status = case when coalesce(p_close, false) then 'closed' else 'answered' end, updated_at = now(), admin_seen_at = now() where id = p_id;
   perform private.send_mail(t.user_id, null, 'system', 'Đội ngũ Hatchday đã trả lời bạn',
-    'Về: ' || t.subject || E'\nMở Chỉ số → Góp ý & Hỗ trợ để đọc và trả lời.', '[]'::jsonb, 0, 30);
+    'Về: ' || t.subject || E'\nMở Cài đặt → Góp ý & Hỗ trợ để đọc và trả lời.', '[]'::jsonb, 0, 30);
   perform private.audit('ticket_reply', p_id::text, null, jsonb_build_object('close', coalesce(p_close, false)), null);
 end $$;
 

@@ -2,6 +2,7 @@
 // hiện FPS, âm thanh, nhắc nhở, Góp ý & Hỗ trợ, hướng dẫn, đăng xuất, thoát game (bản máy tính).
 // Các nút chất lượng / âm thanh / nhắc nhở vẫn do module của chúng gắn sự kiện theo id; module này chỉ lo mở/đóng và phần mới.
 import { desktop } from '../lib/platform';
+import { LANG, setLang } from '../i18n';
 
 const $ = id => document.getElementById(id);
 const KEY = 'hatchday-settings';
@@ -40,6 +41,9 @@ export function initSettings({ closeOthers }) {
   let n = 0, at = performance.now();
   const tick = now => { n++; if (now - at >= 500) { if (st.fps) fpsEl.textContent = `${Math.round(n * 1000 / (now - at))} FPS`; n = 0; at = now; } requestAnimationFrame(tick); };
   requestAnimationFrame(tick);
+
+  /* ngôn ngữ: đổi thì tải lại để mọi chữ dựng lại theo ngôn ngữ mới */
+  sheet.querySelectorAll('[data-lang]').forEach(b => { b.setAttribute('aria-pressed', String(b.dataset.lang === LANG)); b.addEventListener('click', () => { if (b.dataset.lang !== LANG) setLang(b.dataset.lang); }); });
 
   $('btn-quit')?.addEventListener('click', () => desktop?.quit());
   // mở thư Góp ý hay hướng dẫn từ đây thì đóng Cài đặt trước

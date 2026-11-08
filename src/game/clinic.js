@@ -53,7 +53,7 @@ function cabinet(S, coinSvg) {
 }
 
 function book() {
-  return _t`<h3 class="qh">Sổ bệnh <small>8 bệnh, mỗi bệnh một luật riêng</small></h3>${FAMILIES.map(f => _t`<details class="ill-fam"><summary>${FAMILY_NAME[f]}</summary>${ILLNESSES.filter(i => i.family === f).map(i => {
+  return _t`<h3 class="qh">Sổ bệnh <small>8 bệnh, mỗi bệnh một luật riêng</small></h3>${FAMILIES.map(f => `<details class="ill-fam"><summary>${FAMILY_NAME[f]}</summary>${ILLNESSES.filter(i => i.family === f).map(i => {
     const med = MEDICINE_BY_ID[i.medicine];
     return _t`<div class="ill"><b>${esc(i.name)}</b><p><em>Mắc khi:</em> ${esc(i.cause)}.</p><p><em>Ảnh hưởng:</em> ${esc(effectLines(i).map((t, k) => (k ? t.charAt(0).toLowerCase() + t.slice(1) : t)).join('; '))}.</p>
       <p><em>Khỏi bằng:</em> ${esc(med.name)}, phòng khám, hoặc ${esc(healLine(i).replace(/^./, c => c.toLowerCase()))}.</p></div>`;

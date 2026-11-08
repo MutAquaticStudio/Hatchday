@@ -45,7 +45,7 @@ export function initSupport({ ctx, $, open, head }) {
     const t = tickets.find(x => x.id === cur); if (!t) return listHtml();
     return _t`<button type="button" class="sp-back" data-sp="list">← Thư của bạn</button>
       <div class="sp-top"><b>${KIND[t.kind]?.icon || ''} ${esc(t.subject)}</b>${statusPill(t)}</div>
-      <div class="dm-list sp-thread" id="sp-thread">${t.messages.map(m => _t`<div class="dm-msg${m.from_admin ? ' team' : ' mine'}">${m.from_admin ? _t('<small>Đội ngũ Hatchday</small>') : ''}<span>${esc(m.body).replace(/\n/g, '<br>')}</span><small>${when(m.at)}</small></div>`).join('')}</div>
+      <div class="dm-list sp-thread" id="sp-thread">${t.messages.map(m => `<div class="dm-msg${m.from_admin ? ' team' : ' mine'}">${m.from_admin ? _t('<small>Đội ngũ Hatchday</small>') : ''}<span>${esc(m.body).replace(/\n/g, '<br>')}</span><small>${when(m.at)}</small></div>`).join('')}</div>
       ${t.status === 'closed' ? _t('<p class="hs-note">Thư này đã đóng. Cần thêm gì thì bạn viết thư mới nhé.</p>')
         : _t`<label class="sp-field">Trả lời<textarea id="sp-reply" maxlength="${SUPPORT.bodyMax}" rows="3" placeholder="Viết thêm cho đội ngũ…"></textarea></label>
         <div class="mini-actions"><button type="button" class="btn-sm big" data-sp="reply">Gửi</button><button type="button" class="btn-sm ghost" data-sp="close">Đã xong, đóng thư</button></div>`}`;

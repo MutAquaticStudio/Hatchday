@@ -5,6 +5,7 @@
 import { _t } from '../i18n';
 import './title.css';
 import { desktop } from '../lib/platform';
+import { LANG, setLang } from '../i18n';
 
 const VERSION = (import.meta as unknown as { env: Record<string, string | undefined> }).env.VITE_APP_VERSION || '0.1.0';
 
@@ -19,10 +20,11 @@ export function titleHtml(actions: string, notice = ''): string {
     ${notice}
     <div class="ts-actions">${actions}${desktop ? _t('<button class="btn ghost" id="ts-quit" type="button">Thoát game</button>') : ''}</div>
   </main>
-  <footer class="ts-foot"><span>v${VERSION}</span><span>© 2026 Hatchday</span></footer>
+  <footer class="ts-foot"><span>v${VERSION}</span><span class="ts-lang" role="group" aria-label="Language">🌐 <button type="button" data-lang="vi" aria-pressed="${LANG === 'vi'}">Tiếng Việt</button> · <button type="button" data-lang="en" aria-pressed="${LANG === 'en'}">English</button></span><span>© 2026 Hatchday</span></footer>
 </div>`;
 }
 
 export function bindTitle(root: ParentNode): void {
   root.querySelector('#ts-quit')?.addEventListener('click', () => desktop?.quit());
+  root.querySelectorAll<HTMLButtonElement>('.ts-lang [data-lang]').forEach(b => b.addEventListener('click', () => { if (b.dataset.lang !== LANG) setLang(b.dataset.lang as 'vi' | 'en'); }));
 }

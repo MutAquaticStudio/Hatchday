@@ -1,6 +1,6 @@
 // Sự kiện đang chạy: biểu ngữ dưới thanh trên (bỏ qua được, nhớ theo mã sự kiện), hệ số nhân xu nhiệm vụ, trang trí Quảng trường theo mùa.
 // Dữ liệu từ get_active_events (quản trị tạo sự kiện ở admin). Làm mới mỗi 5 phút.
-import { _t } from '../i18n';
+import { _t, LOCALE } from '../i18n';
 import * as api from '../data/api';
 import { bannerOf, eventBoost, GOAL_METRIC_TEXT, plazaDecor } from './events';
 import { setPricingEvents } from './pricing';
@@ -19,9 +19,9 @@ export function initEvents({ $ }) {
       if (e.target.closest('[data-ev-x]')) { try { localStorage.setItem(SEEN, JSON.stringify([...seen(), +el.dataset.id])); } catch { /* bỏ qua */ } el.hidden = true; } }); }
     if (!b || seen().includes(b.id)) { el.hidden = true; return; }
     const g = S.goals.find(x => x.active) || S.goals[0];
-    const goalRow = g ? _t`<div class="ev-goal"><span>🎯 ${g.reached ? _t('Cả nhà đã đạt mục tiêu!') : _t`Cộng đồng ${GOAL_METRIC_TEXT[g.metric]}: ${g.count.toLocaleString('vi-VN')}/${g.target.toLocaleString('vi-VN')}`} · bạn góp ${g.mine}</span>
+    const goalRow = g ? _t`<div class="ev-goal"><span>🎯 ${g.reached ? _t('Cả nhà đã đạt mục tiêu!') : _t`Cộng đồng ${GOAL_METRIC_TEXT[g.metric]}: ${g.count.toLocaleString(LOCALE)}/${g.target.toLocaleString(LOCALE)}`} · bạn góp ${g.mine}</span>
       <span class="ev-bar" role="progressbar" aria-valuemin="0" aria-valuemax="${g.target}" aria-valuenow="${Math.min(g.count, g.target)}"><i style="width:${Math.min(100, (g.count / g.target) * 100)}%"></i></span>
-      ${g.reached && !g.claimed ? _t`<button type="button" class="btn-sm" data-goal="${g.event_id}" ${g.mine >= g.min_mine ? '' : 'disabled'}>${g.mine >= g.min_mine ? _t`Nhận ${g.reward_coins} xu` : _t`Góp thêm ${g.min_mine - g.mine} lượt để nhận`}</button>` : g.claimed ? _t('<small>Đã nhận thưởng ✓</small>') : ''}</div>` : '';
+      ${g.reached && !g.claimed ? `<button type="button" class="btn-sm" data-goal="${g.event_id}" ${g.mine >= g.min_mine ? '' : 'disabled'}>${g.mine >= g.min_mine ? _t`Nhận ${g.reward_coins} xu` : _t`Góp thêm ${g.min_mine - g.mine} lượt để nhận`}</button>` : g.claimed ? _t('<small>Đã nhận thưởng ✓</small>') : ''}</div>` : '';
     el.dataset.id = b.id; el.innerHTML = _t`<div class="ev-row"><span>🎉 ${esc(b.text)}</span><button type="button" data-ev-x aria-label="Đóng thông báo sự kiện">✕</button></div>${goalRow}`; el.hidden = false;
   }
   async function load() { try { list = await api.getActiveEvents(); setPricingEvents(list); await refreshGoals(); } catch { /* mạng chập chờn */ } render(); }

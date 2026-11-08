@@ -1,6 +1,6 @@
 // Giao diện các tính năng chơi miễn phí (chỉ xu kiếm được): Việc làm & kỹ năng, Thi biểu diễn tuần, quà Lễ hội,
 // Album ảnh (lưu trong máy), và hai tab mới của sheet Nhiệm vụ: Sổ mùa và Sticker. Luật ở f2p.ts, dữ liệu qua store.ts.
-import { _t } from '../i18n';
+import { _t, LOCALE } from '../i18n';
 import {
   S, cancelJob, claimContest, claimFestival, claimSeason, claimSticker, enterContest, finishJob, jobActive, refreshF2P, refreshJob, refreshProgress, startJob,
 } from './store';
@@ -58,7 +58,7 @@ export function initF2P({ ctx, app, $, open, head, COIN_SVG, onChange }) {
         <button type="button" class="btn-sm" data-job-go="${d.id}" ${why ? 'disabled' : ''}>Đi làm · ${COIN_SVG}${jobPay(d.id, h, lv)}</button></li>`;
     }).join('')}</ul><p class="hs-note">Mỗi ngày tối đa ${JOB_PER_DAY} ca. Bé vắng nhà trong lúc làm, về thì bấm Nhận lương.</p>` + skillsHtml();
   }
-  function renderJobs() { const el = $('jobs'); if (!el || el.hidden) return; el.innerHTML = head(_t('Việc làm & kỹ năng'), _t`${COIN_SVG}<b class="coin-inline">${S.coins.toLocaleString('vi-VN')}</b> xu · hôm nay ${S.job?.done_today ?? 0}/${JOB_PER_DAY} ca`) + `<div class="hs-body">${jobsBody()}</div>`; }
+  function renderJobs() { const el = $('jobs'); if (!el || el.hidden) return; el.innerHTML = head(_t('Việc làm & kỹ năng'), _t`${COIN_SVG}<b class="coin-inline">${S.coins.toLocaleString(LOCALE)}</b> xu · hôm nay ${S.job?.done_today ?? 0}/${JOB_PER_DAY} ca`) + `<div class="hs-body">${jobsBody()}</div>`; }
   function openJobs() {
     open('jobs'); renderJobs(); refreshJob().then(renderJobs).catch(() => {});
     clearInterval(jobTimer); jobTimer = setInterval(() => { const el = $('jobs'); if (!el || el.hidden) { clearInterval(jobTimer); return; } const t = $('job-left'); if (t && S.job?.ends_at) { const left = Date.parse(S.job.ends_at) - Date.now(); if (left <= 0) renderJobs(); else t.textContent = hms(left); } }, 1000);
@@ -96,7 +96,7 @@ export function initF2P({ ctx, app, $, open, head, COIN_SVG, onChange }) {
     albumUrls.forEach(u => URL.revokeObjectURL(u)); albumUrls = [];
     const ps = await listPhotos();
     el.innerHTML = head(_t('Album ảnh'), _t`${ps.length}/${ALBUM_MAX} ảnh · lưu ngay trong máy này`) + _t`<div class="hs-body">${ps.length
-      ? _t`<div class="album">${ps.map(p => { const u = URL.createObjectURL(p.blob); albumUrls.push(u); return _t`<figure><img src="${u}" alt="Ảnh ở ${esc(p.place)}" loading="lazy"><figcaption>${esc(p.place)} · ${new Date(p.at).toLocaleDateString('vi-VN')}</figcaption>
+      ? `<div class="album">${ps.map(p => { const u = URL.createObjectURL(p.blob); albumUrls.push(u); return _t`<figure><img src="${u}" alt="Ảnh ở ${esc(p.place)}" loading="lazy"><figcaption>${esc(p.place)} · ${new Date(p.at).toLocaleDateString(LOCALE)}</figcaption>
           <div class="row-btns"><a class="btn-sm ghost" href="${u}" download="hatchday-${p.id}.png">Lưu</a><button type="button" class="btn-sm ghost" data-album-del="${p.id}">Xoá</button></div></figure>`; }).join('')}</div>`
       : _t('<p class="hs-note">Chưa có ảnh nào. Mở Chỉ số → Chụp ảnh, ảnh sẽ tự lưu vào album.</p>')}
       <p class="hs-note">Album chỉ lưu trong trình duyệt này (không tải lên máy chủ). Xoá dữ liệu trình duyệt sẽ mất album, nhớ bấm Lưu ảnh nào bạn thích.</p></div>`;
@@ -119,12 +119,12 @@ export function initF2P({ ctx, app, $, open, head, COIN_SVG, onChange }) {
     const got = S.stickers.filter(s => s.claimed).length;
     return _t`<h3 class="qh">Sổ sticker <small>${got}/${STICKERS.length} đã dán</small></h3>
       <ul class="stickers">${STICKERS.map(d => { const s = S.stickers.find(x => x.id === d.id) || { progress: 0, target: d.target, claimed: false }, ready = !s.claimed && s.progress >= s.target;
-        return _t`<li class="sticker${s.claimed ? ' got' : ready ? ' ready' : ''}"><span class="st-ico" aria-hidden="true">${d.icon}</span><b>${esc(d.name)}</b><span class="b-desc">${esc(d.desc)}</span>
+        return `<li class="sticker${s.claimed ? ' got' : ready ? ' ready' : ''}"><span class="st-ico" aria-hidden="true">${d.icon}</span><b>${esc(d.name)}</b><span class="b-desc">${esc(d.desc)}</span>
           ${s.claimed ? _t('<span class="pill-ok">Đã dán</span>') : ready ? _t`<button type="button" class="btn-sm" data-sticker="${d.id}">${COIN_SVG}Dán +${STICKER_COINS}</button>` : `<span class="b-num">${s.progress}/${s.target}</span>`}</li>`; }).join('')}</ul>`;
   }
 
   /* ---------------- Bấm nút ---------------- */
-  const reward = r => { sfx('coin'); ctx.popText?.(`+${r} xu`, '#a8742e'); ctx.buzz?.(12); ctx.spawn?.('sparkle', 3); };
+  const reward = r => { sfx('coin'); ctx.popText?.(_t`+${r} xu`, '#a8742e'); ctx.buzz?.(12); ctx.spawn?.('sparkle', 3); };
   app.addEventListener('click', async e => {
     const t = e.target;
     const hb = t.closest('[data-job-h]'); if (hb) { const [id, h] = hb.dataset.jobH.split(':'); hours[id] = +h; renderJobs(); return; }

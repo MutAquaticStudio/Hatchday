@@ -27,7 +27,8 @@ export const isEn = LANG === 'en';
 /** Đổi ngôn ngữ: lưu lại rồi tải lại trang (mọi chữ được dựng lại theo ngôn ngữ mới). */
 export function setLang(l: Lang): void { try { localStorage.setItem('hatchday-lang', l); } catch { /* bỏ qua */ } location.reload(); }
 
-const fill = (tpl: string, vals: unknown[]): string => tpl
+/** Điền tham số vào khuôn (kể cả dạng số nhiều {0|day|days}). */
+export const fill = (tpl: string, vals: unknown[]): string => tpl
   .replace(/\{(\d+)\|([^|{}]*)\|([^|{}]*)\}/g, (_m, i, one, many) => (Number(vals[+i]) === 1 ? one : many))
   .replace(/\{(\d+)\}/g, (_m, i) => String(vals[+i] ?? ''));
 

@@ -9,7 +9,9 @@ import { join, relative, dirname } from 'node:path';
 
 const ROOT = new URL('..', import.meta.url).pathname;
 const SRC = join(ROOT, 'src');
-const VI = /[àáảãạăằắẳẵặâầấẩẫậđèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵÀÁẢÃẠĂẰẮẲẴẶÂẦẤẨẪẬĐÈÉẺẼẸÊỀẾỂỄỆÌÍỈĨỊÒÓỎÕỌÔỒỐỔỖỘƠỜỚỞỠỢÙÚỦŨỤƯỪỨỬỮỰỲÝỶỸỴ]/;
+const VI_CHARS = /[àáảãạăằắẳẵặâầấẩẫậđèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵÀÁẢÃẠĂẰẮẲẴẶÂẦẤẨẪẬĐÈÉẺẼẸÊỀẾỂỄỆÌÍỈĨỊÒÓỎÕỌÔỒỐỔỖỘƠỜỚỞỠỢÙÚỦŨỤƯỪỨỬỮỰỲÝỶỸỴ]/;
+// chữ Việt không dấu hay gặp trong giao diện ("300 xu") cũng tính là tiếng Việt
+const VI = { test: s => VI_CHARS.test(s) || (!/^[\w-]+$/.test(s) && /(^|[\s>(+·])(xu|Vui|No|NL)\b/.test(s)) };
 const SKIP_FILE = f => /\.test\.ts$/.test(f) || /[\\/]i18n[\\/]/.test(f) || /[\\/]data[\\/]demo-/.test(f) || /[\\/]net[\\/](sim|moderation)/.test(f) || /\.d\.ts$/.test(f);
 const files = (d, out = []) => { for (const n of readdirSync(d)) { const p = join(d, n); if (statSync(p).isDirectory()) files(p, out); else if (/\.(ts|js)$/.test(n) && !SKIP_FILE(p)) out.push(p); } return out; };
 
@@ -27,15 +29,21 @@ function scan(file) {
   const wrap = [], skipped = [], wrapped = [];
   const visit = (n, insideTemplateOfVi) => {
     const lit = ts.isStringLiteral(n) || ts.isNoSubstitutionTemplateLiteral(n) || ts.isTemplateExpression(n);
-    if (lit && VI.test(n.getText(sf))) {
+    // chỉ xét chữ của chính literal (với template: phần chữ giữa các ${…}), không tính template lồng bên trong
+    const own = !lit ? '' : ts.isTemplateExpression(n) ? n.head.text + n.templateSpans.map(sp => sp.literal.text).join('') : n.text;
+    const p0 = n.parent;
+    const isWrapped = lit && p0 && ((ts.isTaggedTemplateExpression(p0) && ts.isIdentifier(p0.tag) && p0.tag.text === '_t')
+      || (ts.isCallExpression(p0) && ts.isIdentifier(p0.expression) && p0.expression.text === '_t' && p0.arguments[0] === n));
+    if (isWrapped && !VI.test(own)) wrapped.push(n); // đã bọc tay (ví dụ _t('Vui')): vẫn là khoá cần dịch
+    if (lit && VI.test(own)) {
       const p = n.parent;
       let why = '';
       if (ts.isImportDeclaration(p) || ts.isExportDeclaration(p) || ts.isExternalModuleReference(p)) why = 'import';
       else if ((ts.isPropertyAssignment(p) || ts.isPropertyDeclaration(p) || ts.isMethodDeclaration(p) || ts.isEnumMember(p)) && p.name === n) why = 'key';
       else if (ts.isElementAccessExpression(p) && p.argumentExpression === n) why = 'index';
       else if (ts.isLiteralTypeNode(p)) why = 'type';
-      else if (ts.isTaggedTemplateExpression(p)) { if (ts.isIdentifier(p.tag) && (p.tag.text === '_t' || p.tag.text === 't')) { wrapped.push(n); } else why = 'tagged'; }
-      else if (ts.isCallExpression(p) && ts.isIdentifier(p.expression) && (p.expression.text === '_t' || p.expression.text === 't') && p.arguments[0] === n) { wrapped.push(n); }
+      else if (ts.isTaggedTemplateExpression(p)) { if (ts.isIdentifier(p.tag) && p.tag.text === '_t') { wrapped.push(n); } else why = 'tagged'; }
+      else if (ts.isCallExpression(p) && ts.isIdentifier(p.expression) && p.expression.text === '_t' && p.arguments[0] === n) { wrapped.push(n); }
       else if (ts.isCaseClause(p)) why = 'case';
       else if (ts.isBinaryExpression(p) && [ts.SyntaxKind.EqualsEqualsEqualsToken, ts.SyntaxKind.ExclamationEqualsEqualsToken, ts.SyntaxKind.EqualsEqualsToken, ts.SyntaxKind.ExclamationEqualsToken].includes(p.operatorToken.kind)) why = 'compare';
       else if (isCallTo(p, ['RegExp', 'console.log', 'console.warn', 'console.error', 'console.info'])) why = 'console/regexp';
@@ -49,6 +57,27 @@ function scan(file) {
 }
 
 const mode = process.argv[2];
+if (mode === 'unwrap-novi') {
+  let total = 0;
+  for (const f of files(SRC)) {
+    const text = readFileSync(f, 'utf8');
+    const sf = ts.createSourceFile(f, text, ts.ScriptTarget.Latest, true, f.endsWith('.ts') ? ts.ScriptKind.TS : ts.ScriptKind.JS);
+    const edits = [];
+    const visit = n => {
+      if (ts.isTaggedTemplateExpression(n) && ts.isIdentifier(n.tag) && n.tag.text === '_t') {
+        const tp = n.template, own = ts.isTemplateExpression(tp) ? tp.head.text + tp.templateSpans.map(sp => sp.literal.text).join('') : tp.text;
+        if (!VI.test(own)) edits.push({ pos: n.tag.getStart(sf), end: n.tag.getEnd() });
+      }
+      ts.forEachChild(n, visit);
+    };
+    visit(sf);
+    if (!edits.length) continue;
+    edits.sort((a, b) => b.pos - a.pos); let out = text;
+    for (const e of edits) out = out.slice(0, e.pos) + out.slice(e.end);
+    writeFileSync(f, out); total += edits.length; console.log(`${edits.length}\t${relative(ROOT, f)}`);
+  }
+  console.log('đã gỡ', total);
+}
 if (mode === 'wrap') {
   let total = 0;
   for (const f of files(SRC)) {
@@ -79,7 +108,7 @@ if (mode === 'wrap') {
   }
   // HTML tĩnh: markup.html
   const html = readFileSync(join(SRC, 'game', 'markup.html'), 'utf8');
-  for (const m of html.matchAll(/>([^<>]*?)</g)) { const k = m[1].trim(); if (k && VI.test(k) && !keys.has(k)) keys.set(k, 'src/game/markup.html'); }
+  for (const m of html.matchAll(/>([^<>]*?)</g)) { const k = m[1].trim().replace(/&amp;/g, '&'); if (k && VI.test(k) && !keys.has(k)) keys.set(k, 'src/game/markup.html'); }
   for (const m of html.matchAll(/(?:aria-label|title|placeholder)="([^"]*)"/g)) { const k = m[1].replace(/&amp;/g, '&'); if (VI.test(k) && !keys.has(k)) keys.set(k, 'src/game/markup.html'); }
   if (mode === 'keys') {
     writeFileSync(join(SRC, 'i18n', 'keys.json'), JSON.stringify(Object.fromEntries([...keys].sort((a, b) => a[1].localeCompare(b[1]))), null, 1));

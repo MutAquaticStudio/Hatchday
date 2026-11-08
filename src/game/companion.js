@@ -37,7 +37,7 @@ export function initCompanion(c) {
     if (S.sach < 40 && !S.asleep) acts.push(['bath', _t('Tắm cho bé')]);
     card.innerHTML = _t`<div class="welcome-card"><h2>Chào mừng trở lại!</h2><p>Bạn vắng ${awayText(mins)}. ${esc(S.name)} đã đợi bạn.</p>
       ${S.asleep ? _t`<p class="w-note">${esc(S.name)} đang ngủ.</p>` : ''}
-      ${lost.length ? _t`<ul class="w-drops">${lost.map(d => _t`<li>${esc(capFirst(STAT_NOUN[d.key]))} tụt từ ${d.from} xuống ${d.to}</li>`).join('')}</ul>` : _t`<p class="w-note">Các chỉ số vẫn ổn, bé ở nhà ngoan lắm.</p>`}
+      ${lost.length ? `<ul class="w-drops">${lost.map(d => _t`<li>${esc(capFirst(STAT_NOUN[d.key]))} tụt từ ${d.from} xuống ${d.to}</li>`).join('')}</ul>` : _t`<p class="w-note">Các chỉ số vẫn ổn, bé ở nhà ngoan lắm.</p>`}
       ${il ? _t`<p class="w-warn">Bé đang bị ${esc(il.name.toLowerCase())}.</p>` : risk ? _t`<p class="w-warn">${esc(capFirst(STAT_NOUN[risk.stat]))} của bé gần 0, chăm bé ngay kẻo ốm.</p>` : ''}
       <div class="welcome-act">${acts.map(([k, l]) => `<button type="button" class="btn-sm ghost" data-w="${k}">${l}</button>`).join('')}<button type="button" class="btn-sm" data-w="close">Chào ${esc(S.name)}</button></div></div>`;
     $('app').appendChild(card);

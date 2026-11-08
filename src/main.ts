@@ -1,4 +1,4 @@
-import { _t } from './i18n';
+import { _t, translateDom } from './i18n';
 import './styles/base.css';
 import { supabase, isConfigured } from './lib/supabase';
 import { mountAuth } from './auth/auth-ui';
@@ -28,6 +28,7 @@ async function startGame(): Promise<void> {
   await import('./game/game.css');
   await hydrate();
   root.innerHTML = markup.default;
+  translateDom(root);
   const logout = document.getElementById('btn-logout');
   if (logout && !isConfigured) {
     logout.textContent = _t('Thoát bản chơi thử');

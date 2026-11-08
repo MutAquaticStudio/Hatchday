@@ -514,7 +514,7 @@ function throwBall() {
 function spinPlay() {
   if (sickBlocks('play')) return;
   if (S.nl < 15) { setTemp('sleepy', 1800); say(_t('Mình mệt quá, cho mình nghỉ chút đã…'), 2600); return; }
-  sfx('play'); act('play_spin'); popText('+6 Vui'); S.vui = clamp(S.vui + 6); S.nl = clamp(S.nl - 4); S.no = clamp(S.no - 2);
+  sfx('play'); act('play_spin'); popText(_t('+6 Vui')); S.vui = clamp(S.vui + 6); S.nl = clamp(S.nl - 4); S.no = clamp(S.no - 2);
   anim = { type: 'spin', t: 0, dur: 1.1 }; setTemp('excited', 1600); spawn('note', 2); spawn('sparkle', 2);
   setTimeout(() => say([_t('Yeah! Thêm vòng nữa!'), _t('Vui quá đi!'), _t('Chóng mặt mà vui ghê!')][Math.floor(Math.random() * 3)], 2200), 1100);
   save(); renderStats();
@@ -538,7 +538,7 @@ async function toyApply(id) {
   const r = await playToyStore(id); if (DEV) window.__lastToy = { id, r: r instanceof Error ? 'ERR ' + r.message : { refused: r.refused, left: r.left } };
   if (r instanceof Error) { toast(viError(r)); return; }
   if (r.refused) { toast(TOY_REFUSAL_TEXT[r.refused]); return; }
-  const g = toyGain(t, used); popText(`+${Math.round(g.vui * 10) / 10} Vui`);
+  const g = toyGain(t, used); popText(_t`+${Math.round(g.vui * 10) / 10} Vui`);
   setTemp('excited', 1400); spawn('note', 2); spawn('sparkle', 2); if (!script) startAction(TOY_ACTS[id] || 'hop');
   setTimeout(() => say(TOY_LINES[id] || _t('Vui quá đi!'), 2400), 900);
   if (r.mult < 1) setTimeout(() => toast(_t('Chơi mãi món này thì bé bớt hứng, thử món khác nhé.')), 1800);
@@ -593,7 +593,7 @@ function updateArea(dt, t) {
       if (f.phase === 'run') { f.phase = 'back'; spawn('sparkle'); impulse(-2); }
       else {
         fetchBall = null; moveYaw = null; ball.position.set(petBase.x + 1.0, 0.3, petBase.z + 0.9);
-        count('ball'); act('play_ball'); popText('+8 Vui');
+        count('ball'); act('play_ball'); popText(_t('+8 Vui'));
         S.vui = clamp(S.vui + 8); S.nl = clamp(S.nl - 4); S.no = clamp(S.no - 2);
         setTemp('love', 1500); spawn('heart', 2); say([_t('Bắt được rồi nè! Ném nữa đi!'), _t('Mình chạy nhanh không?'), _t('Hihi, lần nữa nha!')][Math.floor(Math.random() * 3)], 2400);
         save(); renderStats();
@@ -795,7 +795,7 @@ function petStroke() {
   hideHint();
   if (area === 'bath' && !S.asleep) { scrub(); return; }
   if (S.asleep) { if (Math.random() < 0.3) spawn('zzz'); impulse(-0.5); return; }
-  S.vui = clamp(S.vui + 1.6); sfx('pet'); count('pet'); actBatched('pet'); if (++petN % 6 === 0) popText('+Vui'); setTemp('love', 1500); spawn('heart', 1, 0.7); impulse(-1.1);
+  S.vui = clamp(S.vui + 1.6); sfx('pet'); count('pet'); actBatched('pet'); if (++petN % 6 === 0) popText(_t('+Vui')); setTemp('love', 1500); spawn('heart', 1, 0.7); impulse(-1.1);
   if (Math.random() < 0.15) say(petLine(S.personality), 1800);
 }
 function poke() {
@@ -825,19 +825,19 @@ function updateMusic() { music(S.asleep ? 'sleep' : period === 'dem' ? 'night' :
 function applySleep() { updateMusic(); $('dim').classList.toggle('on', S.asleep); $('sleep-label').textContent = S.asleep ? _t('Thức dậy') : _t('Ngủ'); $('a-sleep').setAttribute('aria-pressed', String(S.asleep)); }
 
 /* ---------------- bảng chỉ số ---------------- */
-const STAT = [['no', 'No', '#ffb35c'], ['vui', 'Vui', '#ff6fa8'], ['nl', _t('Năng lượng'), '#8f7cff'], ['sach', _t('Sạch sẽ'), '#4fc3f7']];
+const STAT = [['no', _t('No'), '#ffb35c'], ['vui', _t('Vui'), '#ff6fa8'], ['nl', _t('Năng lượng'), '#8f7cff'], ['sach', _t('Sạch sẽ'), '#4fc3f7']];
 $('bars').innerHTML = STAT.map(([k, l, c]) => `<div class="stat"><span>${l}</span><div class="track"><div class="fill" id="f-${k}" style="background:${c}"></div></div><span class="lvl" id="l-${k}"></span></div>`).join('');
 const lvl = v => v >= 75 ? _t('Đầy') : v >= 45 ? _t('Ổn') : v >= 25 ? _t('Hơi thấp') : _t('Thấp');
 function renderBond() {
   const b = bondProgress(S.bondXp), un = unclaimedLevels(S.bondXp, S.bondClaims);
   $('bond').innerHTML = _t`<div class="bond-head"><b>Gắn bó · Cấp ${b.level} · ${b.title}</b><span>${b.max ? _t('Cấp cao nhất') : _t`${b.into}/${b.need} điểm`}</span></div><div class="bar-track"><i style="width:${b.pct}%"></i></div>`
-    + (un.length ? _t`<div class="bond-gifts">${un.map(l => _t`<button type="button" class="btn-sm" data-bond="${l}">Nhận quà cấp ${l} · +${BOND.rewards[l - 1]} xu</button>`).join('')}</div>` : '')
+    + (un.length ? `<div class="bond-gifts">${un.map(l => _t`<button type="button" class="btn-sm" data-bond="${l}">Nhận quà cấp ${l} · +${BOND.rewards[l - 1]} xu</button>`).join('')}</div>` : '')
     + _t('<p class="note">Chăm bé đều đặn (cho ăn, tắm, chơi, nói chuyện, chữa bệnh) thì gắn bó lên cấp. Từ cấp 2, mỗi cấp có một phần quà xu.</p>');
 }
 $('bond').addEventListener('click', async e => {
   const b = e.target.closest('[data-bond]'); if (!b) return; b.disabled = true;
   const r = await claimBond(+b.dataset.bond);
-  if ('error' in r) toast(viError(r.error)); else { sfx('coin'); buzz(12); popText(`+${r.reward} xu`, '#a8742e'); spawn('heart', 3); spawn('sparkle', 3); }
+  if ('error' in r) toast(viError(r.error)); else { sfx('coin'); buzz(12); popText(_t`+${r.reward} xu`, '#a8742e'); spawn('heart', 3); spawn('sparkle', 3); }
   renderBond();
 });
 onBondLevel(l => { sfx('wake'); spawn('heart', 4); spawn('sparkle', 3); setTemp('love', 1800); say(_t`Mình với bạn thân nhau hơn rồi nè!`, 3000); toast(_t`Gắn bó cấp ${l}: ${BOND.titles[l - 1]}. Mở Chỉ số để nhận quà ${BOND.rewards[l - 1]} xu.`); });
@@ -850,7 +850,7 @@ function renderPersona() {
   AXES.forEach(a => {
     const v = S.personality[a];
     $('axd-' + a).style.left = (50 + v / 2) + '%';
-    $('ax-' + a).setAttribute('aria-label', _t`${TRAITS[a].lo} – ${TRAITS[a].hi}: ${Math.abs(v) < 15 ? _t('cân bằng') : (v > 0 ? TRAITS[a].hi : TRAITS[a].lo)}`);
+    $('ax-' + a).setAttribute('aria-label', `${TRAITS[a].lo} – ${TRAITS[a].hi}: ${Math.abs(v) < 15 ? _t('cân bằng') : (v > 0 ? TRAITS[a].hi : TRAITS[a].lo)}`);
   });
 }
 onWorldReady(list => { // huy hiệu/bậc Khám phá vừa đủ điều kiện nhận

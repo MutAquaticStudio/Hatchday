@@ -55,8 +55,8 @@ export function initFood(c) {
   function renderTray() {
     if (drag) return; // đang kéo thì đừng dựng lại nút
     const have = EDIBLES.filter(f => (S.owned[f.id] || 0) > 0);
-    tray.innerHTML = _t`<span class="tray-hint">${have.length ? _t('Kéo món ăn vào bé, hoặc chạm') : _t('Hết thức ăn rồi. Mua thêm nhé!')}</span>` +
-      have.map(f => `<button class="food" type="button" data-id="${f.id}" title="${f.name} · +${f.no} No, +${f.vui} Vui · ${FOOD_GROUPS[f.group].name}${f.group2 ? ' + ' + FOOD_GROUPS[f.group2].name : ''}">${FOOD_SVG[f.id]}${f.name}<small>×${S.owned[f.id]} · +${f.no}</small></button>`).join('') +
+    tray.innerHTML = `<span class="tray-hint">${have.length ? _t('Kéo món ăn vào bé, hoặc chạm') : _t('Hết thức ăn rồi. Mua thêm nhé!')}</span>` +
+      have.map(f => _t`<button class="food" type="button" data-id="${f.id}" title="${f.name} · +${f.no} No, +${f.vui} Vui · ${FOOD_GROUPS[f.group].name}${f.group2 ? ' + ' + FOOD_GROUPS[f.group2].name : ''}">${FOOD_SVG[f.id]}${f.name}<small>×${S.owned[f.id]} · +${f.no}</small></button>`).join('') +
       _t('<button class="food more" type="button" data-more title="Mua thêm thức ăn"><svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="14" fill="#ffd36e" stroke="#a8742e" stroke-width="2.2"/><path d="M20 12v16M12 20h16" stroke="#a8742e" stroke-width="3" stroke-linecap="round"/></svg>Mua thêm<small>cửa hàng</small></button>');
   }
   renderTray(); onSync(renderTray);
@@ -104,7 +104,7 @@ export function initFood(c) {
     if (S.no >= 90) { setTemp('sulky', 1600); c.shake(); say(_t('Mình no căng rồi mà~'), 2400); return; }
     S.no = clamp(S.no + f.no); S.vui = clamp(S.vui + f.vui); S.sach = clamp(S.sach - 2);
     S.owned = { ...S.owned, [f.id]: S.owned[f.id] - 1 }; // dùng một phần; số thật do server trả về
-    popText(`+${f.no} No`, '#f08a24');
+    popText(_t`+${f.no} No`, '#f08a24');
     count('fed'); dayRec().foods.push(f.name); dayRec().groups.push(f.group); if (f.group2) dayRec().groups.push(f.group2);
     setTemp('chew', 1500); impulse(-1.5); sfx('feed');
     if (sweet && dayRec().groups.filter(g => g === "ngot").length === c.sweetsLimit - 1) c.toast(_t`Hôm nay bé đã ăn ${c.sweetsLimit - 1} món ngọt. Thêm một món ngọt nữa là bé bị sâu răng đó!`);

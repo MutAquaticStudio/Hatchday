@@ -19,7 +19,7 @@ export function initToys({ ctx, head, open, app, $ }) {
       const where = portable ? _t('Mang theo, chơi ở đâu cũng được') : _t`Ở ${PLACE_BY_ID[t.place]?.name || ''}`;
       let act;
       if (locked) act = _t`<small>Gắn bó cấp ${t.bond}</small>`;
-      else if (portable && !owned) { const p = priceOf('toy', t.price); act = `<button type="button" class="btn-sm buy" data-toy-buy="${t.id}" ${S.coins >= p ? '' : 'disabled'}>${p} xu</button>`; }
+      else if (portable && !owned) { const p = priceOf('toy', t.price); act = _t`<button type="button" class="btn-sm buy" data-toy-buy="${t.id}" ${S.coins >= p ? '' : 'disabled'}>${p} xu</button>`; }
       else if (portable) act = _t`<button type="button" class="btn-sm" data-toy-play="${t.id}" ${left ? '' : 'disabled'}>Chơi</button>`;
       else act = _t`<small>${left}/${t.cap} lượt</small>`;
       return _t`<div class="toy-row${locked ? ' lock' : ''}"><span class="toy-ic" aria-hidden="true">${t.icon}</span><div><b>${esc(t.name)}</b><small>${where} · +${t.vui} Vui${owned || !portable ? _t` · còn ${left}/${t.cap} lượt hôm nay` : ''}${used >= 2 ? _t(' · từ lượt thứ 3 chỉ còn một nửa') : ''}</small></div>${act}</div>`;

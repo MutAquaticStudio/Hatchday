@@ -66,12 +66,12 @@ export function initMinigames({ ctx, app, $, reduce, sfx }) {
     if (cur.phase === 'result') {
       const r = cur.result, err = r instanceof Error;
       const sk = !err && r.skill_xp ? SKILL_BY_ID[r.skill] : null;
-      const body = err ? `<p class="mini-intro">${esc(viError(r))}</p>` : _t`<div class="mini-score"><b>${cur.score}</b><span>${UNIT[kind]}</span></div>
+      const body = err ? `<p class="mini-intro">${esc(viError(r))}</p>` : `<div class="mini-score"><b>${cur.score}</b><span>${UNIT[kind]}</span></div>
         <p class="mini-reward">${r.rewarded ? _t`${COIN_SVG}<span>Nhận +${r.reward} xu!</span>` : _t('<span>Hết lượt có xu hôm nay rồi, mai chơi tiếp nha.</span>')}</p>
         ${sk ? _t`<p class="mini-skill">${sk.icon} ${sk.name} +${r.skill_xp} kinh nghiệm</p>` : ''}
         ${kind === 'brew' ? `<p class="mini-stars" aria-hidden="true">${cur.hits.map(h => (h ? '⭐' : '☆')).join('')}</p>` : ''}`;
       const again = !err && r.left > 0;
-      root.innerHTML = _t`<div class="mini-card">${head(kind, err ? _t('Chưa lưu được điểm') : cur.score >= (kind === 'rhythm' ? 16 : MINI[kind].max) ? _t('Hoàn hảo!') : _t('Xong rồi!'))}${body}
+      root.innerHTML = `<div class="mini-card">${head(kind, err ? _t('Chưa lưu được điểm') : cur.score >= (kind === 'rhythm' ? 16 : MINI[kind].max) ? _t('Hoàn hảo!') : _t('Xong rồi!'))}${body}
         <div class="mini-actions">${again ? _t('<button type="button" class="btn-sm" data-mini-start>Chơi lại</button>') : ''}<button type="button" class="btn-sm ${again ? 'ghost' : ''}" data-mini-close>Xong</button></div></div>`;
       return;
     }
@@ -95,7 +95,7 @@ export function initMinigames({ ctx, app, $, reduce, sfx }) {
     const kind = cur.kind, r = await submitMinigame(kind, score);
     if (!cur || cur.kind !== kind || cur.phase !== 'result') return;
     cur.result = r; render();
-    if (!(r instanceof Error)) { sfx(r.reward ? 'coin' : 'badge'); if (r.reward) ctx.popText?.(`+${r.reward} xu`, '#a8742e'); ctx.spawn?.('sparkle', 3); }
+    if (!(r instanceof Error)) { sfx(r.reward ? 'coin' : 'badge'); if (r.reward) ctx.popText?.(_t`+${r.reward} xu`, '#a8742e'); ctx.spawn?.('sparkle', 3); }
   }
 
   /* ---------------- Bắt bướm: chơi ngay trong Công viên 3D (park.js lo bướm và cú chạm); ở đây chỉ có thanh điểm/giờ ---------------- */

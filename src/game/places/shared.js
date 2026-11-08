@@ -57,7 +57,7 @@ export function makeShared(c, { placeId, group }) {
   }
   function addActor(p) {
     if (actors.has(p.pid)) return;
-    const el = document.createElement('div'); el.className = 'actor' + (p.ghost ? ' ghost' : ''); el.innerHTML = _t`<span class="actor-emote"></span><b>${esc(p.name)}</b>${p.ghost ? _t('<small>ghé chơi</small>') : ''}`; labels.appendChild(el);
+    const el = document.createElement('div'); el.className = 'actor' + (p.ghost ? ' ghost' : ''); el.innerHTML = `<span class="actor-emote"></span><b>${esc(p.name)}</b>${p.ghost ? _t('<small>ghé chơi</small>') : ''}`; labels.appendChild(el);
     const root = new THREE.Group(); root.position.set(p.x, 0, p.z); root.userData.pid = p.pid; group.add(root);
     const a = { peer: p, root, body: null, parts: null, x: p.x, z: p.z, tx: p.x, tz: p.z, yaw: 0, ph: Math.random() * 6, el, emoteUntil: 0, k: STAGE_SCALE[p.stage] || 1, moving: false };
     actors.set(p.pid, a); queue.push(a); updateCount();

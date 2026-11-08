@@ -1,6 +1,6 @@
 // Chế độ chụp ảnh: ẩn giao diện, chụp khung 3D hiện tại, thêm khung viền + tên bé + ngày rồi lưu hoặc chia sẻ.
 // Ảnh chỉ nằm trên máy người chơi (tải về hoặc mở hộp chia sẻ của hệ điều hành); không gửi gì lên máy chủ.
-import { _t } from '../i18n';
+import { _t, LOCALE } from '../i18n';
 
 const esc = v => String(v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -51,7 +51,7 @@ export function initPhoto({ ctx, app, $ }) {
       ctx.pose?.(); // bé tạo dáng một nhịp
       await new Promise(r => setTimeout(r, 450));
       const src = await ctx.capture();
-      const d = new Date(), date = d.toLocaleDateString('vi-VN');
+      const d = new Date(), date = d.toLocaleDateString(LOCALE);
       const cv = composePhoto(src, { name: ctx.state.name, place: ctx.placeName(), date });
       blob = await new Promise(r => cv.toBlob(r, 'image/png'));
       if (!blob) throw new Error('capture');
@@ -65,7 +65,7 @@ export function initPhoto({ ctx, app, $ }) {
     } catch (e) { ctx.toast(_t('Chưa chụp được, thử lại nhé.')); console.warn(e); }
     shotBtn.disabled = false;
   }
-  const fileName = () => _t`hatchday-${(ctx.state.name || 'be').toLowerCase().replace(/[^a-z0-9À-ỹ]+/gi, '-')}-${new Date().toISOString().slice(0, 10)}.png`;
+  const fileName = () => `hatchday-${(ctx.state.name || 'be').toLowerCase().replace(/[^a-z0-9À-ỹ]+/gi, '-')}-${new Date().toISOString().slice(0, 10)}.png`;
   function save() {
     if (!blob) return; const a = document.createElement('a'); a.href = url; a.download = fileName(); document.body.appendChild(a); a.click(); a.remove(); ctx.toast(_t('Đã lưu ảnh vào máy.'));
   }

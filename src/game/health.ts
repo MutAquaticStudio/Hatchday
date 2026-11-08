@@ -221,7 +221,7 @@ export function minutesToRecover(s: HealthState, nowMs: number): number | null {
 export const clinicPrice = (severe: boolean) => (severe ? HEALTH.clinicSeverePrice : HEALTH.clinicPrice);
 
 /** Tên ngắn của chỉ số (đúng như trên thanh chỉ số). */
-export const STAT_LABEL: Record<HealthStat, string> = { no: 'No', sach: _t('Sạch'), vui: 'Vui', nl: _t('Năng lượng') };
+export const STAT_LABEL: Record<HealthStat, string> = { no: _t('No'), sach: _t('Sạch'), vui: _t('Vui'), nl: _t('Năng lượng') };
 /** Tên chỉ số khi viết trong câu, để không đọc nhầm "Vui", "No", "Sạch" thành tính từ. */
 export const STAT_NOUN: Record<HealthStat, string> = { no: _t('độ no'), sach: _t('độ sạch'), vui: _t('độ vui'), nl: _t('năng lượng') };
 export const capFirst = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);

@@ -1,6 +1,18 @@
 // Bạn bè, hộp thư, quà tặng, tin tức và thăm nhà bạn (giao diện của các RPC xã hội trong supabase/migrations/20261203..20261205).
 // Dữ liệu nằm ở máy chủ; ở đây chỉ giữ bản sao ngắn hạn để vẽ. Luật và hạn mức: social.ts.
-import { _t } from '../i18n';
+import { _t, LOCALE } from '../i18n';
+
+/** Tiêu đề/nội dung thư do máy chủ soạn sẵn bằng tiếng Việt: dịch theo ngôn ngữ đang chọn (thư người chơi tự viết thì giữ nguyên). */
+function mailText(s) {
+  if (!s) return s;
+  const gift = /^Quà từ (.+)$/.exec(s);
+  if (gift) return gift[1] === 'Hatchday' ? _t('Quà từ Hatchday') : _t`Quà từ ${gift[1]}`;
+  if (s === 'Đội ngũ Hatchday đã trả lời bạn') return _t('Đội ngũ Hatchday đã trả lời bạn');
+  const reply = /^Về: ([\s\S]*?)\nMở Cài đặt → Góp ý & Hỗ trợ để đọc và trả lời\.$/.exec(s);
+  if (reply) return _t`Về: ${reply[1]}
+Mở Cài đặt → Góp ý & Hỗ trợ để đọc và trả lời.`;
+  return s;
+}
 import * as api from '../data/api';
 import { viError } from '../lib/errors';
 import { CHAT_REASON_TEXT } from '../net/moderation';
@@ -60,7 +72,7 @@ export function initSocial({ ctx, S, store, esc, head, open, closeAll, thumb, fi
   }
   function tabs() {
     const t = (id, label, n) => `<button type="button" class="tab" role="tab" data-soc-tab="${id}" aria-selected="${D.tab === id}">${label}${n ? ` <i class="soc-badge">${n}</i>` : ''}</button>`;
-    return _t`<div class="tabs soc-tabs" role="tablist">${t('friends', _t('Bạn bè'), D.sum.requests_in)}${t('mail', _t('Hộp thư'), D.sum.mail_unread + pendingIn())}${t('news', _t('Tin tức'), D.sum.news_unread)}${t('dm', _t('Tin nhắn'), D.sum.dm_unread)}</div>`;
+    return `<div class="tabs soc-tabs" role="tablist">${t('friends', _t('Bạn bè'), D.sum.requests_in)}${t('mail', _t('Hộp thư'), D.sum.mail_unread + pendingIn())}${t('news', _t('Tin tức'), D.sum.news_unread)}${t('dm', _t('Tin nhắn'), D.sum.dm_unread)}</div>`;
   }
   function render() {
     const el = $('social'); if (!el) return;
@@ -72,11 +84,11 @@ export function initSocial({ ctx, S, store, esc, head, open, closeAll, thumb, fi
   const pendingIn = () => D.together.playdates.filter(x => x.incoming && x.status === 'pending').length;
   const noteForm = p => _t`<form class="chat-box note-form" data-soc-form="note" data-who="${esc(p.pid)}" autocomplete="off"><input id="note-in" maxlength="100" placeholder="Lời nhắn cho ${esc(p.name)}…" aria-label="Lời nhắn"><button class="btn-sm" type="submit">Gửi</button></form>`;
   function togetherTab() {
-    const pd = D.together.playdates, notes = D.together.notes, when = iso => new Date(iso).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' });
-    const pdRows = pd.length ? _t`<ul class="soc-list">${pd.map(x => _t`<li class="soc-row"><div class="soc-info"><b>${x.incoming ? _t`${esc(x.from_name)} rủ bé đi chơi` : _t`Bạn đã rủ ${esc(x.to_name)}`}</b><small>${x.status === 'done' ? _t('Đã chơi cùng nhau 🎈') : x.incoming ? _t('Đang chờ bạn đồng ý') : _t('Đang chờ bạn ấy đồng ý')} · ${when(x.at)}</small></div>
+    const pd = D.together.playdates, notes = D.together.notes, when = iso => new Date(iso).toLocaleString(LOCALE, { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' });
+    const pdRows = pd.length ? `<ul class="soc-list">${pd.map(x => `<li class="soc-row"><div class="soc-info"><b>${x.incoming ? _t`${esc(x.from_name)} rủ bé đi chơi` : _t`Bạn đã rủ ${esc(x.to_name)}`}</b><small>${x.status === 'done' ? _t('Đã chơi cùng nhau 🎈') : x.incoming ? _t('Đang chờ bạn đồng ý') : _t('Đang chờ bạn ấy đồng ý')} · ${when(x.at)}</small></div>
       <div class="soc-act">${x.incoming && x.status === 'pending' ? _t`<button type="button" class="btn-sm" data-soc="pdyes" data-id="${x.id}">Đi chơi (+15 xu)</button><button type="button" class="btn-sm ghost" data-soc="pdno" data-id="${x.id}">Để sau</button>` : ''}</div></li>`).join('')}</ul>`
       : _t('<p class="hs-note">Chưa có lời hẹn nào. Vào tab Bạn bè, bấm "Hẹn chơi" để rủ bé nhà bạn đi chơi.</p>');
-    const noteRows = notes.length ? _t`<ul class="soc-list">${notes.map(n => _t`<li class="soc-row"><div class="soc-info"><b>${esc(n.author)}</b><small>${esc(n.body)}</small><small>${when(n.at)}</small></div><div class="soc-act"><button type="button" class="btn-sm ghost" data-soc="delnote" data-id="${n.id}">Xoá</button></div></li>`).join('')}</ul>`
+    const noteRows = notes.length ? `<ul class="soc-list">${notes.map(n => _t`<li class="soc-row"><div class="soc-info"><b>${esc(n.author)}</b><small>${esc(n.body)}</small><small>${when(n.at)}</small></div><div class="soc-act"><button type="button" class="btn-sm ghost" data-soc="delnote" data-id="${n.id}">Xoá</button></div></li>`).join('')}</ul>`
       : _t('<p class="hs-note">Chưa có lời nhắn nào. Bạn bè có thể để lại lời nhắn cho bạn mỗi ngày một lần.</p>');
     return _t`<h3 class="qh">Hẹn chơi</h3>${pdRows}<p class="hs-note">Hẹn chơi: mỗi cặp bạn một lần mỗi ngày. Khi bạn ấy đồng ý, cả hai bé được +15 xu, +3 Gắn bó và một ký ức mới.</p>
       <h3 class="qh">Lời nhắn bạn bè gửi bạn</h3>${noteRows}<h3 class="qh">Thư và quà</h3>`;
@@ -95,7 +107,7 @@ export function initSocial({ ctx, S, store, esc, head, open, closeAll, thumb, fi
     const reqs = D.req.incoming.length ? _t`<h3 class="soc-h">Lời mời kết bạn</h3><ul class="soc-list">${D.req.incoming.map(p => person(p,
       _t`<button type="button" class="btn-sm" data-soc="accept" data-who="${esc(p.pid)}">Đồng ý</button><button type="button" class="btn-sm ghost" data-soc="decline" data-who="${esc(p.pid)}">Từ chối</button>`)).join('')}</ul>` : '';
     const out = D.req.outgoing.length ? _t`<p class="hs-note">Đang chờ ${D.req.outgoing.length} người trả lời lời mời của bạn.</p>` : '';
-    const list = D.friends.length ? _t`<ul class="soc-list">${D.friends.map(p => person(p,
+    const list = D.friends.length ? `<ul class="soc-list">${D.friends.map(p => person(p,
       _t`<button type="button" class="btn-sm" data-soc="visit" data-who="${esc(p.pid)}">Ghé thăm</button><button type="button" class="btn-sm ghost" data-soc="gift" data-who="${esc(p.pid)}">Tặng quà</button><button type="button" class="btn-sm ghost" data-soc="dm" data-who="${esc(p.pid)}">Nhắn tin</button><button type="button" class="btn-sm ghost" data-soc="playdate" data-who="${esc(p.pid)}">Hẹn chơi</button><button type="button" class="btn-sm ghost" data-soc="note" data-who="${esc(p.pid)}">Lời nhắn</button>${D.noteFor === p.pid ? noteForm(p) : ''}${armBtn('remove', _t('Bỏ bạn'), '', p.pid)}${armBtn('block', _t('Chặn'), '', p.pid)}`)).join('')}</ul>`
       : _t('<p class="hs-note">Chưa có bạn nào. Nhập mã bạn bè của người khác ở trên để kết bạn.</p>');
     return _t`<section class="soc-card"><div><small>Mã bạn bè của bạn</small><b class="soc-code" id="soc-mycode">${esc(st?.friend_code || '········')}</b></div><button type="button" class="btn-sm ghost" data-soc="copy">Sao chép</button></section>
@@ -110,16 +122,16 @@ export function initSocial({ ctx, S, store, esc, head, open, closeAll, thumb, fi
   function mailTab() {
     const unclaimed = D.inbox.filter(m => !m.claimed).length;
     if (!D.inbox.length) return _t('<p class="hs-note">Hộp thư trống. Quà của bạn bè và thưởng của Hatchday sẽ về đây.</p>');
-    return _t`${unclaimed > 1 ? _t('<button type="button" class="btn-sm" data-soc="claimall">Nhận tất cả</button>') : ''}<ul class="soc-list">${D.inbox.map(m => {
+    return `${unclaimed > 1 ? _t('<button type="button" class="btn-sm" data-soc="claimall">Nhận tất cả</button>') : ''}<ul class="soc-list">${D.inbox.map(m => {
       const left = Math.max(0, Math.ceil((Date.parse(m.expires_at) - Date.now()) / 86400000));
-      const what = [m.items.length ? itemsText(m.items) : '', m.coins ? `${m.coins} xu` : ''].filter(Boolean).join(' · ');
-      return _t`<li class="soc-mail${m.claimed ? ' done' : ''}"><div class="soc-info"><b>${esc(m.title)}</b>${m.body ? `<small>${esc(m.body)}</small>` : ''}${what ? `<small class="soc-what">${what}</small>` : ''}<small>${m.claimed ? _t('Đã nhận') : _t`Còn ${left} ngày`}</small></div>
+      const what = [m.items.length ? itemsText(m.items) : '', m.coins ? _t`${m.coins} xu` : ''].filter(Boolean).join(' · ');
+      return `<li class="soc-mail${m.claimed ? ' done' : ''}"><div class="soc-info"><b>${esc(mailText(m.title))}</b>${m.body ? `<small>${esc(mailText(m.body))}</small>` : ''}${what ? `<small class="soc-what">${what}</small>` : ''}<small>${m.claimed ? _t('Đã nhận') : _t`Còn ${left} ngày`}</small></div>
         <div class="soc-act">${m.claimed ? _t`<button type="button" class="btn-sm ghost" data-soc="delmail" data-id="${m.id}">Xoá</button>` : _t`<button type="button" class="btn-sm" data-soc="claim" data-id="${m.id}">Nhận</button>${m.kind === 'system' ? _t`<button type="button" class="btn-sm ghost" data-soc="delmail" data-id="${m.id}">Xoá</button>` : ''}`}</div></li>`;
     }).join('')}</ul>`;
   }
   function newsTab() {
     if (!D.news.length) return _t('<p class="hs-note">Chưa có tin nào.</p>');
-    return _t`<ul class="soc-list">${D.news.map(n => _t`<li class="soc-mail${n.read ? ' done' : ''}"><div class="soc-info"><b><span class="soc-kind k-${esc(n.kind)}">${KIND[n.kind] || 'Tin'}</span> ${esc(n.title)}</b><small>${esc(n.body)}</small>${n.read ? '' : _t('<small class="soc-new">Mới</small>')}</div></li>`).join('')}</ul>`;
+    return `<ul class="soc-list">${D.news.map(n => `<li class="soc-mail${n.read ? ' done' : ''}"><div class="soc-info"><b><span class="soc-kind k-${esc(n.kind)}">${KIND[n.kind] || 'Tin'}</span> ${esc(n.title)}</b><small>${esc(n.body)}</small>${n.read ? '' : _t('<small class="soc-new">Mới</small>')}</div></li>`).join('')}</ul>`;
   }
   let marking = false;
   async function markNewsRead() {
@@ -130,7 +142,7 @@ export function initSocial({ ctx, S, store, esc, head, open, closeAll, thumb, fi
 
 
   /* ---------- Tin nhắn riêng (chỉ giữa bạn bè) ---------- */
-  const when = iso => new Date(iso).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' });
+  const when = iso => new Date(iso).toLocaleString(LOCALE, { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' });
   function dmTab() {
     const o = D.dm.open;
     if (o) return _t`<div class="soc-act"><button type="button" class="btn-sm ghost" data-soc="dmback">← Tin nhắn</button><b>${esc(o.name)}</b></div>
@@ -138,7 +150,7 @@ export function initSocial({ ctx, S, store, esc, head, open, closeAll, thumb, fi
       <form class="chat-box" data-soc-form="dm" autocomplete="off"><input id="dm-in" maxlength="100" placeholder="Nhắn cho ${esc(o.name)}…" aria-label="Tin nhắn"><button class="btn-sm" type="submit">Gửi</button></form>
       <p class="hs-note">Không gửi liên kết, email hay số điện thoại. Tin giữ 30 ngày.</p>`;
     if (!D.dm.threads.length) return _t('<p class="hs-note">Chưa có tin nhắn nào. Mở danh sách bạn bè và bấm "Nhắn tin" để bắt đầu.</p>');
-    return _t`<ul class="soc-list">${D.dm.threads.map(t => _t`<li class="soc-row">${petImg(t.with)}<div class="soc-info"><b>${esc(t.with.name)}</b><small>${t.mine ? _t('Bạn: ') : ''}${esc(t.last)}</small></div><div class="soc-act"><button type="button" class="btn-sm${t.unread ? '' : ' ghost'}" data-soc="dm" data-who="${esc(t.with.pid)}">${t.unread ? _t`Mới (${t.unread})` : _t('Mở')}</button></div></li>`).join('')}</ul>`;
+    return `<ul class="soc-list">${D.dm.threads.map(t => `<li class="soc-row">${petImg(t.with)}<div class="soc-info"><b>${esc(t.with.name)}</b><small>${t.mine ? _t('Bạn: ') : ''}${esc(t.last)}</small></div><div class="soc-act"><button type="button" class="btn-sm${t.unread ? '' : ' ghost'}" data-soc="dm" data-who="${esc(t.with.pid)}">${t.unread ? _t`Mới (${t.unread})` : _t('Mở')}</button></div></li>`).join('')}</ul>`;
   }
   async function openDm(pid) {
     const p = D.friends.find(x => x.pid === pid) || D.dm.threads.find(t => t.with.pid === pid)?.with; if (!p) return;
@@ -163,7 +175,7 @@ export function initSocial({ ctx, S, store, esc, head, open, closeAll, thumb, fi
   function renderGift() {
     const el = $('gift'); if (!el || !gift) return;
     const rows = giftables(), n = giftTotal();
-    el.innerHTML = head(_t`Tặng quà cho ${esc(gift.name)}`, _t`Chọn tối đa ${SOCIAL.giftMaxItems} phần · đã chọn ${n}`) + _t`<div class="hs-body">${rows.length ? _t`<ul class="soc-list">${rows.map(r => {
+    el.innerHTML = head(_t`Tặng quà cho ${esc(gift.name)}`, _t`Chọn tối đa ${SOCIAL.giftMaxItems} phần · đã chọn ${n}`) + _t`<div class="hs-body">${rows.length ? `<ul class="soc-list">${rows.map(r => {
       const q = gift.sel[r.id] || 0;
       return _t`<li class="soc-row"><div class="soc-info"><b>${esc(r.name)}</b><small>Bạn có ${r.have}</small></div><div class="soc-act soc-step"><button type="button" class="btn-sm ghost" data-gift="-" data-id="${r.id}" ${q ? '' : 'disabled'} aria-label="Bớt">−</button><b aria-live="polite">${q}</b><button type="button" class="btn-sm" data-gift="+" data-id="${r.id}" ${q < r.have && n < SOCIAL.giftMaxItems ? '' : 'disabled'} aria-label="Thêm">+</button></div></li>`;
     }).join('')}</ul>` : _t('<p class="hs-note">Bạn chưa có món nào tặng được. Mua ở cửa hàng hoặc thu hoạch ở vườn nhé.</p>')}
@@ -181,7 +193,7 @@ export function initSocial({ ctx, S, store, esc, head, open, closeAll, thumb, fi
   function renderVisit() {
     const v = visit, el = $('visit'); if (!v || !el) return;
     const p = v.profile, items = v.room?.items || [], left = Math.max(0, SOCIAL.rewardedPerDay - v.today.rewarded);
-    const plots = v.plots.length ? _t`<ul class="soc-list">${v.plots.map(x => _t`<li class="soc-row"><div class="soc-info"><b>${esc(nameOf(x.crop))}</b><small>Ô ${x.plot + 1} · ${x.ready ? _t('đã chín') : _t`tưới ${x.waters}/3 lần`}</small></div><div class="soc-act">${x.ready ? '' : _t`<button type="button" class="btn-sm" data-visit="water" data-plot="${x.plot}" ${x.can_help ? '' : 'disabled'}>${x.can_help ? _t('Tưới giúp') : _t('Đã tưới')}</button>`}</div></li>`).join('')}</ul>` : _t('<p class="hs-note">Vườn của bạn này chưa trồng gì.</p>');
+    const plots = v.plots.length ? `<ul class="soc-list">${v.plots.map(x => _t`<li class="soc-row"><div class="soc-info"><b>${esc(nameOf(x.crop))}</b><small>Ô ${x.plot + 1} · ${x.ready ? _t('đã chín') : _t`tưới ${x.waters}/3 lần`}</small></div><div class="soc-act">${x.ready ? '' : `<button type="button" class="btn-sm" data-visit="water" data-plot="${x.plot}" ${x.can_help ? '' : 'disabled'}>${x.can_help ? _t('Tưới giúp') : _t('Đã tưới')}</button>`}</div></li>`).join('')}</ul>` : _t('<p class="hs-note">Vườn của bạn này chưa trồng gì.</p>');
     el.innerHTML = head(_t`Nhà của ${esc(p.name)}`, _t`${esc(speciesOf(p))} · Gắn bó ${p.bond_level} · còn ${left} lần có thưởng hôm nay`) + _t`<div class="hs-body">
       <section class="soc-card">${petImg(p, 72)}<div class="soc-info"><b>${esc(p.name)}</b><small>${esc(p.family || '')}</small></div><button type="button" class="btn-sm" data-visit="stroke" ${v.today.stroked ? 'disabled' : ''}>${v.today.stroked ? _t('Đã vuốt ve') : _t('Vuốt ve')}</button></section>
       <h3 class="soc-h">Phòng</h3><p class="hs-note">${v.room ? _t`${items.length} món đồ · giấy dán tường ${esc(nameOf(v.room.wallpaper))} · sàn ${esc(nameOf(v.room.flooring))}${items.length ? ': ' + [...new Set(items.map(i => nameOf(i.id)))].map(esc).join(', ') : ''}` : _t('Chưa có bố cục.')}</p>
@@ -243,7 +255,7 @@ export function initSocial({ ctx, S, store, esc, head, open, closeAll, thumb, fi
     if (k === 'delnote') { await run(b, () => api.deleteGuestNote(+b.dataset.id)); await loadAll(); return; }
     if (k === 'gift') { openGift(who); return; }
     if (k === 'back') { gift = null; openSocial('friends'); return; }
-    if (k === 'claim') { const r = await run(b, () => api.claimMail(+b.dataset.id), r => _t`Đã nhận${r.coins ? ` ${r.coins} xu` : ''}${r.items?.length ? ' ' + itemsText(r.items) : ''}.`); if (r) { sfx('coin'); ctx.buzz?.(10); await syncCoins(); } await loadAll(); return; }
+    if (k === 'claim') { const r = await run(b, () => api.claimMail(+b.dataset.id), r => _t`Đã nhận${r.coins ? _t` ${r.coins} xu` : ''}${r.items?.length ? ' ' + itemsText(r.items) : ''}.`); if (r) { sfx('coin'); ctx.buzz?.(10); await syncCoins(); } await loadAll(); return; }
     if (k === 'claimall') { const r = await run(b, () => api.claimAllMail(), r => _t`Đã nhận ${r.claimed} thư${r.skipped ? _t`, ${r.skipped} thư chưa nhận được (kho đầy?)` : ''}.`); if (r) { sfx('coin'); await syncCoins(); } await loadAll(); return; }
     if (k === 'delmail') { await run(b, () => api.deleteMail(+b.dataset.id)); await loadAll(); return; }
   });

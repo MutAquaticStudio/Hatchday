@@ -20,3 +20,4 @@
 .ts-actions .btn{min-height:52px;font-size:18px}
 .ts-foot{display:flex;justify-content:space-between;padding:10px 18px;font-size:13px;font-weight:800;color:var(--ink-soft);position:relative;z-index:1}
 @media (prefers-reduced-motion:reduce){.ts-sky i,.ts-spark{animation:none}}
+.ts-lang button{border:0;background:none;font:inherit;color:var(--ink-soft);padding:6px 4px;min-height:32px;cursor:pointer}.ts-lang button[aria-pressed="true"]{color:var(--ink);text-decoration:underline;text-underline-offset:3px}

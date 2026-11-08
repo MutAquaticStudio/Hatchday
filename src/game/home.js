@@ -1,5 +1,5 @@
 // Nhà của bé: bố cục phòng, chế độ trang trí, cửa hàng, tủ đồ, nhiệm vụ ngày (theo GDD).
-import { _t } from '../i18n';
+import { _t, LOCALE } from '../i18n';
 import { SELL, sellPrice, BY_ID, DEFAULT_LAYOUT, FOOD_BY_ID, FOOD_GROUPS, FOOD_STOCK, FOODS, FRIDGE, GRID, ITEMS, PET_ZONE, RARITY, RECIPES, SET_LINES, SLOTS, TAGS, THEMES, WINDOW_CELLS } from './catalog';
 import { BALANCED_BONUS, BALANCED_GROUPS, tastesLine } from './nutrition';
 import { FOOD_SVG } from './food.js';
@@ -111,7 +111,7 @@ export function initHome(ctx) {
 
   /* ===================== Thanh trên: xu ===================== */
   const coinBtn = $('btn-coins');
-  const renderCoins = () => { $('coin-n').textContent = S.coins.toLocaleString('vi-VN'); };
+  const renderCoins = () => { $('coin-n').textContent = S.coins.toLocaleString(LOCALE); };
   coinBtn?.addEventListener('click', () => openShop('market'));
 
   /* ===================== Bảng (sheet) dùng chung ===================== */
@@ -133,7 +133,7 @@ export function initHome(ctx) {
   const questReady = () => S.quests.some(q => !q.claimed && q.progress >= q.target) || (S.questBonus.ready && !S.questBonus.claimed) || S.weekly.some(q => !q.claimed && q.progress >= q.target) || worldReady() || f2p.seasonReady() || f2p.stickerReady();
   function openHouse() {
     const el = open('house');
-    el.innerHTML = head(_t('Nhà của bé'), _t`Thoải mái cấp ${S.comfort} · ${S.coins.toLocaleString('vi-VN')} xu`) + _t`<div class="tiles">
+    el.innerHTML = head(_t('Nhà của bé'), _t`Thoải mái cấp ${S.comfort} · ${S.coins.toLocaleString(LOCALE)} xu`) + _t`<div class="tiles">
       <button type="button" class="tile${S.illness ? ' ready' : ''}" data-go="map"><b>Bản đồ</b><span>Chợ, bệnh viện, tiệm may, thư viện…</span></button>
       <button type="button" class="tile${social.badge() ? ' ready' : ''}" data-go="social"><b>Bạn bè &amp; thư</b><span>${esc(social.tileText())}</span></button>
       <button type="button" class="tile${SPACES.some(p => bondLevel(S.bondXp) >= p.unlock) ? ' ready' : ''}" data-go="spaces"><b>Không gian của bé</b><span>${SPACES.filter(p => bondLevel(S.bondXp) >= p.unlock).length}/${SPACES.length} nơi đã mở</span></button>
@@ -211,7 +211,7 @@ export function initHome(ctx) {
   const clinicOpen = new Set();
   function openClinic(section) { open('clinic'); renderClinic(); if (section) setTimeout(() => $('cl-' + section)?.scrollIntoView({ block: 'start' }), 60); store.refreshHealth().then(() => { if (!$('clinic').hidden) renderClinic(); }).catch(() => {}); }
   function renderClinic(el = $('clinic')) {
-    el.innerHTML = head(_t('Sức khoẻ'), _t`${esc(S.name)} · ${S.illness ? _t('đang ốm') : _t('khoẻ mạnh')} · ${S.coins.toLocaleString('vi-VN')} xu`) + clinicBody(S, store.healthNow(), Date.now(), COIN_SVG);
+    el.innerHTML = head(_t('Sức khoẻ'), _t`${esc(S.name)} · ${S.illness ? _t('đang ốm') : _t('khoẻ mạnh')} · ${S.coins.toLocaleString(LOCALE)} xu`) + clinicBody(S, store.healthNow(), Date.now(), COIN_SVG);
     el.querySelectorAll('details').forEach((d, i) => { d.open = clinicOpen.has(i); d.addEventListener('toggle', () => { d.open ? clinicOpen.add(i) : clinicOpen.delete(i); }); });
   }
   app.addEventListener('click', async e => {
@@ -237,7 +237,7 @@ export function initHome(ctx) {
   /* ---------- Không gian của bé: mở theo cấp Gắn bó ---------- */
   function openSpaces() {
     const el = open('spaces'), lvl = bondLevel(S.bondXp);
-    el.innerHTML = head(_t('Không gian của bé'), _t('Mở thêm khi tăng cấp Gắn bó')) + _t`<div class="hs-body"><ul class="soc-list">${SPACES.map(p => _t`<li class="soc-row"><div class="soc-info"><b>${esc(p.name)}</b><small>${esc(p.blurb)}</small></div><div class="soc-act">${lvl >= p.unlock ? _t`<button type="button" class="btn-sm" data-space="${p.id}">Đi tới</button>` : _t`<span class="pill-ok" style="background:#eee;color:#666">Gắn bó cấp ${p.unlock}</span>`}</div></li>`).join('')}</ul></div>`;
+    el.innerHTML = head(_t('Không gian của bé'), _t('Mở thêm khi tăng cấp Gắn bó')) + `<div class="hs-body"><ul class="soc-list">${SPACES.map(p => `<li class="soc-row"><div class="soc-info"><b>${esc(p.name)}</b><small>${esc(p.blurb)}</small></div><div class="soc-act">${lvl >= p.unlock ? _t`<button type="button" class="btn-sm" data-space="${p.id}">Đi tới</button>` : _t`<span class="pill-ok" style="background:#eee;color:#666">Gắn bó cấp ${p.unlock}</span>`}</div></li>`).join('')}</ul></div>`;
   }
   app.addEventListener('click', e => { const b = e.target.closest('[data-space]'); if (b) { closeAll(); ctx.goTo(b.dataset.space); } });
 
@@ -245,7 +245,7 @@ export function initHome(ctx) {
   function openSell() { open('sell'); renderSell(); store.refreshSell().then(() => { if (!$('sell').hidden) renderSell(); }).catch(() => {}); }
   function renderSell(el = $('sell')) {
     const left = Math.max(0, SELL.dailyCap - S.soldToday), have = FOODS.filter(f => (S.owned[f.id] || 0) > 0);
-    el.innerHTML = head(_t('Thu mua nông sản'), _t`Hôm nay đã bán ${S.soldToday}/${SELL.dailyCap} xu · còn ${left} xu`) + _t`<div class="hs-body">${have.length ? _t`<ul class="sell-list">${have.map(f => {
+    el.innerHTML = head(_t('Thu mua nông sản'), _t`Hôm nay đã bán ${S.soldToday}/${SELL.dailyCap} xu · còn ${left} xu`) + _t`<div class="hs-body">${have.length ? `<ul class="sell-list">${have.map(f => {
       const n = S.owned[f.id], unit = sellPrice(f.price), maxN = Math.min(n, SELL.maxQty, Math.floor(left / Math.max(unit, 1)));
       return _t`<li><span class="food-ic">${FOOD_SVG[f.id]}</span><div><b>${esc(f.name)}</b><small>Có ${n} · ${unit} xu/phần</small></div><div class="sell-act"><button type="button" class="btn-sm" data-sell="${f.id}" data-qty="1" ${maxN >= 1 ? '' : 'disabled'}>Bán 1</button><button type="button" class="btn-sm ghost" data-sell="${f.id}" data-qty="${Math.max(maxN, 1)}" ${maxN >= 2 ? '' : 'disabled'}>Bán ${maxN >= 2 ? maxN : _t('hết')} · ${unit * Math.max(maxN, 0)}</button></div></li>`;
     }).join('')}</ul>` : _t('<p class="hs-note">Bé chưa có món nào để bán. Trồng rau ở vườn rồi mang ra chợ nhé.</p>')}<p class="hs-note">Chợ thu mua bằng ${Math.round(SELL.ratio * 100)}% giá mua, tối đa ${SELL.dailyCap} xu mỗi ngày. Không thu mua món nấu.</p></div>`;
@@ -289,7 +289,7 @@ export function initHome(ctx) {
     store.refreshFamily().then(() => { if (!$('family').hidden) renderFamily(); }).catch(() => {});
   }
   const famThumb = p => `pet:${p.species}:${p.stage === 'departed' ? 'elder' : p.stage}:${p.form || ''}:`;
-  const dateVi = iso => new Date(iso).toLocaleDateString('vi-VN');
+  const dateVi = iso => new Date(iso).toLocaleDateString(LOCALE);
   function renderFamily(el = $('family')) {
     const list = S.lineage.length ? S.lineage : [];
     const p = list.find(x => x.id === famSel);
@@ -338,14 +338,14 @@ export function initHome(ctx) {
     const look = sp => { const cur = sp.id === S.species; const f = cur ? S.form : seen.get(sp.id)?.forms[0]; return `pet:${sp.id}:${cur ? S.stage : 'adult'}:${f || 'thuong'}`; };
     const keepTop = scrollTopOf(el);
     el.innerHTML = head(_t('Sổ loài'), _t`Đã gặp ${seen.size}/${SPECIES.length} loài · Huyền thoại ${leg}/5`) +
-      (sel ? _t`<div class="dex-detail">${selSeen ? `<img data-thumb="${look(sel)}" alt="" width="96" height="96">` : '<div class="dex-q">?</div>'}
+      (sel ? `<div class="dex-detail">${selSeen ? `<img data-thumb="${look(sel)}" alt="" width="96" height="96">` : '<div class="dex-q">?</div>'}
         <div><b>${selSeen ? esc(sel.name) : '???'}</b> <span class="rar" style="--rc:${RARITIES[sel.rarity].color}">${RARITIES[sel.rarity].name}</span>
         <p>${REGIONS[sel.region].name}${selSeen ? ' · ' + esc(sel.blurb) : _t(' · Chưa gặp. Ấp ') + REGIONS[sel.region].egg.toLowerCase() + _t(' để có cơ hội gặp.')}</p>
         </div></div>${selSeen ? _t`<div class="evo-line" aria-label="Các giai đoạn tiến hoá">
           ${['baby', 'child', 'teen'].map(st => `<figure><img data-thumb="pet:${sel.id}:${st}:" alt="" width="72" height="72"><figcaption>${STAGES[st].name}</figcaption></figure>`).join('<span class="evo-arrow">›</span>')}
           <span class="evo-arrow">›</span><div class="evo-forms">${Object.entries(FORMS).map(([k, f]) => { const got = selSeen.forms.includes(k); return `<figure class="${got ? '' : 'unknown'}"><img data-thumb="pet:${sel.id}:adult:${k}" alt="" width="64" height="64"><figcaption>${got ? f.name : '?'}</figcaption></figure>`; }).join('')}</div></div>
           <p class="evo-note">Trưởng thành có 4 dáng, tuỳ cách bạn chăm: ${Object.values(FORMS).map(f => `<b>${f.name}</b> (${f.hint})`).join(', ')}.</p>` : ''}` : '') +
-      _t`<div class="tabs-row" role="tablist">${[[-1, _t('Tất cả')], ...REGIONS.map((r, i) => [i, r.name])].map(([i, n]) => `<button type="button" class="pill${dexRegion === i ? ' on' : ''}" data-dexr="${i}" role="tab" aria-selected="${dexRegion === i}">${n}</button>`).join('')}</div>
+      `<div class="tabs-row" role="tablist">${[[-1, _t('Tất cả')], ...REGIONS.map((r, i) => [i, r.name])].map(([i, n]) => `<button type="button" class="pill${dexRegion === i ? ' on' : ''}" data-dexr="${i}" role="tab" aria-selected="${dexRegion === i}">${n}</button>`).join('')}</div>
       <div class="grid-items dex-grid">${list.map(sp => { const ok = seen.has(sp.id); return `<button type="button" class="card-item dex-card r-${sp.rarity}${ok ? '' : ' unknown'}${dexSel === sp.id ? ' on' : ''}" data-dex="${sp.id}">
         <img data-thumb="${look(sp)}" alt="" width="72" height="72"><div class="ci-name">${ok ? esc(sp.name) : '???'}</div><span class="rar" style="--rc:${RARITIES[sp.rarity].color}">${RARITIES[sp.rarity].name}</span></button>`; }).join('')}</div>`;
     scrollWrap(el, keepTop); fillThumbs(el);
@@ -400,17 +400,17 @@ export function initHome(ctx) {
       const closed = shopTab === 'weekend' && !S.weekend;
       body = (closed ? _t('<p class="hs-note">Chợ cuối tuần mở vào Thứ Bảy và Chủ nhật. Đây là những món sẽ bày bán:</p>') : shopTab === 'rotating' ? _t('<p class="hs-note">Mỗi ngày tiệm bày 6 món khác nhau.</p>') : '') +
         `<div class="kinds">${Object.entries(KIND_FILTER).map(([k, l]) => `<button type="button" class="chip" data-kind="${k}" aria-pressed="${k === shopKind}">${l}</button>`).join('')}</div>` +
-        _t`<div class="grid-items">${list.map(it => {
+        `<div class="grid-items">${list.map(it => {
           const owned = S.owned[it.id] || 0, single = it.kind === 'outfit' || it.layer === 'wallpaper' || it.layer === 'flooring';
           const can = !closed && buyable(it, store.today());
           const badge = liked(it) ? _t('<span class="badge-like">Bé chỉ vào món này</span>') : '';
           const action = single && owned ? _t('<span class="pill-ok">Đã có</span>')
-            : _t`<button type="button" class="btn-sm buy" data-buy="${it.id}" ${can && S.coins >= priceOf(it.kind === 'outfit' ? 'outfit' : 'decor', it.price) ? '' : 'disabled'}>${confirmId === it.id ? _t('Bấm lần nữa để mua') : `${COIN_SVG}${priceOf(it.kind === 'outfit' ? 'outfit' : 'decor', it.price)}`}</button>`;
+            : `<button type="button" class="btn-sm buy" data-buy="${it.id}" ${can && S.coins >= priceOf(it.kind === 'outfit' ? 'outfit' : 'decor', it.price) ? '' : 'disabled'}>${confirmId === it.id ? _t('Bấm lần nữa để mua') : `${COIN_SVG}${priceOf(it.kind === 'outfit' ? 'outfit' : 'decor', it.price)}`}</button>`;
           const preview = it.kind === 'decor' && ['floor', 'rug', 'wall'].includes(it.layer) && can ? _t`<button type="button" class="btn-link" data-try="${it.id}">Xem thử</button>` : '';
-          return card(it, _t`${badge}<div class="ci-meta">${RARITY[it.rarity]}${it.theme ? ' · ' + THEMES[it.theme] : ''}${!single && owned ? _t` · có ${owned}` : ''}</div><div class="ci-act">${action}${preview}</div>`);
+          return card(it, `${badge}<div class="ci-meta">${RARITY[it.rarity]}${it.theme ? ' · ' + THEMES[it.theme] : ''}${!single && owned ? _t` · có ${owned}` : ''}</div><div class="ci-act">${action}${preview}</div>`);
         }).join('') || _t('<p class="hs-note">Không có món nào trong mục này.</p>')}</div>`;
     }
-    el.innerHTML = head(_t('Cửa hàng'), _t`${COIN_SVG}<b class="coin-inline">${S.coins.toLocaleString('vi-VN')}</b> xu · hôm nay đã kiếm ${S.earnedToday}/${S.careCap || 50} xu chăm sóc`) +
+    el.innerHTML = head(_t('Cửa hàng'), _t`${COIN_SVG}<b class="coin-inline">${S.coins.toLocaleString(LOCALE)}</b> xu · hôm nay đã kiếm ${S.earnedToday}/${S.careCap || 50} xu chăm sóc`) +
       `<nav class="tabs-row" role="tablist">${Object.entries(tabs).map(([k, l]) => `<button type="button" role="tab" class="tab" data-shop-tab="${k}" aria-selected="${k === shopTab}">${l}</button>`).join('')}</nav><div class="hs-body">${body}</div>`;
     fillThumbs(el);
   }
@@ -424,7 +424,7 @@ export function initHome(ctx) {
       confirmId = ''; b.disabled = true;
       const err = await store.buy(id);
       if (err) { ctx.toast(viError(err)); renderShop(); return; }
-      const it = BY_ID[id]; sfx('buy'); ctx.buzz(12); ctx.toast(_t`Đã mua ${it.name}.`); ctx.popText('-' + priceOf(it.kind === 'outfit' ? 'outfit' : 'decor', it.price) + ' xu', '#a8742e'); reactTo(it, it.kind);
+      const it = BY_ID[id]; sfx('buy'); ctx.buzz(12); ctx.toast(_t`Đã mua ${it.name}.`); ctx.popText('-' + priceOf(it.kind === 'outfit' ? 'outfit' : 'decor', it.price) + _t(' xu'), '#a8742e'); reactTo(it, it.kind);
       renderShop();
       if (pendingPreview === id) { pendingPreview = ''; }
       return;
@@ -433,7 +433,7 @@ export function initHome(ctx) {
     if (bf) {
       const f = FOOD_BY_ID[bf.dataset.buyfood], n = +bf.dataset.qty; bf.disabled = true;
       const err = await store.buyFood(f.id, n);
-      if (err) ctx.toast(viError(err)); else { sfx('buy'); ctx.buzz(10); ctx.toast(_t`Đã mua ${n} ${f.name}.`); ctx.popText('-' + priceOf('food', f.price) * n + ' xu', '#a8742e'); }
+      if (err) ctx.toast(viError(err)); else { sfx('buy'); ctx.buzz(10); ctx.toast(_t`Đã mua ${n} ${f.name}.`); ctx.popText('-' + priceOf('food', f.price) * n + _t(' xu'), '#a8742e'); }
       renderShop(); return;
     }
     const fr = e.target.closest('[data-fridge]');
@@ -450,7 +450,7 @@ export function initHome(ctx) {
     }
     const tr = e.target.closest('[data-try]'); if (tr) { closeAll(); enterEdit(tr.dataset.try); return; }
     const cc = e.target.closest('[data-claim-col]');
-    if (cc) { cc.disabled = true; const err = await store.claimCollection(cc.dataset.claimCol); if (err) ctx.toast(viError(err)); else { sfx('coin'); ctx.popText('+150 xu', '#a8742e'); ctx.startAction('dance'); ctx.toast(_t('Hoàn thành một trang sổ sưu tập!')); } renderShop(); }
+    if (cc) { cc.disabled = true; const err = await store.claimCollection(cc.dataset.claimCol); if (err) ctx.toast(viError(err)); else { sfx('coin'); ctx.popText(_t('+150 xu'), '#a8742e'); ctx.startAction('dance'); ctx.toast(_t('Hoàn thành một trang sổ sưu tập!')); } renderShop(); }
   });
 
   /* ---------- Tủ đồ ---------- */
@@ -464,7 +464,7 @@ export function initHome(ctx) {
       <div class="hs-body"><div class="grid-items">
         <article class="card-item none ${cur ? '' : 'on'}"><div class="none-ic" aria-hidden="true">∅</div><div class="ci-name">Không đeo</div><div class="ci-act"><button type="button" class="btn-sm ghost" data-wear="" ${cur ? '' : 'disabled'}>Bỏ ra</button></div></article>
         ${items.map(it => { const own = !!S.owned[it.id];
-          return card(it, _t`<div class="ci-meta">${own ? RARITY[it.rarity] : buyable(it, store.today()) ? _t`Có bán · ${priceOf(it.kind === 'outfit' ? 'outfit' : 'decor', it.price)} xu` : _t('Chưa bán hôm nay')}</div><div class="ci-act">${own ? _t`<button type="button" class="btn-sm ${cur === it.id ? 'on' : ''}" data-wear="${it.id}">${cur === it.id ? _t('Đang mặc') : _t('Mặc')}</button>` : _t`<button type="button" class="btn-link" data-shop-for="${it.id}">Đến cửa hàng</button>`}</div>`).replace('card-item', `card-item ${own ? '' : 'locked'} ${cur === it.id ? 'on' : ''}`); }).join('')}
+          return card(it, `<div class="ci-meta">${own ? RARITY[it.rarity] : buyable(it, store.today()) ? _t`Có bán · ${priceOf(it.kind === 'outfit' ? 'outfit' : 'decor', it.price)} xu` : _t('Chưa bán hôm nay')}</div><div class="ci-act">${own ? `<button type="button" class="btn-sm ${cur === it.id ? 'on' : ''}" data-wear="${it.id}">${cur === it.id ? _t('Đang mặc') : _t('Mặc')}</button>` : _t`<button type="button" class="btn-link" data-shop-for="${it.id}">Đến cửa hàng</button>`}</div>`).replace('card-item', `card-item ${own ? '' : 'locked'} ${cur === it.id ? 'on' : ''}`); }).join('')}
       </div>
       <h3 class="hs-sub">Bộ phối</h3><div class="presets">${S.presets.map((p, i) => _t`<div class="preset"><b>Bộ ${i + 1}</b><span>${Object.values(p || {}).map(id => BY_ID[id]?.name).filter(Boolean).join(', ') || _t('Trống')}</span><div><button type="button" class="btn-sm ghost" data-preset-wear="${i}" ${Object.keys(p || {}).length ? '' : 'disabled'}>Mặc</button><button type="button" class="btn-sm ghost" data-preset-save="${i}">Lưu bộ đang mặc</button></div></div>`).join('')}</div></div>`;
     fillThumbs(el);
@@ -486,7 +486,7 @@ export function initHome(ctx) {
   function openQuests() { open('quests'); renderQuests(); refreshProgress().then(() => { if (!$('quests').hidden) renderQuests(); }).catch(() => {}); store.refreshQuests().then(() => { if (!$('quests').hidden) renderQuests(); }); store.refreshWorld().then(() => { if (!$('quests').hidden) renderQuests(); }).catch(() => {}); }
   const questRow = (q, def, attr) => {
     const done = q.progress >= q.target;
-    return _t`<li><div><b>${def.label}</b><div class="bar-track"><i style="width:${Math.min(100, q.progress / q.target * 100)}%"></i></div><span>${Math.min(q.progress, q.target)}/${q.target}</span></div>
+    return `<li><div><b>${def.label}</b><div class="bar-track"><i style="width:${Math.min(100, q.progress / q.target * 100)}%"></i></div><span>${Math.min(q.progress, q.target)}/${q.target}</span></div>
       ${q.claimed ? _t('<span class="pill-ok">Đã nhận</span>') : `<button type="button" class="btn-sm" ${attr}="${q.idx}" ${done ? '' : 'disabled'}>${COIN_SVG}+${q.reward}</button>`}</li>`;
   };
   function weekDaysLeft() { const [y, m, d] = store.today().split('-').map(Number), dow = new Date(y, m - 1, d).getDay(); return 7 - ((dow + 6) % 7); }
@@ -499,8 +499,8 @@ export function initHome(ctx) {
     const tabs = [['daily', _t('Nhiệm vụ'), dotDaily], ['explore', _t('Khám phá'), exploreReady()], ['badges', _t('Huy hiệu'), badgeReady()], ['season', _t('Sổ mùa'), f2p.seasonReady()], ['stickers', 'Sticker', f2p.stickerReady()]];
     const nav = `<nav class="tabs-row" role="tablist">${tabs.map(([k, l, dot]) => `<button type="button" role="tab" class="tab${dot ? ' dot' : ''}" data-quest-tab="${k}" aria-selected="${k === questTab}">${l}</button>`).join('')}</nav>`;
     const sub = questTab === 'explore' ? _t('chơi nhiều hoạt động khác nhau để nhận xu') : questTab === 'badges' ? _t('sưu tầm huy hiệu bằng cách chơi cùng bé') : questTab === 'season' ? _t('miễn phí, đổi mới mỗi tháng') : questTab === 'stickers' ? _t('sưu tầm sticker từ mọi hoạt động') : _t('chăm sóc hằng ngày cho thêm tối đa 50 xu');
-    if (questTab !== 'daily') { el.innerHTML = head(_t('Nhiệm vụ'), `${COIN_SVG}<b class="coin-inline">${S.coins.toLocaleString('vi-VN')}</b> xu · ${sub}`) + nav + `<div class="hs-body">${questTab === 'explore' ? exploreHtml() : questTab === 'season' ? f2p.seasonHtml() : questTab === 'stickers' ? f2p.stickersHtml() : badgesHtml()}</div>`; return; }
-    el.innerHTML = head(_t('Nhiệm vụ'), `${COIN_SVG}<b class="coin-inline">${S.coins.toLocaleString('vi-VN')}</b> xu · ${sub}`) + nav + _t`<div class="hs-body">${boost > 1 ? _t`<p class="hs-note">🎉 Sự kiện: thưởng nhiệm vụ nhân ${String(boost).replace('.', ',')} lần!</p>` : ''}
+    if (questTab !== 'daily') { el.innerHTML = head(_t('Nhiệm vụ'), _t`${COIN_SVG}<b class="coin-inline">${S.coins.toLocaleString(LOCALE)}</b> xu · ${sub}`) + nav + `<div class="hs-body">${questTab === 'explore' ? exploreHtml() : questTab === 'season' ? f2p.seasonHtml() : questTab === 'stickers' ? f2p.stickersHtml() : badgesHtml()}</div>`; return; }
+    el.innerHTML = head(_t('Nhiệm vụ'), _t`${COIN_SVG}<b class="coin-inline">${S.coins.toLocaleString(LOCALE)}</b> xu · ${sub}`) + nav + _t`<div class="hs-body">${boost > 1 ? _t`<p class="hs-note">🎉 Sự kiện: thưởng nhiệm vụ nhân ${String(boost).replace('.', ',')} lần!</p>` : ''}
       <h3 class="qh">Hôm nay <small>${n}/${S.quests.length} đã nhận</small></h3>
       <ul class="quests">${S.quests.map(q => questRow(q, QUEST_POOL[q.quest], 'data-quest')).join('')}</ul>
       <div class="quest-bonus${b.ready && !b.claimed ? ' ready' : ''}"><div><b>Thưởng cả ngày</b><span>Nhận đủ ${S.quests.length} nhiệm vụ hôm nay</span></div>
@@ -525,7 +525,7 @@ export function initHome(ctx) {
     const got = w.badges.filter(b => b.claimed).length;
     return _t`<h3 class="qh">Huy hiệu <small>${got}/${w.badges.length} đã nhận</small></h3>
       <ul class="badges">${w.badges.map(b => { const d = BADGE_BY_ID[b.id], done = b.progress >= b.target || b.claimed, prog = b.claimed ? b.target : b.progress;
-        return _t`<li class="badge${b.claimed ? ' got' : done ? ' ready' : ''}"><span class="b-ico" aria-hidden="true">${BADGE_ICONS[b.id] || d.icon}</span><b>${d.name}</b><span class="b-desc">${d.desc}</span>
+        return `<li class="badge${b.claimed ? ' got' : done ? ' ready' : ''}"><span class="b-ico" aria-hidden="true">${BADGE_ICONS[b.id] || d.icon}</span><b>${d.name}</b><span class="b-desc">${d.desc}</span>
           <div class="bar-track"><i style="width:${Math.min(100, prog / b.target * 100)}%"></i></div><span class="b-num">${prog}/${b.target}</span>
           ${b.claimed ? _t('<span class="pill-ok">Đã nhận</span>') : `<button type="button" class="btn-sm" data-badge="${b.id}" ${done ? '' : 'disabled'}>${COIN_SVG}+${b.reward}</button>`}</li>`; }).join('')}</ul>`;
   }
@@ -535,13 +535,13 @@ export function initHome(ctx) {
     if (wb) {
       wb.disabled = true;
       const res = 'explore' in wb.dataset ? await store.claimExplore(+wb.dataset.explore) : await store.claimBadge(wb.dataset.badge);
-      if ('error' in res) ctx.toast(viError(res.error)); else { sfx('coin'); ctx.popText(`+${res.reward} xu`, '#a8742e'); ctx.buzz(12); ctx.spawn('sparkle', 3); }
+      if ('error' in res) ctx.toast(viError(res.error)); else { sfx('coin'); ctx.popText(_t`+${res.reward} xu`, '#a8742e'); ctx.buzz(12); ctx.spawn('sparkle', 3); }
       renderQuests(); return;
     }
     const b = e.target.closest('[data-quest], [data-quest-bonus], [data-weekly]'); if (!b) return;
     b.disabled = true;
     const res = 'quest' in b.dataset ? await store.claimQuest(+b.dataset.quest) : 'weekly' in b.dataset ? await store.claimWeeklyQuest(+b.dataset.weekly) : await store.claimQuestBonus();
-    if ('error' in res) ctx.toast(viError(res.error)); else { sfx('coin'); ctx.popText(`+${res.reward} xu`, '#a8742e'); ctx.buzz(12); ctx.startAction('hop'); }
+    if ('error' in res) ctx.toast(viError(res.error)); else { sfx('coin'); ctx.popText(_t`+${res.reward} xu`, '#a8742e'); ctx.buzz(12); ctx.startAction('hop'); }
     renderQuests();
   });
 
@@ -614,7 +614,7 @@ export function initHome(ctx) {
     bar.hidden = false; $('e-itemname').textContent = it.name;
     bar.style.bottom = `calc(env(safe-area-inset-bottom, 0px) + ${ui.querySelector('.inventory').offsetHeight + 24}px)`;
     $('e-rotate').hidden = it.layer === 'wall';
-    $('e-buy').hidden = !unpaid; $('e-buy').innerHTML = `Mua · ${priceOf(it.kind === 'outfit' ? 'outfit' : 'decor', it.price || 0)} xu`; $('e-buy').disabled = S.coins < priceOf(it.kind === 'outfit' ? 'outfit' : 'decor', it.price || 0);
+    $('e-buy').hidden = !unpaid; $('e-buy').innerHTML = _t`Mua · ${priceOf(it.kind === 'outfit' ? 'outfit' : 'decor', it.price || 0)} xu`; $('e-buy').disabled = S.coins < priceOf(it.kind === 'outfit' ? 'outfit' : 'decor', it.price || 0);
   }
   function enterEdit(previewId) {
     if (ctx.getArea() !== 'home') { ctx.goTo('home'); setTimeout(() => enterEdit(previewId), 1100); return; }
@@ -754,7 +754,7 @@ export function initHome(ctx) {
       case 'e-buy': {
         const p = work.items[sel]; if (!p) break;
         const err = await store.buy(p.id);
-        if (err) ctx.toast(viError(err)); else { sfx('buy'); ctx.toast(_t`Đã mua ${BY_ID[p.id].name}.`); ctx.popText('-' + priceOf(BY_ID[p.id].kind === 'outfit' ? 'outfit' : 'decor', BY_ID[p.id].price) + ' xu', '#a8742e'); reactTo(BY_ID[p.id], 'decor'); pendingPreview = ''; }
+        if (err) ctx.toast(viError(err)); else { sfx('buy'); ctx.toast(_t`Đã mua ${BY_ID[p.id].name}.`); ctx.popText('-' + priceOf(BY_ID[p.id].kind === 'outfit' ? 'outfit' : 'decor', BY_ID[p.id].price) + _t(' xu'), '#a8742e'); reactTo(BY_ID[p.id], 'decor'); pendingPreview = ''; }
         refreshEdit(); break;
       }
     }

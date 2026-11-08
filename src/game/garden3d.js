@@ -1,7 +1,7 @@
 // Vườn rau 3D trong cảnh Vườn: 4 luống đất, cây lớn dần theo giờ thật, chạm vào luống để gieo hạt, tưới nước, hái rau.
 // Mỗi thao tác có hoạt ảnh: hạt bay vào đất và nảy mầm, bình tưới nghiêng rót nước, rau bay vào giỏ.
 // Dữ liệu thật (cây nào, chín lúc nào, số lần tưới) nằm ở server (get_garden, plant_crop, water_crop, harvest_crop); file này chỉ vẽ và gọi.
-import { _t } from '../i18n';
+import { _t, LOCALE } from '../i18n';
 import { BY_ID, CROPS, FOOD_BY_ID, GARDEN_LAND, ITEMS, PARCEL, plotIndex, WATER } from './catalog';
 import { FOOD_SVG } from './food.js';
 import { viError } from '../lib/errors';
@@ -446,7 +446,7 @@ export function initGarden3d(c) {
   function renderBar() {
     const ps = parcelsNow(), last = ps[ps.length - 1], canBuy = ps.length < PARCEL.max, full = last.level >= GARDEN_LAND.length - 1;
     bar.innerHTML = ps.map(p => _t`<button type="button" class="chip" data-parcel="${p.parcel}" aria-pressed="${p.parcel === parcel}">Mảnh ${p.parcel + 1} · ${p.size} ô</button>`).join('') +
-      (canBuy ? _t`<button type="button" class="chip buy" data-buy-parcel ${full && S.coins >= PARCEL.prices[ps.length] ? '' : 'disabled'} title="${full ? '' : _t('Cần nâng cấp mảnh cuối lên đủ 9 ô')}">＋ Mua đất · ${PARCEL.prices[ps.length].toLocaleString('vi-VN')} xu</button>` : '');
+      (canBuy ? _t`<button type="button" class="chip buy" data-buy-parcel ${full && S.coins >= PARCEL.prices[ps.length] ? '' : 'disabled'} title="${full ? '' : _t('Cần nâng cấp mảnh cuối lên đủ 9 ô')}">＋ Mua đất · ${PARCEL.prices[ps.length].toLocaleString(LOCALE)} xu</button>` : '');
   }
   function setParcel(k) {
     if (k === parcel || beds.some(b => b.busy)) return;

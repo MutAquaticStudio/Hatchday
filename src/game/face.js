@@ -85,7 +85,7 @@ export function makeFace({ THREE, renderer }) {
   function gloom() { fx.strokeStyle = 'rgba(100,120,210,.5)'; fx.lineWidth = 6; for (let i = 0; i < 7; i++) { const x = FW * 0.3 + i * FW * 0.067; fx.beginPath(); fx.moveTo(x, 8); fx.lineTo(x, 70 + (i % 2) * 22); fx.stroke(); } }
 
   const EXPR = {
-    vui:      { label: 'Vui',        eyes: 'open',  mouth: 'w',      blush: .45, msg: _t('đang vui') },
+    vui:      { label: _t('Vui'),        eyes: 'open',  mouth: 'w',      blush: .45, msg: _t('đang vui') },
     excited:  { label: _t('Phấn khích'), eyes: 'star',  mouth: 'open',   blush: .7,  fx: 'sparkle', msg: _t('phấn khích quá!') },
     hungry:   { label: _t('Đói'),        eyes: 'open',  lookY: -12, mouth: 'o', blush: .3, drool: true, msg: _t('hơi đói') },
     sleepy:   { label: _t('Buồn ngủ'),   eyes: 'open',  lid: .58, mouth: 'line', blush: .25, msg: _t('buồn ngủ rồi') },
