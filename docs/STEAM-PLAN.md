@@ -8,6 +8,13 @@ Quyết định đã chốt (2026-11-08):
 
 Một mã nguồn, hai bản build: `web` (như hiện tại) và `steam` (`VITE_PLATFORM=steam`, đóng gói Electron).
 
+## Tiến độ (2026-11-08)
+- **S1 xong**: cờ nền tảng, vỏ Electron (`desktop/`), màn tiêu đề, bảng Cài đặt, giao diện tự phóng theo cửa sổ.
+- **S2 xong**: 1876 câu tiếng Anh, chọn ngôn ngữ, định dạng theo ngôn ngữ, test chặn thiếu dịch.
+- **S3 xong phần mã**: đăng nhập Steam (Edge Function `steam-auth`), 18 thành tựu, Rich Presence. Cần chủ dự án cấu hình Steamworks (docs/STEAM-ACHIEVEMENTS.md).
+- **S4 xong phần chính**: tay cầm (D-pad, A/B/Y/Start, LB/RB, cần trái dắt bé), bàn phím ảo Steam Deck. Còn: thử trên Steam Deck thật.
+- **Tiếp theo**: S5 nâng chất lượng hình/âm, S6 ảnh và trailer cửa hàng.
+
 ## Giai đoạn
 
 ### S1. Nền tảng máy tính (desktop-first)
