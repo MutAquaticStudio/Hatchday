@@ -17,6 +17,7 @@ import { setIsolation } from './store';
 import { initAds } from './ads-ui.js';
 import { initToys } from './toys-ui.js';
 import { initF2P } from './f2p-ui.js';
+import { initSupport } from './support-ui.js';
 import { refreshProgress } from './store';
 import { SPACES } from './places/registry';
 import { bondLevel } from './bond';
@@ -118,12 +119,13 @@ export function initHome(ctx) {
     if (!el) { el = document.createElement('section'); el.id = id; el.className = 'sheet hsheet ' + cls; el.hidden = true; el.setAttribute('aria-label', id); app.appendChild(el); }
     return el;
   }
-  const sheets = ['house', 'shop', 'wardrobe', 'quests', 'dex', 'family', 'cooking', 'clinic', 'map', 'sell', 'social', 'visit', 'gift', 'spaces', 'ads', 'toys', 'jobs', 'contest', 'festival', 'album'];
+  const sheets = ['house', 'shop', 'wardrobe', 'quests', 'dex', 'family', 'cooking', 'clinic', 'map', 'sell', 'social', 'visit', 'gift', 'spaces', 'ads', 'toys', 'jobs', 'contest', 'festival', 'album', 'support'];
   function closeAll(except) { sheets.forEach(s => { if (s !== except && $(s)) $(s).hidden = true; }); ctx.setZoom(0); $('a-house').setAttribute('aria-pressed', 'false'); }
   function open(id) { ctx.closeGameSheets(); closeAll(id); const el = sheet(id); el.hidden = false; $('a-house').setAttribute('aria-pressed', String(id !== 'none')); el.querySelector('button, input')?.focus({ preventScroll: true }); return el; }
   const head = (title, sub = '') => `<header class="hs-head"><div><h2>${title}</h2>${sub ? `<p>${sub}</p>` : ''}</div><button type="button" class="hs-close" data-close aria-label="Đóng">✕</button></header>`;
   app.addEventListener('click', e => { if (e.target.closest('[data-close]')) { closeAll(); $('a-house').focus(); } });
   const f2p = initF2P({ ctx, app, $, open, head, COIN_SVG, onChange: () => { if ($('quests') && !$('quests').hidden) renderQuests(); } });
+  initSupport({ ctx, $, open, head });
 
   /* ---------- Menu Nhà ---------- */
   const worldReady = () => !!S.world && (S.world.explore.some(t => t.ready && !t.claimed) || S.world.badges.some(b => !b.claimed && b.progress >= b.target));

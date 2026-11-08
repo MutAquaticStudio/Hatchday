@@ -1,14 +1,33 @@
 /**
  * Trang chủ giới thiệu Hatchday (màn đầu khi chưa đăng nhập): giới thiệu, ảnh trong game, tính năng, cam kết chơi miễn phí,
- * phần Ủng hộ (donate) và chân trang có Điều khoản / Quyền riêng tư. Nút đăng nhập, tạo tài khoản, Chơi thử nằm ngay phần đầu.
- * Thông tin ủng hộ lấy từ biến build (để trống thì hiện "sắp mở"):
- *   VITE_DONATE_URL   liên kết ủng hộ (Ko-fi, Buy Me a Coffee, trang MoMo…)   VITE_DONATE_LABEL  chữ trên nút (mặc định "Ủng hộ Hatchday")
- *   VITE_DONATE_BANK  "Ngân hàng|Số tài khoản|Chủ tài khoản"                   VITE_DONATE_QR     đường dẫn ảnh mã QR (đặt trong public/landing/)
+ * phần Ủng hộ (donate) và chân trang có Điều khoản / Quyền riêng tư / Hỗ trợ. Nút đăng nhập, tạo tài khoản, Chơi thử nằm ngay phần đầu.
+ * Thông tin ủng hộ và email liên hệ chỉnh trong trang quản trị (tab Hệ thống → Thông tin trang), đọc qua RPC get_site_info.
+ * Chưa có máy chủ hoặc chưa chỉnh thì dùng biến build (để trống hết thì hiện "sắp mở"):
+ *   VITE_DONATE_URL, VITE_DONATE_LABEL, VITE_DONATE_BANK ("Ngân hàng|Số tài khoản|Chủ tài khoản"), VITE_DONATE_QR (ảnh trong public/landing/).
  */
 import './landing.css';
+import { supabase, isConfigured } from '../lib/supabase';
 
 const env = (import.meta as unknown as { env: Record<string, string | undefined> }).env || {};
 const esc = (v: string) => v.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
+
+export interface SiteInfo { donate_url?: string; donate_label?: string; bank_name?: string; bank_account?: string; bank_holder?: string; vietqr_bank?: string; qr_url?: string; contact_email?: string }
+export const CONTACT_EMAIL = 'm.thuanwork@gmail.com';
+/** Thông tin từ biến build (dự phòng). */
+export function envSiteInfo(): SiteInfo {
+  const bank = env.VITE_DONATE_BANK?.split('|').map(s => s.trim());
+  return { donate_url: env.VITE_DONATE_URL?.trim(), donate_label: env.VITE_DONATE_LABEL?.trim(), bank_name: bank?.[0], bank_account: bank?.[1], bank_holder: bank?.[2], qr_url: env.VITE_DONATE_QR?.trim() };
+}
+const safeUrl = (u?: string) => (u && /^https:\/\/[^\s<>"']+$/.test(u) ? u : '');
+const safeImg = (u?: string) => (u && /^\.?\/[A-Za-z0-9/_.-]+\.(png|jpe?g|webp|svg)$/.test(u) && !u.includes('..') ? u : '');
+/** Ảnh QR: ảnh tự tải lên trang, hoặc mã VietQR tạo từ mã ngân hàng + số tài khoản. */
+export function qrSrc(i: SiteInfo): string {
+  const own = safeImg(i.qr_url); if (own) return own;
+  const acc = (i.bank_account || '').replace(/[^0-9]/g, ''), bank = (i.vietqr_bank || '').replace(/[^A-Za-z0-9]/g, '');
+  if (!acc || !bank) return '';
+  const q = new URLSearchParams({ addInfo: 'Ung ho Hatchday' }); if (i.bank_holder) q.set('accountName', i.bank_holder);
+  return `https://img.vietqr.io/image/${bank}-${acc}-compact.png?${q}`;
+}
 
 const SHOTS = [
   { src: './landing/home.jpg', cap: 'Nhà của bé: chăm, trang trí, mặc đồ' },
@@ -26,14 +45,26 @@ const FEATURES = [
   ['🏮', 'Lễ hội theo mùa', 'Tết, Trung thu, Thiếu nhi, Halloween, Giáng sinh… Sổ mùa và sổ sticker đổi mới mỗi tháng.'],
 ] as const;
 
-function donateHtml(): string {
-  const url = env.VITE_DONATE_URL?.trim(), label = env.VITE_DONATE_LABEL?.trim() || 'Ủng hộ Hatchday', bank = env.VITE_DONATE_BANK?.split('|').map(s => s.trim()), qr = env.VITE_DONATE_QR?.trim();
+export function donateHtml(info: SiteInfo = envSiteInfo()): string {
+  const url = safeUrl(info.donate_url), label = info.donate_label || 'Ủng hộ Hatchday', qr = qrSrc(info);
   const ways = [
     url ? `<a class="btn ld-donate-btn" href="${esc(url)}" target="_blank" rel="noopener">☕ ${esc(label)}</a>` : '',
-    bank && bank.length >= 2 ? `<div class="ld-bank"><span>Chuyển khoản</span><b>${esc(bank[0])}</b><b class="ld-acc">${esc(bank[1])}</b>${bank[2] ? `<small>${esc(bank[2])}</small>` : ''}<small>Nội dung: <i>Ung ho Hatchday</i></small></div>` : '',
+    info.bank_name && info.bank_account ? `<div class="ld-bank"><span>Chuyển khoản</span><b>${esc(info.bank_name)}</b><b class="ld-acc">${esc(info.bank_account)}</b>${info.bank_holder ? `<small>${esc(info.bank_holder)}</small>` : ''}<small>Nội dung: <i>Ung ho Hatchday</i></small></div>` : '',
     qr ? `<img class="ld-qr" src="${esc(qr)}" alt="Mã QR ủng hộ Hatchday" loading="lazy" width="180" height="180">` : '',
   ].filter(Boolean);
   return ways.length ? `<div class="ld-ways">${ways.join('')}</div>` : '<p class="ld-soon">Kênh ủng hộ sẽ sớm mở. Cảm ơn bạn đã quan tâm! Trong lúc chờ, chia sẻ Hatchday với bạn bè cũng là một cách ủng hộ tuyệt vời.</p>';
+}
+
+/** Lấy thông tin trang từ máy chủ rồi vẽ lại phần Ủng hộ và email liên hệ. Lỗi mạng thì giữ bản dự phòng. */
+export async function hydrateLanding(root: ParentNode): Promise<void> {
+  if (!isConfigured) return;
+  try {
+    const { data, error } = await supabase.rpc('get_site_info'); if (error || !data) return;
+    const info: SiteInfo = { ...envSiteInfo(), ...(data as SiteInfo) };
+    const box = root.querySelector('#ld-donate-ways'); if (box) box.innerHTML = donateHtml(info);
+    const mail = info.contact_email || CONTACT_EMAIL;
+    root.querySelectorAll<HTMLAnchorElement>('[data-contact]').forEach(a => { a.href = `mailto:${mail}`; if (a.dataset.contact === 'text') a.textContent = mail; });
+  } catch { /* giữ bản dự phòng */ }
 }
 
 /** HTML trang chủ; `cta` là cụm nút đăng nhập / tạo tài khoản / Chơi thử (giữ nguyên id để luồng cũ chạy như trước). */
@@ -62,8 +93,8 @@ export function landingHtml(cta: string, notice = ''): string {
       <li><b>Chơi mọi nơi.</b> Điện thoại hay máy tính đều chơi được, thêm vào Màn hình chính như một ứng dụng.</li></ul></section>
   <section class="ld-sec ld-donate" id="ung-ho"><h2>Ủng hộ Hatchday 💖</h2>
     <p>Hatchday được làm bởi một nhóm nhỏ và chạy hoàn toàn miễn phí. Nếu bạn thích game, một khoản ủng hộ nhỏ sẽ giúp trả tiền máy chủ và làm thêm nhiều điều dễ thương.</p>
-    ${donateHtml()}
-    <p class="ld-note">Ủng hộ là tự nguyện, không đổi lấy xu, vật phẩm hay lợi thế nào trong game, và không hoàn lại. Xem <a href="./dieu-khoan.html">Điều khoản</a>.</p></section>
-  <footer class="ld-foot"><span>© 2026 Hatchday</span><a href="./dieu-khoan.html">Điều khoản sử dụng</a><a href="./quyen-rieng-tu.html">Quyền riêng tư</a><a href="#top">Lên đầu trang ↑</a></footer>
+    <div id="ld-donate-ways">${donateHtml()}</div>
+    <p class="ld-note">Ủng hộ là tự nguyện, không đổi lấy xu, vật phẩm hay lợi thế nào trong game, và không hoàn lại. Xem <a href="./dieu-khoan.html">Điều khoản</a>. Thắc mắc gửi <a href="mailto:${CONTACT_EMAIL}" data-contact="text">${CONTACT_EMAIL}</a>.</p></section>
+  <footer class="ld-foot"><span>© 2026 Hatchday</span><a href="./dieu-khoan.html">Điều khoản sử dụng</a><a href="./quyen-rieng-tu.html">Quyền riêng tư</a><a href="mailto:${CONTACT_EMAIL}" data-contact>Hỗ trợ</a><a href="#top">Lên đầu trang ↑</a></footer>
 </div>`;
 }

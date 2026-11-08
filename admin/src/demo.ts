@@ -18,7 +18,13 @@ const S = {
   ] as any[],
   audit: [] as any[], ann: [] as any[], events: [] as any[], campaigns: [] as any[], sanctions: [] as any[], words: [] as any[],
   reports: [{ id: 1, kind: 'player', reason: 'harassment', detail: 'nhắn tin làm phiền', status: 'open', at: now(), reporter: 'Bánh Bò', target_id: 'u2', target: 'Nắng', target_open_reports: 1 }] as any[],
-  flags: { 'chat.public.enabled': false, 'chat.dm.enabled': true, 'places.enabled': true, 'ads.enabled': false, 'push.enabled': false, 'campaign.approval': { users: 50, coins: 500 } } as Record<string, unknown>,
+  flags: { 'chat.public.enabled': false, 'chat.dm.enabled': true, 'places.enabled': true, 'ads.enabled': false, 'push.enabled': false, 'campaign.approval': { users: 50, coins: 500 }, 'site.info': { contact_email: 'm.thuanwork@gmail.com' } } as Record<string, unknown>,
+  tickets: [
+    { id: 1, user_id: 'u2', kind: 'bug', subject: 'Bé kẹt ở Công viên', status: 'open', created_at: now(), updated_at: now(), seen: false, meta: { platform: 'android', screen: '390x844@3', place: 'Công viên', build: 'demo' },
+      messages: [{ from_admin: false, body: 'Bé đứng yên gần ao vịt, bấm đâu cũng không đi được ạ.', at: now() }] },
+    { id: 2, user_id: 'u3', kind: 'feedback', subject: 'Thêm mini-game nấu ăn', status: 'answered', created_at: now(), updated_at: now(), seen: true, meta: { platform: 'desktop' },
+      messages: [{ from_admin: false, body: 'Mình mong có trò nấu ăn theo công thức!', at: now() }, { from_admin: true, body: 'Cảm ơn bạn, đội ngũ đã ghi nhận ý tưởng.', at: now(), by: 'owner@example.com' }] },
+  ] as any[],
   flagMeta: {} as Record<string, { at: string; reason: string; by: string }>,
   balance: [
     ['ads.reward', 20, 5, 100, 'xu', 'Thưởng mỗi lượt xem quảng cáo', 'Quảng cáo', 'Không bị nhân bởi sự kiện nhân xu nhiệm vụ.'], ['ads.per_day', 5, 0, 20, 'lượt', 'Số lượt xem tối đa mỗi ngày', 'Quảng cáo', '0 = không ai nhận được thưởng.'],
@@ -87,6 +93,22 @@ export async function demoRpc(fn: string, a: Record<string, any>): Promise<any> 
       b.value = a.p_value; b.updated_at = now(); b.by = role; audit('set_balance', a.p_key, { value: a.p_value }, a.p_reason); return null; }
     case 'admin_dashboard_overview': { need('dashboard'); return demoOverview(+a.p_days || 30, S.events, Object.fromEntries(S.balance.map(x => [x.key, x.value])), S.flags); }
     case 'admin_audit_list': need('audit'); return S.audit;
+    case 'admin_set_site_info': { need('flag'); why(a.p_reason); const out: Record<string, string> = {};
+      for (const [k, v] of Object.entries(a.p_info || {})) { const x = String(v ?? '').trim(); if (!x) continue;
+        const ok = ({ donate_url: /^https:\/\/[^\s<>"']+$/, donate_label: /^.{1,40}$/, bank_name: /^.{1,60}$/, bank_holder: /^.{1,60}$/, bank_account: /^[0-9][0-9 .-]{3,29}$/, vietqr_bank: /^[A-Za-z0-9]{2,12}$/,
+          qr_url: /^\.?\/[A-Za-z0-9/_.-]+\.(png|jpg|jpeg|webp|svg)$/, contact_email: /^[^@\s<>"']+@[^@\s<>"']+\.[A-Za-z]{2,}$/ } as Record<string, RegExp>)[k];
+        if (!ok || !ok.test(x) || (k === 'qr_url' && x.includes('..'))) throw new Error('invalid_site_info'); out[k] = x; }
+      S.flags['site.info'] = out; S.flagMeta['site.info'] = { at: now(), reason: a.p_reason, by: role }; audit('set_site_info', 'site.info', out, a.p_reason); return out; }
+    case 'admin_list_tickets': { need('ticket'); const st = a.p_status || 'open'; const T = S.tickets;
+      const items = T.filter(t => st === 'all' || t.status === st).sort((x, y) => Number(x.seen) - Number(y.seen) || y.updated_at.localeCompare(x.updated_at)).map(t => {
+        const p = players.find(x => x.user_id === t.user_id); return { id: t.id, kind: t.kind, subject: t.subject, status: t.status, created_at: t.created_at, updated_at: t.updated_at, new: !t.seen, name: p?.name, code: p?.code, messages: t.messages.length, last: t.messages.at(-1)?.body.slice(0, 140) }; });
+      return { counts: { open: T.filter(t => t.status === 'open').length, answered: T.filter(t => t.status === 'answered').length, closed: T.filter(t => t.status === 'closed').length, new: T.filter(t => t.status === 'open' && !t.seen).length }, items }; }
+    case 'admin_get_ticket': { need('ticket'); const t = S.tickets.find(x => x.id === a.p_id); if (!t) throw new Error('not_found'); t.seen = true; const p = players.find(x => x.user_id === t.user_id);
+      return { ...t, name: p?.name, code: p?.code, email: ['owner', 'ops', 'support'].includes(role) ? p?.email : null }; }
+    case 'admin_reply_ticket': { need('ticket'); const t = S.tickets.find(x => x.id === a.p_id); if (!t) throw new Error('not_found'); const b = String(a.p_body || '').trim(); if (!b || b.length > 2000) throw new Error('invalid_ticket');
+      t.messages.push({ from_admin: true, body: b, at: now(), by: `${role}@example.com` }); t.status = a.p_close ? 'closed' : 'answered'; t.updated_at = now(); t.seen = true; audit('ticket_reply', String(t.id), { close: !!a.p_close }, null); return null; }
+    case 'admin_set_ticket_status': { need('ticket'); const t = S.tickets.find(x => x.id === a.p_id); if (!t) throw new Error('not_found'); if (!['open', 'answered', 'closed'].includes(a.p_status)) throw new Error('invalid_ticket');
+      t.status = a.p_status; t.updated_at = now(); audit('ticket_status', String(t.id), a.p_status, null); return null; }
     default: throw new Error('unknown_rpc ' + fn);
   }
 }

@@ -32,9 +32,10 @@ describe('danh mục sau khi nạp mọi migration', () => {
       for (const c of all) expect(await h.one(`select has_column_privilege('authenticated', 'public.${t}', '${c}', 'update')`), `${t}.${c}`).toBe(cols.includes(c));
     }
   });
-  it('anon không chạy được hàm public nào', async () => {
+  it('anon chỉ chạy được các hàm public trong danh sách cho phép', async () => {
     const rows = await h.q("select p.oid::regprocedure::text as f from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.prokind = 'f' and has_function_privilege('anon', p.oid, 'execute') order by 1");
-    expect(rows.map(r => r.f)).toEqual([]);
+    // get_site_info: trang giới thiệu hiện trước khi đăng nhập, chỉ đọc vài trường công khai (ủng hộ, email liên hệ).
+    expect(rows.map(r => r.f)).toEqual(['get_site_info()']);
   });
   it('hàm security definer ở public và private đều đặt search_path rỗng', async () => {
     const rows = await h.q("select p.oid::regprocedure::text as f from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname in ('public', 'private') and p.prosecdef and not exists (select 1 from unnest(coalesce(p.proconfig, '{}'::text[])) c where c = 'search_path=\"\"') order by 1");

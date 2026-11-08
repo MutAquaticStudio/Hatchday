@@ -45,6 +45,9 @@
     .fl{display:flex;gap:12px;align-items:center;justify-content:space-between}.fl p{margin:4px 0 0}
     #tip{position:fixed;z-index:20;pointer-events:none;background:#2d2230;color:#fff;border-radius:8px;padding:6px 9px;font-size:12px;max-width:260px;box-shadow:0 4px 14px rgba(0,0,0,.25)}#tip i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px}
     @media (max-width:560px){main{padding:10px}header{padding:8px 10px}.cg{grid-template-columns:minmax(0,1fr)}.kg{grid-template-columns:repeat(2,minmax(0,1fr))}.fl{flex-direction:column;align-items:stretch}}
+    .site-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px 16px;margin-bottom:8px}.site-grid .small{display:block;margin-top:2px}
+    .thread{display:flex;flex-direction:column;gap:8px;margin:10px 0}.tmsg{align-self:flex-start;max-width:min(640px,90%);background:#f7f2f8;border:1px solid var(--edge);border-radius:12px;padding:8px 12px}
+    .tmsg.team{align-self:flex-end;background:#eaf4ff}.tmsg p{margin:4px 0 0;overflow-wrap:anywhere}tr.new td{background:#fff8e1}
   </style>
 </head>
 <body><div id="root"></div><script type="module" src="./src/main.ts"></script></body>

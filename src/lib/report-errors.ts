@@ -13,8 +13,8 @@ export function shouldReport(message: string, stack: string | undefined): boolea
   return !IGNORED.test(message) && !(stack && IGNORED.test(stack));
 }
 
-const build = (): string => { try { return document.querySelector<HTMLScriptElement>('script[src*="index-"]')?.src.match(/index-([\w-]+)/)?.[1] ?? 'dev'; } catch { return 'dev'; } };
-const place = (): string => { try { return document.getElementById('scene-tag')?.textContent?.trim() || 'home'; } catch { return ''; } };
+export const build = (): string => { try { return document.querySelector<HTMLScriptElement>('script[src*="index-"]')?.src.match(/index-([\w-]+)/)?.[1] ?? 'dev'; } catch { return 'dev'; } };
+export const place = (): string => { try { return document.getElementById('scene-tag')?.textContent?.trim() || 'home'; } catch { return ''; } };
 
 let sent = 0; const seen = new Set<string>();
 function send(kind: 'js' | 'promise', message: string, stack?: string): void {

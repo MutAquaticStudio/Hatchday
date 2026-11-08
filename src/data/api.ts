@@ -2,12 +2,14 @@ import { supabase, isConfigured } from '../lib/supabase';
 import * as demo from './demo-api';
 import * as demoSocial from './demo-social';
 import * as demoF2P from './demo-f2p';
+import * as demoSupport from './demo-support';
 import type { ActiveEvent, EventGoal } from '../game/events';
 import type { AdState, AdTicket } from '../game/ads';
 import type { ActivityResult, MiniResult, WorldProgress } from '../game/world-activity';
 import type { ChatReply, DmMsg, DmThread, MailRow, NewsRow, PublicProfile, SocialState, SocialSummary, VisitData } from '../game/social';
 import type { ToyResult, ToysState, ActionResult, CureResult, DayLogRow, Economy, FarmItem, Garden, MemoryRow, Outfit, PetAction, PetRow, QuestBoard, SeenRow, Tastes } from './types';
 import type { Layout } from '../game/catalog';
+import type { SupportTicket, TicketKind } from '../game/support';
 import type { ContestState, FestivalState, GuestNote, JobState, Playdate, SeasonState, StickerState, Visitor } from '../game/f2p';
 
 /** Chưa cấu hình Supabase thì chạy chế độ Chơi thử (dữ liệu trong trình duyệt). */
@@ -234,3 +236,12 @@ export const writeGuestNote = (who: string, body: string) => (isDemo ? demoSocia
 export const getGuestNotes = (): Promise<GuestNote[]> => (isDemo ? demoSocial.getGuestNotes() : rpc<GuestNote[]>('get_guest_notes'));
 export const deleteGuestNote = (id: number) => (isDemo ? demoSocial.deleteGuestNote(id) : rpc<void>('delete_guest_note', { p_id: id }));
 export const getVisitors = (place: string): Promise<Visitor[]> => (isDemo ? demoSocial.getVisitors(place) as Promise<Visitor[]> : rpc<Visitor[]>('get_visitors', { p_place: place }));
+
+/* ---------- Góp ý & Hỗ trợ; thông tin trang (ủng hộ, email liên hệ) ---------- */
+export const submitTicket = (kind: TicketKind, subject: string, body: string, meta: Record<string, unknown>) =>
+  (isDemo ? demoSupport.submitTicket(kind, subject, body) : rpc<number>('submit_ticket', { p_kind: kind, p_subject: subject, p_body: body, p_meta: meta }));
+export const replyTicket = (id: number, body: string) => (isDemo ? demoSupport.replyTicket(id, body) : rpc<void>('reply_ticket', { p_id: id, p_body: body }));
+export const closeMyTicket = (id: number) => (isDemo ? demoSupport.closeMyTicket(id) : rpc<void>('close_my_ticket', { p_id: id }));
+export const getMyTickets = (): Promise<SupportTicket[]> => (isDemo ? demoSupport.getMyTickets() : rpc<SupportTicket[]>('get_my_tickets'));
+export const supportUnread = (): Promise<number> => (isDemo ? demoSupport.supportUnread() : rpc<number>('support_unread'));
+export const markTicketRead = (id: number) => (isDemo ? demoSupport.markTicketRead(id) : rpc<void>('mark_ticket_read', { p_id: id }));

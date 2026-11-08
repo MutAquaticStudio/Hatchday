@@ -107,6 +107,9 @@ const RPC: Record<string, string> = {
   place_closed: 'Các nơi chung đang tạm đóng. Quay lại sau nhé.',
   already_reported: 'Bạn đã báo cáo rồi, đội ngũ sẽ xem xét.',
   invalid_reason: 'Lý do báo cáo chưa hợp lệ.',
+  invalid_ticket: 'Thư góp ý chưa hợp lệ. Tiêu đề tối đa 80 ký tự, nội dung từ 5 đến 2000 ký tự nhé.',
+  ticket_limit: 'Bạn đang có nhiều thư chờ trả lời. Đợi đội ngũ trả lời hoặc đóng bớt thư cũ rồi gửi tiếp nhé.',
+  ticket_closed: 'Thư này đã đóng. Bạn gửi thư mới nhé.',
 };
 
 export function viError(err: unknown): string {

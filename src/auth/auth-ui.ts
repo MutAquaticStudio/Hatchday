@@ -2,7 +2,7 @@ import { supabase, isConfigured } from '../lib/supabase';
 import { viError } from '../lib/errors';
 import { mountCaptcha } from '../lib/captcha';
 import './auth.css';
-import { landingHtml } from './landing';
+import { hydrateLanding, landingHtml } from './landing';
 
 /** Phiên bản Điều khoản/Chính sách đang dùng (ghi vào hồ sơ người dùng lúc đăng ký). Đổi khi sửa public/dieu-khoan.html. */
 export const TOS_VERSION = '2026-11';
@@ -61,6 +61,7 @@ export function mountAuth(root: HTMLElement, view: AuthView, onSignedIn: () => v
       <button class="btn ghost" data-go="login">Về trang đăng nhập</button>`,
   };
   root.innerHTML = view === 'gate' ? landingHtml(views.gate, cfg) : `<main class="screen"><section class="card" aria-live="polite">${views[view]}</section></main>`;
+  if (view === 'gate') void hydrateLanding(root);
   const $ = <T extends HTMLElement = HTMLInputElement>(id: string) => root.querySelector<T>('#' + id);
 
   $<HTMLButtonElement>('demo')?.addEventListener('click', () => onSignedIn());
