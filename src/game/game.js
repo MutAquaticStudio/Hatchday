@@ -488,8 +488,11 @@ function updateGardenBall(dt) {
     if (!reduce && Math.random() < 0.5) setTimeout(() => { if (area === 'garden' && !fetchBall && bv.moving) walkPetTo(Math.max(-GARDEN_X, Math.min(GARDEN_X, ball.position.x)), Math.max(gardenFx.minZ(), Math.min(GARDEN_Z1, ball.position.z + 0.8))); }, 1100);
   }
   if (!bv.moving) return;
-  b.x += bv.vx * dt; b.z += bv.vz * dt; bv.vy -= 14 * dt; b.y += bv.vy * dt;
-  if (b.y < 0.3) { b.y = 0.3; if (Math.abs(bv.vy) > 1.1) { bv.vy = -bv.vy * 0.55; sfx('boing'); } else bv.vy = 0; const f = Math.exp(-1.7 * dt); bv.vx *= f; bv.vz *= f; }
+  b.x += bv.vx * dt; b.z += bv.vz * dt;
+  // nằm trên cỏ thì không cộng trọng lực nữa: máy yếu (dt lớn) sẽ khiến bóng nảy lăn tăn mãi không dừng
+  if (!(b.y <= 0.3 && bv.vy === 0)) { bv.vy -= 14 * dt; b.y += bv.vy * dt; }
+  if (b.y < 0.3) { b.y = 0.3; if (Math.abs(bv.vy) > 1.1 + 14 * dt) { bv.vy = -bv.vy * 0.55; sfx('boing'); } else bv.vy = 0; }
+  if (b.y <= 0.3) { const f = Math.exp(-1.7 * dt); bv.vx *= f; bv.vz *= f; }
   const w = walkBounds() || { x0: -GARDEN_X, x1: GARDEN_X, z0: -3, z1: GARDEN_Z1 };
   if (b.x < w.x0 || b.x > w.x1) { bv.vx *= -0.6; b.x = Math.max(w.x0, Math.min(w.x1, b.x)); }
   if (b.z < w.z0 || b.z > w.z1) { bv.vz *= -0.6; b.z = Math.max(w.z0, Math.min(w.z1, b.z)); }
