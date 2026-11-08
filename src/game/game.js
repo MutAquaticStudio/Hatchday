@@ -38,6 +38,7 @@ import { tastesLine } from './nutrition';
 import { sfx, music, initAudio } from './audio.js';
 import { initSettings } from './settings.js';
 import { setPresence, syncAchievements } from '../lib/steam';
+import { initGamepad, stick } from './gamepad.js';
 import { STAGES } from './species';
 import { AXES, TRAITS, describe as describePersona, greeting, idleGapFactor, idleWeights, petLine, pickWeighted, walkSpeedFactor } from './personality';
 let home = null, editing = false;
@@ -961,10 +962,11 @@ function animStep(dt, t, now, key) {
   /* điều khiển thú trong vườn: phím mũi tên / WASD hoặc chạm đất để thú đi tới */
   keyMoving = false;
   if (walkable() && !S.asleep && !editing && !fetchBall && !growth.isEvolving()) {
-    const kx = (keys.has('right') ? 1 : 0) - (keys.has('left') ? 1 : 0), kz = (keys.has('down') ? 1 : 0) - (keys.has('up') ? 1 : 0);
+    // bàn phím + cần trái tay cầm (gamepad.js); cần analog cho tốc độ theo độ nghiêng
+    const kx = (keys.has('right') ? 1 : 0) - (keys.has('left') ? 1 : 0) + stick.x, kz = (keys.has('down') ? 1 : 0) - (keys.has('up') ? 1 : 0) + stick.y;
     if (kx || kz) {
       cancelCtrl(); wander = null; action = null; keyMoving = true;
-      const l = Math.hypot(kx, kz), sp = 2.6 * walkSpeedFactor(S.personality) * (S.illness ? 0.6 : 1) * dt;
+      const l = Math.max(1, Math.hypot(kx, kz)), sp = Math.min(1, Math.hypot(kx, kz)) * 2.6 * walkSpeedFactor(S.personality) * (S.illness ? 0.6 : 1) * dt;
       petOff.x = clampGardenOff(petOff.x + kx / l * sp, 'x'); petOff.z = clampGardenOff(petOff.z + kz / l * sp, 'z'); moveYaw = Math.atan2(kx, kz);
     } else if (ctrl) {
       const dx = ctrl.x - petOff.x, dz = ctrl.z - petOff.z, d = Math.hypot(dx, dz), step = 2.6 * walkSpeedFactor(S.personality) * (S.illness ? 0.6 : 1) * dt;
@@ -1353,3 +1355,4 @@ addEventListener('pagehide', save);
 setPresence('home');
 const achievementTick = () => syncAchievements({ bondXp: S.bondXp, generation: S.generation, stage: S.stage, seen: S.seen || [], badges: S.world?.badges || [] });
 setTimeout(achievementTick, 3000); setInterval(achievementTick, 15000);
+initGamepad();

@@ -860,3 +860,11 @@ body.editing .hot-layer,.farm-editing .hot-layer{display:none}
 }
 /* điện thoại: thanh trên chật nên Cài đặt nằm trong menu Nhà (ô "Cài đặt"), nút ⚙ chỉ có ở màn rộng */
 @media (max-width:700px){#btn-settings{display:none}}
+
+/* ---------- Tay cầm: vòng chọn rõ và dải gợi ý nút ---------- */
+body.pad :focus-visible,body.pad :focus{outline:3px solid #ff6fa8!important;outline-offset:3px;box-shadow:0 0 0 7px rgba(255,111,168,.28)!important;border-radius:12px}
+.pad-hints{position:absolute;right:max(12px,env(safe-area-inset-right,0px));bottom:calc(env(safe-area-inset-bottom,0px) + 96px);z-index:45;display:flex;gap:10px;pointer-events:none;
+  background:rgba(74,33,64,.78);color:#fff;border-radius:999px;padding:6px 12px;font-size:12px;font-weight:800}
+.pad-hints[hidden]{display:none}
+.pad-hints span{display:inline-flex;align-items:center;gap:5px}
+.pad-hints b{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;background:#fff;color:#4a2140;font-size:11px}
