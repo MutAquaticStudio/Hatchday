@@ -841,4 +841,5 @@ body.editing .hot-layer,.farm-editing .hot-layer{display:none}
 /* màn rộng: bảng nép sang phải để bé ở giữa màn hình vẫn hiện */
 @media (min-width:1100px){
   .hsheet{left:auto;right:max(24px,env(safe-area-inset-right,0px));margin:0;width:min(540px,42vw)}
+  #app:has(.hsheet:not([hidden])) .tour{left:max(24px,env(safe-area-inset-left,0px));transform:none;top:auto;bottom:128px}
 }
