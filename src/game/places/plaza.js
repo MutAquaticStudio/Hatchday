@@ -71,10 +71,10 @@ export function initPlaza(c) {
     for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2; add(f, new THREE.BoxGeometry(0.1, 0.28, 0.06), toon('#cfd6e4'), Math.cos(a) * 2.5, 0.26, Math.sin(a) * 2.5, null).rotation.y = -a + Math.PI / 2; } // gờ trang trí
     for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2 + 0.26; add(f, new THREE.SphereGeometry(0.12, 10, 8), toon('#ffffff'), Math.cos(a) * 1.15, 1.42, Math.sin(a) * 1.15, '#8896b0', 0.01); } // hạt ngọc tầng giữa
     for (let i = 0; i < 4; i++) { const a = i / 4 * Math.PI * 2 + Math.PI / 4, lp = add(f, new THREE.CircleGeometry(0.22, 12), toon('#7edb72'), Math.cos(a) * 1.55, 0.59, Math.sin(a) * 1.55, null); lp.rotation.x = -Math.PI / 2; add(f, new THREE.SphereGeometry(0.06, 8, 6), toon('#ff9ec4'), Math.cos(a) * 1.55 + 0.05, 0.63, Math.sin(a) * 1.55, null); } // lá súng
-    waterMesh = add(f, new THREE.CylinderGeometry(2.15, 2.15, 0.08, 40), toon('#ffffff', water), 0, 0.54, 0, null);
+    waterMesh = add(f, new THREE.CylinderGeometry(2.15, 2.15, 0.08, 40), toon('#ffffff', water, 'water'), 0, 0.54, 0, null);
     add(f, new THREE.CylinderGeometry(0.3, 0.4, 1.3, 14), toon('#e9eef7'), 0, 1.0, 0, '#8896b0', 0.03);
     add(f, new THREE.CylinderGeometry(1.15, 0.7, 0.2, 28), toon('#e9eef7'), 0, 1.5, 0, '#8896b0', 0.03);
-    add(f, new THREE.CylinderGeometry(0.95, 0.95, 0.06, 28), toon('#ffffff', water), 0, 1.62, 0, null);
+    add(f, new THREE.CylinderGeometry(0.95, 0.95, 0.06, 28), toon('#ffffff', water, 'water'), 0, 1.62, 0, null);
     add(f, new THREE.CylinderGeometry(0.16, 0.22, 0.9, 12), toon('#e9eef7'), 0, 2.0, 0, '#8896b0', 0.03);
     add(f, new THREE.SphereGeometry(0.3, 14, 10), toon('#e9eef7'), 0, 2.55, 0, '#8896b0', 0.03);
     jets = [0, 1, 2, 3, 4, 5, 6, 7].map(i => { const m = add(f, new THREE.SphereGeometry(0.07, 8, 6), toon('#bfe8ff'), 0, 2.2, 0, null); m.userData.i = i; m.userData.keep = true; return m; });

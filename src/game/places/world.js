@@ -22,7 +22,7 @@ export function bakeStatic(THREE, root, { inHotspot = null } = {}) {
     const mat = o.material, geo = o.geometry;
     if (Array.isArray(mat) || mat.transparent || mat.blending !== THREE.NormalBlending || !geo.attributes.position || !geo.attributes.normal || geo.morphAttributes.position) return;
     m.multiplyMatrices(inv, o.matrixWorld); if (m.determinant() <= 0) return;
-    const key = [mat.type, mat.color ? mat.color.getHexString() : '', mat.map ? mat.map.uuid : '', mat.side, mat.gradientMap ? mat.gradientMap.uuid : '', geo.index ? 'i' : 'n', Object.keys(geo.attributes).sort().join(','), o.userData.outline ? 'o' : ''].join('|');
+    const key = [mat.type, mat.userData.k || '', mat.color ? mat.color.getHexString() : '', mat.map ? mat.map.uuid : '', mat.side, mat.gradientMap ? mat.gradientMap.uuid : '', geo.index ? 'i' : 'n', Object.keys(geo.attributes).sort().join(','), o.userData.outline ? 'o' : ''].join('|');
     let b = buckets.get(key); if (!b) buckets.set(key, b = { mat, outline: !!o.userData.outline, geos: [], objs: [], cast: false });
     b.geos.push(geo.clone().applyMatrix4(m)); b.objs.push(o);
     if (!o.userData.outline) { geo.computeBoundingSphere(); if (geo.boundingSphere.radius * Math.max(o.scale.x, o.scale.y, o.scale.z) < 2) b.cast = true; }
@@ -54,6 +54,7 @@ export function makeWorld(c, group) {
   /** Vật lặp bằng InstancedMesh. items: [{ x, y, z, s | sx, sy, sz, ry, color }]. outline: màu viền (null = không viền). Trả về mesh. */
   function scatter(parent, geometry, material, items, outline = '#6a4a5a', thick = 0.04) {
     if (!items.length) return null;
+    if (c.noOutline) outline = null; // chế độ Điện ảnh không dùng nét viền
     const n = items.length, m = new THREE.InstancedMesh(geometry, material, n), o = outline ? new THREE.InstancedMesh(geometry, outMat(outline), n) : null;
     geometry.computeBoundingSphere(); const r = Math.max(geometry.boundingSphere.radius, 0.05);
     items.forEach((it, i) => {

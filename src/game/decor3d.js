@@ -142,10 +142,10 @@ export function makeDecor(K) {
       add(g, Cy(0.025, 0.025, 1.0, 8), toon('#a8744e'), 0, 0.5, 0, null); st.userData.keep = true;
     },
     /* ---------- thảm ---------- */
-    'tham-tron': g => { add(g, Cy(1.9, 1.9, 0.05, 56), toon('#bfe3ff'), 0, 0.025, 0, '#6f8fb8', 0.02); add(g, Cy(1.4, 1.4, 0.055, 56), toon('#dff1ff'), 0, 0.03, 0, null); },
-    'tham-cat': g => { const t = tex(128, 96, c => { c.fillStyle = '#ffe6b0'; c.fillRect(0, 0, 128, 96); c.fillStyle = '#f5cf8a'; for (let i = 0; i < 40; i++) c.fillRect((i * 37) % 128, (i * 23) % 96, 3, 3); }); add(g, Bx(2.8, 0.05, 1.8), toon('#ffffff', t), 0, 0.025, 0, '#c99a5a', 0.02); },
-    'tham-reu': g => { const t = tex(128, 128, c => { c.fillStyle = '#7ccf6a'; c.fillRect(0, 0, 128, 128); c.fillStyle = '#9be38a'; for (let i = 0; i < 26; i++) { c.beginPath(); c.arc((i * 47) % 128, (i * 29) % 128, 6, 0, 7); c.fill(); } }); const m = add(g, Cy(1.4, 1.4, 0.05, 40), toon('#ffffff', t), 0, 0.025, 0, '#3f8a55', 0.02); m.scale.z = 0.95; },
-    'tham-ca-ro': g => { const t = tex(128, 128, c => { c.fillStyle = '#fff'; c.fillRect(0, 0, 128, 128); c.fillStyle = '#ffc6dc'; for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) if ((x + y) % 2) c.fillRect(x * 32, y * 32, 32, 32); }); add(g, Bx(2.8, 0.05, 2.8), toon('#ffffff', t), 0, 0.025, 0, '#a8507a', 0.02); },
+    'tham-tron': g => { add(g, Cy(1.9, 1.9, 0.05, 56), toon('#bfe3ff', null, 'fabric'), 0, 0.025, 0, '#6f8fb8', 0.02); add(g, Cy(1.4, 1.4, 0.055, 56), toon('#dff1ff', null, 'fabric'), 0, 0.03, 0, null); },
+    'tham-cat': g => { const t = tex(128, 96, c => { c.fillStyle = '#ffe6b0'; c.fillRect(0, 0, 128, 96); c.fillStyle = '#f5cf8a'; for (let i = 0; i < 40; i++) c.fillRect((i * 37) % 128, (i * 23) % 96, 3, 3); }); add(g, Bx(2.8, 0.05, 1.8), toon('#ffffff', t, 'fabric'), 0, 0.025, 0, '#c99a5a', 0.02); },
+    'tham-reu': g => { const t = tex(128, 128, c => { c.fillStyle = '#7ccf6a'; c.fillRect(0, 0, 128, 128); c.fillStyle = '#9be38a'; for (let i = 0; i < 26; i++) { c.beginPath(); c.arc((i * 47) % 128, (i * 29) % 128, 6, 0, 7); c.fill(); } }); const m = add(g, Cy(1.4, 1.4, 0.05, 40), toon('#ffffff', t, 'fabric'), 0, 0.025, 0, '#3f8a55', 0.02); m.scale.z = 0.95; },
+    'tham-ca-ro': g => { const t = tex(128, 128, c => { c.fillStyle = '#fff'; c.fillRect(0, 0, 128, 128); c.fillStyle = '#ffc6dc'; for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) if ((x + y) % 2) c.fillRect(x * 32, y * 32, 32, 32); }); add(g, Bx(2.8, 0.05, 2.8), toon('#ffffff', t, 'fabric'), 0, 0.025, 0, '#a8507a', 0.02); },
     /* ---------- treo tường ---------- */
     poster: g => {
       const t = tex(96, 128, c => { c.fillStyle = '#fff3c4'; c.fillRect(0, 0, 96, 128); c.fillStyle = '#ff7ab0'; c.beginPath(); c.arc(48, 56, 26, 0, 7); c.fill(); c.fillStyle = '#4a2140'; c.beginPath(); c.arc(38, 52, 4, 0, 7); c.arc(58, 52, 4, 0, 7); c.fill();

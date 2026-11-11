@@ -39,6 +39,8 @@ import { sfx, music, initAudio } from './audio.js';
 import { initSettings } from './settings.js';
 import { setPresence, syncAchievements } from '../lib/steam';
 import { initGamepad, stick } from './gamepad.js';
+import { cineWanted, createCine } from './gfx.js';
+import { isSteam } from '../lib/platform';
 import { STAGES } from './species';
 import { AXES, TRAITS, describe as describePersona, greeting, idleGapFactor, idleWeights, petLine, pickWeighted, walkSpeedFactor } from './personality';
 let home = null, editing = false;
@@ -60,9 +62,12 @@ catch (e) { document.getElementById('app').insertAdjacentHTML('beforeend', _t('<
 renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 1.5));
 renderer.shadowMap.type = THREE.PCFShadowMap; // r182+: PCF mặc định đã mềm
 /* Chất lượng hình ảnh: độ phân giải là ngân sách hiệu năng (skill threejs-scene-setup) */
-const QUALITY = { thap: { pr: 1, shadow: 0 }, vua: { pr: 1.5, shadow: 1024 }, cao: { pr: 2, shadow: 2048 } };
+const QUALITY = { thap: { pr: 1, shadow: 0 }, vua: { pr: 1.5, shadow: 1024 }, cao: { pr: 2, shadow: 2048 }, dienanh: { pr: 2, shadow: 4096 } };
+/** Chế độ Điện ảnh (gfx.js): dựng hình vật lý + hậu kỳ. Quyết định một lần lúc mở game vì vật liệu được tạo theo chế độ. */
+const CINE = cineWanted(isSteam);
 let quality = 'vua';
 try { const q = localStorage.getItem('hatchday-quality'); if (q && QUALITY[q]) quality = q; } catch (e) { /* bỏ qua */ }
+if (CINE) quality = 'dienanh'; else if (quality === 'dienanh') quality = 'cao';
 const scene = new THREE.Scene();
 /** Sương mù chân trời: ngoài trời làm đồi và cây xa nhạt dần về màu trời cho có chiều sâu; trong nhà đẩy ra rất xa (vẫn tồn tại để không phải biên dịch lại shader khi đổi khu). */
 scene.fog = new THREE.Fog('#cfe9ff', 1000, 2000);
@@ -87,10 +92,14 @@ function tintShader(sh) {
   sh.uniforms.shadowTint = shadowTint; sh.uniforms.shadowTintK = shadowTintK;
   sh.fragmentShader = 'uniform vec3 shadowTint;\nuniform float shadowTintK;\n' + sh.fragmentShader.replace('#include <opaque_fragment>', TINT_GLSL + '#include <opaque_fragment>');
 }
-const toon = (color, map) => { const m = new THREE.MeshToonMaterial({ color, gradientMap: grad, map: map || null }); m.onBeforeCompile = tintShader; m.customProgramCacheKey = () => 'toon-tint'; return m; };
 /* Viền sáng anime (rim light) cho thú: chèn vào shader toon, sau opaque_fragment */
 const rimColor = { value: new THREE.Color('#fff4e8') }, rimStrength = { value: 0.5 }, evoGlow = { value: 0 };
+const cine = CINE ? createCine({ THREE, renderer, scene, camera, shared: { evoGlow } }) : null;
+const toonMat = (color, map) => { const m = new THREE.MeshToonMaterial({ color, gradientMap: grad, map: map || null }); m.onBeforeCompile = tintShader; m.customProgramCacheKey = () => 'toon-tint'; return m; };
+/** Vật liệu chung của mọi vật: hoạt hình (mặc định) hoặc vật lý khi bật Điện ảnh. Tham số thứ ba (loại bề mặt) chỉ dùng ở chế độ Điện ảnh. */
+const toon = cine ? cine.mat : toonMat;
 function petToon(color) {
+  if (cine) return cine.petMat(color);
   const m = toon(color);
   m.onBeforeCompile = sh => {
     tintShader(sh);
@@ -103,6 +112,7 @@ function petToon(color) {
 }
 const outlineMats = {};
 function outline(mesh, color, t = 0.03) {
+  if (cine) return mesh; // dựng hình vật lý không dùng nét viền
   mesh.geometry.computeBoundingSphere();
   const r = mesh.geometry.boundingSphere.radius;
   const m = outlineMats[color] || (outlineMats[color] = new THREE.MeshBasicMaterial({ color, side: THREE.BackSide }));
@@ -133,15 +143,16 @@ const woodTex = canvasTex(256, 256, (g, w, h) => {
 }, [3, 3]);
 /** Sàn kéo dài ra phía trước và sang phải để phủ kín khung hình (trước đây đáy màn hình là nền phẳng trống). Số lần lặp họa tiết tăng theo để ô gạch giữ nguyên cỡ. */
 const FLOOR = { w: 14, d: 13, x: 2.5, z: 3 };
-const homeFloor = add(room, new THREE.BoxGeometry(FLOOR.w, 0.4, FLOOR.d), toon('#f6c99c', woodTex), FLOOR.x, -0.2, FLOOR.z, '#9a5f4a', 0.04);
+const homeFloor = add(room, new THREE.BoxGeometry(FLOOR.w, 0.4, FLOOR.d), toon('#f6c99c', woodTex, 'wood'), FLOOR.x, -0.2, FLOOR.z, '#9a5f4a', 0.04);
 homeFloor.material.map = woodTex.clone(); homeFloor.material.map.repeat.set(3 * FLOOR.w / 9, 3 * FLOOR.d / 7); homeFloor.material.map.needsUpdate = true;
+if (cine) [homeFloor.material.normalMap, homeFloor.material.roughnessMap].forEach(t => { if (t) { t.repeat.copy(homeFloor.material.map.repeat); t.needsUpdate = true; } });
 const wallTex = canvasTex(128, 128, (g, w, h) => {
   g.fillStyle = '#ffffff'; g.fillRect(0, 0, w, h); g.fillStyle = '#ffd8e7';
   for (let y = 0; y < 2; y++) for (let x = 0; x < 2; x++) { g.beginPath(); g.arc(32 + x * 64 + (y % 2) * 32, 32 + y * 64, 7, 0, Math.PI * 2); g.fill(); }
 }, [6, 3]);
-const homeWall = add(room, new THREE.BoxGeometry(9, 5, 0.3), toon('#fff0f5', wallTex), 0, 2.3, -3.65, '#b77b95', 0.04);
+const homeWall = add(room, new THREE.BoxGeometry(9, 5, 0.3), toon('#fff0f5', wallTex, 'wall'), 0, 2.3, -3.65, '#b77b95', 0.04);
 const wallTex2 = wallTex.clone(); wallTex2.repeat.set(4, 3); wallTex2.needsUpdate = true;
-const homeWall2 = add(room, new THREE.BoxGeometry(0.3, 5, 7.3), toon('#fff0f5', wallTex2), -4.65, 2.3, 0, '#b77b95', 0.04);
+const homeWall2 = add(room, new THREE.BoxGeometry(0.3, 5, 7.3), toon('#fff0f5', wallTex2, 'wall'), -4.65, 2.3, 0, '#b77b95', 0.04);
 add(room, new THREE.BoxGeometry(9, 0.35, 0.36), toon('#ffb3cd'), 0, 0.17, -3.45, '#b77b95');
 
 /* cửa sổ */
@@ -200,10 +211,10 @@ const CAM = {
 function shell(wallColor, wallT, floorColor, floorT, trim) {
   const g = new THREE.Group(); g.visible = false; scene.add(g);
   let ft = floorT; if (ft) { ft = ft.clone(); ft.repeat.set(ft.repeat.x * FLOOR.w / 9, ft.repeat.y * FLOOR.d / 7); ft.needsUpdate = true; }
-  add(g, new THREE.BoxGeometry(FLOOR.w, 0.4, FLOOR.d), toon(floorColor, ft), FLOOR.x, -0.2, FLOOR.z, '#9a5f4a', 0.04);
-  add(g, new THREE.BoxGeometry(9, 5, 0.3), toon(wallColor, wallT), 0, 2.3, -3.65, '#8a7a9a', 0.04);
+  add(g, new THREE.BoxGeometry(FLOOR.w, 0.4, FLOOR.d), toon(floorColor, ft, 'wood'), FLOOR.x, -0.2, FLOOR.z, '#9a5f4a', 0.04);
+  add(g, new THREE.BoxGeometry(9, 5, 0.3), toon(wallColor, wallT, 'wall'), 0, 2.3, -3.65, '#8a7a9a', 0.04);
   let t2 = null; if (wallT) { t2 = wallT.clone(); t2.repeat.set(4, 3); t2.needsUpdate = true; }
-  add(g, new THREE.BoxGeometry(0.3, 5, 7.3), toon(wallColor, t2), -4.65, 2.3, 0, '#8a7a9a', 0.04);
+  add(g, new THREE.BoxGeometry(0.3, 5, 7.3), toon(wallColor, t2, 'wall'), -4.65, 2.3, 0, '#8a7a9a', 0.04);
   add(g, new THREE.BoxGeometry(9, 0.35, 0.36), toon(trim), 0, 0.17, -3.45, '#8a7a9a');
   return g;
 }
@@ -241,7 +252,7 @@ add(kitchen, new THREE.BoxGeometry(0.08, 0.7, 0.08), toon('#ffffff'), 2.85, 2.5,
 add(kitchen, new THREE.BoxGeometry(2.4, 0.1, 0.5), toon('#ffd9a8'), -1.2, 3.1, -3.3, '#a8778e');
 [[-2, '#ff9ec4'], [-1.4, '#ffd36e'], [-0.8, '#7edb72']].forEach(([x, c]) => add(kitchen, new THREE.CylinderGeometry(0.16, 0.16, 0.4, 14), toon(c), x, 3.36, -3.3, '#7a4a63'));
 windowOn(kitchen, 1.2, 3.0, (g) => { const gr = g.createLinearGradient(0, 0, 0, 192); gr.addColorStop(0, '#8fd8ff'); gr.addColorStop(1, '#e6f8ff'); g.fillStyle = gr; g.fillRect(0, 0, 256, 192); g.fillStyle = '#ffffff'; g.beginPath(); g.arc(80, 80, 22, 0, 7); g.arc(108, 70, 26, 0, 7); g.arc(136, 82, 20, 0, 7); g.fill(); });
-add(kitchen, new THREE.CylinderGeometry(1.5, 1.5, 0.05, 40), toon('#ffcfdc'), 0, 0.03, 0.4, '#a8507a', 0.02);
+add(kitchen, new THREE.CylinderGeometry(1.5, 1.5, 0.05, 40), toon('#ffcfdc', null, 'fabric'), 0, 0.03, 0.4, '#a8507a', 0.02);
 add(kitchen, new THREE.BoxGeometry(2.4, 0.14, 0.9), toon('#ffd9a8'), 0, 0.52, 1.85, '#9a5f4a');
 [[-1.05, 1.5], [1.05, 1.5], [-1.05, 2.2], [1.05, 2.2]].forEach(([x, z]) => add(kitchen, new THREE.BoxGeometry(0.12, 0.45, 0.12), toon('#e8b47a'), x, 0.23, z, '#9a5f4a'));
 add(kitchen, new THREE.CylinderGeometry(0.42, 0.34, 0.06, 28), toon('#ffffff'), 0, 0.62, 1.8, '#8a7a9a', 0.02);
@@ -251,10 +262,10 @@ add(kitchen, new THREE.CylinderGeometry(0.42, 0.34, 0.06, 28), toon('#ffffff'), 
 const bathTile = canvasTex(128, 128, (g, w, h) => { g.fillStyle = '#eaf7ff'; g.fillRect(0, 0, w, h); g.strokeStyle = '#bfe3f7'; g.lineWidth = 5; [[2, 2], [66, 2], [2, 66], [66, 66]].forEach(([x, y]) => g.strokeRect(x, y, 60, 60)); }, [6, 4]);
 const bathFloorTex = canvasTex(64, 64, g => { g.fillStyle = '#eaf6ff'; g.fillRect(0, 0, 64, 64); g.strokeStyle = '#c4def2'; g.lineWidth = 3; g.strokeRect(0, 0, 64, 64); g.fillStyle = '#f6fbff'; g.fillRect(6, 6, 20, 20); g.fillRect(38, 38, 20, 20); }, [5, 4]);
 const bath = shell('#eaf7ff', bathTile, '#d6f0ff', bathFloorTex, '#9fd3f0'); areas.bath = bath;
-const tub = add(bath, new THREE.CylinderGeometry(1.9, 1.7, 1.0, 40), toon('#ffffff'), 0, 0.5, 0.2, '#6f8fb8', 0.04); tub.scale.set(1.15, 1, 0.8);
+const tub = add(bath, new THREE.CylinderGeometry(1.9, 1.7, 1.0, 40), toon('#ffffff', null, 'ceramic'), 0, 0.5, 0.2, '#6f8fb8', 0.04); tub.scale.set(1.15, 1, 0.8);
 const water = new THREE.Mesh(new THREE.CylinderGeometry(1.8, 1.8, 0.05, 40), new THREE.MeshToonMaterial({ color: '#8fdcff', gradientMap: grad, transparent: true, opacity: 0.93 }));
 water.scale.set(1.15, 1, 0.8); water.position.set(0, 1.01, 0.2); bath.add(water);
-const rim = add(bath, new THREE.TorusGeometry(1.86, 0.12, 12, 48), toon('#ffffff'), 0, 1.02, 0.2, '#6f8fb8', 0.02); rim.rotation.x = -Math.PI / 2; rim.scale.set(1.15, 0.8, 1);
+const rim = add(bath, new THREE.TorusGeometry(1.86, 0.12, 12, 48), toon('#ffffff', null, 'ceramic'), 0, 1.02, 0.2, '#6f8fb8', 0.02); rim.rotation.x = -Math.PI / 2; rim.scale.set(1.15, 0.8, 1);
 [[-1.2, 0.5], [1.1, -0.2], [-0.6, -0.5], [0.9, 0.85], [-1.5, -0.1], [1.6, 0.3]].forEach(([x, z], i) => { const f = add(bath, new THREE.SphereGeometry(0.2 + (i % 3) * 0.06, 14, 10), toon('#ffffff'), x, 1.05, z + 0.2, '#9fc8e8', 0.02); f.scale.set(1, 0.6, 1); });
 const duck = new THREE.Group(); duck.position.set(1.25, 1.05, 0.75); bath.add(duck);
 const dB = add(duck, new THREE.SphereGeometry(0.22, 18, 14), toon('#ffd84a'), 0, 0.08, 0, '#a8742e', 0.02); dB.scale.set(1.2, 0.8, 1);
@@ -264,8 +275,8 @@ add(bath, new THREE.CylinderGeometry(0.05, 0.05, 1.2, 10), toon('#cfd8e8'), -2.6
 const shower = add(bath, new THREE.CylinderGeometry(0.32, 0.18, 0.2, 20), toon('#cfd8e8'), -2.6, 2.9, -3.1, '#6f8fb8'); shower.rotation.x = 0.5;
 add(bath, new THREE.BoxGeometry(0.12, 1.3, 0.9), toon('#ff9ec4'), -4.45, 2.4, -1.2, '#a8507a');
 { // thảm tròn trước bồn, kệ xà phòng, ghế đẩu có khăn, chậu cây: nhà tắm bớt trống
-  const mat = add(bath, new THREE.CylinderGeometry(1.05, 1.05, 0.05, 40), toon('#ffb8cf'), 0, 0.03, 2.3, '#a8507a', 0.02); mat.scale.set(1.5, 1, 0.7);
-  const matIn = add(bath, new THREE.CylinderGeometry(0.72, 0.72, 0.06, 40), toon('#ffe0ea'), 0, 0.045, 2.3, null); matIn.scale.set(1.5, 1, 0.7);
+  const mat = add(bath, new THREE.CylinderGeometry(1.05, 1.05, 0.05, 40), toon('#ffb8cf', null, 'fabric'), 0, 0.03, 2.3, '#a8507a', 0.02); mat.scale.set(1.5, 1, 0.7);
+  const matIn = add(bath, new THREE.CylinderGeometry(0.72, 0.72, 0.06, 40), toon('#ffe0ea', null, 'fabric'), 0, 0.045, 2.3, null); matIn.scale.set(1.5, 1, 0.7);
   add(bath, new THREE.BoxGeometry(1.9, 0.1, 0.42), toon('#e8b47a'), 1.9, 2.45, -3.28, '#9a5f4a', 0.015);
   [[1.25, '#ff9ec4', 0.34], [1.7, '#7ec8ff', 0.42], [2.15, '#ffd36e', 0.3]].forEach(([x, col, h]) => { add(bath, new THREE.CylinderGeometry(0.1, 0.12, h, 12), toon(col), x, 2.5 + h / 2, -3.28, '#6f5a7a', 0.012); add(bath, new THREE.CylinderGeometry(0.05, 0.05, 0.08, 8), toon('#ffffff'), x, 2.5 + h + 0.04, -3.28, null); });
   const pot = add(bath, new THREE.CylinderGeometry(0.16, 0.12, 0.2, 12), toon('#e8a07a'), 2.6, 2.6, -3.28, '#9a5f4a', 0.012);
@@ -278,7 +289,7 @@ add(bath, new THREE.BoxGeometry(0.12, 1.3, 0.9), toon('#ff9ec4'), -4.45, 2.4, -1
 /* Vườn */
 const garden = new THREE.Group(); garden.visible = false; scene.add(garden); areas.garden = garden;
 const groundTex = groundTextures(canvasTex); // texture nền vườn (garden3d.js)
-add(garden, new THREE.CylinderGeometry(15, 14.5, 0.6, 72), toon('#ffffff', groundTex.grass), 0, -0.3, 0, '#4f9a4a', 0.04);
+add(garden, new THREE.CylinderGeometry(15, 14.5, 0.6, 72), toon('#ffffff', groundTex.grass, 'ground'), 0, -0.3, 0, '#4f9a4a', 0.04);
 
 for (let i = -7; i <= 7; i++) add(garden, new THREE.BoxGeometry(0.2, 1.1, 0.2), toon('#fff3e0'), i * 0.85, 0.55, -4.3, '#a8778e', 0.02);
 [0.75, 0.35].forEach(y => add(garden, new THREE.BoxGeometry(12.5, 0.12, 0.12), toon('#fff3e0'), 0, y, -4.25, '#a8778e', 0.02));
@@ -296,7 +307,7 @@ add(garden, new THREE.CylinderGeometry(0.28, 0.38, 2.2, 14), toon('#a8744e'), -4
 const cloudM = new THREE.MeshBasicMaterial({ color: '#ffffff' });
 [[-6, 5.2, -9], [3, 6.2, -10], [8, 4.8, -9]].forEach(([x, y, z]) => { [[0, 0, 1], [1.1, 0.2, 1.2], [2.2, 0, 0.9]].forEach(([dx, dy, r]) => { const c = new THREE.Mesh(new THREE.SphereGeometry(r, 16, 12), cloudM); c.position.set(x + dx, y + dy, z); garden.add(c); }); });
 const ballTex = canvasTex(128, 64, g => { g.fillStyle = '#ff9ec4'; g.fillRect(0, 0, 128, 64); g.fillStyle = '#ffffff'; g.fillRect(0, 26, 128, 12); g.fillStyle = '#ffd36e'; g.fillRect(0, 0, 128, 8); g.fillRect(0, 56, 128, 8); });
-const ball = add(garden, new THREE.SphereGeometry(0.3, 24, 18), toon('#ffffff', ballTex), 2.0, 0.3, 1.4, '#a8507a', 0.02);
+const ball = add(garden, new THREE.SphereGeometry(0.3, 24, 18), toon('#ffffff', ballTex, 'plastic'), 2.0, 0.3, 1.4, '#a8507a', 0.02);
 
 /* Phòng ngủ */
 const starWall = canvasTex(128, 128, g => { g.fillStyle = '#fff'; g.fillRect(0, 0, 128, 128); g.fillStyle = '#fff2b0'; [[20, 30], [80, 20], [50, 80], [104, 96]].forEach(([x, y]) => { g.beginPath(); for (let i = 0; i < 10; i++) { const a = i * Math.PI / 5 - Math.PI / 2, r = i % 2 ? 4 : 10; g.lineTo(x + Math.cos(a) * r, y + Math.sin(a) * r); } g.fill(); }); }, [6, 3]);
@@ -305,15 +316,15 @@ windowOn(bedroom, 2.3, 3.0, (g) => { const gr = g.createLinearGradient(0, 0, 0, 
   g.fillStyle = '#fff3c4'; g.beginPath(); g.arc(170, 70, 30, 0, 7); g.fill(); g.fillStyle = '#26245a'; g.beginPath(); g.arc(184, 60, 27, 0, 7); g.fill();
   g.fillStyle = '#fff'; [[30, 30], [70, 90], [110, 40], [60, 150], [210, 150], [140, 130]].forEach(([x, y]) => g.fillRect(x, y, 4, 4)); });
 add(bedroom, new THREE.BoxGeometry(3.4, 0.5, 3.4), toon('#ffd9a8'), 0, 0.25, -0.7, '#9a5f4a');
-add(bedroom, new THREE.BoxGeometry(3.2, 0.3, 3.2), toon('#fff7fb'), 0, 0.6, -0.7, '#a8778e');
+add(bedroom, new THREE.BoxGeometry(3.2, 0.3, 3.2), toon('#fff7fb', null, 'fabric'), 0, 0.6, -0.7, '#a8778e');
 add(bedroom, new THREE.BoxGeometry(3.4, 1.8, 0.25), toon('#ff9ec4'), 0, 1.1, -2.4, '#a8507a');
-const pillow = add(bedroom, new THREE.SphereGeometry(0.6, 20, 14), toon('#ffffff'), 0, 1.0, -1.85, '#a8778e'); pillow.scale.set(1.7, 0.45, 0.8);
+const pillow = add(bedroom, new THREE.SphereGeometry(0.6, 20, 14), toon('#ffffff', null, 'fabric'), 0, 1.0, -1.85, '#a8778e'); pillow.scale.set(1.7, 0.45, 0.8);
 const blanketTex = canvasTex(128, 128, g => { g.fillStyle = '#ffffff'; g.fillRect(0, 0, 128, 128); g.fillStyle = '#d6e4ff'; for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) if ((x + y) % 2) g.fillRect(x * 32, y * 32, 32, 32); }, [3, 2]);
-add(bedroom, new THREE.BoxGeometry(3.25, 0.34, 1.35), toon('#9fb8ff', blanketTex), 0, 0.92, 1.0, '#5a5aa8', 0.03); // chăn gấp ở chân giường
+add(bedroom, new THREE.BoxGeometry(3.25, 0.34, 1.35), toon('#9fb8ff', blanketTex, 'fabric'), 0, 0.92, 1.0, '#5a5aa8', 0.03); // chăn gấp ở chân giường
 add(bedroom, new THREE.BoxGeometry(0.9, 0.9, 0.9), toon('#ffd9a8'), 2.6, 0.45, -1.6, '#9a5f4a');
 add(bedroom, new THREE.CylinderGeometry(0.08, 0.12, 0.5, 10), toon('#ffffff'), 2.6, 1.15, -1.6, '#a8778e', 0.01);
 const shade = new THREE.Mesh(new THREE.ConeGeometry(0.38, 0.4, 20, 1, true), new THREE.MeshBasicMaterial({ color: '#ffd59a', side: THREE.DoubleSide })); shade.position.set(2.6, 1.55, -1.6); bedroom.add(shade);
-add(bedroom, new THREE.CylinderGeometry(2.0, 2.0, 0.05, 40), toon('#c9b8ff'), 0, 0.03, 1.9, '#6a5ab0', 0.02);
+add(bedroom, new THREE.CylinderGeometry(2.0, 2.0, 0.05, 40), toon('#c9b8ff', null, 'fabric'), 0, 0.03, 1.9, '#6a5ab0', 0.02);
 
 function rnd(seed) { let a = seed; return () => { a = (a * 16807) % 2147483647; return a / 2147483647; }; }
 
@@ -385,7 +396,7 @@ const placeOpen = {
 function loadPlace(name) {
   if (placeInst[name]) return Promise.resolve(placeInst[name]);
   return placeLoading[name] || (placeLoading[name] = PLACE_LOADERS[name]().then(init => {
-    const inst = init({ THREE, add, toon, canvasTex, shell, windowOn, scene, camera, canvas, ray, ndcFrom, walkPetTo, say, startAction, toast, sfx, spawn, hideHint, playToy: toyPlay, script: runScript, spawnAt, reduce, sfxPlay: sfx, activity: kind => { recordActivity(kind); }, festivalTheme: () => FESTIVAL_BY_ID[S.festival?.festival?.id]?.theme || null, applyShadows, quality: () => quality, isNight: () => period === 'dem', getArea: () => area, state: S, open: placeOpen, goTo, setTemp, play: spinPlay, grad, events, petBuilder, bondLevel: () => bondLevel(S.bondXp), getPetXZ: () => [petBase.x + petOff.x, petBase.z + petOff.z] });
+    const inst = init({ noOutline: !!cine, addFur: cine ? (g, b) => cine.addFur(g, b, 12) : null, THREE, add, toon, canvasTex, shell, windowOn, scene, camera, canvas, ray, ndcFrom, walkPetTo, say, startAction, toast, sfx, spawn, hideHint, playToy: toyPlay, script: runScript, spawnAt, reduce, sfxPlay: sfx, activity: kind => { recordActivity(kind); }, festivalTheme: () => FESTIVAL_BY_ID[S.festival?.festival?.id]?.theme || null, applyShadows, quality: () => quality, isNight: () => period === 'dem', getArea: () => area, state: S, open: placeOpen, goTo, setTemp, play: spinPlay, grad, events, petBuilder, bondLevel: () => bondLevel(S.bondXp), getPetXZ: () => [petBase.x + petOff.x, petBase.z + petOff.z] });
     inst.group.visible = false; areas[name] = inst.group; applyShadows(inst.group); placeInst[name] = inst; return inst;
   }));
 }
@@ -402,15 +413,18 @@ function onEnter(name) {
   if (line) setTimeout(() => say(line, 3200), reduce ? 0 : 350);
 }
 /** Ánh sáng đích; updateLights() đưa ánh sáng thật tiến dần tới đó (chuyển giờ/khu mượt thay vì nhảy bậc). */
+/** Hệ số đèn theo chế độ: dựng hình vật lý lấy ánh sáng nền từ bầu trời (env map) nên đèn bán cầu yếu đi, mặt trời mạnh lên. */
+const LK = cine ? { hemi: 0.2, sun: 1.2, lamp: 1.5 } : { hemi: 1, sun: 1, lamp: 1 };
 const lightT = { hemi: 1.6, sun: 2.0, lamp: 0, sunCol: new THREE.Color('#fff1dc'), lampPos: new THREE.Vector3(-1.5, 3, 2) };
 function updateLights(dt) {
   const k = Math.min(1, dt * 2.2);
   scene.fog.near += (fogT.near - scene.fog.near) * k; scene.fog.far += (fogT.far - scene.fog.far) * k; scene.fog.color.lerp(fogT.col, k);
-  hemi.intensity += (lightT.hemi - hemi.intensity) * k; sun.intensity += (lightT.sun - sun.intensity) * k; lamp.intensity += (lightT.lamp - lamp.intensity) * k;
+  hemi.intensity += (lightT.hemi * LK.hemi - hemi.intensity) * k; sun.intensity += (lightT.sun * LK.sun - sun.intensity) * k; lamp.intensity += (lightT.lamp * LK.lamp - lamp.intensity) * k;
   sun.color.lerp(lightT.sunCol, k); lamp.position.lerp(lightT.lampPos, k);
 }
 function applyAreaLights() {
   const night = period === 'dem';
+  if (cine) { const sk = SKY[period] || SKY.trua, out = area === 'garden' || !!(PLACE_BY_ID[area] && PLACE_BY_ID[area].outdoor); cine.setLook({ top: sk[0], horizon: sk[1], night, sky: wx.sky, indoor: !out, bedroom: area === 'bedroom' }); }
   beams.visible = !night;
   rimColor.value.set(area === 'bedroom' || night ? '#b9c4ff' : period === 'chieu' ? '#ffd9b8' : '#fff4e8'); rimStrength.value = area === 'bedroom' ? 0.35 : night ? 0.4 : 0.5;
   if (area === 'bedroom') { lightT.hemi = 0.75; lightT.sun = 0.35; lightT.sunCol.set('#b7b8ff'); lightT.lampPos.set(2.4, 2.2, -0.6); lightT.lamp = 20; if (!lookBooted) snapLights(); return; }
@@ -421,7 +435,7 @@ function applyAreaLights() {
   const wide = !!(PLACE_BY_ID[area] && PLACE_BY_ID[area].follow); fogT.near = wide ? 24 : outdoor ? 34 : 1000; fogT.far = wide ? 62 : outdoor ? 90 : 2000;
   if (!lookBooted) snapLights();
 }
-function snapLights() { scene.fog.near = fogT.near; scene.fog.far = fogT.far; scene.fog.color.copy(fogT.col); hemi.intensity = lightT.hemi; sun.intensity = lightT.sun; lamp.intensity = lightT.lamp; sun.color.copy(lightT.sunCol); lamp.position.copy(lightT.lampPos); }
+function snapLights() { scene.fog.near = fogT.near; scene.fog.far = fogT.far; scene.fog.color.copy(fogT.col); hemi.intensity = lightT.hemi * LK.hemi; sun.intensity = lightT.sun * LK.sun; lamp.intensity = lightT.lamp * LK.lamp; sun.color.copy(lightT.sunCol); lamp.position.copy(lightT.lampPos); }
 let scrubN = 0;
 function scrub() {
   sfx('bath'); actBatched('bath_scrub'); S.sach = clamp(S.sach + 3); spawn('bubble', 2, 0.9); setTemp('love', 1200); impulse(-0.9); scrubN++;
@@ -623,6 +637,7 @@ function buildLook() {
   petParts = petBuilder.build(petLook, L);
   ({ body, ears, top: sprout, tail, arms, feet } = petParts);
   body.add(face);
+  if (cine) cine.addFur(petLook, body);
   grow.scale.setScalar((STAGES[L.stage]?.scale || 1) * (L.genes?.scale || 1));
   if (lookBooted) applyShadows(petLook);
   home?.refreshOutfit();
@@ -1187,14 +1202,15 @@ function applyQuality() {
 }
 document.querySelector('.quality')?.addEventListener('click', e => {
   const b = e.target.closest('.qbtn[data-q]'); if (!b) return;
-  quality = b.dataset.q; try { localStorage.setItem('hatchday-quality', quality); } catch (err) { /* bỏ qua */ }
+  const was = quality; quality = b.dataset.q; try { localStorage.setItem('hatchday-quality', quality); } catch (err) { /* bỏ qua */ }
+  if ((was === 'dienanh') !== (quality === 'dienanh')) { location.reload(); return; } // Điện ảnh dùng bộ vật liệu khác: phải tải lại
   applyQuality();
 });
 
 /* ---------------- camera ---------------- */
 function resize() {
   const w = canvas.clientWidth || innerWidth, h = canvas.clientHeight || innerHeight;
-  renderer.setSize(w, h, false); camera.aspect = w / h;
+  renderer.setSize(w, h, false); camera.aspect = w / h; if (cine) cine.setSize(w, h, renderer.getPixelRatio());
   const portrait = h > w * 1.05;
   const cp = CAM[area][portrait ? 1 : 0];
   camera.fov = cp[0]; camera.position.set(cp[1], cp[2], cp[3]); look.set(cp[4], cp[5], cp[6]);
@@ -1331,7 +1347,7 @@ function tick(now, dt) {
   petBuilder.animate(petParts, t, reduce);
   updateCamera(dt, t); updateLift(dt, now);
   if (!bubbleEl.hidden) { if (now > bubbleUntil) bubbleEl.hidden = true; else placeBubble(); }
-  renderer.render(scene, camera);
+  if (cine) cine.render(dt, t, focusW); else renderer.render(scene, camera);
   if (capReq) { const r = capReq; capReq = null; r(snapshot()); }
   if (DEV) { fpsN++; if (now > fpsAt) { const i = renderer.info.render; devhud.textContent = _t`${fpsN * 2} FPS · ${i.calls} draw · ${(i.triangles / 1000).toFixed(1)}k tam giác · pr ${renderer.getPixelRatio()}`; fpsN = 0; fpsAt = now + 500; } }
 }

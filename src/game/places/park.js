@@ -179,7 +179,7 @@ export function initPark(c) {
     return [
       () => {
         const pond = new THREE.Group(); pond.position.set(-12, 0, -2.4); z.add(pond);
-        pondMat = toon('#8ed6ff'); const wtr = add(pond, new THREE.CylinderGeometry(3.4, 3.4, 0.06, 40), pondMat, 0, 0.03, 0, '#4a90c0', 0.03); wtr.scale.z = 0.7;
+        pondMat = toon('#8ed6ff', null, 'water'); const wtr = add(pond, new THREE.CylinderGeometry(3.4, 3.4, 0.06, 40), pondMat, 0, 0.03, 0, '#4a90c0', 0.03); wtr.scale.z = 0.7;
         const rim = add(pond, new THREE.TorusGeometry(3.4, 0.14, 8, 40), toon('#d9d2c4'), 0, 0.07, 0, '#8a8478', 0.02); rim.rotation.x = Math.PI / 2; rim.scale.y = 0.7;
         // cầu gỗ bắc qua ao
         const br = new THREE.Group(); br.position.set(0, 0.28, 0); pond.add(br);

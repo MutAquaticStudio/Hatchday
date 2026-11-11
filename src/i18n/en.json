@@ -1878,5 +1878,6 @@
  "<div class=\"stack\"><button class=\"btn\" id=\"steam-play\">Chơi</button><p class=\"err\" id=\"form-err\" role=\"alert\"></p><button class=\"link\" data-go=\"login\">Dùng tài khoản email</button></div>": "<div class=\"stack\"><button class=\"btn\" id=\"steam-play\">Play</button><p class=\"err\" id=\"form-err\" role=\"alert\"></p><button class=\"link\" data-go=\"login\">Use an email account</button></div>",
  "Chưa đăng nhập được bằng Steam. Kiểm tra mạng rồi thử lại, hoặc dùng tài khoản email.": "Couldn't sign in with Steam. Check your connection and try again, or use an email account.",
  "Chọn": "Select",
- "Quay lại": "Back"
+ "Quay lại": "Back",
+ "Điện ảnh": "Cinematic"
 }
