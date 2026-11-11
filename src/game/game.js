@@ -110,6 +110,19 @@ function petToon(color) {
   m.customProgramCacheKey = () => 'pet-rim';
   return m;
 }
+/** Vật liệu cel cho quái thú (monster.js): màu theo đỉnh, viền sáng ven thân, phần hoa văn phát sáng (aGlow), sáng trắng khi tiến hoá. */
+function petCel() {
+  const m = new THREE.MeshToonMaterial({ color: '#ffffff', gradientMap: grad, vertexColors: true });
+  m.onBeforeCompile = sh => {
+    tintShader(sh);
+    sh.uniforms.rimColor = rimColor; sh.uniforms.rimStrength = rimStrength; sh.uniforms.evoGlow = evoGlow;
+    sh.vertexShader = 'attribute float aGlow;\nvarying float vGlow;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n  vGlow = aGlow;');
+    sh.fragmentShader = 'uniform vec3 rimColor;\nuniform float rimStrength;\nuniform float evoGlow;\nvarying float vGlow;\n' + sh.fragmentShader.replace('#include <opaque_fragment>',
+      '#include <opaque_fragment>\n  float rimF = 1.0 - clamp(dot(normalize(normal), normalize(vViewPosition)), 0.0, 1.0);\n  gl_FragColor.rgb += rimColor * smoothstep(0.62, 0.68, rimF) * rimStrength * 0.4;\n  gl_FragColor.rgb += vGlow * vColor.rgb * 0.75;\n  gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(1.0, 0.98, 0.94), evoGlow);');
+  };
+  m.customProgramCacheKey = () => 'pet-cel';
+  return m;
+}
 const outlineMats = {};
 function outline(mesh, color, t = 0.03) {
   if (cine) return mesh; // dựng hình vật lý không dùng nét viền
@@ -623,7 +636,7 @@ function updateArea(dt, t) {
 /* Thú dựng theo loài + giai đoạn + dáng (pet3d.js). `grow` co giãn theo tuổi, `pivot` để nhún nhảy, `petLook` chứa thân thú (dựng lại khi lớn). */
 /* khuôn mặt: xem face.js */
 const { face, EXPR, drawFace, setStyle: setFaceStyle } = makeFace({ THREE, renderer });
-const petBuilder = makePetBuilder({ THREE, add, toon, petToon, grad, hdr: !!cine });
+const petBuilder = makePetBuilder({ THREE, add, toon, petToon, grad, hdr: !!cine, petCel, faceTex: () => face.material.map, quality: () => quality });
 const petRoot = new THREE.Group(); petRoot.position.set(0, 0, 0.35); scene.add(petRoot);
 const grow = new THREE.Group(); petRoot.add(grow);
 const pivot = new THREE.Group(); grow.add(pivot);

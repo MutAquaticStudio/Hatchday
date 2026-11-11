@@ -1,6 +1,7 @@
 // Dựng thú 3D theo loài + giai đoạn + dáng + gen. Dùng chung cho thú trong game và ảnh thu nhỏ ở Sổ loài.
 // Quy ước (không gian `pivot`): thân là khối cầu tâm y≈0.98, đỉnh đầu ≈1.93, mặt nhìn về +z.
 import { SPECIES_BY_ID, SPECIES, STAGES, REGIONS } from './species';
+import { makeMonsterBuilder } from './monster.js';
 
 /** Vị trí chuẩn mà đồ mặc (decor3d) đang giả định — dùng để tính độ lệch cho từng dáng thân. */
 const BASE = { cy: 0.98, sx: 1.06, sy: 0.95, sz: 1 };
@@ -25,6 +26,8 @@ export const FIERCE = { baby: 0, child: 0.6, teen: 0.8, adult: 1, elder: 0.7 };
 
 export function makePetBuilder(K) {
   const { THREE, add, toon, petToon } = K;
+  /* Quái thú cel shading (monster.js): loài nào đã có thì dựng bằng bộ mới, chưa có thì dùng bộ dựng cũ bên dưới. */
+  const monster = K.petCel ? makeMonsterBuilder({ ...K, ELEMENT, FIERCE }) : null;
   const S = (r, w = 20, h = 14) => new THREE.SphereGeometry(r, w, h);
   const Cone = (r, h, s = 16) => new THREE.ConeGeometry(r, h, s);
   const Cy = (rt, rb, h, s = 10) => new THREE.CylinderGeometry(rt, rb, h, s);
@@ -101,6 +104,7 @@ export function makePetBuilder(K) {
    * stage: baby | child | teen | adult | elder. form chỉ có tác dụng từ adult.
    */
   function build(into, look) {
+    if (monster) { const r = monster.build(into, look, { measureSockets, simpleFace }); if (r) return r; }
     const sp = SPECIES_BY_ID[look.species] || SPECIES[0];
     const stage = look.stage && STAGES[look.stage] ? look.stage : 'baby';
     const grown = stage === 'adult' || stage === 'elder';
@@ -452,6 +456,7 @@ export function makePetBuilder(K) {
   function animate(parts, t, reduce) {
     if (!parts || reduce) return;
     const a = parts.anim;
+    if (a.mon) monster.animate(parts, t);
     a.wings.forEach(w => { if (w.userData.side) w.rotation.z = w.userData.s * (0.1 + Math.max(0, Math.sin(t * 3.2)) * 0.25); else w.rotation.y = w.userData.s * (0.25 + Math.sin(t * 9) * 0.25); });
     if (a.halo) { a.halo.rotation.z = t * 0.8; a.halo.position.y = a.halo.userData.y + Math.sin(t * 2) * 0.04; }
     const cx = parts.center;
