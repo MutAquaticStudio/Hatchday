@@ -40,6 +40,7 @@ import { initSettings } from './settings.js';
 import { setPresence, syncAchievements } from '../lib/steam';
 import { initGamepad, stick } from './gamepad.js';
 import { cineWanted, createCine } from './gfx.js';
+import { movesOf, moveUnlocked, moveDesc, moveLockNote, ELEMENT_NAMES, KIND_NAMES } from './skills';
 import { isSteam } from '../lib/platform';
 import { STAGES } from './species';
 import { AXES, TRAITS, describe as describePersona, greeting, idleGapFactor, idleWeights, petLine, pickWeighted, walkSpeedFactor } from './personality';
@@ -877,7 +878,12 @@ function renderStats() { STAT.forEach(([k]) => { $('f-' + k).style.width = S[k] 
 /* Cá tính: mỗi trục là một thanh hai đầu, chấm nằm lệch về nét mạnh hơn */
 $('persona-axes').innerHTML = AXES.map(a => `<div class="axis" role="img" id="ax-${a}"><span>${TRAITS[a].lo}</span><div class="axis-track"><i id="axd-${a}"></i></div><span>${TRAITS[a].hi}</span></div>`).join('');
 function renderTastes() { $('tastes').textContent = _t('Khẩu vị: ') + tastesLine(S.tastes); }
+function renderMoves() {
+  const lv = bondLevel(S.bondXp);
+  $('move-list').innerHTML = movesOf(S.species).map(m => { const on = moveUnlocked(m, S.stage, lv); return `<li class="move${on ? '' : ' locked'}"><b>${m.name}</b> <span class="chip">${ELEMENT_NAMES[m.element]} · ${KIND_NAMES[m.kind]}</span><br><span class="note">${on ? moveDesc(m) : moveLockNote(m)}</span></li>`; }).join('');
+}
 function renderPersona() {
+  renderMoves();
   $('persona-desc').textContent = describePersona(S.personality);
   AXES.forEach(a => {
     const v = S.personality[a];

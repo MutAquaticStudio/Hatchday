@@ -97,6 +97,19 @@ const DEF = {
   'keo-bong-gon': { bulk: 1.15, ears: 'point', earK: 1.4, tails: 2, ruff: 1 },
   'lua-bep': { pose: 'bi', bulk: 1.15, ears: 'none', horns: 'curve', tail: 'whip', tailFat: 1.6, spikes: true, wings: 'bat', ruff: 0.5 },
 };
+/** Nét đặc trưng theo chủ đề của loài: mào trên đầu (crest), vật mọc dọc lưng (back), chóp đuôi (tip). Xem orn() trong beast(). */
+const ORN = {
+  'mam-xanh': { crest: 'leaf', tip: 'leaf' }, 'bong-lua': { tip: 'bud' }, 'ong-mat': { tip: 'crystal' }, 'co-may': { crest: 'leaf', back: 'leaf', tip: 'leaf' }, 'hoa-mai': { crest: 'bud', tip: 'bud' },
+  'chuon-chuon': { tip: 'orb' }, 'de-co': { tip: 'crystal' }, 'sen-hong': { crest: 'bud' }, 'nai-co': { back: 'leaf', tip: 'leaf' }, 'lan-vang': { crest: 'flame', back: 'flame' },
+  'ca-bong': { crest: 'fin', back: 'fin', tip: 'fin' }, 'oc-gao': { tip: 'drop' }, 'giot-mua': { crest: 'drop', tip: 'drop' }, 'tom-tit': { back: 'fin', tip: 'fin' }, 'rua-dam': { crest: 'leaf', tip: 'club' },
+  'sua-bien': { crest: 'orb', back: 'orb', tip: 'orb' }, 'rai-ca': { tip: 'fin' }, 'ca-heo-hong': { crest: 'fin', back: 'fin', tip: 'fin' }, 'ngoc-trai': { crest: 'orb' }, 'long-thuy': { back: 'fin', tip: 'fin' },
+  'bong-may': { crest: 'cloud', back: 'cloud', tip: 'cloud' }, 'se-nau': { crest: 'fin' }, 'dieu-giay': { back: 'fin', tip: 'orb' }, 'gio-nhe': { crest: 'fin' }, 'cau-vong': { crest: 'orb' },
+  'hai-au': { crest: 'fin' }, 'sao-bang': { crest: 'orb', back: 'crystal' }, 'may-ngu-sac': { crest: 'cloud', back: 'cloud' }, 'hac-trang': { crest: 'flame' }, 'chim-lac': { crest: 'flame' },
+  'nam-ngu': { crest: 'mush', back: 'mush' }, 'dom-dom': { tip: 'orb' }, 'trang-khuyet': { back: 'crystal' }, 'meo-muop': { tip: 'club' }, 'ma-troi': { crest: 'flame', back: 'flame', tip: 'flame' },
+  'huou-sao': { back: 'orb', tip: 'orb' }, 'tho-ngoc': { back: 'crystal', tip: 'orb' },
+  'banh-bo': { crest: 'flame', tip: 'flame' }, 'xoi-gac': { back: 'crystal', tip: 'flame' }, 'che-ba-mau': { crest: 'orb' }, 'banh-troi': { crest: 'orb', tip: 'orb' }, 'banh-flan': { back: 'flame', tip: 'flame' },
+  'tra-sua': { crest: 'orb', tip: 'orb' }, 'banh-bao': { crest: 'cloud', tip: 'cloud' }, 'banh-trung-thu': { tip: 'club' }, 'keo-bong-gon': { crest: 'cloud', back: 'cloud' }, 'lua-bep': { crest: 'flame', back: 'crystal', tip: 'flame' },
+};
 export const hasMonster = sp => !!DEF[sp.id];
 
 export function makeMonsterBuilder(K) {
@@ -148,7 +161,7 @@ export function makeMonsterBuilder(K) {
   function beast(sp, stage, form, cell) {
     const key = [sp.id, stage, form || '', cell].join('|'); let R = geoCache.get(key); if (R) return R;
     const lvl = { baby: 0, child: 1, teen: 2, adult: 3, elder: 3 }[stage], g = [0, 0.4, 0.75, 1][lvl], rk = { thuong: 0, hiem: 1, quy: 2, huyen: 3 }[sp.rarity] || 0;
-    const o = { bulk: 1, len: 1, leg: 1, neck: 1, ml: 1, ruff: 0.6, ears: 'point', earK: 1, horns: 'none', tail: 'plume', tailFat: 1, ...DEF[sp.id] };
+    const o = { bulk: 1, len: 1, leg: 1, neck: 1, ml: 1, ruff: 0.6, ears: 'point', earK: 1, horns: 'none', tail: 'plume', tailFat: 1, ...DEF[sp.id], ...ORN[sp.id] };
     const pose = o.pose || 'quad', bird = pose === 'bird', bi = pose === 'bi' || bird, serp = pose === 'serp'; if (bird) { o.tail = 'fan'; if (!DEF[sp.id].ears) o.ears = 'none'; if (o.beak !== false) o.beak = true; if (!o.wings) o.wings = 'feather'; } if (serp) { o.tail = 'whip'; if (!o.wings) o.wings = 'fin'; if (o.spikes === undefined) o.spikes = true; }
     const fat = o.bulk * (form === 'tron' ? 1.14 : 1), ll = (0.55 + 0.45 * g) * o.leg * (form === 'nhanh' ? 1.12 : 1), bl = (0.78 + 0.22 * g) * o.len, hs = (1.36 - 0.36 * g) * (bi && !bird ? 1.1 : 1), ml = (0.5 + 0.5 * g) * o.ml, ruff = o.ruff * (0.25 + 0.75 * g), tk = 0.42 + 0.58 * g;
     const legLen = 1.0 * ll, nk = (0.55 + 0.45 * g) * o.neck, STEP = bi || serp ? 0 : 0.14 * (0.5 + 0.5 * g);
@@ -234,6 +247,20 @@ export function makeMonsterBuilder(K) {
 
     /* lọn lông và phần cứng gắn liền thân (không tách hoạt ảnh) */
     const fixed = [], C = c => '#' + c.getHexString(), FUR = C(pal.fur), FUR2 = C(pal.fur.clone().lerp(pal.mantle, 0.28)), MAN = C(pal.mantle), MAN2 = C(pal.mantle.clone().lerp(pal.fur, 0.4)), TIP = C(pal.tip), HOT = C(pal.hot), BONE = C(pal.bone);
+    /* vật trang trí theo chủ đề: lá, lửa, tinh thể, cầu sáng, giọt nước, mũ nấm, búp hoa, mây, vây, chuỳ */
+    const lathe = (base, d, len, prof, opt) => sweep(prof.map(q => base.clone().addScaledVector(d, q[0] * len)), prof.map(q => q[1]), { radial: 9, sub: 3, ...opt });
+    const orn = (kind, base, dir, k) => { const d = new THREE.Vector3(dir[0], dir[1], dir[2] || 0).normalize(), sv = new THREE.Vector3().crossVectors(d, Math.abs(d.z) > 0.9 ? UPv : FWv).normalize(), fw = new THREE.Vector3().crossVectors(sv, d), out = [], D = (a, b, c = 0) => d.clone().multiplyScalar(a).addScaledVector(sv, b).addScaledVector(fw, c).toArray(), ACC = C(pal.accent);
+      if (kind === 'leaf') { out.push(lathe(base, d, 0.22 * k, [[0, 0.03 * k], [1, 0.022 * k]], { c0: '#3f9a46', c1: '#3f9a46' })); [-1, 1].forEach(s => out.push(tuftGeo(base.clone().addScaledVector(d, 0.2 * k), D(0.7, s * 0.8), 0.46 * k, 0.17 * k, D(0.4, -s * 0.3), { c0: '#46b04c', c1: '#b9f27c', flat: 0.22 }))); }
+      if (kind === 'flame') [[0, 0, 0.62, 0.15], [0.45, 0, 0.44, 0.12], [-0.45, 0, 0.44, 0.12], [0, 0.45, 0.4, 0.11], [0, -0.45, 0.4, 0.11]].forEach(([a, b, len, w]) => out.push(tuftGeo(base.clone(), D(1, a, b), len * k, w * k, D(0.3, -a * 0.8, -b * 0.8), { c0: TIP, c1: HOT, glow: 1, flat: 0.8, cs: 0.1 })));
+      if (kind === 'crystal') [[0, 0, 0.5], [0.5, 0.1, 0.36], [-0.45, -0.15, 0.32]].forEach(([a, b, len]) => out.push(lathe(base.clone(), new THREE.Vector3(...D(1, a, b)).normalize(), len * k, [[-0.1, 0.03 * k], [0.25, 0.085 * k], [0.75, 0.07 * k], [1, 0.003]], { radial: 5, c0: TIP, c1: HOT, glow: 0.9, cs: 0.2 })));
+      if (kind === 'orb') { out.push(lathe(base, d, 0.16 * k, [[-0.3, 0.02 * k], [1, 0.018 * k]], { c0: MAN, c1: MAN })); out.push(lathe(base.clone().addScaledVector(d, 0.14 * k), d, 0.3 * k, [[0, 0.01], [0.15, 0.1 * k], [0.5, 0.15 * k], [0.85, 0.1 * k], [1, 0.01]], { c0: TIP, c1: HOT, glow: 1, cs: 0, ce: 0.5 })); }
+      if (kind === 'drop') out.push(lathe(base, d, 0.46 * k, [[-0.1, 0.02], [0.28, 0.15 * k], [0.6, 0.11 * k], [1, 0.004]], { c0: '#6fc4ff', c1: '#e2f6ff', glow: 0.4 }));
+      if (kind === 'mush') { out.push(lathe(base, d, 0.2 * k, [[-0.2, 0.07 * k], [1, 0.06 * k]], { c0: FUR, c1: FUR })); out.push(lathe(base.clone().addScaledVector(d, 0.16 * k), d, 0.3 * k, [[0, 0.33 * k], [0.3, 0.31 * k], [0.72, 0.18 * k], [1, 0.01]], { radial: 12, c0: ACC, c1: HOT, cs: 0.5, ce: 1 })); }
+      if (kind === 'bud') { for (let i = 0; i < 5; i++) { const a = i / 5 * Math.PI * 2; out.push(tuftGeo(base.clone().addScaledVector(d, 0.05 * k), D(0.75, Math.cos(a) * 0.75, Math.sin(a) * 0.75), 0.3 * k, 0.12 * k, D(0.5, -Math.cos(a) * 0.3, -Math.sin(a) * 0.3), { c0: ACC, c1: HOT, flat: 0.3 })); } out.push(lathe(base.clone().addScaledVector(d, 0.04 * k), d, 0.16 * k, [[0, 0.01], [0.5, 0.07 * k], [1, 0.01]], { c0: '#ffd23e', c1: '#fff0a8', glow: 0.5 })); }
+      if (kind === 'cloud') [[0, 0, 0.17], [0.16, 0.05, 0.12], [-0.15, -0.04, 0.13], [0.02, 0.15, 0.11]].forEach(([a, b, r]) => out.push(lathe(base.clone().addScaledVector(sv, a * k).addScaledVector(fw, b * k), d, r * 2 * k, [[-0.1, 0.01], [0.2, r * 0.8 * k], [0.5, r * k], [0.8, r * 0.8 * k], [1, 0.01]], { c0: '#ffffff', c1: '#e6ecff' })));
+      if (kind === 'fin') out.push(tuftGeo(base.clone().addScaledVector(d, -0.04), D(1, 0, -0.45), 0.62 * k, 0.3 * k, D(0, 0, -0.6), { c0: MAN, c1: TIP, flat: 0.14, glow: 0.3 }));
+      if (kind === 'club') { out.push(lathe(base, d, 0.34 * k, [[-0.1, 0.02], [0.2, 0.13 * k], [0.55, 0.17 * k], [0.9, 0.11 * k], [1, 0.01]], { c0: ACC, c1: MAN })); [[0.6, 0], [-0.6, 0], [0, 0.6], [0, -0.6]].forEach(([a, b]) => out.push(lathe(base.clone().addScaledVector(d, 0.18 * k), new THREE.Vector3(...D(0.25, a, b)).normalize(), 0.24 * k, [[0, 0.05 * k], [1, 0.003]], { radial: 5, c0: BONE, c1: BONE }))); }
+      return out; };
     const ruffC = [nb[0] + 0.05, nb[1] + 0.1, 0];
     if (ruff > 0.2) [[0, 0, 11, 0, 0.5, 0.13], [-0.18, -0.13, 10, 0.26, 0.6, 0.15]].forEach(([ox, oy, n, off, len, w], row) => { if (row && ruff < 0.5) return; for (let i = 0; i < n; i++) { const a = (i + off) / n * Math.PI * 2, d = [-0.2, Math.cos(a), Math.sin(a)], low = Math.cos(a) < -0.35, b = surf(torso, Wp([ruffC[0] + ox, ruffC[1] + oy, 0]), d), top = Math.cos(a) > 0.45;
       fixed.push(tuftGeo(b, low ? [d[0] - 0.55, d[1] - 0.55, d[2] * 0.8] : [d[0] - 1.0, d[1] * 0.75 - 0.25, d[2] * 0.8], len * ruff * (low ? 0.62 : 1) * (0.85 + 0.3 * h3(i, row, 3)), w * (0.7 + 0.3 * ruff), low ? [-0.5, -0.5, 0] : [0, -0.9, 0], { c0: top ? MAN : FUR, c1: top ? MAN2 : FUR2 })); } });
@@ -243,6 +270,7 @@ export function makeMonsterBuilder(K) {
       fixed.push(sweep([V(-0.03, -0.12), V(0.035, 0), V(-0.03, 0.12)], [0.004, 0.08, 0.004], { c0: TIP, c1: HOT, flat: 0.6, radial: 6, sub: 3, glow: 1, cs: 0, ce: 0.6 })); }
     if (lvl >= 2) [-0.22, 0, 0.22].forEach(z => fixed.push(tuftGeo(surf(torso, Wp(hp(-0.08, 0.06, z)), [-0.5, 0.85, z * 0.6]), [-0.95, 0.42, z], (0.42 - Math.abs(z) * 0.5) * hs, 0.1, [0, -0.5, 0], { c0: MAN, c1: MAN2 })));
     if (lvl >= 1 && !o.shell) { const n = o.spikes ? 7 : 5; for (let i = 0; i < n; i++) { const u = i / (n - 1), x = shX + 0.17 - i * (shX + 0.17 - hipX + 0.05) / (n - 1), b = bi ? surf(torso, [shX - 0.05 + (hipX - shX + 0.05) * u, chY + 0.2 + (hipY - chY) * u, 0], [-1, 0.2, 0]) : surf(torso, [x, chY + (hipY - chY) * u, 0], [-0.15, 1, 0]);
+      if (o.back) { if (i % 2 === 0 || n <= 5) fixed.push(...orn(o.back, b.clone(), bi ? [-1, 0.3, 0] : [-0.3, 1, 0], (0.55 + 0.6 * Math.sin(u * Math.PI)) * (0.55 + 0.45 * g))); continue; }
       const sd = bi ? [[0.06, 0.02], [-0.2, 0.06], [-0.4, -0.08]] : [[0.04, -0.06], [-0.08, 0.2], [-0.26, 0.36]];
       fixed.push(o.spikes ? sweep(sd.map(q => b.clone().add(new THREE.Vector3(q[0], q[1], 0))), [0.085, 0.06, 0.004], { flat: 0.5, c0: C(pal.accent), c1: HOT, radial: 6, sub: 3 }) : tuftGeo(b, bi ? [-0.6, -0.8, 0] : [-0.95, 0.5, 0], 0.32 - i * 0.02, 0.1, bi ? [-0.4, 0, 0] : [0, -0.5, 0], { c0: MAN, c1: MAN2 })); } }
     if (o.horns !== 'none' && lvl >= 1) [-1, 1].forEach(s => { const hk = (0.35 + 0.65 * g) * hs, hb = Wp(hp(0.04, 0.24, s * 0.16)), P3 = (dx, dy, dz) => new THREE.Vector3(hb[0] + dx * hk, hb[1] + dy * hk, hb[2] + s * dz * hk), hopt = { c0: C(pal.accent), c1: BONE, radial: 8, sub: 6, cs: 0.1, ce: 0.9 };
@@ -250,6 +278,7 @@ export function makeMonsterBuilder(K) {
       if (o.horns === 'crescent') fixed.push(sweep([P3(0.02, -0.05, 0), P3(0.06, 0.34, 0.12), P3(-0.12, 0.62, 0.1), P3(-0.34, 0.7, 0.0)], [0.075 * hk, 0.065 * hk, 0.04 * hk, 0.005], { ...hopt, c0: TIP, c1: HOT, glow: 1 }));
       if (o.horns === 'feeler') fixed.push(sweep([P3(0.06, -0.04, 0), P3(0.3, 0.5, 0.14), P3(0.72, 0.72, 0.24), P3(1.0, 0.6, 0.3)], [0.028, 0.022, 0.016, 0.03], { ...hopt, c0: MAN, c1: TIP, glow: 1 }));
       if (o.horns === 'antler') { fixed.push(sweep([P3(0.0, -0.05, 0), P3(-0.1, 0.4, 0.14), P3(-0.34, 0.78, 0.3), P3(-0.3, 1.1, 0.42)], [0.07 * hk, 0.06 * hk, 0.042 * hk, 0.006], hopt)); [[0.4, 0.14, 0.3, 0.62, 0.1], [0.78, 0.3, 0.0, 1.02, 0.2]].forEach(([y0, z0, x1, y1, z1]) => fixed.push(sweep([P3(-0.1 - (y0 - 0.4) * 0.6, y0, z0), P3(x1 * 0.6, (y0 + y1) / 2 + 0.08, (z0 + z1) / 2), P3(x1, y1, z1)], [0.045 * hk, 0.032 * hk, 0.005], hopt))); } });
+    if (o.crest && lvl >= 1) fixed.push(...orn(o.crest, surf(torso, Wp(hp(-0.05, 0.05, 0)), [-0.15, 1, 0]), [-0.3, 1, 0], hs * (0.6 + 0.4 * g)));
     if (sp.extra.includes('ria') && lvl >= 1) [-1, 1].forEach(s => [0.06, -0.04].forEach((dy, i) => { const b = Wp([mzB[0] - 0.12 * hs, mzB[1] + dy * hs, s * 0.085 * hs]); fixed.push(sweep([new THREE.Vector3(...b), new THREE.Vector3(b[0] + 0.02, b[1] + dy * 1.2, b[2] + s * 0.22), new THREE.Vector3(b[0] - 0.08, b[1] + dy * 2.2 - 0.04, b[2] + s * 0.4)], [0.011, 0.008, 0.002], { c0: HOT, c1: HOT, radial: 5, sub: 4, glow: 0.6 })); }));
 
     /* đuôi: mỗi đuôi một lưới + lọn lông riêng để vẫy */
@@ -274,7 +303,8 @@ export function makeMonsterBuilder(K) {
           for (let q = 0; q < n; q++) { const a = (q + row * 0.5 + ti * 0.3) / n * Math.PI * 2, rad = u.clone().multiplyScalar(Math.cos(a)).addScaledVector(v, Math.sin(a)); parts.push(tuftGeo(surf(f, cc.toArray(), rad.toArray()), rad.clone().multiplyScalar(0.42).addScaledVector(ax, 1).toArray(), len * tk * (0.85 + 0.3 * h3(q, row, ti)), w * tk, rad.clone().multiplyScalar(row >= 3 ? -0.55 : 0.35).toArray(), { c0, c1, glow: gl, cs: 0.2 })); } });
         const { ax } = frame(P3[3], P3[4]); parts.push(tuftGeo(P3[4].clone().addScaledVector(ax, -0.3 * tk), ax.toArray(), 0.85 * tk, 0.24 * tk, [0.3, 0, k * 0.2], { c0: TIP, c1: HOT, glow: 1, flat: 0.8 }));
       } else if (style === 'fan') { const nf = lvl >= 2 ? 7 : 5; for (let q = 0; q < nf; q++) { const a = (q / (nf - 1) - 0.5) * 1.5; parts.push(tuftGeo(P3[1].clone(), [-1, -0.25 + 0.15 * Math.cos(a * 2), Math.sin(a) * 0.9], (0.75 - Math.abs(a) * 0.2) * tk * (rk >= 2 ? 1.5 : 1), 0.15 * tk, [0, -0.3, 0], { c0: q % 2 ? MAN : FUR, c1: q % 2 ? TIP : MAN2, flat: 0.3, glow: rk >= 2 ? 0.6 : 0 })); } }
-      else if (style === 'whip' && lvl >= 1) { const { ax, u, v } = frame(P3[3], P3[4]); for (let q = 0; q < 5; q++) { const a = q / 5 * Math.PI * 2, rad = u.clone().multiplyScalar(Math.cos(a)).addScaledVector(v, Math.sin(a)); parts.push(tuftGeo(P3[4].clone().addScaledVector(ax, -0.08), rad.clone().multiplyScalar(0.5).addScaledVector(ax, 1).toArray(), 0.42 * tk, 0.12 * tk, rad.clone().multiplyScalar(-0.5).toArray(), { c0: TIP, c1: HOT, glow: 1 })); } }
+      else if (style === 'whip' && lvl >= 1) { const { ax, u, v } = frame(P3[3], P3[4]); if (o.tip) parts.push(...orn(o.tip, P3[4].clone().addScaledVector(ax, -0.06), ax.toArray(), 1.15 * tk)); else for (let q = 0; q < 5; q++) { const a = q / 5 * Math.PI * 2, rad = u.clone().multiplyScalar(Math.cos(a)).addScaledVector(v, Math.sin(a)); parts.push(tuftGeo(P3[4].clone().addScaledVector(ax, -0.08), rad.clone().multiplyScalar(0.5).addScaledVector(ax, 1).toArray(), 0.42 * tk, 0.12 * tk, rad.clone().multiplyScalar(-0.5).toArray(), { c0: TIP, c1: HOT, glow: 1 })); } }
+      if (style === 'stub' && o.tip && lvl >= 1) parts.push(...orn(o.tip, P3[2].clone(), [-0.7, 0.7, 0], 0.9 * tk));
       tails.push({ k, pivot: pv, geo: bake(mergeGeometries(parts.map(p => (p.index ? p : p)), false), pv) });
     }
 

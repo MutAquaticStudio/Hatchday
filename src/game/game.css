@@ -868,3 +868,9 @@ body.pad :focus-visible,body.pad :focus{outline:3px solid #ff6fa8!important;outl
 .pad-hints[hidden]{display:none}
 .pad-hints span{display:inline-flex;align-items:center;gap:5px}
 .pad-hints b{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;background:#fff;color:#4a2140;font-size:11px}
+
+/* Chiêu thức trong bảng Chỉ số */
+.moves ul { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 6px; }
+.moves .move { padding: 8px 10px; border-radius: 12px; background: rgba(255, 255, 255, .6); border: 1.5px solid rgba(74, 33, 64, .14); }
+.moves .move.locked { opacity: .6; }
+.moves .chip { font-size: .78em; padding: 1px 8px; border-radius: 999px; background: rgba(138, 75, 224, .14); }
