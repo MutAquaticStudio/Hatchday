@@ -81,6 +81,8 @@ export function initHome(ctx) {
     if (parts?.top) parts.top.visible = !hideTop;
   }
 
+  if (/[?&]dev\b/.test(location.search)) window.__wear = o => renderOutfit(o); // thử đồ nhanh khi kiểm tra hình (chỉ ở chế độ dev)
+
   /* ===================== Phản ứng của bé ===================== */
   const likes = () => new Set(S.likes), liked = it => (it.tags || []).some(t => likes().has(t)), disliked = it => (it.tags || []).includes(S.dislike);
   function reactTo(it, kind) {

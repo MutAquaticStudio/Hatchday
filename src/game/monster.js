@@ -107,6 +107,7 @@ const ORN = {
   'hai-au': { crest: 'fin' }, 'sao-bang': { crest: 'orb', back: 'crystal' }, 'may-ngu-sac': { crest: 'cloud', back: 'cloud' }, 'hac-trang': { crest: 'flame' }, 'chim-lac': { crest: 'flame' },
   'nam-ngu': { crest: 'mush', back: 'mush' }, 'dom-dom': { tip: 'orb' }, 'trang-khuyet': { back: 'crystal' }, 'meo-muop': { tip: 'club' }, 'ma-troi': { crest: 'flame', back: 'flame', tip: 'flame' },
   'huou-sao': { back: 'orb', tip: 'orb' }, 'tho-ngoc': { back: 'crystal', tip: 'orb' },
+  'cao-bac': { crest: 'flame' }, 'cu-meo': { crest: 'crystal', back: 'fin' }, 'doi-nho': { crest: 'orb', back: 'crystal' },
   'banh-bo': { crest: 'flame', tip: 'flame' }, 'xoi-gac': { back: 'crystal', tip: 'flame' }, 'che-ba-mau': { crest: 'orb' }, 'banh-troi': { crest: 'orb', tip: 'orb' }, 'banh-flan': { back: 'flame', tip: 'flame' },
   'tra-sua': { crest: 'orb', tip: 'orb' }, 'banh-bao': { crest: 'cloud', tip: 'cloud' }, 'banh-trung-thu': { tip: 'club' }, 'keo-bong-gon': { crest: 'cloud', back: 'cloud' }, 'lua-bep': { crest: 'flame', back: 'crystal', tip: 'flame' },
 };
@@ -327,6 +328,7 @@ export function makeMonsterBuilder(K) {
 
     R = { lvl, pal, pose, hover, torsoGeo: bake(torsoGeo), fixedGeo: fixed.length ? bake(mergeGeometries(fixed, false)) : null, legs, arms, ears, tails, wings, eyes,
       head: { c: toG(Wp([hc[0], hc[1], 0])), r: [0.29 * hs * S, 0.28 * hs * S, 0.33 * hs * S] }, body: { c: toG([mid, (hipY + chY) / 2, 0]), r: bi ? [0.42 * fat * S, (chY - hipY) / 2 * S + 0.2, 0.4 * fat * S] : [0.4 * fat * S, 0.42 * fat * S, (shX - hipX) / 2 * S + 0.2] },
+      neck: { p: toG(Wp([(nb[0] + nt[0]) / 2 + 0.03, (nb[1] + nt[1]) / 2 + 0.02, 0])), r: (0.27 + 0.1 * ruff) * S * 1.12, tilt: Math.atan2(nt[0] - nb[0], nt[1] - nb[1]) * 0.8 },
       headTop: (hc[1] + 0.28 * hs) * S, mouth: toG(Wp([mzB[0], mzB[1] - 0.06, 0])), sy: (hipY + chY) / 2 * S };
     geoCache.set(key, R); if (geoCache.size > 40) geoCache.delete(geoCache.keys().next().value);
     return R;
@@ -371,7 +373,8 @@ export function makeMonsterBuilder(K) {
     const kind = R.pose === 'bi' || R.pose === 'bird' ? 'dung' : R.pose === 'serp' ? 'ran' : 'thu4'; root.position.y = R.hover;
     const anim = { wings: wingsG, halo: null, orbit: [], tent: [], spin: [], gems: [], backLegs, feet, segs: [], root, hover: R.hover, legRigZ: legRig.position.z, mon: { tails, torso } };
     const Hh = { y: R.head.c.y, z: R.head.c.z, sx: R.head.r[0], sy: R.head.r[1], sz: R.head.r[2] }, Bb = { y: R.body.c.y, z: R.body.c.z, sx: R.body.r[0], sy: R.body.r[1], sz: R.body.r[2] };
-    const sockets = H.measureSockets(root, { H: Hh, B: Bb, Lo: { kind, hover: R.hover }, kH: Hh.sx / 1.06, kB: Bb.sx / 1.06, head: torso, neckM: torso, neckExtra: [], ears, topG, tail, armRig, legRig, backLegs, anim, sp, lvl: R.lvl });
+    const sockets = H.measureSockets(root, { H: Hh, B: Bb, Lo: { kind, hover: R.hover }, kH: Hh.sx / 1.06 * 1.7, kB: Bb.sx / 1.06, head: torso, neckM: torso, neckExtra: [], ears, topG, tail, armRig, legRig, backLegs, anim, sp, lvl: R.lvl });
+    sockets.neck = { p: [R.neck.p.x, R.neck.p.y + R.hover, R.neck.p.z], rx: R.neck.r, rz: R.neck.r, tilt: R.neck.tilt };   // cổ lấy thẳng từ bộ xương (đo bằng tia sẽ dính vai, bờm, cánh)
     into.add(root);
     return { body: anchor, ears, top: topG, tail, arms, feet, anim, sockets, flicker: false, headY: R.headTop + R.hover, mouth: [R.mouth.x, R.mouth.y + R.hover, R.mouth.z], center: [0, R.sy + R.hover, 0], plan: 'thu4', stage, species: sp };
   }

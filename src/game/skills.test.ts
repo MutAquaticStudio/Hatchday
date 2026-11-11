@@ -3,10 +3,10 @@ import { SPECIES } from './species';
 import { movesOf, moveUnlocked } from './skills';
 
 describe('chiêu thức của quái thú', () => {
-  it('loài nào cũng có đủ 4 chiêu, tuyệt chiêu riêng không trùng tên nhau', () => {
+  it('loài nào cũng có đủ 4 chiêu riêng, không chiêu nào trùng tên giữa các loài', () => {
     const names = new Set<string>();
-    for (const sp of SPECIES) { const m = movesOf(sp.id); expect(m).toHaveLength(4); expect(m.every(x => x.name && x.element === sp.region)).toBe(true); names.add(m[2].name); }
-    expect(names.size).toBe(SPECIES.length);
+    for (const sp of SPECIES) { const m = movesOf(sp.id); expect(m).toHaveLength(4); expect(m.every(x => x.name && x.element === sp.region)).toBe(true); m.forEach(x => names.add(x.name)); }
+    expect(names.size).toBe(SPECIES.length * 4); // mỗi loài một bộ chiêu riêng, không trùng tên
   });
   it('mở dần theo tuổi và Gắn bó; Xế chiều giữ chiêu của Trưởng thành', () => {
     const m = movesOf('cao-bac');
