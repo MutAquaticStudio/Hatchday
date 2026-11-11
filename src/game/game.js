@@ -21,7 +21,7 @@ import { initPhoto } from './photo.js';
 import { initNotify } from './notify.js';
 import { TOY_BY_ID, TOY_REFUSAL_TEXT, toyGain } from './toys';
 import { decayStats, deriveExpression, localDay } from './rules';
-import { makePetBuilder, disposePet } from './pet3d.js';
+import { makePetBuilder, disposePet, ELEMENT, FIERCE } from './pet3d.js';
 import { makeFace } from './face.js';
 import { dayRec, count, renderDiary, initDiary } from './diary.js';
 import { $, clamp } from './dom.js';
@@ -622,8 +622,8 @@ function updateArea(dt, t) {
 /* ---------------- con thú ---------------- */
 /* Thú dựng theo loài + giai đoạn + dáng (pet3d.js). `grow` co giãn theo tuổi, `pivot` để nhún nhảy, `petLook` chứa thân thú (dựng lại khi lớn). */
 /* khuôn mặt: xem face.js */
-const { face, EXPR, drawFace } = makeFace({ THREE, renderer });
-const petBuilder = makePetBuilder({ THREE, add, toon, petToon, grad });
+const { face, EXPR, drawFace, setStyle: setFaceStyle } = makeFace({ THREE, renderer });
+const petBuilder = makePetBuilder({ THREE, add, toon, petToon, grad, hdr: !!cine });
 const petRoot = new THREE.Group(); petRoot.position.set(0, 0, 0.35); scene.add(petRoot);
 const grow = new THREE.Group(); petRoot.add(grow);
 const pivot = new THREE.Group(); grow.add(pivot);
@@ -636,7 +636,7 @@ function buildLook() {
   disposePet(petLook);
   petParts = petBuilder.build(petLook, L);
   ({ body, ears, top: sprout, tail, arms, feet } = petParts);
-  body.add(face);
+  body.add(face); setFaceStyle({ iris: (ELEMENT[petParts.species.region] || ELEMENT[0]).iris, fierce: FIERCE[petParts.stage] || 0 });
   if (cine) cine.addFur(petLook, body);
   grow.scale.setScalar((STAGES[L.stage]?.scale || 1) * (L.genes?.scale || 1));
   if (lookBooted) applyShadows(petLook);
@@ -1373,3 +1373,4 @@ setPresence('home');
 const achievementTick = () => syncAchievements({ bondXp: S.bondXp, generation: S.generation, stage: S.stage, seen: S.seen || [], badges: S.world?.badges || [] });
 setTimeout(achievementTick, 3000); setInterval(achievementTick, 15000);
 initGamepad();
+if (DEV) window.__look = (species, stage, form) => { S.species = species; S.stage = stage; S.form = form || null; buildLook(); };

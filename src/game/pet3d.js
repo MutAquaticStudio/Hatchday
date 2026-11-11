@@ -12,6 +12,17 @@ const BODY = {
   giot: { cy: 0.98, sx: 1.02, sy: 0.96, sz: 1 },
 };
 
+/** Nguyên tố theo miền (chỉ để tạo hình: màu mắt, tinh thể ngực, chóp đuôi). Không có hệ khắc chế, không đánh nhau. */
+export const ELEMENT = [
+  { id: 'moc', glow: '#6fe04a', iris: '#3fae3a' },   // Đồng Nội: cỏ cây
+  { id: 'thuy', glow: '#4fd0ff', iris: '#1f8fe0' },  // Sông Nước: nước
+  { id: 'phong', glow: '#ffe45a', iris: '#e0a010' }, // Mây Trời: gió, sấm
+  { id: 'da', glow: '#b06aff', iris: '#8a3ae0' },    // Rừng Đêm: bóng đêm
+  { id: 'hoa', glow: '#ff7a3a', iris: '#e0461a' },   // Góc Bếp: lửa
+];
+/** Độ "ngầu" của mắt theo giai đoạn: sơ sinh mắt tròn, lớn dần thì sắc lại. */
+export const FIERCE = { baby: 0, child: 0.45, teen: 0.8, adult: 1, elder: 0.7 };
+
 export function makePetBuilder(K) {
   const { THREE, add, toon, petToon } = K;
   const S = (r, w = 20, h = 14) => new THREE.SphereGeometry(r, w, h);
@@ -26,7 +37,7 @@ export function makePetBuilder(K) {
     const sh = new THREE.Shape(); sh.moveTo(0, -r); sh.bezierCurveTo(r * 1.4, -r * 0.1, r * 0.7, r * 1.1, 0, r * 0.45); sh.bezierCurveTo(-r * 0.7, r * 1.1, -r * 1.4, -r * 0.1, 0, -r);
     const g = new THREE.ExtrudeGeometry(sh, { depth: d, bevelEnabled: true, bevelSize: 0.02, bevelThickness: 0.02, bevelSegments: 1 }); g.center(); return g;
   };
-  const glow = (c, k = 0.45) => new THREE.MeshToonMaterial({ color: c, gradientMap: K.grad, emissive: c, emissiveIntensity: k });
+  const glow = (c, k = 0.45) => new THREE.MeshToonMaterial({ color: c, gradientMap: K.grad, emissive: c, emissiveIntensity: k * (K.hdr ? 3 : 1) });
   /** Đặt vật lên bề mặt thân (ellipsoid) theo hướng (theta từ đỉnh, phi quanh trục y; phi = 0 là mặt trước). */
   const onBody = (b, theta, phi, lift = 0) => new THREE.Vector3(
     Math.sin(theta) * Math.sin(phi) * (b.sx + lift), (b.y ?? b.cy) + Math.cos(theta) * (b.sy + lift), Math.sin(theta) * Math.cos(phi) * (b.sz + lift));
@@ -39,7 +50,8 @@ export function makePetBuilder(K) {
   function layout(sp, lvl, form) {
     const fat = form === 'tron' ? 1.18 : 1, quick = form === 'nhanh';
     const legK = form === 'tron' ? 0.8 : quick ? 1.15 : 1;
-    if (lvl === 0 || sp.plan === 'banh' || !sp.plan) {
+    const plan = lvl === 0 ? 'banh' : (sp.plan && sp.plan !== 'banh' ? sp.plan : 'dung'); // từ Nhí trở đi loài nào cũng có đầu, thân, tay chân rõ ràng
+    if (plan === 'banh') {
       const b = { ...BODY[sp.body] };
       if (form === 'tron') { b.sx *= 1.08; b.sz *= 1.06; b.sy *= 0.98; b.cy -= 0.02; }
       if (quick) { b.sy *= 1.05; b.cy += 0.04; b.sx *= 0.97; }
@@ -47,20 +59,21 @@ export function makePetBuilder(K) {
       return { kind: 'banh', H: E, B: E, sep: false, legs: 'stub', legL: 0, arms: true, hover: 0, segs: [] };
     }
     const t = lvl === 1 ? 0 : lvl === 2 ? 0.5 : 1, L = (a, b) => a + (b - a) * t;
-    const hr = L(0.8, 0.67), H = { sx: hr * 1.06, sy: hr * 0.97, sz: hr }, g = L(0.84, 1);
-    if (sp.plan === 'thu4') {
-      const legL = L(0.2, 0.36) * (quick ? 1.25 : 1) * legK;
+    const hr = L(0.76, 0.6), H = { sx: hr * 1.06, sy: hr * 0.97, sz: hr }, g = L(0.84, 1);
+    if (plan === 'thu4') {
+      const legL = L(0.24, 0.46) * (quick ? 1.25 : 1) * legK;
       const B = { sx: 0.74 * fat * g, sy: 0.56 * g, sz: (quick ? 1.08 : 1) * g * 0.98 };
       B.y = legL + B.sy * 0.85; B.z = -0.22; H.y = B.y + B.sy * 0.55 + H.sy * 0.52; H.z = B.z + B.sz * 0.78;
       return { kind: 'thu4', H, B, sep: true, legs: 'thu4', legL, arms: false, hover: 0, segs: [] };
     }
-    if (sp.plan === 'dung') {
-      const legL = L(0.1, 0.18) * (quick ? 1.35 : 1) * legK;
-      const B = { sx: 0.66 * fat * g, sy: L(0.5, 0.6), sz: 0.6 * fat * g };
+    if (plan === 'dung') {
+      const wide = sp.body === 'det' ? 1.12 : sp.body === 'dai' ? 0.92 : 1;
+      const legL = L(0.14, 0.3) * (quick ? 1.3 : 1) * legK;
+      const B = { sx: 0.68 * fat * g * wide, sy: L(0.52, 0.68) * (sp.body === 'dai' ? 1.1 : 1), sz: 0.6 * fat * g * wide };
       B.y = legL + B.sy * 0.92; B.z = 0; H.y = B.y + B.sy * 0.78 + H.sy * 0.62; H.z = 0.04;
       return { kind: 'dung', H, B, sep: true, legs: 'stub', legL, arms: true, hover: 0, segs: [] };
     }
-    if (sp.plan === 'chim') {
+    if (plan === 'chim') {
       const legL = L(0.16, 0.3) * (quick ? 1.3 : 1) * legK * (sp.id === 'hac-trang' ? 1.5 : 1);
       const B = { sx: 0.62 * fat * g, sy: L(0.52, 0.62), sz: 0.62 * fat * g };
       B.y = legL + B.sy * 0.9; B.z = -0.06; H.y = B.y + B.sy * 0.7 + H.sy * 0.62; H.z = 0.08;
@@ -89,7 +102,10 @@ export function makePetBuilder(K) {
     /* màu: gen lệch sắc độ nhẹ để không bé nào giống bé nào; xế chiều nhạt đi một chút */
     const hue = (genes.hue || 0) * 0.025;
     const tint = c => { const col = new THREE.Color(c); col.offsetHSL(hue, stage === 'elder' ? -0.12 : 0, stage === 'elder' ? 0.03 : 0); return '#' + col.getHexString(); };
-    const pal = { body: tint(sp.pal.body), deep: tint(sp.pal.deep), ink: sp.pal.ink, inner: form === 'thuong' ? '#ff9fbe' : sp.pal.inner, accent: tint(sp.pal.accent) };
+    /* màu đậm và tương phản dần theo tuổi: sơ sinh còn phấn nhạt, trưởng thành thì rực và sắc nét */
+    const ck = [0, 0.55, 0.85, 1, 0.8][lvl], hs = { h: 0, s: 0, l: 0 };
+    const cool = (c, sK, lK) => { const col = new THREE.Color(c); col.getHSL(hs); const l = hs.l > 0.93 ? hs.l * (1 - 0.06 * ck) : hs.l * (1 - (1 - lK) * ck); col.setHSL(hs.h, Math.min(1, hs.s * (1 + (sK - 1) * ck)), l); return '#' + col.getHexString(); };
+    const pal = { body: cool(tint(sp.pal.body), 1.5, 0.84), deep: cool(tint(sp.pal.deep), 1.5, 0.66), ink: sp.pal.ink, inner: form === 'thuong' ? '#ff9fbe' : sp.pal.inner, accent: cool(tint(sp.pal.accent), 1.35, 0.8) };
     const INK = pal.ink;
     const bodyMat = petToon(pal.body), deepMat = petToon(pal.deep), accMat = toon(pal.accent), innerMat = toon(pal.inner);
 
@@ -138,12 +154,12 @@ export function makePetBuilder(K) {
       const ig = new THREE.Group(); eg.add(ig); ig.scale.setScalar(earScale);
       eg.position.set(s * 0.5 * H.sx / BASE.sx, H.y + 0.55 * H.sy, H.z - 0.03);
       const e = sp.ears;
-      if (e === 'meo') { const c = add(ig, Cone(0.3, 0.6, 20), bodyMat, 0, 0.28, 0, INK, 0.03); c.scale.z = 0.6; const i2 = add(ig, Cone(0.17, 0.36, 16), innerMat, 0, 0.25, 0.09, null); i2.scale.z = 0.4; }
+      if (e === 'meo') { const c = add(ig, Cone(0.28, 0.82, 20), bodyMat, 0, 0.36, 0, INK, 0.03); c.scale.z = 0.6; const i2 = add(ig, Cone(0.15, 0.5, 16), innerMat, 0, 0.3, 0.09, null); i2.scale.z = 0.4; }
       if (e === 'tho') { ig.rotation.z = s * 0.22; const c = add(ig, S(0.3, 24, 18), bodyMat, 0, 0.62, -0.02, INK, 0.03); c.scale.set(0.55, 1.9, 0.45); const i2 = add(ig, S(0.18), innerMat, 0, 0.6, 0.1, null); i2.scale.set(0.5, 2.3, 0.3); }
       if (e === 'gau') { const c = add(ig, S(0.27, 22, 16), bodyMat, 0, 0.14, -0.02, INK, 0.03); c.scale.z = 0.7; const i2 = add(ig, S(0.15), innerMat, 0, 0.14, 0.12, null); i2.scale.z = 0.35; }
       if (e === 'cup') { ig.rotation.z = -s * 1.55; ig.position.y = -0.12; const c = add(ig, S(0.3, 22, 16), deepMat, 0, 0.36, -0.02, INK, 0.03); c.scale.set(0.62, 1.35, 0.45); }
       if (e === 'vay') { eg.position.y = H.y + 0.15 * H.sy; eg.position.x = s * (H.sx * 0.93); ig.rotation.z = -s * 1.1; const c = add(ig, Cone(0.24, 0.62, 3), accMat, 0, 0.26, 0, INK, 0.02); c.scale.z = 0.3; }
-      if (e === 'sung') { ig.rotation.z = s * 0.15; add(ig, Cone(0.1, 0.42, 14), toon(pal.accent), 0, 0.2, 0, INK, 0.02); if (sp.rarity === 'huyen' && lvl >= 3) { const br = add(ig, Cone(0.06, 0.22, 10), toon(pal.accent), s * 0.1, 0.24, 0, INK, 0.015); br.rotation.z = -s * 0.9; } }
+      if (e === 'sung') { ig.rotation.z = s * 0.15; add(ig, Cone(0.13, 0.5, 14), toon(pal.accent), 0, 0.22, 0, INK, 0.02); const tip = add(ig, Cone(0.085, 0.42, 12), toon(lighten(pal.accent, 0.3)), s * 0.07, 0.58, -0.05, INK, 0.015); tip.rotation.z = -s * 0.42; tip.rotation.x = -0.3; if (sp.rarity === 'huyen' && lvl >= 3) { const br = add(ig, Cone(0.06, 0.22, 10), toon(pal.accent), s * 0.1, 0.24, 0, INK, 0.015); br.rotation.z = -s * 0.9; } }
       if (e === 'ang') { ig.rotation.z = s * 0.1; add(ig, Cy(0.022, 0.03, 0.5, 8), toon(pal.ink), 0, 0.25, 0, null); add(ig, S(0.09, 14, 10), lvl >= 2 && sp.id === 'dom-dom' ? glow(pal.accent) : accMat, 0, 0.52, 0, INK, 0.015); }
       if (e === 'la') { const c = add(ig, S(0.28, 20, 14), toon(pal.deep), 0, 0.34, 0, INK, 0.025); c.scale.set(0.5, 1.3, 0.16); add(ig, Cy(0.012, 0.012, 0.5, 6), toon(pal.ink), 0, 0.34, 0.05, null); }
       if (e === 'long') [-0.35, 0, 0.35].forEach((a, k) => { const f = add(ig, S(0.12, 14, 10), k === 1 ? accMat : deepMat, Math.sin(a) * 0.12, 0.2 + Math.cos(a) * 0.08, 0, INK, 0.02); f.scale.set(0.6, 1.9, 0.5); f.rotation.z = -a * 1.4; });
@@ -214,7 +230,7 @@ export function makePetBuilder(K) {
     if (tt === 'may') [[0, 0.06, 0, 0.2], [0, 0.22, -0.16, 0.15]].forEach(([x, y, z, r]) => add(tg, S(r), toon(sp.id === 'keo-bong-gon' ? pal.accent : '#ffffff'), x, y, z, '#a8a0c8', 0.02));
 
     /* phụ kiện của loài: má phúng phính và ria có từ Nhí, các thứ khác từ Thiếu niên (cánh chim có từ Nhí), hào quang chỉ khi trưởng thành */
-    const anim = { wings: [], halo: null, orbit: [], tent: [], spin: [], backLegs, feet, segs: [] };
+    const anim = { wings: [], halo: null, orbit: [], tent: [], spin: [], gems: [], backLegs, feet, segs: [] };
     const extras = new Set(sp.extra);
     if (form === 'tron') extras.add('bom');
     if (Lo.kind === 'chim') extras.add('canh');
@@ -271,6 +287,43 @@ export function makePetBuilder(K) {
       }
     }
 
+    /* ---- nét quái thú: vuốt, gai lưng, gai má, tinh thể nguyên tố trên ngực, chóp đuôi nguyên tố. Lớn dần theo tuổi và độ hiếm ---- */
+    const EL = ELEMENT[sp.region] || ELEMENT[0], rk = { thuong: 0, hiem: 1, quy: 2, huyen: 3 }[sp.rarity] || 0;
+    if (lvl >= 1) {
+      const clawM = toon('#fff8ea'), spikeM = toon(pal.accent === pal.deep ? lighten(pal.deep, 0.35) : pal.accent), kk = Math.max(kB, 0.62) / 0.66;
+      const stick = (m, E, th, ph, lift) => { m.position.copy(onBody(E, th, ph, lift)); m.position.z += E.z || 0; outward(m, E); m.rotateX(Math.PI / 2); return m; };
+      if (Lo.legs !== 'none') {
+        const nC = lvl >= 2 ? 3 : 2;
+        [...feet, ...backLegs].forEach(g => { for (let i = 0; i < nC; i++) { const a = (i - (nC - 1) / 2) * 0.5; const c = add(g, Cone(0.05, 0.17, 8), clawM, Math.sin(a) * 0.15, -0.045, 0.19 + Math.cos(a) * 0.09, INK, 0.008); c.rotation.set(Math.PI / 2 + 0.3, 0, -a * 0.6); } });
+      }
+      if (Lo.arms && lvl >= 2) arms.forEach(a => [-0.4, 0, 0.4].forEach(d => { const c = add(a, Cone(0.035, 0.13, 8), clawM, d * 0.2, -0.17, 0.09, INK, 0.006); c.rotation.set(Math.PI - 0.5, 0, d * 0.5); }));
+      const shelled = sp.extra.includes('mai') || sp.extra.includes('oc') || sp.extra.includes('gai');
+      if (lvl >= 2 && Lo.kind !== 'chim' && !shelled) {
+        const big = (lvl >= 3 ? 1 : 0.75) * (1 + rk * 0.12);
+        [1.0, 1.4].forEach((th, i) => stick(add(root, Cone(0.1 * kH / 0.6 * big, 0.3 * big * (1 - i * 0.2), 8), spikeM, 0, 0, 0, INK, 0.014), H, th, Math.PI, -0.03));
+        const ths = Lo.kind === 'thu4' ? [0.25, 0.75, 1.2] : Lo.kind === 'ran' ? [0.5] : [0.75, 1.2, 1.62];
+        ths.forEach((th, i) => stick(add(root, Cone(0.11 * kk * big, 0.34 * big * (1 - i * 0.16), 8), spikeM, 0, 0, 0, INK, 0.014), B, th, Math.PI, -0.03));
+      }
+      if (lvl >= 2 && !extras.has('bom') && !extras.has('ria')) [-1, 1].forEach(s => (rk >= 2 ? [1.75, 2.05] : [1.9]).forEach((th, i) => { const c = stick(add(root, Cone(0.085 * kH / 0.6, 0.26 - i * 0.06, 8), deepMat, 0, 0, 0, INK, 0.012), H, th, s * 1.42, -0.04); c.rotateZ(-s * 0.5); }));
+      if (lvl >= 3 && rk >= 2 && Lo.kind !== 'ran') [-1, 1].forEach(s => stick(add(root, Cone(0.1 * kk, 0.3, 8), spikeM, 0, 0, 0, INK, 0.014), B, Lo.kind === 'thu4' ? 0.7 : 0.85, s * 1.35, -0.03));
+      if (lvl >= 2) {
+        const gem = add(root, new THREE.OctahedronGeometry(0.115 * kk * (lvl >= 3 ? 1 : 0.8)), glow(EL.glow, 0.75), 0, 0, 0, INK, 0.012);
+        gem.position.copy(onBody(B, Lo.kind === 'thu4' ? 1.3 : Lo.kind === 'ran' ? 1.55 : 1.32, 0, 0.0)); gem.position.z += B.z; gem.scale.set(0.8, 1.25, 0.5); gem.userData.keep = true; anim.gems.push(gem);
+      }
+      /* đuôi cụt hoặc không đuôi thì từ Thiếu niên mọc đuôi dài có chóp nguyên tố */
+      if (lvl >= 2 && Lo.kind !== 'chim' && (tt === 'none' || tt === 'tron')) {
+        const n = 4, g = new THREE.Group(); tg.add(g); if (Lo.kind === 'thu4') g.rotation.x = 0.5;
+        let px = 0, py = 0, pz = 0;
+        for (let i = 0; i < n; i++) { const k = i / n, r = 0.15 * (1 - k * 0.55); py += 0.07 + k * 0.16; pz -= 0.2 - k * 0.1; add(g, S(r, 14, 10), i % 2 ? deepMat : bodyMat, px, py, pz, INK, 0.015); }
+        const tp = new THREE.Group(); tp.position.set(0, py + 0.16, pz - 0.04); g.add(tp);
+        if (EL.id === 'moc') { const f = add(tp, S(0.2, 14, 10), toon('#4fc04a'), 0, 0.08, 0, '#2f7a3d', 0.015); f.scale.set(0.55, 1.5, 0.16); }
+        if (EL.id === 'thuy') [-1, 1].forEach(s => { const f = add(tp, S(0.2, 14, 10), spikeM, s * 0.1, 0.06, 0, INK, 0.015); f.scale.set(0.4, 1.3, 0.2); f.rotation.z = -s * 0.7; });
+        if (EL.id === 'phong') { const st = add(tp, starGeo(0.17), glow(EL.glow, 0.6), 0, 0.08, 0, INK, 0.012); st.rotation.y = Math.PI / 2; }
+        if (EL.id === 'da') { const m = add(tp, new THREE.TorusGeometry(0.15, 0.055, 8, 20, Math.PI * 1.3), glow(EL.glow, 0.6), 0, 0.1, 0, INK, 0.012); m.rotation.y = Math.PI / 2; }
+        if (EL.id === 'hoa') { add(tp, S(0.15, 14, 10), glow(EL.glow, 0.8), 0, 0.04, 0, INK, 0.012); add(tp, Cone(0.11, 0.3, 12), glow('#ffc23a', 0.8), 0, 0.26, 0, INK, 0.012); anim.gems.push(tp); }
+      }
+    }
+
     /* dáng trưởng thành: mỗi dáng có dấu hiệu riêng để nhìn là biết */
     if (form === 'nhanh') [-1, 1].forEach(s => [0, 1].forEach(k => { const m = add(root, S(0.2 * Math.max(kB, 0.7), 12, 8), toon(pal.accent), 0, 0, 0, null); m.position.copy(onBody(B, 1.45 + k * 0.28, s * (1.7 - k * 0.15), -0.03)); m.position.z += B.z; m.scale.set(1.3, 0.16, 0.3); outward(m, B); m.rotateZ(s * 0.5); }));
     if (form === 'tron') { const m = add(root, S(0.55 * Math.max(kB, 0.7), 24, 16), toon(lighten(pal.body, 0.6)), 0, 0, 0, null); m.position.copy(onBody(B, Lo.kind === 'thu4' ? 1.75 : 2.15, 0, -0.1 * kB)); m.position.z += B.z; m.scale.set(1.2, 1, 0.45); outward(m, B); }
@@ -283,7 +336,7 @@ export function makePetBuilder(K) {
 
     if (look.face) {
       const f = new THREE.Mesh(new THREE.SphereGeometry(1.006, 48, 30, Math.PI / 2 - 0.75, 1.5, Math.PI / 2 - 0.78, 1.24),
-        new THREE.MeshBasicMaterial({ map: simpleFace(), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }));
+        new THREE.MeshBasicMaterial({ map: simpleFace(EL.iris, FIERCE[stage] || 0), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }));
       head.add(f);
     }
     const hv = Lo.hover;
@@ -353,21 +406,27 @@ export function makePetBuilder(K) {
   }
 
   /** Mặt tĩnh cho ảnh thu nhỏ (trong game, mặt do game.js vẽ và đổi theo cảm xúc). */
-  let faceTex = null;
-  function simpleFace() {
-    if (faceTex) return faceTex;
+  const faceTexs = new Map();
+  function simpleFace(iris = '#8a4be0', fierce = 0) {
+    const key = iris + fierce; let faceTex = faceTexs.get(key); if (faceTex) return faceTex;
     const W = 300, H = 248, c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d');
     const ell = (x, y, rx, ry) => { g.beginPath(); g.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2); };
     [W * 0.32, W * 0.68].forEach(x => {
-      const y = H * 0.47; ell(x, y, 23, 32); g.fillStyle = '#4a2140'; g.fill();
-      const gr = g.createLinearGradient(0, y - 32, 0, y + 32); gr.addColorStop(0, '#4a2140'); gr.addColorStop(0.5, '#8a4be0'); gr.addColorStop(1, '#ffa6dc');
-      ell(x, y + 2, 19, 27); g.fillStyle = gr; g.fill(); ell(x, y + 3, 9, 13); g.fillStyle = '#2a0f2e'; g.fill();
-      ell(x - 7, y - 12, 8, 10); g.fillStyle = '#fff'; g.fill(); ell(x + 8, y + 11, 4, 4); g.fill();
-      ell(x + (x < W / 2 ? -14 : 14), y + 44, 20, 9); g.fillStyle = 'rgba(255,120,160,.35)'; g.fill();
+      const y = H * 0.47, side = x < W / 2 ? 1 : -1, f = fierce, yo = y - 32 * (1 - 0.18 * f) - 2, yi = y - 32 * (1 - 0.62 * f);
+      g.save();
+      if (f > 0) { g.beginPath(); g.moveTo(x - side * 35, yo); g.lineTo(x + side * 35, yi); g.lineTo(x + side * 35, y + 50); g.lineTo(x - side * 35, y + 50); g.closePath(); g.clip(); }
+      ell(x, y, 23, 32); g.fillStyle = '#4a2140'; g.fill();
+      const gr = g.createLinearGradient(0, y - 32, 0, y + 32); gr.addColorStop(0, '#2a1030'); gr.addColorStop(0.5, iris); gr.addColorStop(1, '#fff0c8');
+      ell(x, y + 2, 19, 27); g.fillStyle = gr; g.fill(); ell(x, y + 3, f >= 0.8 ? 4.5 : 9, f >= 0.8 ? 15 : 13); g.fillStyle = '#2a0f2e'; g.fill();
+      ell(x - 7, y - 10 + f * 8, 7, 8); g.fillStyle = '#fff'; g.fill(); ell(x + 8, y + 12, 3.5, 3.5); g.fill();
+      g.restore();
+      if (f > 0) { g.strokeStyle = '#4a2140'; g.lineWidth = 7; g.lineCap = 'round'; g.beginPath(); g.moveTo(x - side * 30, yo - 1); g.lineTo(x + side * 27, yi); g.stroke(); }
+      ell(x + (x < W / 2 ? -14 : 14), y + 44, 20, 9); g.fillStyle = `rgba(255,120,160,${0.35 * (1 - 0.7 * f)})`; g.fill();
     });
     g.strokeStyle = '#4a2140'; g.lineWidth = 5; g.lineCap = 'round'; g.beginPath();
     g.moveTo(W / 2 - 14, H * 0.72); g.quadraticCurveTo(W / 2 - 7, H * 0.78, W / 2, H * 0.73); g.quadraticCurveTo(W / 2 + 7, H * 0.78, W / 2 + 14, H * 0.72); g.stroke();
-    faceTex = new THREE.CanvasTexture(c); faceTex.colorSpace = THREE.SRGBColorSpace; return faceTex;
+    if (fierce >= 0.45) { g.fillStyle = '#fff'; g.lineWidth = 2; g.beginPath(); g.moveTo(W / 2 + 4, H * 0.745); g.lineTo(W / 2 + 10, H * 0.745); g.lineTo(W / 2 + 7, H * 0.8); g.closePath(); g.fill(); g.stroke(); }
+    faceTex = new THREE.CanvasTexture(c); faceTex.colorSpace = THREE.SRGBColorSpace; faceTexs.set(key, faceTex); return faceTex;
   }
 
   /** Hoạt ảnh phụ (cánh vỗ, hào quang xoay, sao bay quanh, xúc tu đung đưa). */
@@ -382,6 +441,7 @@ export function makePetBuilder(K) {
     a.backLegs.forEach((g, i) => { const f = a.feet[1 - i]; if (g.userData.z0 === undefined) g.userData.z0 = g.position.z; g.position.y = f.position.y; g.position.z = g.userData.z0 + (f.position.z - 0.38); });
     a.tent.forEach(o => { o.rotation.x = Math.sin(t * 2.5 + o.userData.ph) * 0.25; o.rotation.z = Math.cos(t * 2 + o.userData.ph) * 0.15; });
     a.spin.forEach(o => { o.rotation.y = t * 1.5; });
+    a.gems.forEach((o, i) => { const k = 1 + Math.sin(t * 2.4 + i) * 0.08; if (o.isMesh) o.scale.set(0.8 * k, 1.25 * k, 0.5 * k); else o.scale.set(1, k + 0.06 * Math.sin(t * 11), 1); });
     if (parts.flicker) { const g = parts.top.children[0]; g.scale.y = 1 + Math.sin(t * 13) * 0.06; }
   }
 

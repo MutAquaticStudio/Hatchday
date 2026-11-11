@@ -10,6 +10,9 @@ export function makeFace({ THREE, renderer }) {
   const faceGeo = new THREE.SphereGeometry(1.006, 64, 40, Math.PI / 2 - 0.75, 1.5, Math.PI / 2 - 0.78, 1.24);
   const face = new THREE.Mesh(faceGeo, new THREE.MeshBasicMaterial({ map: faceTex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }));
 
+  /** Kiểu mắt theo loài và tuổi: màu mống mắt theo nguyên tố, độ sắc (0 = tròn ngây thơ, 1 = xếch ngầu). */
+  let style = { iris: '#8a4be0', fierce: 0 };
+  function setStyle(s) { style = { ...style, ...s }; faceKey = ''; }
   const INK = '#4a2140', LX = FW * 0.32, RX = FW * 0.68, EY = FH * 0.47, MX = FW / 2, MY = FH * 0.74;
   function ell(x, y, rx, ry) { fx.beginPath(); fx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2); }
   function star(x, y, r, col) {
@@ -21,19 +24,23 @@ export function makeFace({ THREE, renderer }) {
     const rx = 46, ry = 64, ly = o.lookY || 0, lx = o.lookX || 0;
     fx.save();
     let lidY = null;
+    const f = style.fierce, side = x < MX ? 1 : -1, yo = y - ry * (1 - 0.18 * f) - 4, yi = y - ry * (1 - 0.62 * f); // mí trên xếch: cao ở đuôi mắt, thấp về phía sống mũi
     if (o.lid) { lidY = y - ry + 2 * ry * o.lid; fx.beginPath(); fx.rect(x - 90, lidY, 180, 200); fx.clip(); }
+    else if (f > 0 && !o.star) { fx.beginPath(); fx.moveTo(x - side * 70, yo); fx.lineTo(x + side * 70, yi); fx.lineTo(x + side * 70, y + 110); fx.lineTo(x - side * 70, y + 110); fx.closePath(); fx.clip(); }
     ell(x, y, rx, ry); fx.fillStyle = INK; fx.fill();
     const g = fx.createLinearGradient(0, y - ry, 0, y + ry);
-    g.addColorStop(0, '#4a2140'); g.addColorStop(0.5, '#8a4be0'); g.addColorStop(1, '#ffa6dc');
+    g.addColorStop(0, '#2a1030'); g.addColorStop(0.5, style.iris); g.addColorStop(1, '#fff0c8');
     ell(x, y + 4, rx - 8, ry - 10); fx.fillStyle = g; fx.fill();
-    ell(x + lx, y + 6 + ly, 18, 26); fx.fillStyle = '#2a0f2e'; fx.fill();
+    ell(x + lx, y + 6 + ly, f >= 0.8 ? 9 : 18, f >= 0.8 ? 30 : 26); fx.fillStyle = '#2a0f2e'; fx.fill();
     if (o.star) { star(x - 10, y - 18 + ly, 24, '#fff'); star(x + 17, y + 24, 11, '#fff'); }
-    else { ell(x - 15 + lx * 0.5, y - 24 + ly, 15, 19); fx.fillStyle = '#fff'; fx.fill(); ell(x + 16, y + 22, 7, 7); fx.fill(); }
+    else { ell(x - 15 + lx * 0.5, y - 24 + ly + f * 16, 15 - f * 2, 19 - f * 3); fx.fillStyle = '#fff'; fx.fill(); ell(x + 16, y + 22, 7, 7); fx.fill(); }
     if (o.tears) { fx.fillStyle = 'rgba(140,210,255,.85)'; fx.fillRect(x - rx, y + 30, rx * 2, 40); }
     fx.restore();
     fx.strokeStyle = INK; fx.lineCap = 'round';
     if (lidY !== null) {
       fx.lineWidth = 11; fx.beginPath(); fx.moveTo(x - rx - 4, lidY + 2); fx.quadraticCurveTo(x, lidY + (o.lidCurve || 8), x + rx + 4, lidY + 2); fx.stroke();
+    } else if (f > 0 && !o.star) {
+      fx.lineWidth = 15; fx.beginPath(); fx.moveTo(x - side * (rx + 12), yo - 4); fx.lineTo(x + side * (rx + 4), yi); fx.stroke();
     } else {
       fx.lineWidth = 11; fx.beginPath(); fx.ellipse(x, y, rx + 2, ry + 2, 0, Math.PI * 1.08, Math.PI * 1.92); fx.stroke();
       const side = x < MX ? -1 : 1; fx.lineWidth = 8; fx.beginPath(); fx.moveTo(x + side * (rx - 2), y - ry * 0.55); fx.lineTo(x + side * (rx + 14), y - ry * 0.78); fx.stroke();
@@ -61,6 +68,7 @@ export function makeFace({ THREE, renderer }) {
     fx.stroke();
   }
   function blush(a, cold) {
+    if (!cold) a *= 1 - 0.7 * style.fierce;
     if (a <= 0 && !cold) return;
     [FW * 0.17, FW * 0.83].forEach(x => {
       ell(x, FH * 0.66, 44, 22); fx.fillStyle = cold ? 'rgba(130,170,255,.35)' : `rgba(255,105,150,${a * 0.55})`; fx.fill();
@@ -72,7 +80,8 @@ export function makeFace({ THREE, renderer }) {
     fx.strokeStyle = INK; fx.fillStyle = '#7a1f3d'; fx.lineWidth = 8; fx.lineCap = 'round'; fx.lineJoin = 'round';
     const k = kind === 'chew' ? (phase ? 'smallo' : 'w') : kind;
     fx.beginPath();
-    if (k === 'w') { fx.moveTo(MX - 26, MY - 6); fx.quadraticCurveTo(MX - 13, MY + 14, MX, MY - 4); fx.quadraticCurveTo(MX + 13, MY + 14, MX + 26, MY - 6); fx.stroke(); }
+    if (k === 'w') { fx.moveTo(MX - 26, MY - 6); fx.quadraticCurveTo(MX - 13, MY + 14, MX, MY - 4); fx.quadraticCurveTo(MX + 13, MY + 14, MX + 26, MY - 6); fx.stroke();
+      if (style.fierce >= 0.45) { fx.fillStyle = '#fff'; fx.lineWidth = 4; fx.beginPath(); fx.moveTo(MX + 9, MY + 3); fx.lineTo(MX + 21, MY + 1); fx.lineTo(MX + 16, MY + 20); fx.closePath(); fx.fill(); fx.stroke(); } }
     else if (k === 'open') { fx.moveTo(MX - 34, MY - 10); fx.quadraticCurveTo(MX, MY - 4, MX + 34, MY - 10); fx.quadraticCurveTo(MX + 28, MY + 34, MX, MY + 36); fx.quadraticCurveTo(MX - 28, MY + 34, MX - 34, MY - 10); fx.fill(); fx.stroke();
       ell(MX, MY + 24, 16, 9); fx.fillStyle = '#ff8fb0'; fx.fill(); }
     else if (k === 'o') { ell(MX, MY + 4, 13, 17); fx.fill(); fx.stroke(); }
@@ -118,5 +127,5 @@ export function makeFace({ THREE, renderer }) {
     faceTex.needsUpdate = true;
   }
 
-  return { face, EXPR, drawFace };
+  return { face, EXPR, drawFace, setStyle };
 }
