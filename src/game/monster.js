@@ -149,40 +149,45 @@ export function makeMonsterBuilder(K) {
     const key = [sp.id, stage, form || '', cell].join('|'); let R = geoCache.get(key); if (R) return R;
     const lvl = { baby: 0, child: 1, teen: 2, adult: 3, elder: 3 }[stage], g = [0, 0.4, 0.75, 1][lvl], rk = { thuong: 0, hiem: 1, quy: 2, huyen: 3 }[sp.rarity] || 0;
     const o = { bulk: 1, len: 1, leg: 1, neck: 1, ml: 1, ruff: 0.6, ears: 'point', earK: 1, horns: 'none', tail: 'plume', tailFat: 1, ...DEF[sp.id] };
-    const pose = o.pose || 'quad', bird = pose === 'bird', bi = pose === 'bi' || bird, serp = pose === 'serp'; if (bird) { o.tail = 'fan'; if (!DEF[sp.id].ears) o.ears = 'none'; if (o.beak !== false) o.beak = true; if (!o.wings) o.wings = 'feather'; } if (serp) o.tail = 'whip';
-    const fat = o.bulk * (form === 'tron' ? 1.14 : 1), ll = (0.55 + 0.45 * g) * o.leg * (form === 'nhanh' ? 1.12 : 1), bl = (0.78 + 0.22 * g) * o.len, hs = 1.36 - 0.36 * g, ml = (0.5 + 0.5 * g) * o.ml, ruff = o.ruff * (0.25 + 0.75 * g), tk = 0.42 + 0.58 * g;
+    const pose = o.pose || 'quad', bird = pose === 'bird', bi = pose === 'bi' || bird, serp = pose === 'serp'; if (bird) { o.tail = 'fan'; if (!DEF[sp.id].ears) o.ears = 'none'; if (o.beak !== false) o.beak = true; if (!o.wings) o.wings = 'feather'; } if (serp) { o.tail = 'whip'; if (!o.wings) o.wings = 'fin'; if (o.spikes === undefined) o.spikes = true; }
+    const fat = o.bulk * (form === 'tron' ? 1.14 : 1), ll = (0.55 + 0.45 * g) * o.leg * (form === 'nhanh' ? 1.12 : 1), bl = (0.78 + 0.22 * g) * o.len, hs = (1.36 - 0.36 * g) * (bi && !bird ? 1.1 : 1), ml = (0.5 + 0.5 * g) * o.ml, ruff = o.ruff * (0.25 + 0.75 * g), tk = 0.42 + 0.58 * g;
     const legLen = 1.0 * ll, nk = (0.55 + 0.45 * g) * o.neck, STEP = bi || serp ? 0 : 0.14 * (0.5 + 0.5 * g);
     // bộ xương theo khung dáng: hông, giữa thân, ngực (toạ độ x, y), bán kính ba khúc, các khối cơ [cx, cy, cz, rx, ry, rz, độ hoà], gốc cổ
     let hipX, hipY, shX, chY, midP, rr, EL, nb, nt, tb, hover = 0;
-    if (bi) { hipX = -0.12; hipY = legLen + 0.4 * fat; shX = 0.16; chY = hipY + 0.7 * bl; midP = [0, (hipY + chY) / 2]; rr = [0.4 * fat, 0.37 * fat, 0.4 * fat];
-      EL = [[hipX + 0.16, hipY + 0.18, 0, 0.4 * fat, 0.46 * fat, 0.38 * fat, 0.18], [shX, chY + 0.04, 0.3, 0.24, 0.27, 0.2, 0.12], [hipX, hipY - 0.06, 0.26, 0.34, 0.38, 0.26, 0.14]];
+    if (bi) { hipX = -0.14; hipY = legLen * 0.72 + 0.42 * fat; shX = 0.2; chY = hipY + 0.74 * bl; midP = [0.02, (hipY + chY) / 2]; rr = bird ? [0.4 * fat, 0.42 * fat, 0.4 * fat] : [0.44 * fat, 0.4 * fat, 0.47 * fat];
+      EL = [[hipX + 0.16, hipY + 0.18, 0, 0.4 * fat, 0.46 * fat, 0.38 * fat, 0.18], [shX, chY + 0.06, bird ? 0.3 : 0.36, bird ? 0.24 : 0.3, 0.3, bird ? 0.2 : 0.24, 0.14], [hipX, hipY - 0.06, 0.26, 0.34, 0.38, 0.26, 0.14]];
       nb = [shX + 0.1, chY + 0.38]; nt = [nb[0] + 0.12 * nk, nb[1] + 0.34 * nk]; tb = [hipX - 0.3, hipY - 0.02, 0]; }
-    else if (serp) { hover = 0.3; hipX = -0.95 * bl; hipY = 0.78; shX = 0.4 * bl; chY = 1.02; midP = [(hipX + shX) / 2, 0.7]; rr = [0.27 * fat, 0.31 * fat, 0.35 * fat];
+    else if (serp) { hover = 0.3; hipX = -1.3 * bl; hipY = 0.82; shX = 0.45 * bl; chY = 1.02; midP = [(hipX + shX) / 2, 0.6]; rr = [0.27 * fat, 0.31 * fat, 0.35 * fat];
       EL = [[shX, chY - 0.05, 0, 0.36 * fat, 0.36 * fat, 0.3 * fat, 0.15]]; nb = [shX + 0.32, chY + 0.4]; nt = [nb[0] + 0.2 * nk, nb[1] + 0.42 * nk]; tb = [hipX - 0.15, hipY, 0]; }
     else { hipX = -0.95 * bl; hipY = legLen + 0.5 * fat; shX = 0.55 * bl; chY = hipY + 0.03; midP = [(hipX + shX) / 2, hipY]; rr = [0.36 * fat, 0.32 * fat, 0.45 * fat];
       EL = [[shX + 0.05, hipY - 0.16, 0, 0.44 * fat, 0.52 * fat, 0.35 * fat, 0.18], [shX, hipY, 0.29, 0.3, 0.42, 0.2, 0.14], [hipX, hipY - 0.1, 0.29, 0.42, 0.5, 0.24, 0.16]];
       nb = [shX + 0.4, hipY + 0.35]; nt = [nb[0] + 0.3 * nk, nb[1] + 0.45 * nk]; tb = [hipX - 0.25, hipY + 0.12, 0]; }
     const sy = chY, hc = [nt[0] + (bi ? 0.2 : 0.25) * hs, nt[1] + 0.2 * hs], backDot = n => (bi ? -n[0] * 0.85 + n[1] * 0.3 : n[1]), hp = (dx, dy, dz = 0) => [hc[0] + dx * hs, hc[1] + dy * hs, dz * hs];
-    const mzA = hp(0.12, -0.05), mzB = hp(0.12 + 0.74 * ml * (o.beak ? 0.62 : 1), -0.23), noseP = hp(0.15 + 0.76 * ml, -0.205), bx0 = nb[0] - 0.05;
+    const mzA = hp(0.12, -0.05), mzB = hp(0.12 + 0.74 * ml * (o.beak ? 0.8 : 1), -0.23), noseP = hp(0.15 + 0.76 * ml, -0.205), bx0 = nb[0] - 0.05;
     const bend = x => (x > bx0 ? 0.09 * (x - bx0) * (x - bx0) : 0), Wp = p => [p[0], p[1], (p[2] || 0) + bend(p[0])];
     const pal = palette(sp, stage);
     const torso = (x, y, zw) => {
       const z = Math.hypot(zw - bend(x), 0.075) - 0.075 * 0.6; let d = cap(x, y, z, hipX, hipY, 0, midP[0], midP[1], 0, rr[0], rr[1]);
       d = smin(d, cap(x, y, z, midP[0], midP[1], 0, shX, chY, 0, rr[1], rr[2]), 0.15); d = smin(d, cap(x, y, z, shX, chY, 0, nb[0], nb[1], 0, rr[2], 0.3), 0.15); d = smin(d, cap(x, y, z, nb[0], nb[1], 0, nt[0], nt[1], 0, 0.3, 0.235), 0.14);
       for (const e of EL) d = smin(d, ell(x, y, z, e[0], e[1], e[2], e[3], e[4], e[5]), e[6]);
+      if (!serp) d = smin(d, cap(x, y, z, nt[0] + 0.06, nt[1] - 0.14, 0, bi ? hipX + 0.3 : shX + 0.3, bi ? hipY + 0.12 : chY - 0.22, 0, bi ? 0.2 : 0.25, (bi ? 0.3 : 0.33) * fat), 0.14);   // lấp rãnh giữa ngực (giữa hai khối cơ vai) để mặt trước không bị một dải bóng tối
       if (ruff > 0.05) d = smin(d, ell(x, y, z, nb[0] + 0.05, nb[1] + 0.1, 0, 0.22 + 0.08 * ruff, 0.27 + 0.1 * ruff, 0.22 + 0.08 * ruff), 0.16);
       if (o.shell && lvl >= 1) d = smin(d, ell(x, y, z, midP[0], midP[1] + 0.22, 0, 0.78 * bl, 0.46, 0.56), 0.06);
       d = smin(d, ell(x, y, z, hc[0], hc[1], 0, 0.33 * hs, 0.28 * hs, 0.29 * hs), 0.12);
       d = smin(d, ell(x, y, z, hc[0] - 0.1 * hs, hc[1] - 0.14 * hs, 0.24 * hs, 0.2 * hs, 0.18 * hs, 0.12 * hs), 0.08);
-      if (o.beak) return smin(d, cap(x, y, z, mzA[0], mzA[1] + 0.02, 0, mzB[0], mzB[1] + 0.03, 0, 0.13 * hs, 0.015), 0.05);
+      if (o.beak) return smin(d, cap(x, y, z, mzA[0], mzA[1] + 0.02, 0, mzB[0], mzB[1] + 0.03, 0, 0.165 * hs, 0.02), 0.05);
       d = smin(d, cap(x, y, z, mzA[0], mzA[1], 0, mzB[0], mzB[1], 0, 0.18 * hs, 0.07 * hs), 0.1);
       d = smin(d, cap(x, y, z, hc[0], hc[1] - 0.2 * hs, 0.05 * hs, mzB[0] - 0.09 * hs, mzB[1] - 0.08 * hs, 0.02, 0.1 * hs, 0.045 * hs), 0.05);
       return smin(d, Math.hypot(x - noseP[0], y - noseP[1], z) - 0.05 * hs, 0.03);
     };
+    const BEAK = new THREE.Color('#ffb23e'), FURH = '#' + pal.fur.getHexString(), FUR2H = '#' + pal.fur.clone().lerp(pal.mantle, 0.28).getHexString();
+    /* móng (gộp vào lưới chân/tay để cùng chuyển động) và lọn lông khuỷu */
+    const claws = (e, dx = 1) => (lvl < 1 ? [] : [-1, 0, 1].map(t => sweep([[e[0] + 0.05 * dx, e[1] - 0.01, e[2] + t * 0.055], [e[0] + 0.16 * dx, e[1], e[2] + t * 0.07], [e[0] + 0.23 * dx, e[1] - 0.07, e[2] + t * 0.075]], [0.032, 0.024, 0.003], { c0: '#efe6d2', c1: '#efe6d2', radial: 5, sub: 3 })));
+    const elbow = P => (lvl < 2 || bird ? [] : [tuftGeo(new THREE.Vector3(P[1][0] - 0.08, P[1][1] + 0.06, P[1][2]), [-0.75, -0.65, 0], 0.27, 0.075, [0, -0.4, 0], { c0: FURH, c1: FUR2H })]);
     const patt = sp.pattern, mid = midP[0], runeC = bi ? [[shX, chY, 0.15], [hipX, hipY - 0.05, 0.18]] : [[shX - 0.05, chY + 0.05, 0.17], [hipX - 0.03, hipY, 0.2]];
     const ring = (x, y, cx, cy, r) => { const dd = Math.hypot(x - cx, y - cy), ang = Math.atan2(y - cy, x - cx); return Math.max(sst(0.035, 0.02, Math.abs(dd - r)) * (Math.abs(ang - 0.6) > 0.7 ? 1 : 0), sst(0.06, 0.045, dd)); };
     const paintTorso = (x, y, zw, n, c) => {
-      const az = Math.abs(zw - bend(x)), head = x > hc[0] - 0.36 * hs && y > hc[1] - 0.4 * hs, nose = !o.beak && Math.hypot(x - noseP[0], y - noseP[1], az) < 0.068 * hs, beak = o.beak && head && x > mzA[0] + 0.1 * hs ? 1 : 0;
+      const az = Math.abs(zw - bend(x)), head = x > hc[0] - 0.36 * hs && y > hc[1] - 0.4 * hs, nose = !o.beak && Math.hypot(x - noseP[0], y - noseP[1], az) < 0.068 * hs, beak = o.beak && head && x > mzA[0] + 0.17 * hs ? 1 : 0;
       const shell = o.shell && lvl >= 1 ? sst(0.02, 0.0, ell(x, y, az, mid, midP[1] + 0.22, 0, 0.78 * bl, 0.46, 0.56)) : 0;
       let mantle = head ? sst(0.075 * hs, 0.06 * hs, az) * sst(hc[1] + 0.1 * hs, hc[1] + 0.14 * hs, y) * sst(hc[0] + 0.08 * hs, hc[0] + 0.02 * hs, x) : sst(0.3, 0.34, backDot(n) + 0.1 * Math.sin((bi ? y : x) * 8.5)) * (bi || serp || y > hipY - 0.3 ? 1 : 0);
       if (patt === 'soc' && !head) mantle = Math.max(mantle, sst(0.55, 0.62, Math.sin(x * 9 + y * 2.5)) * sst(-0.25, 0.1, n[1]));
@@ -192,7 +197,7 @@ export function makeMonsterBuilder(K) {
       const runes = !head && lvl >= 2 && az > 0.22 ? Math.max(ring(x, y, runeC[0][0], runeC[0][1], runeC[0][2]), rk >= 1 ? ring(x, y, runeC[1][0], runeC[1][1], runeC[1][2]) : 0) : 0;
       const spots = patt === 'dom' && !head && lvl >= 1 ? sst(0.82, 0.88, Math.sin(x * 7.3 + 1) * Math.sin(y * 8.1) * Math.sin(az * 9 + 2) + 0.55) * sst(-0.2, 0.2, n[1]) : 0;
       const mark = Math.max(streak, runes, spots);
-      c.copy(pal.fur).lerp(pal.mantle, Math.min(1, mantle)).lerp(pal.hot, belly * 0.6).lerp(pal.accent, shell).lerp(pal.mantle, shell * sst(0.1, 0.0, Math.abs(((x * 3.2) % 1 + 1) % 1 - 0.5)) * 0.8).lerp(pal.glow, mark).lerp(pal.nose, nose ? 1 : 0).lerp(pal.accent, beak);
+      c.copy(pal.fur).lerp(pal.mantle, Math.min(1, mantle)).lerp(pal.hot, belly * 0.6).lerp(pal.accent, shell).lerp(pal.mantle, shell * sst(0.1, 0.0, Math.abs(((x * 3.2) % 1 + 1) % 1 - 0.5)) * 0.8).lerp(pal.glow, mark).lerp(pal.nose, nose ? 1 : 0).lerp(BEAK, beak);
       return mark * (1 - shell);
     };
     const cellT = cell, pad = 0.08, tx1 = mzB[0] + 0.14 * hs, ty1 = Math.max(hc[1] + 0.34 * hs, o.shell ? midP[1] + 0.75 : 0), zmax = 0.62 * Math.max(fat, 1) + bend(tx1) + (o.shell ? 0.05 : 0);
@@ -204,16 +209,16 @@ export function makeMonsterBuilder(K) {
     const arms = [];
     if (!serp) [-1, 1].forEach(s => {
       const fx = shX + s * STEP, hx = hipX - s * STEP, lr = bird ? 0.55 : 1;
-      const F = bi ? [[hipX + 0.02, hipY - 0.15, s * 0.27, 0.24], [hipX + 0.22, 0.62 * legLen, s * 0.3, 0.15 * lr], [hipX - 0.02, 0.2, s * 0.3, 0.1 * lr], [hipX + 0.26, 0.09, s * 0.3, 0.1]]
+      const F = bi ? [[hipX + 0.02, hipY - 0.15, s * 0.28, 0.29], [hipX + 0.24, 0.5 * legLen + 0.12, s * 0.32, 0.19 * lr], [hipX - 0.02, 0.2, s * 0.32, 0.13 * lr], [hipX + 0.28, 0.09, s * 0.32, 0.11]]
         : [[fx + 0.05, hipY - 0.27, s * 0.3, 0.17], [fx + 0.11, 0.72 * legLen, s * 0.32, 0.11], [fx + 0.05, 0.16, s * 0.32, 0.09], [fx + 0.25, 0.085, s * 0.32, 0.1]];
       const Hd = [[hx, hipY - 0.3, s * 0.3, 0.24], [hx + 0.25, 0.78 * legLen, s * 0.34, 0.14], [hx - 0.17, 0.46 * legLen, s * 0.34, 0.09], [hx - 0.05, 0.12, s * 0.34, 0.085], [hx + 0.15, 0.085, s * 0.34, 0.1]];
-      if (bi && !bird) { const A = [[shX + 0.02, chY + 0.1, s * 0.36, 0.15], [shX + 0.2, chY - 0.28, s * 0.5, 0.11], [shX + 0.44, chY - 0.46, s * 0.46, 0.1]], pv = toG(A[0]);
+      if (bi && !bird) { const A = [[shX + 0.02, chY + 0.12, s * 0.44, 0.19], [shX + 0.2, chY - 0.28, s * 0.58, 0.14], [shX + 0.46, chY - 0.46, s * 0.52, 0.13]], pv = toG(A[0]);
         const fa = (x, y, z) => smin(cap(x, y, z, A[0][0], A[0][1], A[0][2], A[1][0], A[1][1], A[1][2], A[0][3], A[1][3]), cap(x, y, z, A[1][0], A[1][1], A[1][2], A[2][0], A[2][1], A[2][2], A[1][3], A[2][3]), 0.07), handY = A[2][1] + 0.16;
-        arms.push({ s, pivot: pv, geo: bake(sculpt(fa, [shX - 0.2, A[2][1] - 0.16, s * 0.43 - 0.3], [A[2][0] + 0.16, A[0][1] + 0.2, s * 0.43 + 0.3], cell, (x, y, z, n, c) => { c.copy(pal.fur).lerp(pal.sock, sst(handY + 0.03, handY, y)); return 0; }), pv) }); }
+        arms.push({ s, pivot: pv, geo: bake(mergeGeometries([sculpt(fa, [shX - 0.26, A[2][1] - 0.2, s * 0.5 - 0.36], [A[2][0] + 0.2, A[0][1] + 0.26, s * 0.5 + 0.36], cell, (x, y, z, n, c) => { c.copy(pal.fur).lerp(pal.sock, sst(handY + 0.03, handY, y)); return 0; }), ...claws([A[2][0] + 0.04, A[2][1] - 0.02, A[2][2]])], false), pv) }); }
       (bi ? [[F, true]] : [[F, true], [Hd, false]]).forEach(([Pn, front]) => {
         const f = (x, y, z) => { let d = 1e9; for (let i = 0; i < Pn.length - 1; i++) { const a = Pn[i], b = Pn[i + 1]; d = smin(d, cap(x, y, z, a[0], a[1], a[2], b[0], b[1], b[2], a[3], i === Pn.length - 2 ? 0.105 : b[3]), 0.07); } return d; };
         const xs = Pn.map(p => p[0]), ys = Pn.map(p => p[1]);
-        legs.push({ front, s, geo: bake(sculpt(f, [Math.min(...xs) - 0.32, 0, s * 0.32 - 0.34], [Math.max(...xs) + 0.24, Math.max(...ys) + 0.3, s * 0.32 + 0.34], cell, paintLeg)) });
+        const e = Pn[Pn.length - 1]; legs.push({ front, s, geo: bake(mergeGeometries([sculpt(f, [Math.min(...xs) - 0.36, 0, s * 0.32 - 0.36], [Math.max(...xs) + 0.24, Math.max(...ys) + 0.34, s * 0.32 + 0.36], cell, paintLeg), ...claws([e[0], 0.085, e[2]]), ...elbow(Pn)], false)) });
       });
     });
 
@@ -233,7 +238,9 @@ export function makeMonsterBuilder(K) {
     if (ruff > 0.2) [[0, 0, 11, 0, 0.5, 0.13], [-0.18, -0.13, 10, 0.26, 0.6, 0.15]].forEach(([ox, oy, n, off, len, w], row) => { if (row && ruff < 0.5) return; for (let i = 0; i < n; i++) { const a = (i + off) / n * Math.PI * 2, d = [-0.2, Math.cos(a), Math.sin(a)], low = Math.cos(a) < -0.35, b = surf(torso, Wp([ruffC[0] + ox, ruffC[1] + oy, 0]), d), top = Math.cos(a) > 0.45;
       fixed.push(tuftGeo(b, low ? [d[0] - 0.55, d[1] - 0.55, d[2] * 0.8] : [d[0] - 1.0, d[1] * 0.75 - 0.25, d[2] * 0.8], len * ruff * (low ? 0.62 : 1) * (0.85 + 0.3 * h3(i, row, 3)), w * (0.7 + 0.3 * ruff), low ? [-0.5, -0.5, 0] : [0, -0.9, 0], { c0: top ? MAN : FUR, c1: top ? MAN2 : FUR2 })); } });
     if (ruff > 0.4) { fixed.push(tuftGeo(surf(torso, bi ? [shX, chY, 0] : [shX + 0.17, chY - 0.13, 0], bi ? [1, -0.1, 0] : [0.8, -0.45, 0]), bi ? [0.45, -0.9, 0] : [0.3, -1, 0], 0.5 * ruff, 0.17, [-0.35, 0, 0], { c0: FUR, c1: FUR2 })); }
-    if (lvl >= 1) [-1, 1].forEach(s => [[-0.55, 0.1, 0.34], [-0.75, -0.2, 0.28], [-0.6, -0.55, 0.22]].forEach(([dx, dy, len]) => fixed.push(tuftGeo(surf(torso, Wp(hp(-0.06, -0.12, s * 0.1)), [-0.25, dy * 0.6, s]), [dx, dy, s * 0.75], len * hs, 0.085 * hs, [0, -0.5, 0], { c0: FUR, c1: FUR2 }))));
+    if (lvl >= 1 && !o.beak) [-1, 1].forEach(s => [[-0.55, 0.1, 0.34], [-0.75, -0.2, 0.28], [-0.6, -0.55, 0.22]].forEach(([dx, dy, len]) => fixed.push(tuftGeo(surf(torso, Wp(hp(-0.06, -0.12, s * 0.1)), [-0.25, dy * 0.6, s]), [dx, dy, s * 0.75], len * hs, 0.085 * hs, [0, -0.5, 0], { c0: FUR, c1: FUR2 }))));
+    if (lvl >= 2 && rk >= 1) { const b = surf(torso, bi ? [shX, chY + 0.05, 0] : [shX + 0.17, chY - 0.02, 0], bi ? [1, 0.2, 0] : [0.9, 0.25, 0]), V = (x, y) => b.clone().add(new THREE.Vector3(x, y, 0));   // ngọc nguyên tố trên ngực
+      fixed.push(sweep([V(-0.03, -0.12), V(0.035, 0), V(-0.03, 0.12)], [0.004, 0.08, 0.004], { c0: TIP, c1: HOT, flat: 0.6, radial: 6, sub: 3, glow: 1, cs: 0, ce: 0.6 })); }
     if (lvl >= 2) [-0.22, 0, 0.22].forEach(z => fixed.push(tuftGeo(surf(torso, Wp(hp(-0.08, 0.06, z)), [-0.5, 0.85, z * 0.6]), [-0.95, 0.42, z], (0.42 - Math.abs(z) * 0.5) * hs, 0.1, [0, -0.5, 0], { c0: MAN, c1: MAN2 })));
     if (lvl >= 1 && !o.shell) { const n = o.spikes ? 7 : 5; for (let i = 0; i < n; i++) { const u = i / (n - 1), x = shX + 0.17 - i * (shX + 0.17 - hipX + 0.05) / (n - 1), b = bi ? surf(torso, [shX - 0.05 + (hipX - shX + 0.05) * u, chY + 0.2 + (hipY - chY) * u, 0], [-1, 0.2, 0]) : surf(torso, [x, chY + (hipY - chY) * u, 0], [-0.15, 1, 0]);
       const sd = bi ? [[0.06, 0.02], [-0.2, 0.06], [-0.4, -0.08]] : [[0.04, -0.06], [-0.08, 0.2], [-0.26, 0.36]];
@@ -273,7 +280,7 @@ export function makeMonsterBuilder(K) {
 
     /* cánh: quạt các lá dẹt (lông vũ, màng dơi) hoặc hai phiến mỏng (côn trùng); là lưới riêng để vỗ */
     const wings = [];
-    if (o.wings && lvl >= 1) [-1, 1].forEach(s => { const bug = o.wings === 'bug', bat = o.wings === 'bat', wk = (0.5 + 0.5 * g) * (bug ? 0.9 : bird ? 1.15 : 1.3), wb = bi ? [shX - 0.22, chY + 0.12, s * 0.26] : [shX - 0.1, chY + 0.3, s * 0.26], pv = toG(wb), base = new THREE.Vector3(...wb), parts = [], n = bug ? 2 : bat ? 4 : 6;
+    if (o.wings && lvl >= 1) [-1, 1].forEach(s => { const bug = o.wings === 'bug', bat = o.wings === 'bat', fin = o.wings === 'fin', wk = (0.5 + 0.5 * g) * (bug ? 0.9 : fin ? 0.62 : bird ? 1.45 : 1.3), wb = bi ? [shX - 0.22, chY + 0.12, s * 0.3] : fin ? [shX + 0.05, chY - 0.08, s * 0.3] : [shX - 0.1, chY + 0.3, s * 0.26], pv = toG(wb), base = new THREE.Vector3(...wb), parts = [], n = bug ? 2 : fin ? 3 : bat ? 4 : 6;
       for (let i = 0; i < n; i++) { const u = i / Math.max(1, n - 1), dir = bug ? [-0.5 - 0.3 * i, 0.55 - 0.5 * i, s * 0.9] : [-0.25 - 0.55 * u, 0.95 - 1.15 * u, s * (0.85 - 0.25 * u)];
         parts.push(tuftGeo(base.clone(), dir, (bug ? 1.2 : 1.25 - 0.35 * u) * wk, (bug ? 0.17 : bat ? 0.26 : 0.19) * wk, bug ? [0, 0, 0] : [-0.25, -0.5, 0], { c0: bug ? HOT : bat ? MAN : (i % 2 ? FUR : MAN2), c1: bug ? C(pal.glow) : bat ? C(pal.accent) : (i % 2 ? MAN2 : TIP), flat: bug ? 0.12 : 0.2, glow: bug ? 0.5 : 0, radial: 6 })); }
       wings.push({ s, bug, pivot: pv, geo: bake(mergeGeometries(parts, false), pv) }); });
@@ -298,6 +305,7 @@ export function makeMonsterBuilder(K) {
   /* ---------- vật liệu ---------- */
   const inkMats = new Map();
   const ink = col => { const k = col.getHexString(); let m = inkMats.get(k); if (!m) { m = new THREE.MeshBasicMaterial({ color: col, side: THREE.BackSide }); m.onBeforeCompile = sh => { sh.vertexShader = sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n transformed += normalize( normal ) * 0.0125;'); }; m.customProgramCacheKey = () => 'mon-ink'; inkMats.set(k, m); } return m; };
+  const hitGeo = new THREE.SphereGeometry(1, 10, 8), hitMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false });
   let celM = null;
   function put(parent, geo, inkM) {
     const mesh = new THREE.Mesh(geo, celM || (celM = K.petCel())); parent.add(mesh);
@@ -323,6 +331,8 @@ export function makeMonsterBuilder(K) {
     const tails = R.tails.map(t => { const g = new THREE.Group(); g.position.copy(t.pivot); g.userData.k = t.k; put(g, t.geo, inkM); tail.add(g); return g; });
     const topG = new THREE.Group(); topG.position.set(R.head.c.x, R.headTop - 0.03, R.head.c.z); root.add(topG);
     if (R.lvl === 0) { const capM = K.toon('#fffaf0'); capM.side = THREE.DoubleSide; const cp = new THREE.Mesh(new THREE.SphereGeometry(0.34, 22, 10, 0, Math.PI * 2, 0, 1.15), capM); cp.position.y = -0.2; topG.add(cp); topG.rotation.z = 0.2; for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2, z = new THREE.Mesh(new THREE.ConeGeometry(0.055, 0.1, 4), capM); z.position.set(Math.cos(a) * 0.3, -0.08, Math.sin(a) * 0.3); z.rotation.x = Math.PI; topG.add(z); } }
+    // vùng chạm vô hình bao quanh thân: vuốt ve / bấm trúng dễ như thú tròn cũ dù thân quái thú mảnh
+    { const hit = new THREE.Mesh(hitGeo, hitMat); hit.visible = false; hit.userData.noShadow = true; hit.position.set(0, R.headTop * 0.52, (R.head.c.z + R.body.c.z) / 2); hit.scale.set(0.5, R.headTop * 0.52, Math.max(0.6, (R.head.c.z - R.body.c.z) / 2 + 0.45)); root.add(hit); }
     const anchor = new THREE.Group(); anchor.scale.setScalar(1e-4); anchor.position.copy(R.head.c); root.add(anchor);   // game gắn mặt 2D vào đây (ẩn): mắt đã lấy hình trực tiếp
     // tay (khung đứng): game đặt arms[i].position = (±0.98, 0.78 + nhấc); lưới tay lệch lại cho khớp vai
     const armRig = new THREE.Group(); root.add(armRig);

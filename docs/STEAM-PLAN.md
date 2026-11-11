@@ -52,6 +52,11 @@ Một mã nguồn, hai bản build: `web` (như hiện tại) và `steam` (`VITE
 - Khảo sát nội dung Steam, chính sách quyền riêng tư bản Anh, kênh hỗ trợ.
 - Script đóng gói và tải lên (steamcmd + depot), nhánh beta để thử nội bộ, Playtest.
 
+### S7. Quái thú và đấu giao hữu (quyết định 2026-11-11)
+- Thú đổi concept sang **quái thú cel shading** (`src/game/monster.js`): 50 loài trên bốn khung dáng (bốn chân, đứng hai chân, chim, rắn/cá bay lượn); mã loài giữ nguyên nên thú của người chơi cũ tự đổi hình.
+- Thế giới: giữ bố cục, đổi màu và chất liệu, bỏ nét dễ thương (chưa làm).
+- **Đấu trường giao hữu** (chưa thiết kế): đấu theo lượt, thua không mất gì, chỉ số lấy từ cách chăm; kèm **hệ thống kỹ năng** cho từng loài/nguyên tố (học dần theo tuổi và Gắn bó). Giữ nguyên tắc miễn phí, không bán lợi thế.
+
 ## Chỉ chủ dự án làm được
 - Tài khoản Steamworks (phí 100 USD/ứng dụng), thông tin thuế/ngân hàng, App ID, tạo DLC Supporter Pack.
 - Khoá Steam Web API của nhà phát hành (dán qua form an toàn, không gửi trong chat).

@@ -111,14 +111,15 @@ function petToon(color) {
   return m;
 }
 /** Vật liệu cel cho quái thú (monster.js): màu theo đỉnh, viền sáng ven thân, phần hoa văn phát sáng (aGlow), sáng trắng khi tiến hoá. */
+const petRamp = new THREE.DataTexture(new Uint8Array([160, 160, 160, 255, 212, 212, 212, 255, 255, 255, 255, 255]), 3, 1, THREE.RGBAFormat); petRamp.minFilter = petRamp.magFilter = THREE.NearestFilter; petRamp.needsUpdate = true; // vùng tối của quái thú nhạt hơn đồ vật để mảng màu không bị bẩn
 function petCel() {
-  const m = new THREE.MeshToonMaterial({ color: '#ffffff', gradientMap: grad, vertexColors: true });
+  const m = new THREE.MeshToonMaterial({ color: '#ffffff', gradientMap: petRamp, vertexColors: true });
   m.onBeforeCompile = sh => {
     tintShader(sh);
     sh.uniforms.rimColor = rimColor; sh.uniforms.rimStrength = rimStrength; sh.uniforms.evoGlow = evoGlow;
     sh.vertexShader = 'attribute float aGlow;\nvarying float vGlow;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n  vGlow = aGlow;');
     sh.fragmentShader = 'uniform vec3 rimColor;\nuniform float rimStrength;\nuniform float evoGlow;\nvarying float vGlow;\n' + sh.fragmentShader.replace('#include <opaque_fragment>',
-      '#include <opaque_fragment>\n  float rimF = 1.0 - clamp(dot(normalize(normal), normalize(vViewPosition)), 0.0, 1.0);\n  gl_FragColor.rgb += rimColor * smoothstep(0.62, 0.68, rimF) * rimStrength * 0.4;\n  gl_FragColor.rgb += vGlow * vColor.rgb * 0.75;\n  gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(1.0, 0.98, 0.94), evoGlow);');
+      '#include <opaque_fragment>\n  float rimF = 1.0 - clamp(dot(normalize(normal), normalize(vViewPosition)), 0.0, 1.0);\n  gl_FragColor.rgb += rimColor * smoothstep(0.8, 0.86, rimF) * rimStrength * 0.3;\n  gl_FragColor.rgb += vGlow * vColor.rgb * 0.75;\n  gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(1.0, 0.98, 0.94), evoGlow);');
   };
   m.customProgramCacheKey = () => 'pet-cel';
   return m;
