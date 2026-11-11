@@ -21,7 +21,7 @@ export const ELEMENT = [
   { id: 'hoa', glow: '#ff7a3a', iris: '#e0461a' },   // Góc Bếp: lửa
 ];
 /** Độ "ngầu" của mắt theo giai đoạn: sơ sinh mắt tròn, lớn dần thì sắc lại. */
-export const FIERCE = { baby: 0, child: 0.45, teen: 0.8, adult: 1, elder: 0.7 };
+export const FIERCE = { baby: 0, child: 0.6, teen: 0.8, adult: 1, elder: 0.7 };
 
 export function makePetBuilder(K) {
   const { THREE, add, toon, petToon } = K;
@@ -38,6 +38,15 @@ export function makePetBuilder(K) {
     const g = new THREE.ExtrudeGeometry(sh, { depth: d, bevelEnabled: true, bevelSize: 0.02, bevelThickness: 0.02, bevelSegments: 1 }); g.center(); return g;
   };
   const glow = (c, k = 0.45) => new THREE.MeshToonMaterial({ color: c, gradientMap: K.grad, emissive: c, emissiveIntensity: k * (K.hdr ? 3 : 1) });
+  /* Nặn khối: dời đỉnh của khối cầu để có sọ thuôn cằm, ngực nở eo thon… (giữ pháp tuyến cầu cho bề mặt mượt, không có đường nối) */
+  const sculpt = (g, f) => { const p = g.attributes.position, v = new THREE.Vector3(); for (let i = 0; i < p.count; i++) { v.fromBufferAttribute(p, i); f(v); p.setXYZ(i, v.x, v.y, v.z); } return g; };
+  const sm = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+  const skullGeo = () => sculpt(S(1, 56, 40), v => { const t = sm(0.3, 1, -v.y); v.x *= 1 - 0.36 * t; v.z *= 1 - 0.1 * t; if (v.z < 0) v.z *= 1.18; if (v.y > 0.2) v.x *= 1 + 0.06 * sm(0.2, 0.8, v.y); });
+  const torsoGeo = kind => sculpt(S(1, 40, 28), v => {
+    if (kind === 'thu4') { const k = 1 + 0.2 * v.z; v.x *= k; v.y *= k; if (v.y < 0) v.y *= 0.9; }
+    else if (kind !== 'ran') { v.x *= 1 + 0.24 * v.y; v.z *= 1 + 0.1 * v.y; if (v.z > 0 && v.y < 0.2) v.z *= 1.08; }
+  });
+  const wingGeo = s => { const g = new THREE.ExtrudeGeometry(shape([[0, 0], [0.5, 0.42], [1.0, 0.62], [1.38, 0.3], [1.02, 0.2], [1.05, -0.12], [0.72, 0.0], [0.66, -0.36], [0.38, -0.14], [0.2, -0.42], [0, -0.3]].map(([x, y]) => [x * s, y])), { depth: 0.035, bevelEnabled: false }); return g; };
   /** Đặt vật lên bề mặt thân (ellipsoid) theo hướng (theta từ đỉnh, phi quanh trục y; phi = 0 là mặt trước). */
   const onBody = (b, theta, phi, lift = 0) => new THREE.Vector3(
     Math.sin(theta) * Math.sin(phi) * (b.sx + lift), (b.y ?? b.cy) + Math.cos(theta) * (b.sy + lift), Math.sin(theta) * Math.cos(phi) * (b.sz + lift));
@@ -59,18 +68,18 @@ export function makePetBuilder(K) {
       return { kind: 'banh', H: E, B: E, sep: false, legs: 'stub', legL: 0, arms: true, hover: 0, segs: [] };
     }
     const t = lvl === 1 ? 0 : lvl === 2 ? 0.5 : 1, L = (a, b) => a + (b - a) * t;
-    const hr = L(0.76, 0.6), H = { sx: hr * 1.06, sy: hr * 0.97, sz: hr }, g = L(0.84, 1);
+    const hr = L(0.7, 0.52), H = { sx: hr * 1.06, sy: hr * 0.97, sz: hr }, g = L(0.92, 1.12);
     if (plan === 'thu4') {
       const legL = L(0.24, 0.46) * (quick ? 1.25 : 1) * legK;
       const B = { sx: 0.74 * fat * g, sy: 0.56 * g, sz: (quick ? 1.08 : 1) * g * 0.98 };
-      B.y = legL + B.sy * 0.85; B.z = -0.22; H.y = B.y + B.sy * 0.55 + H.sy * 0.52; H.z = B.z + B.sz * 0.78;
+      B.y = legL + B.sy * 0.85; B.z = -0.22; H.y = B.y + B.sy * 0.7 + H.sy * 0.62; H.z = B.z + B.sz * 0.92;
       return { kind: 'thu4', H, B, sep: true, legs: 'thu4', legL, arms: false, hover: 0, segs: [] };
     }
     if (plan === 'dung') {
       const wide = sp.body === 'det' ? 1.12 : sp.body === 'dai' ? 0.92 : 1;
       const legL = L(0.14, 0.3) * (quick ? 1.3 : 1) * legK;
       const B = { sx: 0.68 * fat * g * wide, sy: L(0.52, 0.68) * (sp.body === 'dai' ? 1.1 : 1), sz: 0.6 * fat * g * wide };
-      B.y = legL + B.sy * 0.92; B.z = 0; H.y = B.y + B.sy * 0.78 + H.sy * 0.62; H.z = 0.04;
+      B.y = legL + B.sy * 0.92; B.z = 0; H.y = B.y + B.sy * 0.9 + H.sy * 0.72; H.z = 0.08;
       return { kind: 'dung', H, B, sep: true, legs: 'stub', legL, arms: true, hover: 0, segs: [] };
     }
     if (plan === 'chim') {
@@ -104,8 +113,8 @@ export function makePetBuilder(K) {
     const tint = c => { const col = new THREE.Color(c); col.offsetHSL(hue, stage === 'elder' ? -0.12 : 0, stage === 'elder' ? 0.03 : 0); return '#' + col.getHexString(); };
     /* màu đậm và tương phản dần theo tuổi: sơ sinh còn phấn nhạt, trưởng thành thì rực và sắc nét */
     const ck = [0, 0.55, 0.85, 1, 0.8][lvl], hs = { h: 0, s: 0, l: 0 };
-    const cool = (c, sK, lK) => { const col = new THREE.Color(c); col.getHSL(hs); const l = hs.l > 0.93 ? hs.l * (1 - 0.06 * ck) : hs.l * (1 - (1 - lK) * ck); col.setHSL(hs.h, Math.min(1, hs.s * (1 + (sK - 1) * ck)), l); return '#' + col.getHexString(); };
-    const pal = { body: cool(tint(sp.pal.body), 1.5, 0.84), deep: cool(tint(sp.pal.deep), 1.5, 0.66), ink: sp.pal.ink, inner: form === 'thuong' ? '#ff9fbe' : sp.pal.inner, accent: cool(tint(sp.pal.accent), 1.35, 0.8) };
+    const cool = (c, sK, lK) => { const col = new THREE.Color(c); col.getHSL(hs); const l = hs.l > 0.93 ? hs.l * (1 - 0.06 * ck) : hs.l * (1 - (1 - lK) * ck); col.setHSL(hs.h, Math.min(Math.max(hs.s, 0.72), hs.s * (1 + (sK - 1) * ck)), l); return '#' + col.getHexString(); };
+    const pal = { body: cool(tint(sp.pal.body), 2.0, 0.74), deep: cool(tint(sp.pal.deep), 2.0, 0.5), ink: sp.pal.ink, inner: form === 'thuong' ? '#ff9fbe' : sp.pal.inner, accent: cool(tint(sp.pal.accent), 1.6, 0.78) };
     const INK = pal.ink;
     const bodyMat = petToon(pal.body), deepMat = petToon(pal.deep), accMat = toon(pal.accent), innerMat = toon(pal.inner);
 
@@ -115,15 +124,16 @@ export function makePetBuilder(K) {
     const outward = (m, E) => m.lookAt(m.position.clone().sub(new THREE.Vector3(0, E.y, E.z)).multiplyScalar(2).add(new THREE.Vector3(0, E.y, E.z)));
 
     /* đầu (mang khuôn mặt) và thân */
-    const head = add(root, S(1, 56, 40), bodyMat, 0, H.y, H.z, INK, 0.035);
+    const head = add(root, lvl ? skullGeo() : S(1, 56, 40), bodyMat, 0, H.y, H.z, INK, 0.035);
     head.scale.set(H.sx, H.sy, H.sz);
     let bodyM = head;
-    if (sep) { bodyM = add(root, S(1, 40, 28), bodyMat, 0, B.y, B.z, INK, 0.035 / Math.max(kB, 0.5)); bodyM.scale.set(B.sx, B.sy, B.sz); }
+    if (sep) { bodyM = add(root, torsoGeo(Lo.kind), bodyMat, 0, B.y, B.z, INK, 0.035 / Math.max(kB, 0.5)); bodyM.scale.set(B.sx, B.sy, B.sz); }
     if (!sep && sp.body === 'le') { const bl = add(root, S(0.86, 40, 28), bodyMat, 0, B.y - 0.42, 0.02, INK, 0.035); bl.scale.set(1.36, 0.78, 1.22); }
     if (!sep && sp.body === 'giot') add(root, Cone(0.42, 0.62, 28), bodyMat, 0, B.y + B.sy * 0.93, -0.04, INK, 0.03).rotation.x = -0.12;
     Lo.segs.forEach((g, i) => add(root, S(g.r, 24, 18), i % 2 ? deepMat : bodyMat, 0, g.y, g.z, INK, 0.03));
     let neckM = null;
     if (Lo.kind === 'thu4') { neckM = add(root, S(0.36 * kH * 1.06, 20, 14), bodyMat, 0, (H.y + B.y) / 2 + 0.05, (H.z + B.z) / 2 + 0.12, INK, 0.03); neckM.scale.set(1, 1.2, 1); }
+    if (Lo.kind === 'dung' || Lo.kind === 'chim') { const nk = add(root, S(B.sx * 0.5, 18, 12), bodyMat, 0, (H.y - H.sy * 0.7 + B.y + B.sy * 0.8) / 2, (H.z + B.z) / 2, INK, 0.03); nk.scale.set(1, 1.15, 0.95); }
     if (Lo.kind === 'chim') add(root, Cone(0.1 * kH, 0.2 * kH, 12), toon('#ffb84a'), 0, H.y - H.sy * 0.32, H.z + H.sz * 0.97, '#a8742e', 0.012).rotation.x = Math.PI / 2;
     const headTop = H.y + H.sy;
 
@@ -146,6 +156,13 @@ export function makePetBuilder(K) {
         if (sep || sp.body !== 'tron') cols.slice(0, 3).forEach((c, i) => cap(B, 2.25 + i * 0.22, 0.22, c));
       }
     }
+
+    /* giáp bụng nhiều khoang (loài không có mảng bụng riêng) và vệt sẫm quanh mắt: tăng tương phản, ra chất quái thú */
+    if (lvl >= 1 && sep && sp.pattern !== 'bung' && Lo.kind !== 'ran') [0, 1, 2].forEach(i => {
+      const m = add(root, S(0.34 * kB / 0.66 * (1 - i * 0.12), 20, 14), toon(lighten(pal.body, 0.5)), 0, 0, 0, null);
+      m.position.copy(onBody(B, (Lo.kind === 'thu4' ? 1.5 : 1.62) + i * 0.3, 0, -0.07 * kB)); m.position.z += B.z; m.scale.set(1.3, 0.5, 0.4); outward(m, B);
+    });
+    if (lvl >= 2) [-1, 1].forEach(s => { const m = add(root, S(0.3 * kH, 16, 12), deepMat, 0, 0, 0, null); m.position.copy(onBody(H, 1.0, s * 1.15, -0.2 * kH)); m.position.z += H.z; m.scale.set(1.2, 0.5, 0.5); outward(m, H); m.rotateZ(-s * 0.5); });
 
     /* tai: nhóm ngoài để game.js lắc (rotation.z quanh -s·0.38), nhóm trong mang góc riêng của từng kiểu */
     const earScale = (0.9 + (genes.ear || 0) * 0.07) * [0.72, 0.85, 0.95, 1, 1][lvl] * (form === 'nhanh' ? 1.3 : 1) * kH;
@@ -195,7 +212,7 @@ export function makePetBuilder(K) {
     const armRig = new THREE.Group(); root.add(armRig);
     armRig.scale.set(B.sx / BASE.sx, B.sy / BASE.sy, B.sz / BASE.sz); armRig.position.set(0, B.y - BASE.cy * B.sy / BASE.sy, B.z);
     armRig.visible = Lo.arms;
-    const arms = [-1, 1].map(s => { const a = add(armRig, S(0.2, 18, 14), bodyMat, s * 0.98, 0.78, 0.22, INK); const k = sep ? 1.45 : 1; a.scale.set(0.8 * k, 1 * k, 0.8 * k); return a; });
+    const arms = [-1, 1].map(s => { const a = add(armRig, S(0.2, 18, 14), sep ? deepMat : bodyMat, s * 0.98, 0.78, 0.22, INK); const k = sep ? 1.45 : 1; a.scale.set(0.8 * k, (sep ? 1.55 : 1) * k, 0.8 * k); return a; });
 
     /* chân: game.js đặt y = 0.1 (+ nhấc), z = 0.38 (+ bước). Nhóm `legRig` dời tới đúng chỗ của từng dáng. */
     const legRig = new THREE.Group(); root.add(legRig);
@@ -204,8 +221,8 @@ export function makePetBuilder(K) {
     const footX = Lo.kind === 'thu4' ? 0.42 * B.sx : sep ? 0.44 * B.sx : 0.42 * Math.min(1.15, B.sx / BASE.sx);
     const legTop = sep ? B.y - B.sy * 0.55 : 0;
     const makeLeg = (g, front) => {
-      if (Lo.legs === 'stub') { const f = add(g, S(sep ? 0.22 : 0.27, 20, 14), deepMat, 0, 0, 0, INK); f.scale.set(1, 0.5, 1.2); if (sep && Lo.legL > 0.05) add(g, Cy(0.11, 0.13, Lo.legL + 0.1, 12), bodyMat, 0, (Lo.legL + 0.1) / 2, -0.04, INK, 0.02); }
-      if (Lo.legs === 'thu4') { const h = legTop - 0.1 + 0.08; add(g, Cy(0.13 * kB / 0.74, 0.12 * kB / 0.74, h, 14), front ? bodyMat : deepMat, 0, h / 2 - 0.02, 0, INK, 0.02); const pad = add(g, S(0.15 * kB / 0.74, 16, 12), deepMat, 0, -0.03, 0.05, INK, 0.02); pad.scale.set(1, 0.55, 1.2); }
+      if (Lo.legs === 'stub') { const f = add(g, S(sep ? 0.22 : 0.27, 20, 14), deepMat, 0, 0, 0, INK); f.scale.set(1, 0.5, 1.2); if (sep && Lo.legL > 0.05) { f.scale.set(1.15, 0.55, 1.7); f.position.z = 0.07; add(g, Cy(0.1, 0.14, Lo.legL + 0.1, 12), bodyMat, 0, (Lo.legL + 0.1) / 2, -0.04, INK, 0.02); const th = add(g, S(0.21, 16, 12), bodyMat, 0, Lo.legL + 0.1, -0.05, INK, 0.02); th.scale.set(1, 1.35, 1.2); } }
+      if (Lo.legs === 'thu4') { const h = legTop - 0.1 + 0.08; add(g, Cy(0.13 * kB / 0.74, 0.12 * kB / 0.74, h, 14), front ? bodyMat : deepMat, 0, h / 2 - 0.02, 0, INK, 0.02); const pad = add(g, S(0.15 * kB / 0.74, 16, 12), deepMat, 0, -0.03, 0.05, INK, 0.02); pad.scale.set(1.1, 0.55, 1.4); const th = add(g, S(0.2 * kB / 0.74, 16, 12), front ? bodyMat : deepMat, 0, h - 0.04, 0, INK, 0.02); th.scale.set(1, 1.4, 1.25); }
       if (Lo.legs === 'chim') { const h = legTop - 0.1 + 0.08; add(g, Cy(0.035, 0.035, h, 8), toon('#ffb84a'), 0, h / 2, 0, '#a8742e', 0.01); [-0.5, 0, 0.5].forEach(a => { const toe = add(g, S(0.06, 10, 8), toon('#ffb84a'), Math.sin(a) * 0.08, -0.07, Math.cos(a) * 0.08, '#a8742e', 0.01); toe.scale.set(0.7, 0.45, 1.6); toe.rotation.y = a; }); }
     };
     const feet = [-1, 1].map(s => { const g = new THREE.Group(); g.position.set(s * footX, 0.1, 0.38); legRig.add(g); makeLeg(g, true); return g; });
@@ -234,6 +251,7 @@ export function makePetBuilder(K) {
     const extras = new Set(sp.extra);
     if (form === 'tron') extras.add('bom');
     if (Lo.kind === 'chim') extras.add('canh');
+    if ((sp.rarity === 'huyen' || sp.rarity === 'quy') && Lo.kind !== 'chim') extras.add('canh'); // loài quý và huyền thoại có cánh rồng
     const exScale = lvl >= 3 ? 1 : 0.75;
     for (const ex of extras) {
       if (ex === 'bom' && lvl >= 1) [-1, 1].forEach(s => { const m = add(root, S(0.26 * kH, 18, 14), bodyMat, s * 0.74 * H.sx, H.y - 0.22 * H.sy, H.z + 0.5 * H.sz, INK, 0.025); m.scale.set(0.8, 0.75, 0.7); });
@@ -249,7 +267,8 @@ export function makePetBuilder(K) {
         } else {
           w.position.set(s * 0.5 * B.sx, B.y + 0.15 * B.sy, B.z - 0.72 * B.sz);
           const n = bug ? 2 : 1, ws = sep ? 1.25 : 1;
-          for (let k = 0; k < n; k++) { const m = add(w, S(0.3, 18, 12), mat, s * 0.32 * ws, 0.12 - k * 0.22, 0, bug ? '#9ab8d8' : INK, 0.02); m.scale.set(1.35 * exScale * ws, (bug ? 0.45 : 0.8) * exScale * ws, 0.18); m.rotation.z = s * (0.5 - k * 0.6); }
+          if (!bug) { const m = add(w, wingGeo(s), toon(bat ? pal.deep : pal.accent), 0, 0.1, 0, INK, 0.02); m.scale.setScalar(1.15 * exScale * ws); m.rotation.y = s * 0.35; const bone = add(w, Cy(0.03, 0.045, 1.2 * exScale * ws, 6), deepMat, s * 0.52 * exScale * ws, 0.42 * exScale * ws, 0.02, INK, 0.01); bone.rotation.z = -s * 1.0; }
+          else for (let k = 0; k < n; k++) { const m = add(w, S(0.3, 18, 12), mat, s * 0.32 * ws, 0.12 - k * 0.22, 0, bug ? '#9ab8d8' : INK, 0.02); m.scale.set(1.35 * exScale * ws, (bug ? 0.45 : 0.8) * exScale * ws, 0.18); m.rotation.z = s * (0.5 - k * 0.6); }
         }
         anim.wings.push(w);
       });
@@ -312,9 +331,9 @@ export function makePetBuilder(K) {
       }
       /* đuôi cụt hoặc không đuôi thì từ Thiếu niên mọc đuôi dài có chóp nguyên tố */
       if (lvl >= 2 && Lo.kind !== 'chim' && (tt === 'none' || tt === 'tron')) {
-        const n = 4, g = new THREE.Group(); tg.add(g); if (Lo.kind === 'thu4') g.rotation.x = 0.5;
+        const n = 6, g = new THREE.Group(); tg.add(g); if (Lo.kind === 'thu4') g.rotation.x = 0.5;
         let px = 0, py = 0, pz = 0;
-        for (let i = 0; i < n; i++) { const k = i / n, r = 0.15 * (1 - k * 0.55); py += 0.07 + k * 0.16; pz -= 0.2 - k * 0.1; add(g, S(r, 14, 10), i % 2 ? deepMat : bodyMat, px, py, pz, INK, 0.015); }
+        for (let i = 0; i < n; i++) { const k = i / n, r = 0.21 * (1 - k * 0.6); py += 0.02 + k * 0.2; pz -= 0.24 - k * 0.14; add(g, S(r, 14, 10), i % 2 ? deepMat : bodyMat, px, py, pz, INK, 0.015); }
         const tp = new THREE.Group(); tp.position.set(0, py + 0.16, pz - 0.04); g.add(tp);
         if (EL.id === 'moc') { const f = add(tp, S(0.2, 14, 10), toon('#4fc04a'), 0, 0.08, 0, '#2f7a3d', 0.015); f.scale.set(0.55, 1.5, 0.16); }
         if (EL.id === 'thuy') [-1, 1].forEach(s => { const f = add(tp, S(0.2, 14, 10), spikeM, s * 0.1, 0.06, 0, INK, 0.015); f.scale.set(0.4, 1.3, 0.2); f.rotation.z = -s * 0.7; });
