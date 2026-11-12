@@ -40,9 +40,9 @@ import { initSettings } from './settings.js';
 import { setPresence, syncAchievements } from '../lib/steam';
 import { initGamepad, stick } from './gamepad.js';
 import { cineWanted, createCine } from './gfx.js';
-import { movesOf, moveUnlocked, moveDesc, moveLockNote, ELEMENT_NAMES, KIND_NAMES } from './skills';
+import { movesOf, moveUnlocked, moveDesc, moveLockNote, matchups, ELEMENT_NAMES, KIND_NAMES } from './skills';
 import { isSteam } from '../lib/platform';
-import { STAGES } from './species';
+import { STAGES, SPECIES_BY_ID } from './species';
 import { AXES, TRAITS, describe as describePersona, greeting, idleGapFactor, idleWeights, petLine, pickWeighted, walkSpeedFactor } from './personality';
 let home = null, editing = false;
 const camOverride = { pos: null, look: null };
@@ -880,6 +880,8 @@ $('persona-axes').innerHTML = AXES.map(a => `<div class="axis" role="img" id="ax
 function renderTastes() { $('tastes').textContent = _t('Khẩu vị: ') + tastesLine(S.tastes); }
 function renderMoves() {
   const lv = bondLevel(S.bondXp);
+  const mu = matchups((SPECIES_BY_ID[S.species] || {}).region || 0), el = (SPECIES_BY_ID[S.species] || {}).region || 0, names = a => a.map(x => ELEMENT_NAMES[x]).join(', ');
+  $('move-matchup').textContent = _t`Hệ ${ELEMENT_NAMES[el]} · Khắc: ${names(mu.strong)} · Kỵ: ${names(mu.weak)}`;
   $('move-list').innerHTML = movesOf(S.species).map(m => { const on = moveUnlocked(m, S.stage, lv); return `<li class="move${on ? '' : ' locked'}"><b>${m.name}</b> <span class="chip">${ELEMENT_NAMES[m.element]} · ${KIND_NAMES[m.kind]}</span><br><span class="note">${on ? moveDesc(m) : moveLockNote(m)}</span></li>`; }).join('');
 }
 function renderPersona() {

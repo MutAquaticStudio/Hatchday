@@ -11,10 +11,43 @@ import { _t } from '../i18n';
 import { SPECIES, SPECIES_BY_ID, STAGE_ORDER, STAGES, type Stage } from './species';
 
 export type MoveKind = 'attack' | 'guard' | 'boost' | 'heal';
-export interface Move { id: string; name: string; kind: MoveKind; element: number; power: number; unlock: { stage: Stage; bond: number } }
+export type Status = 'root' | 'soak' | 'daze' | 'blind' | 'burn';
+export type Twist = 'multi' | 'drain' | 'first' | 'pierce' | 'recoil' | 'crit' | 'lowhp' | 'cleanse' | 'thorns' | 'wall' | 'haste' | 'focus' | 'regen';
+export interface Move { id: string; name: string; kind: MoveKind; element: number; power: number; unlock: { stage: Stage; bond: number };
+  /** Trạng thái gây cho đối thủ (đòn tấn công) và xác suất %. */ status?: Status; chance?: number;
+  /** Nét riêng của chiêu (tuyệt chiêu và chiêu tối thượng). */ twist?: Twist }
 
 export const ELEMENT_NAMES = [_t('Mộc'), _t('Thuỷ'), _t('Phong'), _t('Dạ'), _t('Hoả')];
 export const KIND_NAMES: Record<MoveKind, string> = { attack: _t('Tấn công'), guard: _t('Phòng thủ'), boost: _t('Cường hoá'), heal: _t('Hồi phục') };
+
+/**
+ * Khắc chế giữa năm hệ. Vòng chính (×1.5): Thuỷ dập Hoả, Hoả thiêu Mộc, Mộc chắn Phong, Phong xua Dạ, Dạ kéo triều Thuỷ.
+ * Vòng phụ (×1.25): Hoả soi Dạ, Dạ che nắng Mộc, Mộc hút Thuỷ, Thuỷ nặng Phong, Phong thổi tắt Hoả.
+ * Chiều ngược lại bị giảm (×0.67 và ×0.8). Thứ tự hệ: 0 Mộc, 1 Thuỷ, 2 Phong, 3 Dạ, 4 Hoả.
+ */
+export const STRONG: Record<number, number> = { 1: 4, 4: 0, 0: 2, 2: 3, 3: 1 };
+export const MINOR: Record<number, number> = { 4: 3, 3: 0, 0: 1, 1: 2, 2: 4 };
+export function elementMult(att: number, def: number): number {
+  if (STRONG[att] === def) return 1.5; if (MINOR[att] === def) return 1.25;
+  if (STRONG[def] === att) return 0.67; if (MINOR[def] === att) return 0.8;
+  return 1;
+}
+/** Trạng thái đặc trưng của từng hệ. */
+export const ELEMENT_STATUS: Status[] = ['root', 'soak', 'daze', 'blind', 'burn'];
+export const STATUS_INFO: Record<Status, { name: string; desc: string }> = {
+  root: { name: _t('Trói rễ'), desc: _t('giảm 30% tốc độ trong 2 lượt') },
+  soak: { name: _t('Ướt sũng'), desc: _t('giảm 25% phòng thủ trong 2 lượt') },
+  daze: { name: _t('Choáng gió'), desc: _t('25% khả năng mất lượt, trong 2 lượt') },
+  blind: { name: _t('Loá mắt'), desc: _t('giảm 25% tấn công trong 2 lượt') },
+  burn: { name: _t('Bỏng'), desc: _t('mất 6% thể lực mỗi lượt, trong 3 lượt') },
+};
+export const TWIST_INFO: Record<Twist, string> = {
+  multi: _t('Đánh liên tiếp 2–3 lần'), drain: _t('Hồi lại 30% sát thương gây ra'), first: _t('Luôn ra đòn trước'), pierce: _t('Xuyên qua phòng thủ'),
+  recoil: _t('Mạnh hơn 25% nhưng tự mất 10% thể lực'), crit: _t('40% khả năng chí mạng'), lowhp: _t('Mạnh gấp rưỡi khi thể lực dưới một nửa'), cleanse: _t('Xoá mọi trạng thái xấu của mình'),
+  thorns: _t('Phản lại 25% sát thương khi đang thủ'), wall: _t('Giảm tới 70% sát thương'), haste: _t('Tăng thêm 30% tốc độ'), focus: _t('Đòn kế tiếp chắc chắn chí mạng'), regen: _t('Hồi thêm 8% thể lực mỗi lượt trong 3 lượt'),
+};
+const TWISTS: Record<MoveKind, Twist[]> = { attack: ['multi', 'drain', 'first', 'pierce', 'recoil', 'crit', 'lowhp', 'cleanse'], guard: ['thorns', 'wall'], boost: ['haste', 'focus'], heal: ['regen', 'cleanse'] };
+const SIG_CHANCE = { thuong: 30, hiem: 40, quy: 50, huyen: 60 } as const;
 
 /** Bộ chiêu riêng của từng loài: [đòn cơ bản, [chiêu hỗ trợ, loại], [tuyệt chiêu, loại], chiêu tối thượng]. Không loài nào trùng tên chiêu với loài khác. */
 const MOVES: Record<string, [string, [string, MoveKind], [string, MoveKind], string]> = {
@@ -73,12 +106,14 @@ const SIG_POWER = { thuong: 70, hiem: 80, quy: 90, huyen: 100 } as const;
 
 /** Bốn chiêu của một loài, theo thứ tự mở khoá. */
 export function movesOf(speciesId: string): Move[] {
-  const sp = SPECIES_BY_ID[speciesId] || SPECIES[0], el = sp.region, m = MOVES[sp.id];
+  const sp = SPECIES_BY_ID[speciesId] || SPECIES[0], el = sp.region, m = MOVES[sp.id], st = ELEMENT_STATUS[el], idx = SPECIES.indexOf(sp);
+  // nét riêng chọn theo thứ tự loài trong miền nên các loài cùng hệ không giống nhau, và cố định (máy chủ tính ra y hệt)
+  const tw = (k: MoveKind, shift = 0) => TWISTS[k][(idx + shift) % TWISTS[k].length], sigAtk = m[2][1] === 'attack';
   return [
     { id: `${sp.id}-1`, name: m[0], kind: 'attack', element: el, power: 40, unlock: { stage: 'child', bond: 1 } },
     { id: `${sp.id}-2`, name: m[1][0], kind: m[1][1], element: el, power: 0, unlock: { stage: 'teen', bond: 3 } },
-    { id: `${sp.id}-3`, name: m[2][0], kind: m[2][1], element: el, power: m[2][1] === 'attack' ? SIG_POWER[sp.rarity] : 0, unlock: { stage: 'adult', bond: 5 } },
-    { id: `${sp.id}-4`, name: m[3], kind: 'attack', element: el, power: 120 + SIG_POWER[sp.rarity] / 10, unlock: { stage: 'adult', bond: 8 } },
+    { id: `${sp.id}-3`, name: m[2][0], kind: m[2][1], element: el, power: sigAtk ? SIG_POWER[sp.rarity] : 0, unlock: { stage: 'adult', bond: 5 }, twist: tw(m[2][1]), ...(sigAtk ? { status: st, chance: SIG_CHANCE[sp.rarity] } : {}) },
+    { id: `${sp.id}-4`, name: m[3], kind: 'attack', element: el, power: 120 + SIG_POWER[sp.rarity] / 10, unlock: { stage: 'adult', bond: 8 }, status: st, chance: 100, twist: tw('attack', 3) },
   ];
 }
 /** Chiêu đã mở chưa, theo giai đoạn (Xế chiều tính như Trưởng thành) và cấp Gắn bó. */
@@ -88,9 +123,14 @@ export function moveUnlocked(m: Move, stage: Stage, bond: number): boolean {
 }
 /** Mô tả ngắn: công dụng và điều kiện mở. */
 export function moveDesc(m: Move): string {
-  if (m.kind === 'attack') return _t`Gây sát thương hệ ${ELEMENT_NAMES[m.element]}, sức mạnh ${m.power}.`;
-  if (m.kind === 'guard') return _t('Giảm sát thương nhận vào trong 2 lượt.');
-  if (m.kind === 'boost') return _t('Tăng sức tấn công trong 3 lượt.');
-  return _t('Hồi một phần thể lực.');
+  const base = m.kind === 'attack' ? _t`Gây sát thương hệ ${ELEMENT_NAMES[m.element]}, sức mạnh ${m.power}.` : m.kind === 'guard' ? _t('Giảm sát thương nhận vào trong 2 lượt.') : m.kind === 'boost' ? _t('Tăng sức tấn công trong 3 lượt.') : _t('Hồi một phần thể lực.');
+  const st = m.status ? ' ' + _t`${m.chance}% gây ${STATUS_INFO[m.status].name} (${STATUS_INFO[m.status].desc}).` : '';
+  return base + st + (m.twist ? ' ' + TWIST_INFO[m.twist] + '.' : '');
 }
 export function moveLockNote(m: Move): string { return _t`Mở khi ${STAGES[m.unlock.stage].name}, Gắn bó cấp ${m.unlock.bond}`; }
+
+/** Hệ này khắc hệ nào và kỵ hệ nào (để người chơi tra cứu). */
+export function matchups(el: number): { strong: number[]; weak: number[] } {
+  const strong = [STRONG[el], MINOR[el]], weak = [0, 1, 2, 3, 4].filter(x => STRONG[x] === el || MINOR[x] === el);
+  return { strong, weak };
+}
