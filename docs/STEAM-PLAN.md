@@ -56,7 +56,8 @@ Một mã nguồn, hai bản build: `web` (như hiện tại) và `steam` (`VITE
 - Thú đổi concept sang **quái thú cel shading** (`src/game/monster.js`): 50 loài trên bốn khung dáng (bốn chân, đứng hai chân, chim, rắn/cá bay lượn); mã loài giữ nguyên nên thú của người chơi cũ tự đổi hình.
 - Thế giới: giữ bố cục, đổi màu và chất liệu, bỏ nét dễ thương (chưa làm).
 - **Luật đấu đã có** (`src/game/skills.ts`, `src/game/battle.ts`, có test): mỗi loài 4 chiêu riêng (200 chiêu) mở theo tuổi và Gắn bó; năm hệ Mộc, Thuỷ, Phong, Dạ, Hoả khắc nhau theo hai vòng (×1.5 và ×1.25); mỗi hệ có một trạng thái (Trói rễ, Ướt sũng, Choáng gió, Loá mắt, Bỏng); tuyệt chiêu và chiêu tối thượng có nét riêng (đánh liên tiếp, hút máu, ra đòn trước, xuyên thủ…); chỉ số từ tuổi, Gắn bó, dáng trưởng thành và đá nâng cấp (4 loại, tối đa 5 bậc, mua bằng xu chơi được); trận đấu mô phỏng được bằng hạt giống để máy chủ chép lại.
-- **Còn thiếu**: màn hình Đấu trường (chọn chiêu theo lượt, hoạt ảnh và hiệu ứng hình ảnh của chiêu), ghép trận với người chơi khác, máy chủ (bảng đá nâng cấp, RPC đấu, phần thưởng), cân bằng số liệu bằng dữ liệu thật.
+- **Đã có (2026-11-12)**: Đấu trường 3D theo lượt (5 sân, hiệu ứng ba tầng, vệt đuôi, khung va chạm, vết trên sàn, nhạc chiến đấu tự sinh), sảnh với đá nâng cấp, Đấu tập / Xếp hạng (quái thú của người chơi khác do máy điều khiển) / Thách đấu bạn bè, phần thưởng có trần mỗi ngày, điểm Elo. Migration `20261225000000_arena.sql` chưa áp lên máy chủ thật.
+- **Còn thiếu**: đấu trực tiếp cùng lúc với người thật (hai bên cùng chọn chiêu từng lượt) cần máy chủ tính trận; cân bằng số liệu bằng dữ liệu thật; thử trên máy có card đồ hoạ.
 
 ## Chỉ chủ dự án làm được
 - Tài khoản Steamworks (phí 100 USD/ứng dụng), thông tin thuế/ngân hàng, App ID, tạo DLC Supporter Pack.

@@ -119,9 +119,28 @@ export function makeFx(THREE, scene, H) {
     return tween(dur, u => { const grow = Math.min(1, u * 3), w = width * (u < 0.7 ? 1 : 1 - (u - 0.7) / 0.3); [m, core].forEach((x, i) => { x.scale.set(w * (i ? 0.35 : 1), L * grow, w * (i ? 0.35 : 1)); x.position.copy(from).addScaledVector(d, grow * 0.5); }); m.material.opacity = 0.85 * (u < 0.7 ? 1 : 1 - (u - 0.7) / 0.3); }, () => { drop(m); drop(core); });
   }
   /** Bay một vật theo đường cong bậc hai tới đích; `each(pos, dt)` để rải vệt. */
-  function fly(obj, from, to, dur, { arc = 0.8, side = 0, spin = 0, each } = {}) {
-    scene.add(obj); const mid = from.clone().lerp(to, 0.5).add(V(0, arc, 0)).add(H.side().multiplyScalar(side));
-    return tween(dur, (u, dt) => { const w = easeIn(u) * 0.35 + u * 0.65, a = (1 - w) * (1 - w), b = 2 * (1 - w) * w, c = w * w; obj.position.set(a * from.x + b * mid.x + c * to.x, a * from.y + b * mid.y + c * to.y, a * from.z + b * mid.z + c * to.z); obj.rotation.z += spin * dt; if (each) each(obj.position, dt); }, () => drop(obj));
+  /** Vệt đuôi (ribbon) bám theo một vật: N điểm gần nhất thành dải quay mặt về máy quay, đầu đậm, đuôi mảnh và trong. */
+  function makeTrail(color, width = 0.25, N = 18) {
+    const pos = new Float32Array(N * 2 * 3), al = new Float32Array(N * 2), idx = [];
+    for (let i = 0; i < N - 1; i++) { const a = i * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
+    for (let i = 0; i < N; i++) { al[i * 2] = al[i * 2 + 1] = 1 - i / (N - 1); }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3).setUsage(THREE.DynamicDrawUsage)); g.setAttribute('aA', new THREE.BufferAttribute(al, 1)); g.setIndex(idx);
+    const m = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide, uniforms: { uC: { value: new THREE.Color(color) }, uO: { value: 1 } },
+      vertexShader: 'attribute float aA; varying float vA; void main() { vA = aA; gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 ); }',
+      fragmentShader: 'uniform vec3 uC; uniform float uO; varying float vA; void main() { gl_FragColor = vec4( mix( uC, vec3( 1.0 ), vA * vA * 0.5 ), vA * uO ); }' });
+    const mesh = new THREE.Mesh(g, m); mesh.frustumCulled = false; mesh.renderOrder = 17; scene.add(mesh);
+    const pts = [], side = V(), tg = V(), view = V();
+    return {
+      push(p) { pts.unshift(p.clone()); if (pts.length > N) pts.length = N; const P = g.attributes.position.array;
+        for (let i = 0; i < N; i++) { const q = pts[Math.min(i, pts.length - 1)], n = pts[Math.min(i + 1, pts.length - 1)]; tg.copy(q).sub(n); if (tg.lengthSq() < 1e-6) tg.set(1, 0, 0); view.copy(H.camPos()).sub(q); side.crossVectors(tg, view).normalize().multiplyScalar(width * (1 - i / N) * 0.5);
+          P[i * 6] = q.x + side.x; P[i * 6 + 1] = q.y + side.y; P[i * 6 + 2] = q.z + side.z; P[i * 6 + 3] = q.x - side.x; P[i * 6 + 4] = q.y - side.y; P[i * 6 + 5] = q.z - side.z; }
+        g.attributes.position.needsUpdate = true; },
+      fade() { return tween(0.25, u => { m.uniforms.uO.value = 1 - u; }, () => { scene.remove(mesh); g.dispose(); m.dispose(); }); },
+    };
+  }
+  function fly(obj, from, to, dur, { arc = 0.8, side = 0, spin = 0, each, trail } = {}) {
+    scene.add(obj); const mid = from.clone().lerp(to, 0.5).add(V(0, arc, 0)).add(H.side().multiplyScalar(side)), tr = trail ? makeTrail(trail.color, trail.width) : null;
+    return tween(dur, (u, dt) => { const w = easeIn(u) * 0.35 + u * 0.65, a = (1 - w) * (1 - w), b = 2 * (1 - w) * w, c = w * w; obj.position.set(a * from.x + b * mid.x + c * to.x, a * from.y + b * mid.y + c * to.y, a * from.z + b * mid.z + c * to.z); obj.rotation.z += spin * dt; tr?.push(obj.position); if (each) each(obj.position, dt); }, () => { drop(obj); tr?.fade(); });
   }
   function orb(color, r) { const g = new THREE.Group(), core = new THREE.Mesh(G.sphere, solid('#fff6c8', { depthTest: false })); core.scale.setScalar(r * 0.55); g.add(core); const gl = sprite(color, r * 3, 1.6); g.add(gl); const sh = new THREE.Mesh(G.sphere, solid(color, { opacity: 0.92 })); sh.scale.setScalar(r); g.add(sh); core.renderOrder = 2; return g; }
   function slash(at, color, r, roll, dur = 0.28, dark = false) {
@@ -171,6 +190,34 @@ export function makeFx(THREE, scene, H) {
   }
 
   /* ---------- tác động khi trúng đòn ---------- */
+  const decalTex = [];
+  function decalMap(el) {
+    if (decalTex[el]) return decalTex[el];
+    const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d'), C = 128, h = n => { const x = Math.sin(n * 127.1 + el * 31.7) * 43758.5453; return x - Math.floor(x); };
+    if (el === 4) { const gr = g.createRadialGradient(C, C, 10, C, C, 120); gr.addColorStop(0, 'rgba(20,10,8,.85)'); gr.addColorStop(0.7, 'rgba(40,18,10,.5)'); gr.addColorStop(1, 'rgba(40,18,10,0)'); g.fillStyle = gr; g.fillRect(0, 0, 256, 256);
+      g.strokeStyle = 'rgba(255,140,40,.9)'; g.lineWidth = 3; for (let i = 0; i < 7; i++) { let x = C, y = C, a = h(i) * 6.28; g.beginPath(); g.moveTo(x, y); for (let k = 0; k < 6; k++) { a += (h(i * 9 + k) - 0.5) * 1.2; x += Math.cos(a) * 16; y += Math.sin(a) * 16; g.lineTo(x, y); } g.stroke(); } }
+    if (el === 1) { g.fillStyle = 'rgba(70,160,230,.55)'; g.beginPath(); for (let i = 0; i <= 24; i++) { const a = i / 24 * 6.28, rr = 80 + h(i) * 30; g.lineTo(C + Math.cos(a) * rr, C + Math.sin(a) * rr); } g.fill(); g.strokeStyle = 'rgba(220,245,255,.8)'; g.lineWidth = 4; g.stroke(); }
+    if (el === 0) for (let i = 0; i < 26; i++) { g.save(); g.translate(C + (h(i) - 0.5) * 200, C + (h(i + 40) - 0.5) * 200); g.rotate(h(i + 80) * 6.28); g.fillStyle = i % 3 ? 'rgba(80,170,70,.9)' : 'rgba(150,200,80,.9)'; g.beginPath(); g.ellipse(0, 0, 14, 6, 0, 0, 6.28); g.fill(); g.restore(); }
+    if (el === 2) { g.strokeStyle = 'rgba(200,240,255,.75)'; g.lineWidth = 5; for (let i = 0; i < 5; i++) { g.beginPath(); g.arc(C, C, 30 + i * 20, h(i) * 6, h(i) * 6 + 2.4); g.stroke(); } }
+    if (el === 3) { g.strokeStyle = 'rgba(150,90,255,.9)'; g.lineWidth = 4; g.beginPath(); g.arc(C, C, 90, 0, 6.28); g.stroke(); g.beginPath(); for (let i = 0; i < 6; i++) { const a = i / 6 * 6.28; g.moveTo(C + Math.cos(a) * 90, C + Math.sin(a) * 90); g.lineTo(C + Math.cos(a + 2.1) * 90, C + Math.sin(a + 2.1) * 90); } g.stroke(); g.fillStyle = 'rgba(20,8,40,.5)'; g.beginPath(); g.arc(C, C, 60, 0, 6.28); g.fill(); }
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return (decalTex[el] = t);
+  }
+  /** Vết trên sàn tại chỗ trúng đòn, giữ vài giây rồi mờ dần. */
+  function decal(at, el, size = 1.4) {
+    const m = new THREE.Mesh(new THREE.CircleGeometry(1, 24), new THREE.MeshBasicMaterial({ map: decalMap(el), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4, toneMapped: false }));
+    m.geometry.userData.temp = true; m.rotation.x = -Math.PI / 2; m.rotation.z = Math.random() * 6; m.position.set(at.x, H.ground + 0.02, at.z); m.renderOrder = 2; scene.add(m);
+    return tween(3.5, u => { m.scale.setScalar(size * Math.min(1, u * 12)); m.material.opacity = u < 0.6 ? 1 : 1 - (u - 0.6) / 0.4; }, () => drop(m));
+  }
+  /** Đốt cảnh khi trúng đòn gây trạng thái: mỗi trạng thái một kiểu bùng. */
+  function statusBurst(s, st) {
+    const c = s.center(), at = s.pos.clone().setY(H.ground + 0.03);
+    if (st === 'root') { H.sfx('stRoot'); vines(s.pos, '#3f9a46', 6, s.h * 0.75, 0.9); ring(at, '#4fd860', 0.3, 1.4, 0.4); }
+    if (st === 'soak') { H.sfx('stSoak'); emit({ at: c.clone().add(V(0, s.h * 0.9, 0)), box: 0.4, n: 40, dir: [0, -1, 0], spread: 0.25, speed: [2, 4], gravity: 8, life: [0.4, 0.6], color: '#9fdcff', color2: '#e8f8ff', size: [0.16, 0.1], shape: 4, blend: 'alpha' }); ring(at, '#38a8ff', 0.3, 1.5, 0.5); }
+    if (st === 'daze') { H.sfx('stDaze'); for (let i = 0; i < 3; i++) ring(s.head().add(V(0, 0.3 + i * 0.12, 0)), '#ffe45a', 0.2, 0.8, 0.5); }
+    if (st === 'blind') { H.sfx('stBlind'); emit({ at: s.head(), n: 22, radial: true, blend: 'alpha', color: '#140822', color2: '#000000', alpha: 0.85, speed: [0.6, 1.6], drag: 2, life: [0.6, 1.0], size: [0.5, 1.1] }); }
+    if (st === 'burn') { H.sfx('stBurn'); emit({ at: c, box: s.r * 0.7, n: 40, dir: [0, 1, 0], spread: 0.25, speed: [1.5, 3], life: [0.4, 0.7], color: '#ffc21e', color2: '#e8340a', size: [0.42, 0.06], shape: 4, blend: 'alpha' }); burst(c, '#ff7a1a', 1.1, 0.3); }
+  }
+  const HIT_SFX = ['hitLeaf', 'hitWater', 'hitWind', 'hitShadow', 'hitFire'];
   function impact(a, d, el, { power = 1, crit = false, mult = 1, onHit } = {}) {
     const E = ELEMENT_FX[el], at = d.center(), big = power * (mult > 1.3 ? 1.25 : 1) * (crit ? 1.3 : 1);
     burst(at, E.c, 0.9 * big, 0.3); flash(at, E.c, 1.1 * big, 0.3); ring(d.pos.clone().setY(H.ground + 0.03), E.c, 0.3, 1.6 * big, 0.45);
@@ -184,7 +231,10 @@ export function makeFx(THREE, scene, H) {
     H.cam.shake(Math.min(1, 0.25 * big + (crit ? 0.3 : 0)));
     if (!fx.reduce && (crit || mult > 1.3)) fx.freeze = crit ? 0.12 : 0.07;
     if (crit) H.ui.flash('#ffffff', 0.45, 0.16);
-    H.sfx(crit ? 'crit' : big > 1.3 ? 'hitBig' : 'hit');
+    H.sfx(crit ? 'crit' : big > 1.3 ? 'hitBig' : 'hit'); H.sfx(HIT_SFX[el]); if (power >= 2) H.sfx('boom');
+    if (power >= 1.4 || crit) decal(d.pos, el, 1.1 + power * 0.35);
+    H.cam.punch?.(Math.min(1, 0.25 * big));
+    if (!fx.reduce && (power >= 2 || crit)) { H.ui.impactFrame?.(power >= 2 ? 0.09 : 0.06); H.ui.lines?.(E.c, power >= 2 ? 0.5 : 0.3); }
     knock(d, a, Math.min(1.6, big));
     onHit?.();
   }
@@ -194,14 +244,14 @@ export function makeFx(THREE, scene, H) {
     const E = ELEMENT_FX[el], from = a.mouth(), to = d.center();
     if (el === 0) { H.sfx('leaf'); rearBack(a); emit({ at: from, n: 14, to, stagger: 0.025, life: 0.42, color: E.c, color2: E.c2, size: [0.3, 0.24], shape: 2, blend: 'alpha', wobble: 0.5, arc: 0.6 }); await wait(0.5); return; }
     if (el === 1) { H.sfx('water'); rearBack(a); beam(from, to, E.c, 0.14, 0.45); emit({ at: from, n: 16, to, stagger: 0.015, life: 0.3, color: '#d8f4ff', size: [0.14, 0.1], shape: 4, wobble: 0.15, arc: 0.1, blend: 'alpha' }); await wait(0.32); return; }
-    if (el === 2) { H.sfx('wind'); rearBack(a); const p = []; for (let s = -1; s <= 1; s += 2) { const g = new THREE.Group(), m = new THREE.Mesh(G.arc, solid('#3fb8ec')), w = new THREE.Mesh(G.arcThin, solid('#ffffff')); m.scale.set(0.45, 0.45, 1.6); w.scale.set(0.45, 0.45, 1); g.add(m); g.add(w); g.lookAt(H.camPos()); p.push(fly(g, from.clone(), to.clone(), 0.38, { arc: 0.3, side: s * 0.8, spin: 18, each: q => emit({ at: q, n: 1, color: '#ffffff', size: [0.2, 0.05], life: 0.2, speed: 0.2, shape: 5 }) })); } await Promise.all(p); return; }
+    if (el === 2) { H.sfx('wind'); rearBack(a); const p = []; for (let s = -1; s <= 1; s += 2) { const g = new THREE.Group(), m = new THREE.Mesh(G.arc, solid('#3fb8ec')), w = new THREE.Mesh(G.arcThin, solid('#ffffff')); m.scale.set(0.45, 0.45, 1.6); w.scale.set(0.45, 0.45, 1); g.add(m); g.add(w); g.lookAt(H.camPos()); p.push(fly(g, from.clone(), to.clone(), 0.38, { arc: 0.3, side: s * 0.8, spin: 18, trail: { color: '#7fd8ff', width: 0.22 }, each: q => emit({ at: q, n: 1, color: '#ffffff', size: [0.2, 0.05], life: 0.2, speed: 0.2, shape: 5 }) })); } await Promise.all(p); return; }
     if (el === 3) { H.sfx('shadow'); await lunge(a, d, 0.62); for (let i = 0; i < 3; i++) { slash(d.center().add(V(0, (i - 1) * 0.15, 0)), E.c, 0.7, -0.8 + i * 0.8, 0.26, true); await wait(0.05); } return; }
-    H.sfx('fire'); rearBack(a); await fly(orb(E.c, 0.22), from, to, 0.42, { arc: 0.7, each: q => emit({ at: q, n: 2, color: '#ffd23e', color2: '#ff3a0a', size: [0.25, 0.04], life: [0.25, 0.4], speed: [0.2, 0.6], shape: 0, hdr: 1.8 }) });
+    H.sfx('fire'); H.sfx('launch'); rearBack(a); await fly(orb(E.c, 0.22), from, to, 0.42, { arc: 0.7, trail: { color: '#ff8a1a', width: 0.34 }, each: q => emit({ at: q, n: 2, color: '#ffd23e', color2: '#ff3a0a', size: [0.25, 0.04], life: [0.25, 0.4], speed: [0.2, 0.6], shape: 0, hdr: 1.8 }) });
   }
   async function deliverSig(el, a, d, lift) {
     const E = ELEMENT_FX[el], from = a.mouth(), to = d.center();
     if (el === 0) { H.sfx('leaf'); rune(d.pos, E.c, 1.2, 0.5, 0.3); vines(d.pos, '#3f9a46', 5, 1.9, 1.0); emit({ at: i => d.center().add(V(Math.cos(i) * 1.1, rand(-0.6, 0.8), Math.sin(i) * 1.1)), n: 26, swirl: { c: d.pos, k: 5 }, dir: [0, 0.3, 0], spread: 0.1, speed: [2, 3], life: [0.6, 0.9], color: E.c, color2: E.c2, size: [0.3, 0.2], shape: 2, spin: 10, blend: 'alpha' }); await wait(0.55); return; }
-    if (el === 1) { H.sfx('water'); rearBack(a, 0.25); for (let i = 0; i < 7; i++) { const g = new THREE.Group(), b = new THREE.Mesh(G.sphere, addM('#bfe8ff', 1.1, { opacity: 0.45 })), hl = sprite('#ffffff', 0.12, 2); hl.position.set(-0.05, 0.06, 0.1); b.add(hl); b.scale.setScalar(0.16); g.add(b); fly(g, from.clone(), to.clone().add(V(rand(-0.3, 0.3), rand(-0.3, 0.3), 0)), 0.5, { arc: rand(0.2, 0.9), side: rand(-0.7, 0.7) }); await wait(0.05); }
+    if (el === 1) { H.sfx('water'); rearBack(a, 0.25); for (let i = 0; i < 7; i++) { const g = new THREE.Group(), b = new THREE.Mesh(G.sphere, addM('#bfe8ff', 1.1, { opacity: 0.45 })), hl = sprite('#ffffff', 0.12, 2); hl.position.set(-0.05, 0.06, 0.1); b.add(hl); b.scale.setScalar(0.16); g.add(b); fly(g, from.clone(), to.clone().add(V(rand(-0.3, 0.3), rand(-0.3, 0.3), 0)), 0.5, { arc: rand(0.2, 0.9), side: rand(-0.7, 0.7), trail: { color: '#bfe8ff', width: 0.12 } }); await wait(0.05); }
       await wait(0.42); const col = new THREE.Mesh(G.cyl, addM(E.c, 1.5, { opacity: 0.7 })); col.position.copy(d.pos); scene.add(col); tween(0.5, u => { col.scale.set(0.8 * (1 - u * 0.4), 3 * easeOut(Math.min(1, u * 2.5)), 0.8 * (1 - u * 0.4)); col.position.y = H.ground + col.scale.y / 2; col.material.opacity = 0.7 * (1 - u); }, () => drop(col)); return; }
     if (el === 2) { H.sfx('wind'); await tornado(d.pos, E.c, 2.4, 0.9, lift); return; }
     if (el === 3) { H.sfx('shadow'); emit({ at: i => to.clone().add(V(Math.cos(i * 1.3) * 1.6, rand(-0.5, 0.8), Math.sin(i * 1.3) * 1.6)), n: 12, to, life: 0.45, color: '#1a0a2a', size: [0.5, 0.2], blend: 'alpha', alpha: 0.85, arc: 0, wobble: 0.1 }); await wait(0.35);
@@ -212,7 +262,7 @@ export function makeFx(THREE, scene, H) {
     const cone = new THREE.Mesh(G.cone, solid('#ff7a1a', { opacity: 0.85 })); cone.position.copy(d.pos); scene.add(cone); await tween(0.55, u => { cone.scale.set(0.9 * (1 - u * 0.3), 3.2 * easeOut(Math.min(1, u * 2)), 0.9 * (1 - u * 0.3)); cone.position.y = H.ground + cone.scale.y / 2; cone.material.opacity = 0.85 * (1 - u); }, () => drop(cone));
   }
   async function charge(a, el) {
-    const E = ELEMENT_FX[el]; H.ui.darken(0.6); H.stage.setGlow(1); H.cam.shot('attacker', a); H.sfx('power');
+    const E = ELEMENT_FX[el]; H.ui.darken(0.6); H.stage.setGlow(1); H.cam.shot('attacker', a); H.sfx('charge'); H.ui.lines?.(E.c, 1.1);
     rune(a.pos, E.c, 1.8, 1.0, 0.6);
     for (let i = 0; i < 10; i++) { emit({ at: k => a.center().add(V(Math.cos(k * 0.9 + i) * 2.4, rand(-1, 1.6), Math.sin(k * 0.9 + i) * 2.4)), n: 6, to: a.center(), life: 0.4, color: E.c2, color2: E.c, size: [0.25, 0.06], shape: 1, hdr: 2.2, arc: 0, wobble: 0.2 }); await wait(0.07); }
     ring(a.center(), E.c, 0.4, 2.6, 0.4, { flat: false }); flash(a.center(), E.c2, 3, 0.35); H.ui.flash(E.c, 0.35, 0.2); H.cam.shake(0.35);
@@ -230,7 +280,7 @@ export function makeFx(THREE, scene, H) {
     if (el === 3) { H.sfx('shadow'); const sph = new THREE.Mesh(G.sphere, new THREE.MeshBasicMaterial({ color: '#0a0418', transparent: true, depthWrite: false })), rim = new THREE.Mesh(G.torus, addM(E.c2, 1.7)); sph.position.copy(to); rim.position.copy(to); rim.lookAt(H.camPos()); scene.add(sph); scene.add(rim);
       await tween(0.9, (u, dt) => { const s = u < 0.75 ? 2.0 * easeOut(u / 0.75) : 2.0 * (1 - (u - 0.75) / 0.25); sph.scale.setScalar(Math.max(0.01, s)); rim.scale.set(s * 1.05, s * 1.05, s * 3); rim.rotation.z += dt * 3; sph.material.opacity = 0.9; }, () => { drop(sph); drop(rim); });
       flash(to, E.c2, 2.4, 0.35); H.ui.flash('#e6d4ff', 0.35, 0.2); }
-    if (el === 4) { H.sfx('fire'); const start = to.clone().add(V(-4, 9, -3)); await fly(orb(E.c, 0.6), start, to, 0.6, { arc: 0, each: q => { emit({ at: q, n: 5, box: 0.25, color: '#ffd23e', color2: '#ff3a0a', size: [0.5, 0.06], life: [0.3, 0.5], speed: [0.3, 1], hdr: 2 }); emit({ at: q, n: 1, blend: 'alpha', color: '#3a2a28', color2: '#000000', alpha: 0.5, size: [0.6, 1.2], life: [0.6, 0.9], speed: 0.3 }); } });
+    if (el === 4) { H.sfx('fire'); const start = to.clone().add(V(-4, 9, -3)); await fly(orb(E.c, 0.6), start, to, 0.6, { arc: 0, trail: { color: '#ff6a1a', width: 1.0 }, each: q => { emit({ at: q, n: 5, box: 0.25, color: '#ffd23e', color2: '#ff3a0a', size: [0.5, 0.06], life: [0.3, 0.5], speed: [0.3, 1], hdr: 2 }); emit({ at: q, n: 1, blend: 'alpha', color: '#3a2a28', color2: '#000000', alpha: 0.5, size: [0.6, 1.2], life: [0.6, 0.9], speed: 0.3 }); } });
       explosion(to, 4, 2.2); ring(d.pos.clone().setY(H.ground + 0.05), '#ffd23e', 0.5, 5, 0.7); }
   }
 
@@ -283,10 +333,10 @@ export function makeFx(THREE, scene, H) {
   }
   function confetti(at) { const cols = ['#ff6a8a', '#ffd23e', '#5fd068', '#3fb2ff', '#9a5cff']; cols.forEach(c => emit({ at: at.clone().add(V(0, 3.5, 0)), box: 2.2, n: 18, dir: [0, 1, 0], spread: 0.6, speed: [1, 3], gravity: 3, drag: 1.2, life: [1.4, 2.0], color: c, size: [0.16, 0.14], shape: 2, spin: 12, blend: 'alpha' })); }
 
-  Object.assign(fx, { update, tween, wait, emit, flash, ring, rune, impact, lunge, knock, hop, enter, faint, support, syncStatus, clearStatus, confetti, explosion, deliverBasic, deliverSig, deliverUlt,
+  Object.assign(fx, { update, tween, wait, emit, flash, ring, rune, impact, decal, statusBurst, lunge, knock, hop, enter, faint, support, syncStatus, clearStatus, confetti, explosion, deliverBasic, deliverSig, deliverUlt,
     /** Vệt tốc độ (nét riêng "ra đòn trước"). */ dash(a) { H.sfx('whoosh'); emit({ at: i => a.center().add(V(rand(-0.6, 0.6), rand(-0.5, 0.5), rand(-0.6, 0.6))), n: 16, dir: a.dir.clone().negate(), spread: 0.05, speed: [8, 12], life: [0.15, 0.25], color: '#ffffff', size: [0.35, 0.1], shape: 5, hdr: 1.6 }); },
     /** Hút thể lực: hạt xanh bay từ đối thủ về người đánh. */ drain(a, d) { H.sfx('heal'); emit({ at: d.center(), box: 0.3, n: 14, to: a.center(), stagger: 0.03, life: 0.5, color: '#9cffb0', color2: '#5fd068', size: [0.2, 0.06], shape: 1, hdr: 2, arc: 0.6 }); return wait(0.6); },
-    /** Lá chắn vỡ khi bị xuyên. */ shatter(d) { if (!d.loops?.shield) return; emit({ at: d.center(), n: 30, radial: true, color: '#e8fbff', speed: [3, 6], drag: 2, gravity: 5, life: [0.5, 0.8], size: [0.16, 0.06], shape: 4, hdr: 1.6 }); H.sfx('zap'); },
+    /** Lá chắn vỡ khi bị xuyên. */ shatter(d) { if (!d.loops?.shield) return; H.sfx('shatter'); emit({ at: d.center(), n: 30, radial: true, color: '#e8fbff', speed: [3, 6], drag: 2, gravity: 5, life: [0.5, 0.8], size: [0.16, 0.06], shape: 4, hdr: 1.6 }); H.sfx('zap'); },
     /** Đốm sáng ở người đánh (phản lực, giáp gai, hút máu, xoá trạng thái). */ self(a, color) { flash(a.center(), color, 1.2, 0.25); emit({ at: a.center(), n: 12, radial: true, color, speed: [2, 3.5], drag: 3, life: [0.3, 0.5], size: [0.14, 0.03], shape: 1, hdr: 2 }); } });
   return fx;
 }

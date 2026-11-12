@@ -16,7 +16,7 @@
 // nhịp, cao độ và độ sáng khác nhau. Nhạc tự sinh từ thang ngũ cung nên không lặp đúng một đoạn.
 // Muốn thay bằng file thật sau này: giữ nguyên sfx()/music(), chỉ đổi phần "giọng" bên dưới.
 
-/** @typedef {'pet'|'feed'|'talk'|'bath'|'play'|'sleep'|'wake'|'evolve'|'coin'|'buy'|'place'|'ui'|'boing'|'creak'|'whee'|'thud'|'quack'|'kick'|'splash'|'sit'|'cheer'|'flap'|'sip'|'purr'|'kettle'|'badge'|'catch'|'miss'|'rain'|'hit'|'hitBig'|'crit'|'whoosh'|'fire'|'water'|'leaf'|'wind'|'shadow'|'zap'|'shield'|'heal'|'power'|'faint'|'win'|'lose'} SfxName */
+/** @typedef {'hitLeaf'|'hitWater'|'hitWind'|'hitShadow'|'hitFire'|'charge'|'boom'|'shatter'|'stRoot'|'stSoak'|'stDaze'|'stBlind'|'stBurn'|'launch'|'pet'|'feed'|'talk'|'bath'|'play'|'sleep'|'wake'|'evolve'|'coin'|'buy'|'place'|'ui'|'boing'|'creak'|'whee'|'thud'|'quack'|'kick'|'splash'|'sit'|'cheer'|'flap'|'sip'|'purr'|'kettle'|'badge'|'catch'|'miss'|'rain'|'hit'|'hitBig'|'crit'|'whoosh'|'fire'|'water'|'leaf'|'wind'|'shadow'|'zap'|'shield'|'heal'|'power'|'faint'|'win'|'lose'} SfxName */
 
 const KEY = 'hatchday-audio';
 const reduce = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -67,7 +67,7 @@ function tone(f, t, dur, { type = 'sine', vol = 0.3, to = 0, attack = 0.008, bus
   o.start(t); o.stop(t + dur + 0.05);
 }
 /** Tiếng ồn lọc: nước, xào xạc, cú chạm. */
-function noise(t, dur, { freq = 1200, q = 1, type = 'bandpass', vol = 0.2, to = 0 } = {}) {
+function noise(t, dur, { freq = 1200, q = 1, type = 'bandpass', vol = 0.2, to = 0, bus = sfxBus } = {}) {
   const s = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
   s.buffer = noiseBuf; s.playbackRate.value = 0.8 + Math.random() * 0.4;
   f.type = type; f.Q.value = q; f.frequency.setValueAtTime(freq, t);
@@ -75,7 +75,7 @@ function noise(t, dur, { freq = 1200, q = 1, type = 'bandpass', vol = 0.2, to = 
   g.gain.setValueAtTime(0.0001, t);
   g.gain.exponentialRampToValueAtTime(vol, t + 0.01);
   g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-  s.connect(f); f.connect(g); g.connect(sfxBus);
+  s.connect(f); f.connect(g); g.connect(bus);
   s.start(t, Math.random() * 0.5); s.stop(t + dur + 0.05);
 }
 /** Nốt kiểu hộp nhạc: tam giác + bồi âm quãng tám. */
@@ -141,6 +141,23 @@ const VOICES = {
   faint: t => { tone(440, t, 0.75, { type: 'triangle', vol: 0.1, to: 110 }); },
   win: t => { [72, 76, 79, 84, 88, 91].forEach((m, i) => bell(m, t + i * 0.09, 0.9, 0.12)); },
   lose: t => { [72, 69, 65, 60].forEach((m, i) => bell(m - 12, t + i * 0.16, 0.8, 0.1)); },
+  /* lớp đuôi khi trúng đòn theo hệ */
+  hitLeaf: t => { noise(t, 0.18, { freq: 3000, q: 3, vol: 0.08 }); for (let i = 0; i < 4; i++) noise(t + 0.03 + i * 0.03, 0.05, { freq: 2200 + i * 500, q: 5, vol: 0.05 }); tone(240, t, 0.12, { type: 'triangle', vol: 0.1, to: 120 }); },
+  hitWater: t => { noise(t, 0.35, { freq: 1500, to: 500, q: 0.9, vol: 0.16 }); for (let i = 0; i < 4; i++) { const f = jitter(500 + Math.random() * 700); tone(f, t + 0.04 + i * 0.05, 0.07, { vol: 0.05, to: f * 2 }); } },
+  hitWind: t => { noise(t, 0.3, { freq: 2600, to: 600, q: 2, vol: 0.12 }); noise(t, 0.06, { freq: 5000, type: 'highpass', vol: 0.08 }); },
+  hitShadow: t => { tone(150, t, 0.35, { type: 'sawtooth', vol: 0.08, to: 50, cutoff: 700 }); noise(t, 0.25, { freq: 260, q: 4, vol: 0.12 }); },
+  hitFire: t => { noise(t, 0.5, { freq: 700, to: 200, q: 0.6, vol: 0.2 }); tone(90, t, 0.35, { vol: 0.25, to: 40 }); noise(t + 0.05, 0.35, { freq: 3500, type: 'highpass', vol: 0.04 }); },
+  /* tụ lực chiêu tối thượng (dâng lên) và tiếng nổ lớn khi trúng */
+  charge: t => { tone(80, t, 1.2, { type: 'sawtooth', vol: 0.07, to: 640, cutoff: 2200 }); tone(120, t, 1.2, { type: 'square', vol: 0.03, to: 960, cutoff: 1800 }); noise(t, 1.2, { freq: 200, to: 4000, q: 1.5, vol: 0.07 }); [0.4, 0.7, 0.95, 1.1].forEach((d, i) => bell(79 + i * 5, t + d, 0.3, 0.05)); },
+  boom: t => { tone(70, t, 0.9, { vol: 0.5, to: 28 }); tone(140, t, 0.3, { type: 'triangle', vol: 0.2, to: 60 }); noise(t, 1.1, { freq: 900, to: 120, q: 0.5, vol: 0.28 }); noise(t, 0.08, { freq: 6000, type: 'highpass', vol: 0.15 }); },
+  shatter: t => { for (let i = 0; i < 7; i++) { const f = jitter(2400 + Math.random() * 2400); tone(f, t + i * 0.025, 0.12, { type: 'triangle', vol: 0.05, to: f * 0.7 }); } noise(t, 0.2, { freq: 6000, type: 'highpass', vol: 0.12 }); },
+  /* gây trạng thái */
+  stRoot: t => { VOICES.creak(t); tone(110, t + 0.08, 0.2, { vol: 0.2, to: 60 }); },
+  stSoak: t => { for (let i = 0; i < 6; i++) { const f = jitter(300 + Math.random() * 500); tone(f, t + i * 0.05, 0.09, { vol: 0.06, to: f * 2.2 }); } },
+  stDaze: t => { [88, 91, 88, 93].forEach((m, i) => tone(hz(m), t + i * 0.08, 0.1, { type: 'triangle', vol: 0.05, to: hz(m + 2) })); },
+  stBlind: t => { noise(t, 0.6, { freq: 400, to: 140, q: 2, vol: 0.12 }); tone(330, t, 0.5, { type: 'sawtooth', vol: 0.03, to: 110, cutoff: 800 }); },
+  stBurn: t => { noise(t, 0.7, { freq: 4500, type: 'highpass', vol: 0.06 }); noise(t, 0.4, { freq: 900, q: 1, vol: 0.08 }); },
+  launch: t => { noise(t, 0.2, { freq: 900, to: 2800, q: 1.4, vol: 0.09 }); tone(300, t, 0.12, { type: 'triangle', vol: 0.06, to: 520 }); },
 };
 // Một số tiếng bị gọi liên tục (vuốt ve, kỳ cọ): giãn khoảng cách tối thiểu cho đỡ rối.
 const GAP = { pet: 0.11, bath: 0.12, talk: 0.08, ui: 0.04, creak: 0.4, boing: 0.25, splash: 0.2, quack: 0.3, flap: 0.3, catch: 0.06, rain: 0.8, purr: 0.5 };
@@ -162,8 +179,12 @@ const MOODS = {
   day: { bpm: 84, root: 60, density: 0.5, bright: 2600, vol: 0.3 },
   night: { bpm: 66, root: 57, density: 0.32, bright: 1500, vol: 0.24 },
   sleep: { bpm: 52, root: 55, density: 0.16, bright: 900, vol: 0.16 },
+  battle: { bpm: 138, root: 57, density: 0.62, bright: 3400, vol: 0.3 },
 };
-const moodOf = s => (s === 'sleep' ? 'sleep' : s === 'night' ? 'night' : 'day');
+/** Vòng hợp âm chiến đấu i–VI–VII–v và thang ngũ cung thứ. */
+const BPROG = [[0, 3, 7], [-4, 0, 3], [-2, 2, 5], [-5, -2, 2]], MPENTA = [0, 3, 5, 7, 10];
+let battleOn = false;
+const moodOf = s => (battleOn ? 'battle' : s === 'sleep' ? 'sleep' : s === 'night' ? 'night' : 'day');
 
 let timer = 0, nextT = 0, step = 0, mel = 2, playingMood = '';
 function musicVoice(m, t, dur, vol, cutoff) {
@@ -178,13 +199,20 @@ function tick() {
   if (!ready()) return;
   const M = MOODS[playingMood], eighth = 30 / M.bpm;
   while (nextT < ctx.currentTime + 0.25) {
-    const bar = Math.floor(step / 8), chord = PROG[Math.floor(bar / 2) % PROG.length];
-    if (step % 16 === 0) pad(chord, M.root, nextT, eighth * 16, M.bright);
+    const fight = playingMood === 'battle', bar = Math.floor(step / 8), chord = (fight ? BPROG : PROG)[Math.floor(bar / (fight ? 1 : 2)) % PROG.length];
+    if (fight) {
+      // trống: kick ở phách 1 và 3, snare ở 2 và 4, hi-hat mỗi móc đơn; bass chạy móc đơn theo nốt gốc
+      if (step % 4 === 0) tone(110, nextT, 0.16, { vol: 0.32, to: 45, bus: musicBus });
+      if (step % 4 === 2) noise(nextT, 0.14, { freq: 1800, q: 0.7, vol: 0.12, bus: musicBus });
+      noise(nextT, 0.04, { freq: 7000, type: 'highpass', vol: step % 2 ? 0.025 : 0.04, bus: musicBus });
+      tone(hz(M.root - 24 + chord[0] + (step % 4 === 3 ? 7 : 0)), nextT, eighth * 0.9, { type: 'sawtooth', vol: 0.06, bus: musicBus, cutoff: 700 });
+      if (step % 8 === 0) chord.forEach(n => tone(hz(M.root - 12 + n), nextT, eighth * 7, { type: 'square', vol: 0.018, attack: 0.02, bus: musicBus, cutoff: 1600 }));
+    } else if (step % 16 === 0) pad(chord, M.root, nextT, eighth * 16, M.bright);
     // Giai điệu đi từng bậc trên thang ngũ cung, nghiêng về nốt trong hợp âm ở phách mạnh.
     const strong = step % 4 === 0;
     if (Math.random() < (strong ? M.density + 0.25 : M.density * 0.6)) {
       mel = Math.max(0, Math.min(9, mel + pick([-2, -1, -1, 0, 1, 1, 2])));
-      let m = M.root + 12 * Math.floor(mel / 5) + PENTA[mel % 5];
+      let m = M.root + 12 * Math.floor(mel / 5) + (fight ? MPENTA : PENTA)[mel % 5];
       if (strong) { const c = chord.map(n => M.root + ((n + 12) % 12)); m = c.reduce((a, b) => (Math.abs(b - m) < Math.abs(a - m) ? b : a), c[0]) + 12 * Math.floor(mel / 5); }
       musicVoice(m, nextT, eighth * (strong ? 3 : 1.6), 0.09, M.bright);
     }
@@ -211,6 +239,9 @@ function syncMusic() {
   }
   if (!timer) timer = setInterval(tick, 100);
 }
+
+/** Nhạc chiến đấu khi đang trong trận ở Đấu trường (tắt thì về lại nhạc theo khu vực). */
+export function battleMusic(on) { battleOn = !!on; syncMusic(); }
 
 /** Nhạc nền theo khu vực/thời điểm. @param {string} next ví dụ 'home', 'kitchen', 'night', 'sleep' */
 export function music(next) {

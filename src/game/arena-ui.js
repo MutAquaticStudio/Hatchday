@@ -17,7 +17,7 @@ import { rankName } from './arena';
 import { arenaFinish, arenaStart, buyUpgrade, getArenaState, listFriends } from '../data/api';
 import { viError } from '../lib/errors';
 import { bondLevel } from './bond';
-import { sfx } from './audio.js';
+import { sfx, battleMusic } from './audio.js';
 import { makeStageKit, ARENAS } from './battle-stage.js';
 import { makeFx, ELEMENT_FX } from './battle-fx.js';
 
@@ -44,6 +44,8 @@ export function initArena({ ctx, closeAll, getS }) {
       if (name === 'attacker' || name === 'win') { const right = V().crossVectors(s.dir, V(0, 1, 0)).normalize(), d = name === 'win' ? 3.4 : 2.7; c.tPos.copy(s.pos).addScaledVector(s.dir, d).addScaledVector(right, 1.1).add(V(0, s.h * 0.75, 0)); c.tLook.copy(s.center()); c.tFov = portrait() ? 50 : 38; c.k = name === 'win' ? 1.6 : 5; }
     };
     c.slow = k => { c.k = k; };
+    /** Giật ống kính khi trúng đòn mạnh: thu hẹp góc nhìn trong chớp mắt rồi trả về. */
+    c.punch = k => { if (!fx().reduce) c.fov -= 5 * k; };
     c.shake = k => { if (!fx().reduce) c.trauma = Math.min(1, c.trauma + k); };
     c.update = dt => {
       const f = 1 - Math.exp(-dt * c.k); c.pos.lerp(c.tPos, f); c.look.lerp(c.tLook, f); c.fov += (c.tFov - c.fov) * f;
@@ -59,7 +61,7 @@ export function initArena({ ctx, closeAll, getS }) {
   function ensure() {
     if (R) return R;
     const root = document.createElement('div'); root.id = 'battle'; root.className = 'bt'; root.hidden = true; root.setAttribute('role', 'dialog'); root.setAttribute('aria-label', _t('Đấu trường'));
-    root.innerHTML = `<canvas class="bt-cv" aria-hidden="true"></canvas><div class="bt-dark"></div><div class="bt-flash"></div><div class="bt-pops" aria-hidden="true"></div>
+    root.innerHTML = `<canvas class="bt-cv" aria-hidden="true"></canvas><div class="bt-dark"></div><div class="bt-lines"></div><div class="bt-flash"></div><div class="bt-pops" aria-hidden="true"></div>
       <div class="bt-plate foe" data-p="1"></div><div class="bt-plate mine" data-p="0"></div><div class="bt-field"></div>
       <div class="bt-panel"><div class="bt-msg" aria-live="polite"><p class="bt-text"></p><span class="bt-more" aria-hidden="true">▾</span></div>
         <div class="bt-cmds" hidden><div class="bt-moves"></div><div class="bt-side"><button type="button" class="bt-btn" data-bt="chart">📖 ${_t('Sổ khắc hệ')}</button><button type="button" class="bt-btn" data-bt="speed"></button><button type="button" class="bt-btn" data-bt="run">${_t('Rời trận')}</button></div></div></div>
@@ -77,6 +79,10 @@ export function initArena({ ctx, closeAll, getS }) {
     const ui = {
       flash(color, a, dur) { const el = q('.bt-flash'); el.style.transition = 'none'; el.style.background = color; el.style.opacity = String(fx().reduce ? a * 0.3 : a); void el.offsetWidth; el.style.transition = `opacity ${dur / fx().timeScale}s ease-out`; el.style.opacity = '0'; },
       darken(k) { q('.bt-dark').style.opacity = String(k); },
+      /** Khung hình va chạm kiểu anime: đảo màu thật ngắn (chiêu tối thượng, chí mạng). */
+      impactFrame(sec) { root.classList.add('impact'); setTimeout(() => root.classList.remove('impact'), sec * 1000); },
+      /** Đường tốc độ toả ra từ tâm màn hình, màu theo hệ. */
+      lines(color, sec) { const el = q('.bt-lines'); el.style.setProperty('--lc', color); el.style.transition = 'none'; el.style.opacity = '0.9'; void el.offsetWidth; el.style.transition = `opacity ${sec / fx().timeScale}s ease-in`; el.style.opacity = '0'; },
     };
     R.fx = makeFx(THREE, scene, { kit, cam: R.cam, ui, sfx, get ground() { return B?.stage.ground ?? 0.35; }, stage: { setGlow: k => B?.stage.setGlow(k) }, camPos: () => camera.position, side: () => V().setFromMatrixColumn(camera.matrixWorld, 0) });
     R.fx.reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -183,10 +189,10 @@ export function initArena({ ctx, closeAll, getS }) {
   }
   function useStage(field) { if (!R.stages.has(field)) R.stages.set(field, R.kit.build(field)); const st = R.stages.get(field); R.scene.add(st.group); R.scene.fog = new THREE.Fog(st.fog, 24, 80); return st; }
   async function lobby() {
-    clearScene(); R.root.classList.add('in-lobby'); ['.bt-result', '.bt-chart', '.bt-cmds'].forEach(x => { R.q(x).hidden = true; });
+    clearScene(); battleMusic(false); R.root.classList.add('in-lobby'); ['.bt-result', '.bt-chart', '.bt-cmds'].forEach(x => { R.q(x).hidden = true; });
     if (R.msg?.res) { const r = R.msg.res; R.msg = null; r(); }
     const S = getS(), st = useStage(Math.floor(Math.random() * 5)), slot = makeSlot(V(0, st.ground, 0.6), V(0, st.ground, 8));
-    L = { stage: st, slot }; buildMonster(slot, { species: S.species, stage: S.stage, form: S.form, genes: S.genes || {} }); slot.k = 1; R.scene.add(slot.wrap);
+    L = { stage: st, slot, cut: true }; buildMonster(slot, { species: S.species, stage: S.stage, form: S.form, genes: S.genes || {} }); slot.k = 1; R.scene.add(slot.wrap);
     R.cam.slow(1.2); R.q('.bt-text').textContent = '';
     const el = R.q('.bt-lobby'); el.hidden = false; el.innerHTML = `<div class="bt-card lobby"><p>${_t('Đang tải…')}</p></div>`;
     try { A = await getArenaState(); } catch (e) { A = null; ctx.toast?.(viError(e)); }
@@ -233,7 +239,7 @@ export function initArena({ ctx, closeAll, getS }) {
     const me = fighterOf({ species: S.species, stage: S.stage, form: S.form, bond: lv, upgrades: srv.upgrades }), o = srv.opp, osp = SPECIES_BY_ID[o.species];
     const foe = fighterOf({ species: o.species, stage: o.stage, form: o.form, bond: o.bond, upgrades: o.upgrades });
     if (!me || !foe) { ctx.toast?.(_t('Không vào được trận này.')); return lobby(); }
-    clearScene(); R.root.classList.remove('in-lobby'); R.q('.bt-lobby').hidden = true;
+    clearScene(); R.root.classList.remove('in-lobby'); R.q('.bt-lobby').hidden = true; battleMusic(true);
     R.q('.bt-result').hidden = true; R.q('.bt-chart').hidden = true; R.q('.bt-cmds').hidden = true;
     const field = srv.field, st = useStage(field);
     const gy = st.ground, P = V(-2.25, gy, 1.55), O = V(2.15, gy, -1.95);
@@ -258,6 +264,7 @@ export function initArena({ ctx, closeAll, getS }) {
     await say(_t`Tiến lên, ${B.mine.name}!`, 0.4);
     B.intro = false; R.cam.shot('wide'); prompt();
   }
+
   function prompt() { if (!B || B.over !== null) return; renderMoves(); R.q('.bt-cmds').hidden = false; B.awaiting = true; say(_t`${B.mine.name} sẽ làm gì?`, 0); R.q('.bt-move')?.focus({ preventScroll: true }); }
 
   async function choose(i) {
@@ -321,6 +328,7 @@ export function initArena({ ctx, closeAll, getS }) {
     if (line.heal) { await R.fx.drain(sa, sd); pop(sa, '+' + line.heal, 'heal'); hpTo(w, a.hp); await say(_t`${sa.name} hút lại ${line.heal} thể lực.`, 0.45); }
     if (line.self) { R.fx.self(sa, '#ffb03a'); pop(sa, '−' + line.self); hpTo(w, a.hp); await say(_t`${sa.name} chịu phản lực ${line.self}.`, 0.4); }
     if (m.twist === 'cleanse') { R.fx.self(sa, '#ffffff'); await say(_t`${sa.name} giũ sạch trạng thái xấu.`, 0.4); }
+    if (line.status) { R.fx.statusBurst(sd, line.status); await R.fx.wait(0.25); }
     if (line.status) await say(_t`${sd.name} bị ${STATUS_INFO[line.status].name}: ${STATUS_INFO[line.status].desc}.`, 0.6);
   }
   async function down(w) {
@@ -329,7 +337,7 @@ export function initArena({ ctx, closeAll, getS }) {
     finish(w ? 0 : 1);
   }
   async function finish(winner) {
-    B.over = winner; B.awaiting = false; R.q('.bt-cmds').hidden = true;
+    B.over = winner; B.awaiting = false; R.q('.bt-cmds').hidden = true; battleMusic(false);
     if (winner === 0) { R.cam.shot('win', B.mine); sfx('win'); R.fx.confetti(B.mine.pos); R.fx.hop(B.mine, 0.45, 0.5); await say(_t`${B.mine.name} chiến thắng!`, 0.9); }
     else if (winner === 1) { R.cam.shot('win', B.theirs); sfx('lose'); await say(_t('Thua trận rồi. Không sao, mình tập tiếp nhé.'), 0.9); }
     else await say(_t('Hai bên ngang tài, hoà!'), 0.9);
@@ -381,7 +389,7 @@ export function initArena({ ctx, closeAll, getS }) {
     const sizeK = (R.renderer.getDrawingBufferSize(new THREE.Vector2()).y / 2) / Math.tan((R.camera.fov * Math.PI / 180) / 2);
     if (R.hold) { R.cam.update(0); R.composer.render(); return; }
     const dt = R.fx.update(real, sizeK); R.t += dt; if (R.holdAt != null && R.t >= R.holdAt) { R.holdAt = null; R.hold = true; }
-    if (L) { L.stage.update(R.t); stepSlot(L.slot, R.t); const a = R.t * 0.12, wide = R.w > R.h * 1.05; R.cam.tPos.set(Math.sin(a) * 6.2 + (wide ? 2.2 : 0), 2.4, Math.cos(a) * 6.2 + 1); R.cam.tLook.set(wide ? 1.4 : 0, wide ? 1.1 : 0.5, 0.6); R.cam.tFov = wide ? 36 : 50; }
+    if (L) { L.stage.update(R.t); stepSlot(L.slot, R.t); const a = R.t * 0.12, wide = R.w > R.h * 1.05; R.cam.tPos.set(Math.sin(a) * 6.2 + (wide ? 2.2 : 0), 2.4, Math.cos(a) * 6.2 + 1); R.cam.tLook.set(wide ? 1.4 : 0, wide ? 1.1 : 0.5, 0.6); R.cam.tFov = wide ? 36 : 50; if (L.cut) { L.cut = false; R.cam.pos.copy(R.cam.tPos); R.cam.look.copy(R.cam.tLook); R.cam.fov = R.cam.tFov; } }
     if (B) { B.stage.update(R.t); [B.mine, B.theirs].forEach(s => stepSlot(s, R.t)); R.fx.syncStatus(B.mine, B.me, dt); R.fx.syncStatus(B.theirs, B.foe, dt); stepPlates(real); }
     stepMsg(dt || real * 0.0001); R.cam.update(real); R.composer.render();
   }
@@ -390,7 +398,7 @@ export function initArena({ ctx, closeAll, getS }) {
     R.resize(); R.last = 0; R.renderer.setAnimationLoop(frame); lobby();
   }
   function close() {
-    if (!R) return; R.open = false; R.renderer.setAnimationLoop(null); R.root.hidden = true; ctx.pauseWorld?.(false);
+    if (!R) return; battleMusic(false); R.open = false; R.renderer.setAnimationLoop(null); R.root.hidden = true; ctx.pauseWorld?.(false);
     if (B && B.over === null && B.id) arenaFinish(B.id, 'forfeit', null).catch(() => {});
     clearScene();
     if (R.msg?.res) { const r = R.msg.res; R.msg = null; r(); }
