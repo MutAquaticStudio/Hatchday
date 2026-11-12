@@ -12,7 +12,7 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { _t } from '../i18n';
 import { SPECIES, SPECIES_BY_ID } from './species';
 import { ELEMENT_NAMES, KIND_NAMES, STATUS_INFO, elementMult, moveDesc } from './skills';
-import { endTurn, fighterOf, pickMove, rngOf, useMove, UPGRADES, UPGRADE_MAX } from './battle';
+import { endTurn, fighterOf, pickMove, rngOf, useMove, UPGRADES, UPGRADE_MAX, HEAL, HEAL_DECAY } from './battle';
 import { rankName } from './arena';
 import { arenaFinish, arenaStart, buyUpgrade, getArenaState, listFriends } from '../data/api';
 import { viError } from '../lib/errors';
@@ -24,8 +24,8 @@ import { makeFx, ELEMENT_FX } from './battle-fx.js';
 const JOURNAL = 'hatchday-matchups', SPEEDK = 'hatchday-battle-speed';
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const store = { get: (k, d) => { try { return localStorage.getItem(k) ?? d; } catch { return d; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch { /* bỏ qua */ } } };
-const MULT_TXT = m => (m >= 1.5 ? _t('Rất hiệu quả') : m > 1 ? _t('Hiệu quả') : m === 1 ? _t('Bình thường') : m >= 0.8 ? _t('Kém') : _t('Rất kém'));
-const MULT_MSG = m => (m >= 1.5 ? _t('Rất hiệu quả!') : m > 1 ? _t('Khá hiệu quả.') : m >= 0.8 ? _t('Không hiệu quả lắm…') : _t('Bị khắc chế, gần như vô dụng…'));
+const MULT_TXT = m => (m >= 1.2 ? _t('Rất hiệu quả') : m > 1 ? _t('Hiệu quả') : m === 1 ? _t('Bình thường') : m >= 0.9 ? _t('Kém') : _t('Rất kém'));
+const MULT_MSG = m => (m >= 1.2 ? _t('Rất hiệu quả!') : m > 1 ? _t('Khá hiệu quả.') : m >= 0.9 ? _t('Không hiệu quả lắm…') : _t('Bị khắc chế!'));
 const tierOf = m => Math.max(0, Math.min(3, (+String(m.id).split('-').pop() || 1) - 1));
 
 export function initArena({ ctx, closeAll, getS }) {
@@ -39,9 +39,11 @@ export function initArena({ ctx, closeAll, getS }) {
     const portrait = () => R.h > R.w * 1.05;
     c.shot = (name, s) => {
       c.k = 3;
-      if (name === 'wide') { if (portrait()) { c.tPos.set(-4.6, 4.8, 12.2); c.tLook.set(0.0, 0.95, -0.4); c.tFov = 48; } else { c.tPos.set(-5.4, 3.2, 9.2); c.tLook.set(0.55, 1.05, -1.0); c.tFov = 32; } }
+      if (name === 'wide') { if (portrait()) { c.tPos.set(-4.6, 4.8, 12.2); c.tLook.set(0.0, 0.95, -0.4); c.tFov = 48; } else { c.tPos.set(-5.4, 3.2, 9.2); c.tLook.set(0.55, 1.05, -1.0); c.tFov = 32; }
+        // quái thú to (đuôi dài, cánh rộng) thì lùi máy quay cho cả hai lọt khung
+        if (B?.mine && B?.theirs) { const big = Math.min(1.6, Math.max(1, Math.max(B.mine.h, B.theirs.h, B.mine.r * 2.4, B.theirs.r * 2.4) / 1.7)); c.tPos.sub(c.tLook).multiplyScalar(big).add(c.tLook); } }
       if (name === 'intro') { c.pos.set(7.5, 6.2, 10); c.look.set(0, 1, 0); c.tPos.copy(c.pos); c.tLook.copy(c.look); c.fov = c.tFov = 44; }
-      if (name === 'attacker' || name === 'win') { const right = V().crossVectors(s.dir, V(0, 1, 0)).normalize(), d = name === 'win' ? 3.4 : 2.7; c.tPos.copy(s.pos).addScaledVector(s.dir, d).addScaledVector(right, 1.1).add(V(0, s.h * 0.75, 0)); c.tLook.copy(s.center()); c.tFov = portrait() ? 50 : 38; c.k = name === 'win' ? 1.6 : 5; }
+      if (name === 'attacker' || name === 'win') { const right = V().crossVectors(s.dir, V(0, 1, 0)).normalize(), d = name === 'win' ? Math.max(3.4, s.r * 2.6 + s.h * 0.9) : Math.max(2.7, s.r * 2 + s.h * 0.6); c.tPos.copy(s.pos).addScaledVector(s.dir, d).addScaledVector(right, 1.1).add(V(0, s.h * 0.75, 0)); c.tLook.copy(s.center()); c.tFov = portrait() ? 50 : 38; c.k = name === 'win' ? 1.6 : 5; }
     };
     c.slow = k => { c.k = k; };
     /** Giật ống kính khi trúng đòn mạnh: thu hẹp góc nhìn trong chớp mắt rồi trả về. */
@@ -121,7 +123,7 @@ export function initArena({ ctx, closeAll, getS }) {
     return s;
   }
   function buildMonster(s, look) {
-    s.parts = ctx.petBuilder.build(s.body, { ...look, face: true });
+    s.parts = ctx.petBuilder.build(s.body, { ...look, face: true, lod: !!look.lod });
     s.body.traverse(o => { if (o.isMesh && !o.userData.outline && !o.material?.transparent) o.castShadow = true; });
     s.body.scale.setScalar(s.base = s.pos.z > 0 ? 1.0 : 1.15); s.body.updateMatrixWorld(true);
     const b = new THREE.Box3().setFromObject(s.body), sz = b.getSize(V()); s.h = Math.max(0.8, sz.y); s.r = Math.max(0.45, Math.min(1.1, Math.max(sz.x, sz.z) * 0.32));
@@ -166,8 +168,9 @@ export function initArena({ ctx, closeAll, getS }) {
     R.q('.bt-moves').innerHTML = me.moves.map((m, i) => {
       const E = ELEMENT_FX[m.element], atk = m.kind === 'attack', mu = elementMult(m.element, foe.element), k = known(m.element, foe.element);
       const hint = !atk ? `<em>${KIND_NAMES[m.kind]}</em>` : k ? `<em class="${mu > 1 ? 'up' : mu < 1 ? 'down' : ''}">${mu > 1 ? '▲' : mu < 1 ? '▼' : '='} ${MULT_TXT(mu)}</em>` : `<em class="unk">? ${_t('Chưa rõ')}</em>`;
-      return `<button type="button" class="bt-move" data-move="${i}" style="--el:${E.c}" aria-describedby="bt-desc"><span class="bt-mi">${E.icon}</span><b>${esc(m.name)}</b>
-        <small>${atk ? `${_t('Sức mạnh')} ${Math.round(m.power)}` : m.kind === 'guard' ? _t('Lá chắn 2 lượt') : m.kind === 'boost' ? _t('Cường hoá 3 lượt') : _t('Hồi 30% thể lực')}${m.element === field ? ' · ' + _t('+10% sân') : ''}</small>${hint}<kbd>${i + 1}</kbd></button>`;
+      const cd = me.cd?.[m.id] || 0, extra = !atk && m.power ? ' + ' + _t`đòn ${m.power}` : '';
+      return `<button type="button" class="bt-move${cd ? ' cd' : ''}" data-move="${i}" style="--el:${E.c}" aria-describedby="bt-desc" ${cd ? 'disabled' : ''}><span class="bt-mi">${E.icon}</span><b>${esc(m.name)}</b>
+        <small>${cd ? _t`Hồi chiêu: còn ${cd - 1} lượt` : (atk ? `${_t('Sức mạnh')} ${Math.round(m.power)}` : m.kind === 'guard' ? _t('Lá chắn 2 lượt') : m.kind === 'boost' ? _t('Cường hoá 3 lượt') : _t`Hồi ${Math.round(100 * HEAL * Math.pow(HEAL_DECAY, me.heals || 0))}% thể lực`) + extra}${!cd && m.element === field ? ' · ' + _t('+10% sân') : ''}</small>${cd ? '' : hint}<kbd>${i + 1}</kbd></button>`;
     }).join('');
     R.q('[data-bt="speed"]').textContent = `⏩ ×${R.speed}`;
     R.q('.bt-moves').querySelectorAll('.bt-move').forEach(b => { const show = () => { if (B.awaiting) R.q('.bt-text').textContent = moveDesc(me.moves[+b.dataset.move]); }; b.addEventListener('pointerenter', show); b.addEventListener('focus', show); });
@@ -214,11 +217,11 @@ export function initArena({ ctx, closeAll, getS }) {
       <p class="bt-note">${A ? _t`Hôm nay còn ${A.rewards_left} trận có thưởng: thắng ${A.reward.win} xu, thua ${A.reward.loss} xu.` + (A.first_win_open ? ' ' + _t`Thắng trận đầu ngày thêm ${A.reward.first_win} xu.` : '') : ''}</p>
       ${f ? '' : `<p class="bt-warn">${_t('Bé còn nhỏ quá. Lên tuổi Nhí là bé học được chiêu đầu tiên và vào Đấu trường được.')}</p>`}
       <h4>${_t('Đá nâng cấp')} <small>(${_t`đang có ${coins} xu`})</small></h4>${['hp', 'atk', 'def', 'spd'].map(row).join('')}
-      <p class="bt-note">${_t('Mỗi bậc +4% chỉ số, tối đa 5 bậc. Đá gắn với bé hiện tại.')}</p>
+      <p class="bt-note">${_t('Mỗi bậc +2% chỉ số, tối đa 5 bậc. Đá gắn với bé hiện tại. Trận Xếp hạng không tính đá nâng cấp cho công bằng.')}</p>
       <h4>${_t('Chọn trận')}</h4>
       <div class="bt-modes"><button type="button" class="bt-btn wide" data-mode="practice" ${f ? '' : 'disabled'}>🎯 ${_t('Đấu tập')}<small>${_t('Đấu với quái thú của máy')}</small></button>
         <button type="button" class="bt-btn wide" data-mode="ranked" ${f ? '' : 'disabled'}>🏆 ${_t('Xếp hạng')}<small>${_t('Gặp quái thú của người chơi khác, tính điểm')}</small></button>
-        <button type="button" class="bt-btn wide" data-bt="friends" ${f ? '' : 'disabled'}>🤝 ${_t('Thách đấu bạn bè')}<small>${_t('Quái thú của bạn bè do máy điều khiển')}</small></button></div>
+        <button type="button" class="bt-btn wide" data-bt="friends" ${f ? '' : 'disabled'}>🤝 ${_t('Thách đấu bạn bè')}<small>${_t('Quái thú của bạn bè do máy điều khiển, không có thưởng')}</small></button></div>
       ${friends ? `<div class="bt-friends">${friends.length ? friends.map(p => { const ok = ['child', 'teen', 'adult', 'elder'].includes(p.stage); return `<button type="button" class="bt-btn" data-friend="${esc(p.pid)}" ${ok ? '' : 'disabled'}>${esc(p.name)} · ${esc(SPECIES_BY_ID[p.species]?.name || '')}${ok ? '' : ' · ' + _t('còn nhỏ')}</button>`; }).join('') : `<p class="bt-note">${_t('Chưa có bạn bè. Kết bạn ở Nhà → Bạn bè & thư.')}</p>`}</div>` : ''}
       ${A?.top?.length ? `<details class="bt-top"><summary>${_t('Bảng xếp hạng')}</summary><ol>${A.top.map(t => `<li class="${t.me ? 'me' : ''}"><b>${esc(t.name)}</b> · ${esc(SPECIES_BY_ID[t.species]?.name || '')} · ${t.rating}</li>`).join('')}</ol></details>` : ''}
     </div>`;
@@ -247,7 +250,7 @@ export function initArena({ ctx, closeAll, getS }) {
     const oName = o.kind === 'player' ? o.name : osp?.name || '';
     B.mine = Object.assign(makeSlot(P, O), { name: S.name || SPECIES_BY_ID[S.species].name, bond: lv });
     B.theirs = Object.assign(makeSlot(O, P), { name: oName, bond: o.bond, rating: mode === 'ranked' ? o.rating : null });
-    buildMonster(B.mine, { species: S.species, stage: S.stage, form: S.form, genes: S.genes || {} }); buildMonster(B.theirs, { species: o.species, stage: o.stage, form: o.form, genes: {} });
+    buildMonster(B.mine, { species: S.species, stage: S.stage, form: S.form, genes: S.genes || {} }); buildMonster(B.theirs, { species: o.species, stage: o.stage, form: o.form, genes: {}, lod: true });
     R.scene.add(B.mine.wrap); R.scene.add(B.theirs.wrap);
     for (let e = 0; e < 5; e++) learn(me.element, e); B.found = 0; // hệ của bé thì bảng Chỉ số đã cho biết
     plate(0); plate(1); R.q('.bt-plate.mine').classList.remove('in'); R.q('.bt-plate.foe').classList.remove('in');
@@ -268,7 +271,7 @@ export function initArena({ ctx, closeAll, getS }) {
   function prompt() { if (!B || B.over !== null) return; renderMoves(); R.q('.bt-cmds').hidden = false; B.awaiting = true; sfx('turn'); say(_t`${B.mine.name} sẽ làm gì?`, 0); R.q('.bt-move')?.focus({ preventScroll: true }); }
 
   async function choose(i) {
-    if (!B?.awaiting || !B.me.moves[i]) return;
+    if (!B?.awaiting || !B.me.moves[i] || B.me.cd?.[B.me.moves[i].id]) return;
     B.awaiting = false; R.q('.bt-cmds').hidden = true; sfx('ui');
     try { await turn(i); } catch (e) { console.error(e); }
     if (B && B.over === null) prompt();
@@ -299,6 +302,12 @@ export function initArena({ ctx, closeAll, getS }) {
     await R.fx.wait(0.28);
     const before = { ah: a.hp, dh: d.hp, guard: d.guard > 0 }, line = useMove(a, d, m, B.rnd, B.turn, w, B.field);
     if (m.kind !== 'attack') {
+      if (line.dmg > 0) { // chiêu kép: đánh một đòn rồi mới hỗ trợ
+        await R.fx.deliverBasic(el, sa, sd); const hit = line.dmg;
+        R.fx.impact(sa, sd, el, { power: 1, crit: line.crit, mult: line.mult, onHit: () => { pop(sd, '−' + hit, line.crit ? 'crit' : line.mult > 1 ? 'super' : line.mult < 1 ? 'weak' : ''); hpTo(1 - w, d.hp); } });
+        await R.fx.wait(0.35); learn(el, d.element); if (line.mult !== 1) await say(MULT_MSG(line.mult), 0.4);
+        if (d.hp <= 0) return;
+      }
       await R.fx.support(m, sa);
       if (m.kind === 'heal') { pop(sa, '+' + line.heal, 'heal'); hpTo(w, a.hp); await say(_t`${sa.name} hồi ${line.heal} thể lực!`); }
       if (m.kind === 'guard') await say(a.wall ? _t`${sa.name} dựng lá chắn kiên cố!` : a.thorns ? _t`${sa.name} dựng lá chắn gai!` : _t`${sa.name} dựng lá chắn!`);
@@ -405,6 +414,6 @@ export function initArena({ ctx, closeAll, getS }) {
   }
   if (/[?&]dev\b/.test(location.search)) window.__battle = { state: () => (B ? { t: +R.t.toFixed(2), hold: !!R.hold, awaiting: B.awaiting, over: B.over, turn: B.turn, hp: [B.me.hp, B.foe.hp], els: [B.me.element, B.foe.element], field: B.field, moves: B.me.moves.length, found: R.journal.size } : { none: true }), choose, open: openArena, close, start, lobbyReady: () => !!L && !R.q('.bt-lobby').hidden && !!R.q('[data-mode]'), upgrades: () => A?.upgrades, /** dừng hình sau `s` giây đồng hồ trận (để chụp hiệu ứng) */ holdIn: s => { R.hold = false; R.holdAt = R.t + s; }, held: () => !!R.hold, resume: () => { R.hold = false; R.holdAt = null; },
     /** thử riêng hiệu ứng một hệ / một tầng chiêu (0 cơ bản, 2 tuyệt chiêu, 3 tối thượng) */ demo: (el, tier, who = 0) => { const a = who ? B.theirs : B.mine, d = who ? B.mine : B.theirs, lift = y => { d.off.y = y; };
-      (tier === 3 ? R.fx.deliverUlt(el, a, d, lift) : tier === 2 ? R.fx.deliverSig(el, a, d, lift) : R.fx.deliverBasic(el, a, d)).then(() => { R.fx.impact(a, d, el, { power: tier === 3 ? 2 : tier === 2 ? 1.4 : 1, mult: 1.5 }); if (tier === 3) { R.q('.bt-dark').style.opacity = '0'; B.stage.setGlow(0); } }); } };
+      (tier === 3 ? R.fx.deliverUlt(el, a, d, lift) : tier === 2 ? R.fx.deliverSig(el, a, d, lift) : R.fx.deliverBasic(el, a, d)).then(() => { R.fx.impact(a, d, el, { power: tier === 3 ? 2 : tier === 2 ? 1.4 : 1, mult: 1.2 }); if (tier === 3) { R.q('.bt-dark').style.opacity = '0'; B.stage.setGlow(0); } }); } };
   return { openArena, close };
 }

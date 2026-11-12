@@ -16,7 +16,7 @@ describe('chiêu thức của quái thú', () => {
     expect(m.map(x => moveUnlocked(x, 'adult', 5))).toEqual([true, true, true, false]);
     expect(m.map(x => moveUnlocked(x, 'elder', 8))).toEqual([true, true, true, true]);
   });
-  it('tuyệt chiêu tấn công mạnh dần theo độ hiếm', () => {
-    expect(movesOf('lan-vang')[2].power).toBeGreaterThan(movesOf('bong-lua')[2].power);
+  it('độ hiếm không đổi sức mạnh chiêu (chỉ là dáng vẻ)', () => {
+    expect(movesOf('lan-vang')[2].power).toBe(movesOf('bong-lua')[2].power); expect(movesOf('lan-vang')[3].power).toBe(movesOf('bong-lua')[3].power);
   });
 });

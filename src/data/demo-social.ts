@@ -4,7 +4,7 @@
  * tài khoản không bị chặn tặng quà vì còn mới (account_too_new), và bạn ảo tự đồng ý lời mời sau vài giây.
  */
 import { BY_ID, FOODS } from '../game/catalog';
-import { bondLevel } from '../game/bond';
+import { bondGain, bondLevel } from '../game/bond';
 import { MEDICINES } from '../game/health';
 import { localDay } from '../game/rules';
 import { friendCap, GIFT_NOTES, GUESTBOOK, isGiftable, SOCIAL, stockCap, type MailRow, type NewsRow, type PublicProfile, type SocialState, type SocialSummary, type VisitData } from '../game/social';
@@ -286,7 +286,7 @@ function settlePd(f: F2PSocial) {
 }
 async function acceptReward() {
   const { notePlaydate } = await import('./demo-f2p'); notePlaydate();
-  withDB((db, earn) => { earn(15); if (db.pet) db.pet.bond_xp += 3; });
+  withDB((db, earn) => { earn(15); if (db.pet) bondGain(db.pet, 3); });
 }
 export async function invitePlaydate(who: string) {
   const d = load(), b = friendOrFail(d, who), f = loadF(); settlePd(f);

@@ -2,6 +2,14 @@
 -- Trận đánh tính ở máy người chơi (luật trong src/game/battle.ts) vì chỉ là đấu với quái thú do máy điều khiển:
 -- máy chủ chọn đối thủ, sân và hạt giống, giới hạn số trận có thưởng mỗi ngày, chặn trận ngắn bất thường và bỏ giữa chừng.
 -- Phần thưởng nhỏ và có trần nên gian lận kết quả cũng không làm lệch kinh tế. Thua không mất gì ngoài điểm xếp hạng.
+-- Chống lách (soát kinh tế, đợt agency):
+-- - Lượt có thưởng bị trừ ngay khi VÀO trận (đấu tập, xếp hạng), nên bỏ trận để chọn lại đối thủ dễ cũng mất lượt.
+-- - Thách đấu bạn bè không có thưởng (người chơi tự chọn đối thủ).
+-- - Xếp hạng không tính đá nâng cấp của cả hai bên (công bằng giữa nền tảng có/không có quảng cáo thưởng).
+-- - Điểm xếp hạng cộng tối đa arena.rating_day_cap mỗi ngày; bên phòng thủ mất/được một nửa điểm (Elo hai phía).
+-- - Ghép trận theo điểm, cấp Gắn bó và tuổi; bé mới (đời sau) thì điểm kéo về gần 1000 một nửa.
+-- - Máy không chọn loài khắc mạnh hệ của người chơi.
+-- Còn lại (chưa làm): máy chủ chạy lại trận từ hạt giống + chuỗi chiêu để xác minh kết quả xếp hạng (Worker chạy battle.ts).
 -- Thứ tự hệ: 0 Mộc, 1 Thuỷ, 2 Phong, 3 Dạ, 4 Hoả (khớp src/game/skills.ts).
 
 -- ---------- Bảng ----------
@@ -30,6 +38,8 @@ create table public.arena_stats (
   day          date,
   day_rewards  int  not null default 0,
   day_won      boolean not null default false,
+  day_rating   int  not null default 0,
+  pet_id       uuid,
   updated_at   timestamptz not null default now()
 );
 create index arena_stats_rating on public.arena_stats (rating desc) where ranked > 0;
@@ -46,6 +56,7 @@ create table public.arena_battles (
   result       text check (result in ('win', 'loss', 'draw', 'forfeit')),
   turns        int,
   reward       int not null default 0,
+  rewarded     boolean not null default false,
   rating_delta int not null default 0,
   started_at   timestamptz not null default now(),
   finished_at  timestamptz
@@ -64,7 +75,8 @@ insert into public.balance_config (key, value, def, min, max, unit, label, grp, 
   ('arena.reward_loss',   5,  5, 0,  50, 'xu',  'Thưởng mỗi trận thua',          'Đấu trường', 'Hoà nhận trung bình của thắng và thua.'),
   ('arena.first_win',    30, 30, 0, 200, 'xu',  'Thưởng thêm trận thắng đầu ngày', 'Đấu trường', ''),
   ('arena.per_day',       5,  5, 0,  20, 'trận', 'Số trận có thưởng mỗi ngày',   'Đấu trường', '0 = đấu không có thưởng.'),
-  ('arena.min_seconds',  10, 10, 0, 120, 'giây', 'Trận ngắn nhất được tính',      'Đấu trường', 'Ngắn hơn thì từ chối kết quả (chống gian lận).')
+  ('arena.min_seconds',  10, 10, 0, 120, 'giây', 'Trận ngắn nhất được tính',      'Đấu trường', 'Ngắn hơn thì từ chối kết quả (chống gian lận).'),
+  ('arena.rating_day_cap', 60, 60, 0, 500, 'điểm', 'Điểm xếp hạng cộng tối đa mỗi ngày', 'Đấu trường', 'Chặn cày điểm; trừ điểm không bị giới hạn.')
 on conflict (key) do nothing;
 
 -- ---------- Hàm phụ ----------
@@ -78,7 +90,7 @@ declare s public.arena_stats; d date := private.local_day(uid);
 begin
   insert into public.arena_stats (user_id) values (uid) on conflict (user_id) do nothing;
   select * into s from public.arena_stats where user_id = uid for update;
-  if s.day is distinct from d then update public.arena_stats set day = d, day_rewards = 0, day_won = false where user_id = uid returning * into s; end if;
+  if s.day is distinct from d then update public.arena_stats set day = d, day_rewards = 0, day_won = false, day_rating = 0 where user_id = uid returning * into s; end if;
   return s;
 end $$;
 
@@ -94,11 +106,11 @@ language sql stable security definer set search_path = '' as $$
 $$;
 
 /** Ảnh chụp quái thú của một người chơi để làm đối thủ (máy điều khiển). */
-create or replace function private.arena_snapshot(u uuid) returns jsonb
+create or replace function private.arena_snapshot(u uuid, with_upgrades boolean default true) returns jsonb
 language sql stable security definer set search_path = '' as $$
   select jsonb_build_object('kind', 'player', 'pid', pp.public_id, 'name', p.name, 'family', p.family_name, 'species', p.species,
     'stage', case when p.stage = 'elder' then 'adult' else p.stage end, 'form', p.form, 'bond', private.bond_level(p.bond_xp),
-    'upgrades', private.upgrades_json(p.id), 'rating', coalesce((select rating from public.arena_stats where user_id = u), 1000))
+    'upgrades', case when with_upgrades then private.upgrades_json(p.id) else '{"hp":0,"atk":0,"def":0,"spd":0}'::jsonb end, 'rating', coalesce((select rating from public.arena_stats where user_id = u), 1000))
   from public.pets p join public.public_profiles pp on pp.user_id = p.owner_id
   where p.owner_id = u and p.stage in ('child', 'teen', 'adult', 'elder') limit 1
 $$;
@@ -108,9 +120,9 @@ create or replace function private.arena_settle(b public.arena_battles, res text
 language plpgsql security definer set search_path = '' as $$
 declare s public.arena_stats := private.arena_stats_row(b.user_id); reward int := 0; first boolean := false; delta int := 0; got int := 0;
   per_day int := coalesce(private.bal('arena.per_day'), 5)::int; rw int := coalesce(private.bal('arena.reward_win'), 20)::int; rl int := coalesce(private.bal('arena.reward_loss'), 5)::int;
-  r_opp int; expct numeric; score numeric;
+  cap int := coalesce(private.bal('arena.rating_day_cap'), 60)::int; r_opp int; expct numeric; score numeric;
 begin
-  if res <> 'forfeit' and s.day_rewards < per_day then
+  if res <> 'forfeit' and b.rewarded then -- lượt thưởng đã trừ lúc vào trận
     reward := case res when 'win' then rw when 'draw' then (rw + rl) / 2 else rl end;
     if res = 'win' and not s.day_won then reward := reward + coalesce(private.bal('arena.first_win'), 30)::int; first := true; end if;
   end if;
@@ -120,17 +132,19 @@ begin
     expct := 1 / (1 + power(10::numeric, (r_opp - s.rating) / 400.0));
     score := case res when 'win' then 1 when 'draw' then 0.5 else 0 end;
     delta := round(32 * (score - expct))::int;
+    if delta > 0 then delta := least(delta, greatest(0, cap - s.day_rating)); end if;
   end if;
   update public.arena_stats set
     rating = greatest(0, rating + delta), ranked = ranked + (b.mode = 'ranked')::int,
     wins = wins + (res = 'win')::int, losses = losses + (res in ('loss', 'forfeit'))::int, draws = draws + (res = 'draw')::int,
     streak = case when res = 'win' then streak + 1 else 0 end, best_streak = greatest(best_streak, case when res = 'win' then streak + 1 else 0 end),
-    day_rewards = day_rewards + (res <> 'forfeit' and s.day_rewards < per_day)::int, day_won = day_won or res = 'win', updated_at = now()
+    day_rating = day_rating + greatest(delta, 0), day_won = day_won or res = 'win', updated_at = now()
   where user_id = b.user_id returning * into s;
   -- quái thú của người kia "phòng thủ": thắng khi người thách đấu thua
   if b.opp_user is not null then
     perform private.arena_stats_row(b.opp_user);
-    update public.arena_stats set def_wins = def_wins + (res in ('loss', 'forfeit'))::int, def_losses = def_losses + (res = 'win')::int where user_id = b.opp_user;
+    update public.arena_stats set def_wins = def_wins + (res in ('loss', 'forfeit'))::int, def_losses = def_losses + (res = 'win')::int,
+      rating = greatest(0, rating - case when b.mode = 'ranked' then round(delta / 2.0)::int else 0 end) where user_id = b.opp_user;
   end if;
   update public.arena_battles set status = case when res = 'forfeit' and p_turns is null then 'abandoned' else 'done' end, result = res, turns = p_turns, reward = got,
     rating_delta = delta, finished_at = now() where id = b.id;
@@ -181,6 +195,7 @@ end $$;
 create or replace function public.arena_start(p_mode text, p_who text default null) returns jsonb
 language plpgsql security definer set search_path = '' as $$
 declare uid uuid := auth.uid(); me public.pets; s public.arena_stats; old public.arena_battles; opp jsonb; ou uuid; b public.arena_battles; sp text; st text; bond int;
+  my_el int; rewarded boolean := false; per_day int := coalesce(private.bal('arena.per_day'), 5)::int;
 begin
   if uid is null then raise exception 'not_authenticated'; end if;
   if p_mode is null or p_mode not in ('practice', 'ranked', 'friend') then raise exception 'invalid_mode'; end if;
@@ -194,27 +209,40 @@ begin
     else update public.arena_battles set status = 'abandoned', finished_at = now() where id = old.id; end if;
   end if;
   st := case when me.stage = 'elder' then 'adult' else me.stage end; bond := private.bond_level(me.bond_xp);
+  select region into my_el from public.species where id = me.species;
+  -- bé mới (đời sau): điểm xếp hạng kéo về gần 1000 một nửa, vì sức đấu bắt đầu lại từ đầu
+  if s.pet_id is distinct from me.id then
+    update public.arena_stats set rating = case when pet_id is null then rating else 1000 + (rating - 1000) / 2 end, pet_id = me.id where user_id = uid returning * into s;
+  end if;
   if p_mode = 'friend' then
     ou := private.resolve_who(p_who);
     if ou is null or not private.are_friends(uid, ou) or private.is_blocked(uid, ou) then raise exception 'not_friends'; end if;
-    opp := private.arena_snapshot(ou);
+    opp := private.arena_snapshot(ou, true);
     if opp is null then raise exception 'arena_no_opponent'; end if;
   elsif p_mode = 'ranked' then
     select a.u into ou from (
-      select p.owner_id as u, abs(coalesce(x.rating, 1000) - s.rating) + random() * 150 as k from public.pets p
+      -- gần điểm, gần cấp Gắn bó, cùng tuổi (mỗi cấp Gắn bó lệch ~ 80 điểm, khác tuổi ~ 300 điểm)
+      select p.owner_id as u, abs(coalesce(x.rating, 1000) - s.rating) + 80 * abs(private.bond_level(p.bond_xp) - bond)
+        + 300 * (case when p.stage = 'elder' then 'adult' else p.stage end <> st)::int + random() * 100 as k from public.pets p
       left join public.arena_stats x on x.user_id = p.owner_id
       where p.owner_id <> uid and p.stage in ('child', 'teen', 'adult', 'elder') and not private.is_blocked(uid, p.owner_id)
       order by 2 limit 1) a;
-    if ou is not null then opp := private.arena_snapshot(ou); end if;
+    if ou is not null then opp := private.arena_snapshot(ou, false); end if;
   end if;
-  if opp is null then -- máy: loài ngẫu nhiên khác loài của mình, cùng tuổi, Gắn bó xê xích một bậc
-    select id into sp from public.species where id <> me.species order by random() limit 1;
+  if opp is null then -- máy: loài ngẫu nhiên khác loài của mình, không khắc mạnh hệ mình, cùng tuổi, Gắn bó xê xích một bậc
+    -- khắc mạnh (STRONG trong src/game/skills.ts): 0→2, 1→4, 2→3, 3→1, 4→0
+    select id into sp from public.species where id <> me.species and (array[2, 4, 3, 1, 0])[region + 1] <> my_el order by random() limit 1;
     opp := jsonb_build_object('kind', 'bot', 'species', sp, 'stage', st, 'form', case when st = 'adult' then (array['tron', 'nhanh', 'thuong', 'sang'])[1 + floor(random() * 4)::int] end,
       'bond', greatest(1, least(10, bond + floor(random() * 3)::int - 1)), 'upgrades', '{"hp":0,"atk":0,"def":0,"spd":0}'::jsonb, 'rating', 1000);
   end if;
-  insert into public.arena_battles (user_id, mode, opp_user, opp, field, seed)
-  values (uid, p_mode, ou, opp, floor(random() * 5)::int, floor(random() * 2147483647)::int) returning * into b;
-  return jsonb_build_object('id', b.id, 'mode', b.mode, 'field', b.field, 'seed', b.seed, 'opp', b.opp, 'upgrades', private.upgrades_json(me.id));
+  -- lượt có thưởng trừ ngay khi vào trận (bỏ trận để chọn lại đối thủ cũng mất lượt); thách bạn bè không có thưởng
+  if p_mode <> 'friend' and s.day_rewards < per_day then
+    rewarded := true; update public.arena_stats set day_rewards = day_rewards + 1 where user_id = uid;
+  end if;
+  insert into public.arena_battles (user_id, mode, opp_user, opp, field, seed, rewarded)
+  values (uid, p_mode, ou, opp, floor(random() * 5)::int, floor(random() * 2147483647)::int, rewarded) returning * into b;
+  return jsonb_build_object('id', b.id, 'mode', b.mode, 'field', b.field, 'seed', b.seed, 'opp', b.opp, 'rewarded', rewarded,
+    'upgrades', case when p_mode = 'ranked' then '{"hp":0,"atk":0,"def":0,"spd":0}'::jsonb else private.upgrades_json(me.id) end);
 end $$;
 
 create or replace function public.arena_finish(p_id bigint, p_result text, p_turns int) returns jsonb

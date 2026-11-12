@@ -78,7 +78,7 @@ export function initPlaza(c) {
     add(f, new THREE.CylinderGeometry(0.16, 0.22, 0.9, 12), toon('#e9eef7'), 0, 2.0, 0, '#8896b0', 0.03);
     add(f, new THREE.SphereGeometry(0.3, 14, 10), toon('#e9eef7'), 0, 2.55, 0, '#8896b0', 0.03);
     jets = [0, 1, 2, 3, 4, 5, 6, 7].map(i => { const m = add(f, new THREE.SphereGeometry(0.07, 8, 6), toon('#bfe8ff'), 0, 2.2, 0, null); m.userData.i = i; m.userData.keep = true; return m; });
-    kit.hotspot({ id: 'fountain', label: _t('Đài phun nước'), at: [0, 3.9, -0.6], stand: [0, 2.9], act: () => splashFountain() }, f);
+    kit.hotspot({ id: 'fountain', label: _t('Đài phun nước'), at: [0, 2.3, -0.6], stand: [0, 2.9], act: () => splashFountain() }, f);
     // ghế đá và đèn quanh đài (hai ghế gần có thể ngồi)
     for (let i = 0; i < 6; i++) {
       // không đặt ghế ngay trước (lối bé đi vào) và ngay sau đài phun (che sân khấu)

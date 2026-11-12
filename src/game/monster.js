@@ -128,9 +128,10 @@ export function makeMonsterBuilder(K) {
       glow[i] = paint(x, y, z, N, c) || 0; col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b; }
     const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); g.setAttribute('normal', new THREE.BufferAttribute(nor, 3)); g.setAttribute('color', new THREE.BufferAttribute(col, 3)); g.setAttribute('aGlow', new THREE.BufferAttribute(glow, 1)); g.setIndex(sn.idx); return g;
   }
+  let TD = { radial: 5, sub: 3 }; // độ mịn mặc định của ống quét, theo cỡ ô của lần dựng hiện tại
   /** Ống quét theo đường cong (lọn lông, sừng, râu): bán kính theo `radii`, màu chuyển từ c0 sang c1 về phía ngọn. */
   function sweep(pts, radii, o = {}) {
-    const radial = o.radial || 7, sub = o.sub || 4, curve = new THREE.CatmullRomCurve3(pts.map(p => (p.isVector3 ? p : new THREE.Vector3(p[0], p[1], p[2] || 0)))), N = (pts.length - 1) * sub, pos = [], nor = [], idx = [], col = [], gl = [];
+    const radial = o.radial || TD.radial, sub = o.sub || TD.sub, curve = new THREE.CatmullRomCurve3(pts.map(p => (p.isVector3 ? p : new THREE.Vector3(p[0], p[1], p[2] || 0)))), N = (pts.length - 1) * sub, pos = [], nor = [], idx = [], col = [], gl = [];
     const t = new THREE.Vector3(), side = new THREE.Vector3(), up2 = new THREE.Vector3(), p = new THREE.Vector3(), d = new THREE.Vector3(), c0 = new THREE.Color(o.c0 || '#fff'), c1 = new THREE.Color(o.c1 || o.c0 || '#fff'), c = new THREE.Color();
     for (let i = 0; i <= N; i++) { const u = i / N; curve.getPoint(u, p); curve.getTangent(u, t); const f = u * (pts.length - 1), i0 = Math.min(pts.length - 2, Math.floor(f)), k = f - i0, r = radii[i0] + (radii[i0 + 1] - radii[i0]) * k;
       side.crossVectors(Math.abs(t.y) > 0.92 ? FWv : UPv, t).normalize(); up2.crossVectors(t, side).normalize(); c.copy(c0).lerp(c1, sst(o.cs ?? 0.3, o.ce ?? 0.8, u));
@@ -161,6 +162,7 @@ export function makeMonsterBuilder(K) {
   const geoCache = new Map();
   function beast(sp, stage, form, cell) {
     const key = [sp.id, stage, form || '', cell].join('|'); let R = geoCache.get(key); if (R) return R;
+    TD = cell >= 0.08 ? { radial: 4, sub: 2 } : { radial: 5, sub: 3 }; // lọn lông thưa hơn khi dựng thô
     const lvl = { baby: 0, child: 1, teen: 2, adult: 3, elder: 3 }[stage], g = [0, 0.4, 0.75, 1][lvl], rk = { thuong: 0, hiem: 1, quy: 2, huyen: 3 }[sp.rarity] || 0;
     const o = { bulk: 1, len: 1, leg: 1, neck: 1, ml: 1, ruff: 0.6, ears: 'point', earK: 1, horns: 'none', tail: 'plume', tailFat: 1, ...DEF[sp.id], ...ORN[sp.id] };
     const pose = o.pose || 'quad', bird = pose === 'bird', bi = pose === 'bi' || bird, serp = pose === 'serp'; if (bird) { o.tail = 'fan'; if (!DEF[sp.id].ears) o.ears = 'none'; if (o.beak !== false) o.beak = true; if (!o.wings) o.wings = 'feather'; } if (serp) { o.tail = 'whip'; if (!o.wings) o.wings = 'fin'; if (o.spikes === undefined) o.spikes = true; }
@@ -297,7 +299,7 @@ export function makeMonsterBuilder(K) {
       const paint = (x, y, z, n, c) => { const e = tipE + 0.16 * tk * Math.sin(z * 9 + x * 7), tT = plume ? sst(e, e + 0.04, y) : 0, band = plume && lvl >= 1 ? sst(0.045, 0.03, Math.abs(y - e + 0.16)) : 0, rb = patt === 'cauvong' ? Math.floor(((y - tb[1]) / tk) * 3.2) % 4 : -1;
         c.copy(pal.fur).lerp(pal.mantle, plume ? 0 : sst(0.2, 0.3, n[1])); if (rb >= 0 && plume) c.lerp(new THREE.Color(['#ff8fb8', '#ffd66a', '#7fe0a8', '#7fb8ff'][rb]), 0.75); c.lerp(pal.tip, tT).lerp(pal.glow, band); return Math.max(band, tT * 0.55); };
       const xs = P.map(p => p[0]), ys = P.map(p => p[1]), zs = P.map(p => p[2]), rm = Math.max(...P.map(p => p[3])) + 0.1, pv = toG(tb);
-      const parts = [sculpt(f, [Math.min(...xs) - rm, Math.min(...ys) - rm, Math.min(...zs) - rm], [Math.max(...xs) + rm, Math.max(...ys) + rm, Math.max(...zs) + rm], cell * (plume ? 1.15 : 0.8), paint)];
+      const parts = [sculpt(f, [Math.min(...xs) - rm, Math.min(...ys) - rm, Math.min(...zs) - rm], [Math.max(...xs) + rm, Math.max(...ys) + rm, Math.max(...zs) + rm], cell * (plume ? 1.15 : 1.0), paint)];
       const P3 = P.map(p => new THREE.Vector3(p[0], p[1], p[2])), frame = (a, b) => { const ax = b.clone().sub(a).normalize(), u = new THREE.Vector3().crossVectors(ax, FWv).normalize(), v = new THREE.Vector3().crossVectors(ax, u).normalize(); return { ax, u, v }; };
       if (plume && lvl >= 1) {
         [[1, 2, 0.35, 6, 0.46, 0.2, FUR, FUR2, 0], [2, 3, 0.1, 7, 0.52, 0.24, FUR, FUR2, 0], [2, 3, 0.7, 7, 0.56, 0.24, FUR, TIP, 0.3], [3, 4, 0.3, 7, 0.7, 0.22, TIP, HOT, 1], [3, 4, 0.68, 5, 0.66, 0.17, TIP, HOT, 1]].forEach(([i0, i1, t, n, len, w, c0, c1, gl], row) => { if (lvl < 2 && row % 2) return; const { ax, u, v } = frame(P3[i0], P3[i1]), cc = P3[i0].clone().lerp(P3[i1], t);
@@ -348,7 +350,8 @@ export function makeMonsterBuilder(K) {
   function build(into, look, H) {
     const sp = SPECIES_BY_ID[look.species] || SPECIES[0]; if (!hasMonster(sp)) return null;
     const stage = look.stage && STAGES[look.stage] ? look.stage : 'baby', grown = stage === 'adult' || stage === 'elder', form = grown ? look.form : null;
-    const cell = look.lod ? 0.075 : K.quality && K.quality() === 'thap' ? 0.07 : 0.052;
+    // cỡ ô lưới dựng khối: thú của mình 0.065 (vừa/cao), máy yếu 0.08, thú người khác và đối thủ ở Đấu trường 0.1 (LOD)
+    const cell = look.lod ? 0.1 : K.quality && K.quality() === 'thap' ? 0.08 : 0.065;
     const R = beast(sp, stage, form, cell), inkM = ink(R.pal.ink), root = new THREE.Group(), el = K.ELEMENT[sp.region] || K.ELEMENT[0];
     const torso = put(root, R.torsoGeo, inkM); if (R.fixedGeo) put(root, R.fixedGeo, inkM);
     const faceTex = look.face ? H.simpleFace(el.iris, K.FIERCE[stage] || 0) : K.faceTex();

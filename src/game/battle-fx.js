@@ -219,7 +219,7 @@ export function makeFx(THREE, scene, H) {
   }
   const HIT_SFX = ['hitLeaf', 'hitWater', 'hitWind', 'hitShadow', 'hitFire'];
   function impact(a, d, el, { power = 1, crit = false, mult = 1, onHit, pitch = 1 } = {}) {
-    const E = ELEMENT_FX[el], at = d.center(), big = power * (mult > 1.3 ? 1.25 : 1) * (crit ? 1.3 : 1);
+    const E = ELEMENT_FX[el], at = d.center(), big = power * (mult > 1.15 ? 1.25 : 1) * (crit ? 1.3 : 1);
     burst(at, E.c, 0.9 * big, 0.3); flash(at, E.c, 1.1 * big, 0.3); ring(d.pos.clone().setY(H.ground + 0.03), E.c, 0.3, 1.6 * big, 0.45);
     emit({ at, n: 16 * big, radial: true, color: E.c, color2: E.c2, speed: [3, 6.5], drag: 4, life: [0.25, 0.45], size: [0.22, 0.05], shape: 1, blend: 'alpha' });
     emit({ at, n: 8 * big, radial: true, color: '#ffffff', speed: [4, 7], drag: 4, life: [0.2, 0.35], size: [0.14, 0.03], shape: 1, hdr: 1.6 });
@@ -229,7 +229,7 @@ export function makeFx(THREE, scene, H) {
     if (el === 3) emit({ at, n: 12, radial: true, blend: 'alpha', color: '#1a0a2a', color2: '#000000', alpha: 0.7, speed: [1, 2.5], drag: 2, life: [0.5, 0.9], size: [0.4, 0.9] });
     if (el === 4) emit({ at, n: 20, radial: true, up: 0.5, color: '#ffd23e', color2: '#ff3a0a', speed: [2, 5], drag: 2, gravity: -1, life: [0.4, 0.8], size: [0.18, 0.04], shape: 1, hdr: 2 });
     H.cam.shake(Math.min(1, 0.25 * big + (crit ? 0.3 : 0)));
-    if (!fx.reduce && (crit || mult > 1.3)) fx.freeze = crit ? 0.12 : 0.07;
+    if (!fx.reduce && (crit || mult > 1.15)) fx.freeze = crit ? 0.12 : 0.07;
     if (crit) H.ui.flash('#ffffff', 0.45, 0.16);
     H.sfx(crit ? 'crit' : big > 1.3 ? 'hitBig' : 'hit', { pitch }); H.sfx(HIT_SFX[el], { pitch }); if (power >= 2) H.sfx('boom');
     if (mult > 1) H.sfx('superEff'); else if (mult < 1) H.sfx('weak');

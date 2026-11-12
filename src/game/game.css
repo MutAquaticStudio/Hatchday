@@ -945,7 +945,7 @@ body.pad :focus-visible,body.pad :focus{outline:3px solid #ff6fa8!important;outl
 .bt-btn { min-height: 40px; padding: 6px 12px; font: inherit; font-size: .84rem; color: #f6efe2; background: #241430; border: 1.5px solid #c99a4a; border-radius: 4px 12px 4px 12px; cursor: pointer; }
 .bt-btn:hover, .bt-btn:focus-visible { filter: brightness(1.25); outline: none; box-shadow: 0 0 0 3px rgba(255, 220, 140, .45); }
 .bt-btn.wide { width: 100%; min-height: 46px; font-weight: 800; }
-.bt-chart, .bt-result { position: absolute; inset: 0; display: grid; place-items: center; padding: 16px; background: rgba(8, 4, 16, .55); }
+.bt-chart, .bt-result { position: absolute; inset: 0; display: grid; place-items: center; padding: 16px; background: rgba(8, 4, 16, .75); }
 .bt-chart[hidden], .bt-result[hidden] { display: none; }
 .bt-card { width: min(520px, 100%); max-height: 100%; overflow: auto; padding: 18px 20px; background: linear-gradient(180deg, #2a1830, #160c1e); border: 2px solid #c99a4a; clip-path: polygon(16px 0, 100% 0, 100% calc(100% - 16px), calc(100% - 16px) 100%, 0 100%, 0 16px); }
 .bt-card h3 { margin: 0 0 10px; color: #ffe6a8; font-size: 1.35rem; }
@@ -959,12 +959,17 @@ body.pad :focus-visible,body.pad :focus{outline:3px solid #ff6fa8!important;outl
   .bt-panel:has(.bt-cmds:not([hidden])) { grid-template-columns: 1fr; }
   .bt-plate { width: min(320px, 62vw); padding: 8px 12px 6px; }
   .bt-plate.mine { bottom: calc(var(--bt-panel, 260px) + 10px); }
-  .bt-field { top: auto; bottom: calc(var(--bt-panel, 260px) + 10px); left: 14px; right: auto; font-size: .74rem; }
+  .bt-field { top: 96px; bottom: auto; left: 14px; right: auto; font-size: .74rem; }
+  .bt-mi { display: none; } .bt-move { grid-template-columns: 1fr; border-left-width: 6px; }
   .bt-msg { min-height: 70px; padding: 10px 14px; }
   .bt-cmds { grid-template-columns: 1fr; } .bt-side { grid-template-columns: repeat(3, 1fr); }
   .bt-move { min-height: 58px; }
 }
 @media (prefers-reduced-motion: reduce) { .bt-pop { animation-duration: .01s; } .bt-more { animation: none; } }
+@media (hover: none) { .bt-move kbd { display: none; } }
+.bt-move small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bt-move:disabled { filter: grayscale(.85) brightness(.7); cursor: not-allowed; transform: none; }
+#app:has(.emote-bar:not([hidden])) .hint { display: none; }
 /* Sảnh Đấu trường */
 .bt.in-lobby .bt-plate, .bt.in-lobby .bt-panel, .bt.in-lobby .bt-field { display: none; }
 .bt-lobby { position: absolute; top: 0; right: 0; bottom: 0; width: min(440px, 100%); padding: 14px; overflow: auto; }

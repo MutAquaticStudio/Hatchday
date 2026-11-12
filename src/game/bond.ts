@@ -14,6 +14,14 @@ export const BOND = {
   max: 10,
 } as const;
 
+/** Trần điểm Gắn bó mỗi ngày cho các khoản cộng nhỏ (≤ 5), khớp trigger private.cap_bond_gain (migration 20261226000000). */
+export const BOND_DAILY_CAP = 150;
+/** Cộng điểm Gắn bó có trần ngày (bản Chơi thử dùng; máy chủ làm bằng trigger). Trả về số điểm thực cộng. */
+export function bondGain(p: { bond_xp: number; bond_day?: string | null; bond_today?: number }, n: number, day = new Date().toLocaleDateString('en-CA')): number {
+  if (n <= 0) return 0; if (n > 5) { p.bond_xp += n; return n; }
+  if (p.bond_day !== day) { p.bond_day = day; p.bond_today = 0; }
+  const g = Math.min(n, Math.max(0, BOND_DAILY_CAP - (p.bond_today || 0))); p.bond_today = (p.bond_today || 0) + g; p.bond_xp += g; return g;
+}
 export const bondLevel = (xp: number): number => {
   let lv = 1;
   for (let i = 1; i < BOND.levels.length; i++) if (xp >= BOND.levels[i]) lv = i + 1;

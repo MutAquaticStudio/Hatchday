@@ -66,7 +66,7 @@ export function makeShared(c, { placeId, group }) {
     const a = queue.shift(); if (!a || !actors.has(a.peer.pid)) return;
     const g = new THREE.Group(), p = a.peer;
     if ([...actors.values()].filter(x => x.parts).length < MAX_FULL) {
-      try { a.parts = c.petBuilder.build(g, { species: p.species, stage: p.stage, form: p.form || null, genes: p.genes || {}, face: true }); if (c.addFur && a.parts.body) c.addFur(g, a.parts.body); } catch (e) { a.parts = a.parts || null; }
+      try { a.parts = c.petBuilder.build(g, { species: p.species, stage: p.stage, form: p.form || null, genes: p.genes || {}, face: true, lod: true }); if (c.addFur && a.parts.body) c.addFur(g, a.parts.body); } catch (e) { a.parts = a.parts || null; }
     }
     if (!a.parts) { const m = new THREE.Mesh(new THREE.SphereGeometry(0.5, 14, 10), c.toon('#ffc9a8')); m.position.y = 0.5; g.add(m); }
     g.scale.setScalar(a.k); a.body = g; a.root.add(g);

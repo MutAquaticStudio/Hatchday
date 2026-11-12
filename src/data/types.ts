@@ -13,6 +13,7 @@ export interface PetRow {
   asleep: boolean;
   stats_at: string;
   bond_xp: number;
+  /** Trần Gắn bó mỗi ngày (máy chủ ghi; bản Chơi thử dùng bondGain). */ bond_day?: string | null; bond_today?: number;
   born_at: string;
   /** Gia phả: bé đời trước, ngày chia tay và số ngày đã sống (chỉ có khi stage = 'departed'). */
   parent_id?: string | null; departed_at?: string | null; lived_days?: number | null;

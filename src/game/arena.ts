@@ -5,7 +5,7 @@ import type { Upgrades } from './battle';
 export type ArenaMode = 'practice' | 'ranked' | 'friend';
 export type ArenaResult = 'win' | 'loss' | 'draw' | 'forfeit';
 export interface ArenaOpp { kind: 'bot' | 'player'; pid?: string; name?: string; family?: string; species: string; stage: string; form: string | null; bond: number; upgrades: Upgrades; rating: number }
-export interface ArenaStart { id: number; mode: ArenaMode; field: number; seed: number; opp: ArenaOpp; upgrades: Upgrades }
+export interface ArenaStart { id: number; mode: ArenaMode; field: number; seed: number; opp: ArenaOpp; upgrades: Upgrades; rewarded?: boolean }
 export interface ArenaFinish { result: ArenaResult; reward: number; first_win: boolean; rating: number; rating_delta: number; rewards_left: number; coins: number }
 export interface ArenaStats { rating: number; ranked: number; wins: number; losses: number; draws: number; streak: number; best_streak: number; def_wins: number; def_losses: number }
 export interface ArenaState {
@@ -13,7 +13,9 @@ export interface ArenaState {
   reward: { win: number; loss: number; first_win: number }; rank: number | null; top: { name: string; species: string; rating: number; wins: number; me: boolean }[];
 }
 /** Giống máy chủ: thưởng mặc định, trần mỗi ngày, trận ngắn nhất được tính (giây). */
-export const ARENA = { rewardWin: 20, rewardLoss: 5, firstWin: 30, perDay: 5, minSeconds: 10, k: 32 };
+export const ARENA = { rewardWin: 20, rewardLoss: 5, firstWin: 30, perDay: 5, minSeconds: 10, k: 32, ratingDayCap: 60 };
+/** Khắc mạnh: hệ i khắc mạnh hệ STRONG_OF[i] (khớp STRONG trong skills.ts và mảng trong arena_start). */
+export const STRONG_OF = [2, 4, 3, 1, 0];
 /** Điểm xếp hạng kiểu Elo (K = 32), khớp private.arena_settle. */
 export function ratingDelta(me: number, opp: number, res: ArenaResult): number {
   const exp = 1 / (1 + Math.pow(10, (opp - me) / 400)), score = res === 'win' ? 1 : res === 'draw' ? 0.5 : 0;

@@ -73,3 +73,17 @@ describe('nhận quà gắn bó', () => {
     expect(await one('select bond_xp from pets where owner_id = $1', [U])).toBe(1);
   });
 });
+
+describe('trần điểm Gắn bó mỗi ngày', () => {
+  it('cộng nhỏ (chăm sóc) dừng ở 150 điểm/ngày; sang ngày mới cộng tiếp; cộng lớn (quản trị) không bị chặn', async () => {
+    const { BOND_DAILY_CAP } = await import('../../src/game/bond');
+    await setXp(0); await db.exec(`update pets set bond_today = 0, bond_day = null where owner_id = '${U}'`);
+    for (let i = 0; i < 160; i++) await db.exec(`update pets set bond_xp = bond_xp + 1 where owner_id = '${U}'`);
+    expect(await one('select bond_xp from pets where owner_id = $1', [U])).toBe(BOND_DAILY_CAP);
+    await db.exec(`update pets set bond_day = bond_day - 1 where owner_id = '${U}'`);
+    await db.exec(`update pets set bond_xp = bond_xp + 3 where owner_id = '${U}'`);
+    expect(await one('select bond_xp from pets where owner_id = $1', [U])).toBe(BOND_DAILY_CAP + 3);
+    await db.exec(`update pets set bond_xp = bond_xp + 500 where owner_id = '${U}'`);
+    expect(await one('select bond_xp from pets where owner_id = $1', [U])).toBe(BOND_DAILY_CAP + 503);
+  });
+});
