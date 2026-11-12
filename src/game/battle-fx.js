@@ -183,7 +183,7 @@ export function makeFx(THREE, scene, H) {
   function rearBack(a, dur = 0.18) { const dir = a.dir.clone().multiplyScalar(-0.35); return tween(dur, u => { a.off.copy(dir).multiplyScalar(Math.sin(u * Math.PI)); a.sq = Math.sin(u * Math.PI) * 0.06; }); }
   function knock(d, from, p = 1) { const dir = d.pos.clone().sub(from.pos).setY(0).normalize().multiplyScalar(0.32 * p); return tween(0.32, u => { const k = u < 0.25 ? u / 0.25 : 1 - (u - 0.25) / 0.75; d.off.copy(dir).multiplyScalar(k); d.sq = -0.12 * k; d.shake = (1 - u) * 0.05 * p; }); }
   function hop(a, h = 0.35, dur = 0.4) { return tween(dur, u => { a.off.y = Math.sin(u * Math.PI) * h; a.sq = Math.sin(u * Math.PI * 2) * 0.05; }); }
-  function enter(a, el) { const E = ELEMENT_FX[el]; rune(a.pos, E.c, 1.4, 0.9, 0.4); beam(a.pos.clone().add(V(0, -0.2, 0)), a.pos.clone().add(V(0, 5, 0)), E.c, 0.28, 0.5); H.sfx('evolve'); emit({ at: a.pos, n: 30, radial: true, flat: true, up: 0.4, color: E.c2, color2: E.c, speed: [1.5, 3.5], drag: 2, life: [0.5, 0.9], size: [0.2, 0.04], shape: 1, hdr: 2 }); return tween(0.55, u => { a.k = back(u); }); }
+  function enter(a, el) { const E = ELEMENT_FX[el]; rune(a.pos, E.c, 1.4, 0.9, 0.4); beam(a.pos.clone().add(V(0, -0.2, 0)), a.pos.clone().add(V(0, 5, 0)), E.c, 0.28, 0.5); H.sfx('enter'); emit({ at: a.pos, n: 30, radial: true, flat: true, up: 0.4, color: E.c2, color2: E.c, speed: [1.5, 3.5], drag: 2, life: [0.5, 0.9], size: [0.2, 0.04], shape: 1, hdr: 2 }); return tween(0.55, u => { a.k = back(u); }); }
   function faint(a, el) {
     const E = ELEMENT_FX[el]; H.sfx('faint');
     return tween(1.0, (u, dt) => { a.k = 1 - easeIn(u); a.tilt = u * 0.5; a.off.y = -u * 0.2; if (Math.random() < 0.6) emit({ at: a.center(), n: 2, box: 0.4, dir: [0, 1, 0], spread: 0.3, color: E.c2, color2: E.c, speed: [0.6, 1.4], life: [0.6, 1.0], size: [0.18, 0.04], shape: 1, hdr: 1.8 }); });
@@ -218,7 +218,7 @@ export function makeFx(THREE, scene, H) {
     if (st === 'burn') { H.sfx('stBurn'); emit({ at: c, box: s.r * 0.7, n: 40, dir: [0, 1, 0], spread: 0.25, speed: [1.5, 3], life: [0.4, 0.7], color: '#ffc21e', color2: '#e8340a', size: [0.42, 0.06], shape: 4, blend: 'alpha' }); burst(c, '#ff7a1a', 1.1, 0.3); }
   }
   const HIT_SFX = ['hitLeaf', 'hitWater', 'hitWind', 'hitShadow', 'hitFire'];
-  function impact(a, d, el, { power = 1, crit = false, mult = 1, onHit } = {}) {
+  function impact(a, d, el, { power = 1, crit = false, mult = 1, onHit, pitch = 1 } = {}) {
     const E = ELEMENT_FX[el], at = d.center(), big = power * (mult > 1.3 ? 1.25 : 1) * (crit ? 1.3 : 1);
     burst(at, E.c, 0.9 * big, 0.3); flash(at, E.c, 1.1 * big, 0.3); ring(d.pos.clone().setY(H.ground + 0.03), E.c, 0.3, 1.6 * big, 0.45);
     emit({ at, n: 16 * big, radial: true, color: E.c, color2: E.c2, speed: [3, 6.5], drag: 4, life: [0.25, 0.45], size: [0.22, 0.05], shape: 1, blend: 'alpha' });
@@ -231,7 +231,8 @@ export function makeFx(THREE, scene, H) {
     H.cam.shake(Math.min(1, 0.25 * big + (crit ? 0.3 : 0)));
     if (!fx.reduce && (crit || mult > 1.3)) fx.freeze = crit ? 0.12 : 0.07;
     if (crit) H.ui.flash('#ffffff', 0.45, 0.16);
-    H.sfx(crit ? 'crit' : big > 1.3 ? 'hitBig' : 'hit'); H.sfx(HIT_SFX[el]); if (power >= 2) H.sfx('boom');
+    H.sfx(crit ? 'crit' : big > 1.3 ? 'hitBig' : 'hit', { pitch }); H.sfx(HIT_SFX[el], { pitch }); if (power >= 2) H.sfx('boom');
+    if (mult > 1) H.sfx('superEff'); else if (mult < 1) H.sfx('weak');
     if (power >= 1.4 || crit) decal(d.pos, el, 1.1 + power * 0.35);
     H.cam.punch?.(Math.min(1, 0.25 * big));
     if (!fx.reduce && (power >= 2 || crit)) { H.ui.impactFrame?.(power >= 2 ? 0.09 : 0.06); H.ui.lines?.(E.c, power >= 2 ? 0.5 : 0.3); }

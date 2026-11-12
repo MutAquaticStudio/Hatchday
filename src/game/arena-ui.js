@@ -17,7 +17,7 @@ import { rankName } from './arena';
 import { arenaFinish, arenaStart, buyUpgrade, getArenaState, listFriends } from '../data/api';
 import { viError } from '../lib/errors';
 import { bondLevel } from './bond';
-import { sfx, battleMusic } from './audio.js';
+import { sfx, battleMusic, setBattleIntensity } from './audio.js';
 import { makeStageKit, ARENAS } from './battle-stage.js';
 import { makeFx, ELEMENT_FX } from './battle-fx.js';
 
@@ -151,7 +151,7 @@ export function initArena({ ctx, closeAll, getS }) {
       if (st !== who.stKey) { who.stKey = st; el.querySelector('.bt-st').textContent = st; }
     });
   }
-  const hpTo = (i, v) => { (i ? B.theirs : B.mine).tgt = Math.max(0, Math.round(v)); };
+  const hpTo = (i, v) => { (i ? B.theirs : B.mine).tgt = Math.max(0, Math.round(v)); setBattleIntensity(1 - Math.min((B.mine.tgt ?? B.me.hp) / B.me.maxHp, (B.theirs.tgt ?? B.foe.hp) / B.foe.maxHp)); };
   function pop(s, text, cls = '') {
     const p = s.head().add(V(0, 0.25, 0)).project(R.camera), el = document.createElement('div');
     el.className = 'bt-pop ' + cls; el.textContent = text; el.style.left = ((p.x * 0.5 + 0.5) * 100).toFixed(1) + '%'; el.style.top = ((-p.y * 0.5 + 0.5) * 100).toFixed(1) + '%';
@@ -265,7 +265,7 @@ export function initArena({ ctx, closeAll, getS }) {
     B.intro = false; R.cam.shot('wide'); prompt();
   }
 
-  function prompt() { if (!B || B.over !== null) return; renderMoves(); R.q('.bt-cmds').hidden = false; B.awaiting = true; say(_t`${B.mine.name} sẽ làm gì?`, 0); R.q('.bt-move')?.focus({ preventScroll: true }); }
+  function prompt() { if (!B || B.over !== null) return; renderMoves(); R.q('.bt-cmds').hidden = false; B.awaiting = true; sfx('turn'); say(_t`${B.mine.name} sẽ làm gì?`, 0); R.q('.bt-move')?.focus({ preventScroll: true }); }
 
   async function choose(i) {
     if (!B?.awaiting || !B.me.moves[i]) return;
@@ -279,14 +279,14 @@ export function initArena({ ctx, closeAll, getS }) {
     const first = (mv[0].twist === 'first') !== (mv[1].twist === 'first') ? (mv[0].twist === 'first' ? 0 : 1) : sp(me) === sp(foe) ? (rnd() < 0.5 ? 0 : 1) : sp(me) > sp(foe) ? 0 : 1;
     for (const w of [first, 1 - first]) {
       const a = F[w], d = F[1 - w]; if (a.hp <= 0 || d.hp <= 0) break;
-      if (a.status.daze && rnd() < 0.25) { R.fx.hop(SL[w], 0.1, 0.3); await say(_t`${SL[w].name} choáng váng, không ra đòn được!`); continue; }
+      if (a.status.daze && rnd() < 0.25) { R.fx.hop(SL[w], 0.1, 0.3); sfx('stDaze'); await say(_t`${SL[w].name} choáng váng, không ra đòn được!`); continue; }
       await act(w, mv[w]);
       if (d.hp <= 0) { await down(1 - w); return; }
       if (a.hp <= 0) { await down(w); return; }
     }
     for (const w of [0, 1]) {
       const f = F[w], s = SL[w]; if (f.hp <= 0) continue; const r = endTurn(f);
-      if (r.burn) { R.fx.emit({ at: s.center(), n: 24, radial: true, up: 0.6, color: '#ffd23e', color2: '#ff3a0a', speed: [1, 2.5], life: [0.4, 0.7], size: [0.3, 0.05], hdr: 2 }); pop(s, '−' + r.burn, 'burn'); hpTo(w, f.hp); await say(_t`${s.name} bị bỏng thiêu đốt!`, 0.5); }
+      if (r.burn) { sfx('burnTick'); R.fx.emit({ at: s.center(), n: 24, radial: true, up: 0.6, color: '#ffd23e', color2: '#ff3a0a', speed: [1, 2.5], life: [0.4, 0.7], size: [0.3, 0.05], hdr: 2 }); pop(s, '−' + r.burn, 'burn'); hpTo(w, f.hp); await say(_t`${s.name} bị bỏng thiêu đốt!`, 0.5); }
       if (r.regen) { pop(s, '+' + r.regen, 'heal'); hpTo(w, f.hp); await say(_t`${s.name} hồi phục dần.`, 0.4); }
       if (f.hp <= 0) { await down(w); return; }
     }
@@ -314,7 +314,7 @@ export function initArena({ ctx, closeAll, getS }) {
       if (k === 0 && tier === 3) await R.fx.deliverUlt(el, sa, sd, lift); else if (k === 0 && tier === 2) await R.fx.deliverSig(el, sa, sd, lift); else await R.fx.deliverBasic(el, sa, sd);
       if (k === 0 && m.twist === 'pierce' && before.guard) R.fx.shatter(sd);
       const last = k === n - 1, hit = per[k];
-      R.fx.impact(sa, sd, el, { power: tier === 3 ? 2 : tier === 2 ? 1.4 : 1, crit: line.crit && last, mult: line.mult, onHit: () => { dealt += hit; pop(sd, '−' + hit, line.crit && last ? 'crit' : line.mult > 1 ? 'super' : line.mult < 1 ? 'weak' : ''); hpTo(1 - w, before.dh - dealt); } });
+      R.fx.impact(sa, sd, el, { power: tier === 3 ? 2 : tier === 2 ? 1.4 : 1, crit: line.crit && last, mult: k === 0 ? line.mult : 1, pitch: 1 + k * 0.06, onHit: () => { dealt += hit; pop(sd, '−' + hit, line.crit && last ? 'crit' : line.mult > 1 ? 'super' : line.mult < 1 ? 'weak' : ''); hpTo(1 - w, before.dh - dealt); } });
       await R.fx.wait(n > 1 ? 0.22 : 0.35);
     }
     sd.off.y = 0; hpTo(1 - w, d.hp);
@@ -337,7 +337,7 @@ export function initArena({ ctx, closeAll, getS }) {
     finish(w ? 0 : 1);
   }
   async function finish(winner) {
-    B.over = winner; B.awaiting = false; R.q('.bt-cmds').hidden = true; battleMusic(false);
+    B.over = winner; B.awaiting = false; R.q('.bt-cmds').hidden = true; battleMusic(false, { hold: 2.5 });
     if (winner === 0) { R.cam.shot('win', B.mine); sfx('win'); R.fx.confetti(B.mine.pos); R.fx.hop(B.mine, 0.45, 0.5); await say(_t`${B.mine.name} chiến thắng!`, 0.9); }
     else if (winner === 1) { R.cam.shot('win', B.theirs); sfx('lose'); await say(_t('Thua trận rồi. Không sao, mình tập tiếp nhé.'), 0.9); }
     else await say(_t('Hai bên ngang tài, hoà!'), 0.9);
