@@ -19,6 +19,7 @@ import { initAds } from './ads-ui.js';
 import { initToys } from './toys-ui.js';
 import { initF2P } from './f2p-ui.js';
 import { initSupport } from './support-ui.js';
+import { initArena } from './arena-ui.js';
 import { refreshProgress } from './store';
 import { SPACES } from './places/registry';
 import { bondLevel } from './bond';
@@ -129,6 +130,7 @@ export function initHome(ctx) {
   app.addEventListener('click', e => { if (e.target.closest('[data-close]')) { closeAll(); $('a-house').focus(); } });
   const f2p = initF2P({ ctx, app, $, open, head, COIN_SVG, onChange: () => { if ($('quests') && !$('quests').hidden) renderQuests(); } });
   initSupport({ ctx, $, open, head });
+  const arena = initArena({ ctx, open, head, sheet, getS: () => S, thumb: id => thumb(id) });
 
   /* ---------- Menu Nhà ---------- */
   const worldReady = () => !!S.world && (S.world.explore.some(t => t.ready && !t.claimed) || S.world.badges.some(b => !b.claimed && b.progress >= b.target));
@@ -142,6 +144,7 @@ export function initHome(ctx) {
       <button type="button" class="tile" data-go="decor"><b>Trang trí phòng</b><span>Đặt, xoay, cất đồ</span></button>
       <button type="button" class="tile" data-go="shop"><b>Cửa hàng</b><span>Thức ăn, đồ trang trí, trang phục</span></button>
       <button type="button" class="tile" data-go="wardrobe"><b>Tủ đồ</b><span>Trang phục cho bé</span></button>
+      <button type="button" class="tile" data-go="arena"><b>Đấu trường</b><span>Đấu tập giao hữu, thử chiêu thức</span></button>
       <button type="button" class="tile${questReady() ? ' ready' : ''}" data-go="quests"><b>Nhiệm vụ</b><span>${S.quests.filter(q => q.claimed).length}/${S.quests.length} hôm nay · ${S.weekly.filter(q => q.claimed).length}/${S.weekly.length} tuần này</span></button>
       ${S.festival?.festival ? _t`<button type="button" class="tile${f2p.festivalReady() ? ' ready' : ''}" data-go="festival"><b>Lễ hội</b><span>Đang có lễ hội! Nhận quà lễ</span></button>` : ''}
       <button type="button" class="tile${f2p.jobReady() ? ' ready' : ''}" data-go="jobs"><b>Việc làm & kỹ năng</b><span>${esc(f2p.jobTileText())}</span></button>
@@ -163,7 +166,7 @@ export function initHome(ctx) {
   $('a-house').addEventListener('click', () => { ctx.hideHint(); const hs = $('house'); if (hs && !hs.hidden) { closeAll(); return; } openHouse(); });
   app.addEventListener('click', e => {
     const b = e.target.closest('.tile'); if (!b) return;
-    ({ decor: () => enterEdit(), shop: () => openShop('market'), wardrobe: openWardrobe, quests: openQuests, dex: () => openDex(), family: openFamily, garden: () => { closeAll(); ctx.goTo('garden'); }, cooking: openCooking, clinic: () => openClinic(), map: () => worldMap.open(), social: () => social.open(), spaces: () => openSpaces(), jobs: f2p.openJobs, settings: () => { closeAll(); ctx.openSettings?.(); }, contest: f2p.openContest, album: f2p.openAlbum, festival: f2p.openFestival })[b.dataset.go]();
+    ({ arena: () => arena.openArena(), decor: () => enterEdit(), shop: () => openShop('market'), wardrobe: openWardrobe, quests: openQuests, dex: () => openDex(), family: openFamily, garden: () => { closeAll(); ctx.goTo('garden'); }, cooking: openCooking, clinic: () => openClinic(), map: () => worldMap.open(), social: () => social.open(), spaces: () => openSpaces(), jobs: f2p.openJobs, settings: () => { closeAll(); ctx.openSettings?.(); }, contest: f2p.openContest, album: f2p.openAlbum, festival: f2p.openFestival })[b.dataset.go]();
   });
 
   /* ---------- Ảnh thu nhỏ 3D ---------- */

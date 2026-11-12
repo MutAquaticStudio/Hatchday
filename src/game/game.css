@@ -874,3 +874,18 @@ body.pad :focus-visible,body.pad :focus{outline:3px solid #ff6fa8!important;outl
 .moves .move { padding: 8px 10px; border-radius: 12px; background: rgba(255, 255, 255, .6); border: 1.5px solid rgba(74, 33, 64, .14); }
 .moves .move.locked { opacity: .6; }
 .moves .chip { font-size: .78em; padding: 1px 8px; border-radius: 999px; background: rgba(138, 75, 224, .14); }
+
+/* Đấu trường */
+.ar-field { display: grid; gap: 8px; }
+.ar-card { display: flex; gap: 10px; align-items: center; padding: 8px 10px; border-radius: 14px; background: rgba(255, 255, 255, .7); border: 1.5px solid rgba(74, 33, 64, .14); }
+.ar-card img { width: 72px; height: 72px; object-fit: contain; flex: none; }
+.ar-info { flex: 1; min-width: 0; }
+.ar-hp { height: 10px; border-radius: 999px; background: rgba(74, 33, 64, .15); overflow: hidden; margin: 5px 0 2px; }
+.ar-hp i { display: block; height: 100%; background: linear-gradient(90deg, #5fd08a, #b6ee7a); transition: width .35s; }
+.ar-vs { margin: 0; text-align: center; font-weight: 800; opacity: .7; }
+.ar-log { list-style: none; margin: 8px 0; padding: 8px 10px; min-height: 4.4em; border-radius: 12px; background: rgba(74, 33, 64, .06); font-size: .9em; display: grid; gap: 2px; }
+.ar-moves { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.ar-move { display: grid; gap: 2px; padding: 10px; min-height: 52px; border-radius: 14px; border: 2px solid rgba(74, 33, 64, .2); background: #fff; text-align: left; cursor: pointer; font: inherit; }
+.ar-move.good { border-color: #3fae6a; } .ar-move.bad { border-color: #c98a8a; opacity: .85; }
+.ar-move small { opacity: .75; }
+.ar-result { font-weight: 800; text-align: center; margin: 10px 0; }
