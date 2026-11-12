@@ -233,6 +233,8 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline
 .tile b{font-family:var(--f-display);font-size:17px}
 .tile span{font-size:12px;font-weight:700;color:var(--ink-soft)}
 .tile:active{transform:scale(.95)}
+.tile.hero{grid-column:1/-1;flex-direction:row;align-items:center;gap:12px;background:linear-gradient(120deg,#2a1838,#3d1f2a);border-color:#c99a4a;box-shadow:0 4px 0 #7a5a2a;color:#f6efe2}
+.tile.hero b{font-size:20px;color:#ffd98a;white-space:nowrap}.tile.hero span{flex:1}.tile.hero span{color:#e8d8c0}
 .tile.ready::after{content:"";position:absolute;top:10px;right:12px;width:10px;height:10px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 3px #fff}
 .tabs-row{display:flex;gap:6px;padding:0 18px 10px;overflow-x:auto;scrollbar-width:none;flex:none}
 .tabs-row::-webkit-scrollbar{display:none}

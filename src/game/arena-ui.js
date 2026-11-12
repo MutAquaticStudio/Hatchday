@@ -39,7 +39,7 @@ export function initArena({ ctx, closeAll, getS }) {
     const portrait = () => R.h > R.w * 1.05;
     c.shot = (name, s) => {
       c.k = 3;
-      if (name === 'wide') { if (portrait()) { c.tPos.set(-4.6, 4.8, 12.2); c.tLook.set(0.0, 0.95, -0.4); c.tFov = 48; } else { c.tPos.set(-5.4, 3.2, 9.2); c.tLook.set(0.55, 1.05, -1.0); c.tFov = 32; }
+      if (name === 'wide') { if (portrait()) { c.tPos.set(-3.6, 5.6, 13.5); c.tLook.set(-0.3, 0.95, -0.4); c.tFov = 50; } else { c.tPos.set(-5.4, 3.2, 9.2); c.tLook.set(0.55, 1.05, -1.0); c.tFov = 32; }
         // quái thú to (đuôi dài, cánh rộng) thì lùi máy quay cho cả hai lọt khung
         if (B?.mine && B?.theirs) { const big = Math.min(1.6, Math.max(1, Math.max(B.mine.h, B.theirs.h, B.mine.r * 2.4, B.theirs.r * 2.4) / 1.7)); c.tPos.sub(c.tLook).multiplyScalar(big).add(c.tLook); } }
       if (name === 'intro') { c.pos.set(7.5, 6.2, 10); c.look.set(0, 1, 0); c.tPos.copy(c.pos); c.tLook.copy(c.look); c.fov = c.tFov = 44; }
@@ -69,14 +69,15 @@ export function initArena({ ctx, closeAll, getS }) {
         <div class="bt-cmds" hidden><div class="bt-moves"></div><div class="bt-side"><button type="button" class="bt-btn" data-bt="chart">📖 ${_t('Sổ khắc hệ')}</button><button type="button" class="bt-btn" data-bt="speed"></button><button type="button" class="bt-btn" data-bt="run">${_t('Rời trận')}</button></div></div></div>
       <div class="bt-chart" hidden></div><div class="bt-result" hidden></div><div class="bt-lobby" hidden></div>`;
     (document.getElementById('app') || document.body).appendChild(root);
-    const q = s => root.querySelector(s), canvas = q('.bt-cv'), low = store.get('hatchday-quality', 'vua') === 'thap';
+    // tầng chất lượng (Cài đặt): Thấp = không bóng, không bloom, không khử răng cưa; Vừa = bóng 1024, MSAA 2; Cao = bóng 2048, MSAA 4
+    const q = s => root.querySelector(s), canvas = q('.bt-cv'), tier = store.get('hatchday-quality', 'vua'), low = tier === 'thap', high = tier === 'cao';
     const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' });
-    renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFShadowMap;
+    renderer.shadowMap.enabled = !low; renderer.shadowMap.type = THREE.PCFShadowMap;
     const scene = new THREE.Scene(), camera = new THREE.PerspectiveCamera(38, 1, 0.1, 220);
-    const composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType, samples: low ? 0 : 4 }));
+    const composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType, samples: low ? 0 : high ? 4 : 2 }));
     composer.addPass(new RenderPass(scene, camera)); const bloom = new UnrealBloomPass(new THREE.Vector2(4, 4), 0.45, 0.45, 1.25); if (!low) composer.addPass(bloom); composer.addPass(new OutputPass());
     const kit = makeStageKit(THREE);
-    R = { root, q, renderer, scene, camera, composer, bloom, kit, stages: new Map(), w: 1, h: 1, low, open: false, t: 0, last: 0, speed: +store.get(SPEEDK, '1') || 1, msg: null, journal: new Set(JSON.parse(store.get(JOURNAL, '[]'))) };
+    R = { root, q, renderer, scene, camera, composer, bloom, kit, stages: new Map(), w: 1, h: 1, low, high, open: false, t: 0, last: 0, speed: +store.get(SPEEDK, '1') || 1, msg: null, journal: new Set(JSON.parse(store.get(JOURNAL, '[]'))) };
     R.cam = makeCam(camera);
     const ui = {
       flash(color, a, dur) { const el = q('.bt-flash'); el.style.transition = 'none'; el.style.background = color; el.style.opacity = String(fx().reduce ? a * 0.3 : a); void el.offsetWidth; el.style.transition = `opacity ${dur / fx().timeScale}s ease-out`; el.style.opacity = '0'; },
@@ -88,7 +89,7 @@ export function initArena({ ctx, closeAll, getS }) {
     };
     R.fx = makeFx(THREE, scene, { kit, cam: R.cam, ui, sfx, get ground() { return B?.stage.ground ?? 0.35; }, stage: { setGlow: k => B?.stage.setGlow(k) }, camPos: () => camera.position, side: () => V().setFromMatrixColumn(camera.matrixWorld, 0) });
     R.fx.reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const resize = () => { const w = root.clientWidth || innerWidth, h = root.clientHeight || innerHeight; R.w = w; R.h = h; const pr = Math.min(devicePixelRatio || 1, low ? 1 : 1.5); renderer.setPixelRatio(pr); renderer.setSize(w, h, false); composer.setPixelRatio(pr); composer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix(); if (B && !B.intro) R.cam.shot('wide'); };
+    const resize = () => { const w = root.clientWidth || innerWidth, h = root.clientHeight || innerHeight; R.w = w; R.h = h; const pr = Math.min(devicePixelRatio || 1, low ? 1 : high ? 1.5 : 1.25); renderer.setPixelRatio(pr); renderer.setSize(w, h, false); composer.setPixelRatio(pr); composer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix(); if (B && !B.intro) R.cam.shot('wide'); };
     R.resize = resize; addEventListener('resize', () => { if (R.open) resize(); });
     // chạm hộp lời thoại: hiện hết chữ / sang câu tiếp
     q('.bt-msg').addEventListener('click', advance);
@@ -190,7 +191,7 @@ export function initArena({ ctx, closeAll, getS }) {
     if (B) { [B.mine, B.theirs].forEach(s => { R.fx.clearStatus(s); R.scene.remove(s.wrap); }); R.scene.remove(B.stage.group); B = null; }
     if (L) { R.scene.remove(L.slot.wrap); R.scene.remove(L.stage.group); L = null; }
   }
-  function useStage(field) { if (!R.stages.has(field)) R.stages.set(field, R.kit.build(field)); const st = R.stages.get(field); R.scene.add(st.group); R.scene.fog = new THREE.Fog(st.fog, 24, 80); return st; }
+  function useStage(field) { if (!R.stages.has(field)) { const st = R.kit.build(field); st.group.traverse(o => { if (o.isDirectionalLight && o.castShadow) { o.castShadow = !R.low; o.shadow.mapSize.setScalar(R.high ? 2048 : 1024); } }); R.stages.set(field, st); } const st = R.stages.get(field); R.scene.add(st.group); R.scene.fog = new THREE.Fog(st.fog, 24, 80); return st; }
   async function lobby() {
     clearScene(); battleMusic(false); R.root.classList.add('in-lobby'); ['.bt-result', '.bt-chart', '.bt-cmds'].forEach(x => { R.q(x).hidden = true; });
     if (R.msg?.res) { const r = R.msg.res; R.msg = null; r(); }
@@ -347,6 +348,7 @@ export function initArena({ ctx, closeAll, getS }) {
   }
   async function finish(winner) {
     B.over = winner; B.awaiting = false; R.q('.bt-cmds').hidden = true; battleMusic(false, { hold: 2.5 });
+    [B.mine, B.theirs].forEach(s => R.fx.clearStatus(s)); // tắt lá chắn, trạng thái để máy quay cận không bị che
     if (winner === 0) { R.cam.shot('win', B.mine); sfx('win'); R.fx.confetti(B.mine.pos); R.fx.hop(B.mine, 0.45, 0.5); await say(_t`${B.mine.name} chiến thắng!`, 0.9); }
     else if (winner === 1) { R.cam.shot('win', B.theirs); sfx('lose'); await say(_t('Thua trận rồi. Không sao, mình tập tiếp nhé.'), 0.9); }
     else await say(_t('Hai bên ngang tài, hoà!'), 0.9);

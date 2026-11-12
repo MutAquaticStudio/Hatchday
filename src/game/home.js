@@ -138,13 +138,13 @@ export function initHome(ctx) {
   function openHouse() {
     const el = open('house');
     el.innerHTML = head(_t('Nhà của bé'), _t`Thoải mái cấp ${S.comfort} · ${S.coins.toLocaleString(LOCALE)} xu`) + _t`<div class="tiles">
+      <button type="button" class="tile hero" data-go="arena"><b>⚔️ Đấu trường</b><span>Xếp hạng, đấu tập, thách đấu bạn bè</span></button>
       <button type="button" class="tile${S.illness ? ' ready' : ''}" data-go="map"><b>Bản đồ</b><span>Chợ, bệnh viện, tiệm may, thư viện…</span></button>
       <button type="button" class="tile${social.badge() ? ' ready' : ''}" data-go="social"><b>Bạn bè &amp; thư</b><span>${esc(social.tileText())}</span></button>
       <button type="button" class="tile${SPACES.some(p => bondLevel(S.bondXp) >= p.unlock) ? ' ready' : ''}" data-go="spaces"><b>Không gian của bé</b><span>${SPACES.filter(p => bondLevel(S.bondXp) >= p.unlock).length}/${SPACES.length} nơi đã mở</span></button>
       <button type="button" class="tile" data-go="decor"><b>Trang trí phòng</b><span>Đặt, xoay, cất đồ</span></button>
       <button type="button" class="tile" data-go="shop"><b>Cửa hàng</b><span>Thức ăn, đồ trang trí, trang phục</span></button>
       <button type="button" class="tile" data-go="wardrobe"><b>Tủ đồ</b><span>Trang phục cho bé</span></button>
-      <button type="button" class="tile" data-go="arena"><b>Đấu trường</b><span>Đấu tập giao hữu, thử chiêu thức</span></button>
       <button type="button" class="tile${questReady() ? ' ready' : ''}" data-go="quests"><b>Nhiệm vụ</b><span>${S.quests.filter(q => q.claimed).length}/${S.quests.length} hôm nay · ${S.weekly.filter(q => q.claimed).length}/${S.weekly.length} tuần này</span></button>
       ${S.festival?.festival ? _t`<button type="button" class="tile${f2p.festivalReady() ? ' ready' : ''}" data-go="festival"><b>Lễ hội</b><span>Đang có lễ hội! Nhận quà lễ</span></button>` : ''}
       <button type="button" class="tile${f2p.jobReady() ? ' ready' : ''}" data-go="jobs"><b>Việc làm & kỹ năng</b><span>${esc(f2p.jobTileText())}</span></button>

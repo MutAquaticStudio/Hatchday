@@ -864,13 +864,15 @@ const lvl = v => v >= 75 ? _t('Đầy') : v >= 45 ? _t('Ổn') : v >= 25 ? _t('H
 function renderBond() {
   const b = bondProgress(S.bondXp), un = unclaimedLevels(S.bondXp, S.bondClaims);
   $('bond').innerHTML = _t`<div class="bond-head"><b>Gắn bó · Cấp ${b.level} · ${b.title}</b><span>${b.max ? _t('Cấp cao nhất') : _t`${b.into}/${b.need} điểm`}</span></div><div class="bar-track"><i style="width:${b.pct}%"></i></div>`
-    + (un.length ? `<div class="bond-gifts">${un.map(l => _t`<button type="button" class="btn-sm" data-bond="${l}">Nhận quà cấp ${l} · +${BOND.rewards[l - 1]} xu</button>`).join('')}</div>` : '')
+    + (un.length ? `<div class="bond-gifts">${un.length > 1 ? _t`<button type="button" class="btn-sm" data-bond="all">Nhận tất cả ${un.length} phần quà · +${un.reduce((n, l) => n + BOND.rewards[l - 1], 0)} xu</button>` : _t`<button type="button" class="btn-sm" data-bond="${un[0]}">Nhận quà cấp ${un[0]} · +${BOND.rewards[un[0] - 1]} xu</button>`}</div>` : '')
     + _t('<p class="note">Chăm bé đều đặn (cho ăn, tắm, chơi, nói chuyện, chữa bệnh) thì gắn bó lên cấp. Từ cấp 2, mỗi cấp có một phần quà xu.</p>');
 }
 $('bond').addEventListener('click', async e => {
   const b = e.target.closest('[data-bond]'); if (!b) return; b.disabled = true;
-  const r = await claimBond(+b.dataset.bond);
-  if ('error' in r) toast(viError(r.error)); else { sfx('coin'); buzz(12); popText(_t`+${r.reward} xu`, '#a8742e'); spawn('heart', 3); spawn('sparkle', 3); }
+  // "Nhận tất cả": nhận lần lượt từng cấp (mỗi cấp một lệnh máy chủ, như trước)
+  const levels = b.dataset.bond === 'all' ? unclaimedLevels(S.bondXp, S.bondClaims) : [+b.dataset.bond]; let got = 0;
+  for (const l of levels) { const r = await claimBond(l); if ('error' in r) { toast(viError(r.error)); break; } got += r.reward; }
+  if (got) { sfx('coin'); buzz(12); popText(_t`+${got} xu`, '#a8742e'); spawn('heart', 3); spawn('sparkle', 3); }
   renderBond();
 });
 onBondLevel(l => { sfx('wake'); spawn('heart', 4); spawn('sparkle', 3); setTemp('love', 1800); say(_t`Mình với bạn thân nhau hơn rồi nè!`, 3000); toast(_t`Gắn bó cấp ${l}: ${BOND.titles[l - 1]}. Mở Chỉ số để nhận quà ${BOND.rewards[l - 1]} xu.`); });
