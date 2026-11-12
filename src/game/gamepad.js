@@ -10,7 +10,7 @@ import { desktop } from '../lib/platform';
 export const stick = { x: 0, y: 0 };
 
 const FOCUSABLE = 'button:not([disabled]), a[href], input:not([disabled]):not([type=hidden]), select:not([disabled]), textarea:not([disabled]), [role="button"], [tabindex]:not([tabindex="-1"])';
-const LAYERS = '#mini:not([hidden]), .welcome:not([hidden]), .tour:not([hidden]), #settings:not([hidden]), #stats:not([hidden]), #diary:not([hidden]), .hsheet:not([hidden]), .peer-card:not([hidden])';
+const LAYERS = '#mini:not([hidden]), .welcome:not([hidden]), .tour:not([hidden]), #settings:not([hidden]), #stats:not([hidden]), #diary:not([hidden]), .hsheet:not([hidden]), .peer-card:not([hidden]), #battle:not([hidden])';
 const DEAD = 0.35;
 
 const visible = el => { if (!el || el.closest('[hidden]')) return false; const r = el.getBoundingClientRect(); if (r.width < 2 || r.height < 2) return false; const s = getComputedStyle(el); return s.visibility !== 'hidden' && s.display !== 'none' && r.bottom > 0 && r.right > 0 && r.top < innerHeight && r.left < innerWidth; };

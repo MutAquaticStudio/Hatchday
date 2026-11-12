@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { elementMult, matchups, movesOf, STRONG, MINOR } from './skills';
-import { fighterOf, simulate, UPGRADE_MAX } from './battle';
+import { fighterOf, simulate, useMove, pickMove, rngOf, UPGRADE_MAX, FIELD_BONUS } from './battle';
 import { SPECIES } from './species';
 
 describe('khắc hệ', () => {
@@ -35,5 +35,24 @@ describe('đấu trường', () => {
   it('không loài nào thắng áp đảo mọi loài cùng độ hiếm: tỉ lệ thắng trung bình của từng loài Thường nằm trong khoảng hợp lý', () => {
     const commons = SPECIES.filter(s => s.rarity === 'thuong');
     for (const a of commons) { let w = 0, n = 0; for (const b of commons) { if (a === b) continue; for (let s = 1; s <= 6; s++) { n++; if (simulate(L(a.id), L(b.id), s * 7)!.winner === 0) w++; } } expect(w / n).toBeGreaterThan(0.2); expect(w / n).toBeLessThan(0.8); }
+  });
+});
+
+describe('sân đấu và máy chọn chiêu', () => {
+  const L = (species: string) => ({ species, stage: 'adult' as const, form: null, bond: 8 });
+  it('chiêu cùng hệ với sân mạnh hơn đúng hệ số sân', () => {
+    const hit = (field: number) => { const a = fighterOf(L('banh-bo'))!, d = fighterOf(L('mam-xanh'))!; return useMove(a, d, a.moves[0], rngOf(7), 1, 0, field).dmg; };
+    const base = hit(-1), home = hit(4);
+    expect(home / base).toBeGreaterThan(FIELD_BONUS - 0.03); expect(home / base).toBeLessThan(FIELD_BONUS + 0.03);
+  });
+  it('máy ưu tiên đòn khắc hệ đối thủ', () => {
+    const a = fighterOf(L('banh-bo'))!, d = fighterOf(L('mam-xanh'))!;
+    a.moves = [{ ...a.moves[0], power: 60, element: 1 }, { ...a.moves[0], power: 50, element: 4 }];
+    let fire = 0; const r = rngOf(3); for (let i = 0; i < 100; i++) if (pickMove(a, d, r).element === 4) fire++;
+    expect(fire).toBeGreaterThan(60);
+  });
+  it('nhật ký ghi số đòn trúng', () => {
+    const a = fighterOf(L('cao-bac'))!, d = fighterOf(L('lua-bep'))!;
+    expect(useMove(a, d, a.moves[0], rngOf(5)).hits).toBe(1);
   });
 });

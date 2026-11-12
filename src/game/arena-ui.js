@@ -1,59 +1,331 @@
-// Đấu trường giao hữu (bản đấu tập với máy): chọn chiêu theo lượt, thấy khắc hệ, trạng thái và nhật ký trận.
-// Luật nằm ở battle.ts / skills.ts. Thua không mất gì; chưa có phần thưởng và chưa ghép với người chơi thật (cần máy chủ).
+// Đấu trường giao hữu: trận đánh theo lượt kiểu game sưu tầm quái thú cổ điển, trên sân đấu 3D (battle-stage.js) với hiệu ứng
+// chiêu thức (battle-fx.js). Luật ở battle.ts / skills.ts. Bản hiện tại: đấu tập với máy, thua không mất gì, chưa có phần thưởng.
+// Nhịp một lượt: chọn chiêu → bên nhanh hơn ra đòn trước → lời dẫn "X dùng Y!" → hiệu ứng → số sát thương → khắc hệ / chí mạng /
+// trạng thái → cuối lượt (bỏng, hồi dần) → lượt mới. Chạm vào hộp lời thoại để đọc nhanh; nút ×2 tua nhanh cả hiệu ứng.
+// Sổ khắc hệ: mỗi cặp hệ chỉ hiện hiệu quả trên nút chiêu sau khi người chơi đã gặp trong trận (lưu trên máy).
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { _t } from '../i18n';
 import { SPECIES, SPECIES_BY_ID } from './species';
 import { ELEMENT_NAMES, KIND_NAMES, STATUS_INFO, elementMult, moveDesc } from './skills';
 import { endTurn, fighterOf, pickMove, rngOf, useMove } from './battle';
 import { bondLevel } from './bond';
 import { sfx } from './audio.js';
+import { makeStageKit, ARENAS } from './battle-stage.js';
+import { makeFx, ELEMENT_FX } from './battle-fx.js';
 
+const JOURNAL = 'hatchday-matchups', SPEEDK = 'hatchday-battle-speed';
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const speed = f => f.spd * (f.status.root ? 0.7 : 1) * (f.haste ? 1.3 : 1);
+const store = { get: (k, d) => { try { return localStorage.getItem(k) ?? d; } catch { return d; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch { /* bỏ qua */ } } };
+const MULT_TXT = m => (m >= 1.5 ? _t('Rất hiệu quả') : m > 1 ? _t('Hiệu quả') : m === 1 ? _t('Bình thường') : m >= 0.8 ? _t('Kém') : _t('Rất kém'));
+const MULT_MSG = m => (m >= 1.5 ? _t('Rất hiệu quả!') : m > 1 ? _t('Khá hiệu quả.') : m >= 0.8 ? _t('Không hiệu quả lắm…') : _t('Bị khắc chế, gần như vô dụng…'));
+const tierOf = m => Math.max(0, Math.min(3, (+String(m.id).split('-').pop() || 1) - 1));
 
-export function initArena({ ctx, open, head, sheet, getS, thumb }) {
-  let st = null;
-  function start() {
-    const S = getS(), lv = bondLevel(S.bondXp), stage = S.stage === 'elder' ? 'adult' : S.stage, me = fighterOf({ species: S.species, stage: S.stage, form: S.form, bond: lv });
-    if (!me) { st = { tooYoung: true }; return; }
-    const pool = SPECIES.filter(x => x.id !== S.species), foeSp = pool[Math.floor(Math.random() * pool.length)];
-    st = { me, foe: fighterOf({ species: foeSp.id, stage, form: null, bond: lv }), mine: { sp: SPECIES_BY_ID[S.species], name: S.name || SPECIES_BY_ID[S.species].name, look: `pet:${S.species}:${S.stage}:${S.form || ''}` },
-      theirs: { sp: foeSp, name: foeSp.name, look: `pet:${foeSp.id}:${stage}:` }, rnd: rngOf((Math.random() * 2 ** 31) | 0), turn: 1, log: [], over: null };
+export function initArena({ ctx, closeAll, getS }) {
+  const { THREE } = ctx, V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
+  const devFast = /[?&]battlefast\b/.test(location.search);
+  let R = null, B = null;
+
+  /* ---------- máy quay ---------- */
+  function makeCam(camera) {
+    const c = { pos: V(), look: V(), tPos: V(), tLook: V(), fov: 38, tFov: 38, k: 3, trauma: 0 };
+    const portrait = () => R.h > R.w * 1.05;
+    c.shot = (name, s) => {
+      c.k = 3;
+      if (name === 'wide') { if (portrait()) { c.tPos.set(-4.6, 4.8, 12.2); c.tLook.set(0.0, 0.95, -0.4); c.tFov = 48; } else { c.tPos.set(-5.4, 3.2, 9.2); c.tLook.set(0.55, 1.05, -1.0); c.tFov = 32; } }
+      if (name === 'intro') { c.pos.set(7.5, 6.2, 10); c.look.set(0, 1, 0); c.tPos.copy(c.pos); c.tLook.copy(c.look); c.fov = c.tFov = 44; }
+      if (name === 'attacker' || name === 'win') { const right = V().crossVectors(s.dir, V(0, 1, 0)).normalize(), d = name === 'win' ? 3.4 : 2.7; c.tPos.copy(s.pos).addScaledVector(s.dir, d).addScaledVector(right, 1.1).add(V(0, s.h * 0.75, 0)); c.tLook.copy(s.center()); c.tFov = portrait() ? 50 : 38; c.k = name === 'win' ? 1.6 : 5; }
+    };
+    c.slow = k => { c.k = k; };
+    c.shake = k => { if (!fx().reduce) c.trauma = Math.min(1, c.trauma + k); };
+    c.update = dt => {
+      const f = 1 - Math.exp(-dt * c.k); c.pos.lerp(c.tPos, f); c.look.lerp(c.tLook, f); c.fov += (c.tFov - c.fov) * f;
+      c.trauma = Math.max(0, c.trauma - dt * 1.8); const s = c.trauma * c.trauma * 0.22;
+      camera.position.copy(c.pos).add(V((Math.random() - 0.5) * s, (Math.random() - 0.5) * s, (Math.random() - 0.5) * s)); camera.lookAt(c.look);
+      if (Math.abs(camera.fov - c.fov) > 0.01) { camera.fov = c.fov; camera.updateProjectionMatrix(); }
+    };
+    return c;
   }
-  const multNote = m => (m > 1.3 ? _t('Rất hiệu quả!') : m > 1 ? _t('Hiệu quả') : m < 0.7 ? _t('Kém hiệu quả') : m < 1 ? _t('Hơi kém') : '');
-  function lineText(l) {
-    const who = l.who === 0 ? st.mine.name : st.theirs.name;
-    if (l.skipped) return _t`${who} bị choáng, mất lượt.`;
-    let t = _t`${who} dùng ${l.move}`;
-    if (l.dmg) t += ' · −' + l.dmg + (l.crit ? ' ' + _t('(chí mạng)') : '') + (multNote(l.mult) ? ' · ' + multNote(l.mult) : '');
-    if (l.heal) t += ' · +' + l.heal;
-    if (l.status) t += ' · ' + STATUS_INFO[l.status].name;
-    return t;
+  const fx = () => R.fx;
+
+  /* ---------- dựng khung một lần ---------- */
+  function ensure() {
+    if (R) return R;
+    const root = document.createElement('div'); root.id = 'battle'; root.className = 'bt'; root.hidden = true; root.setAttribute('role', 'dialog'); root.setAttribute('aria-label', _t('Đấu trường'));
+    root.innerHTML = `<canvas class="bt-cv" aria-hidden="true"></canvas><div class="bt-dark"></div><div class="bt-flash"></div><div class="bt-pops" aria-hidden="true"></div>
+      <div class="bt-plate foe" data-p="1"></div><div class="bt-plate mine" data-p="0"></div><div class="bt-field"></div>
+      <div class="bt-panel"><div class="bt-msg" aria-live="polite"><p class="bt-text"></p><span class="bt-more" aria-hidden="true">▾</span></div>
+        <div class="bt-cmds" hidden><div class="bt-moves"></div><div class="bt-side"><button type="button" class="bt-btn" data-bt="chart">📖 ${_t('Sổ khắc hệ')}</button><button type="button" class="bt-btn" data-bt="speed"></button><button type="button" class="bt-btn" data-bt="run">${_t('Rời trận')}</button></div></div></div>
+      <div class="bt-chart" hidden></div><div class="bt-result" hidden></div>`;
+    (document.getElementById('app') || document.body).appendChild(root);
+    const q = s => root.querySelector(s), canvas = q('.bt-cv'), low = store.get('hatchday-quality', 'vua') === 'thap';
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' });
+    renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFShadowMap;
+    const scene = new THREE.Scene(), camera = new THREE.PerspectiveCamera(38, 1, 0.1, 220);
+    const composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType, samples: low ? 0 : 4 }));
+    composer.addPass(new RenderPass(scene, camera)); const bloom = new UnrealBloomPass(new THREE.Vector2(4, 4), 0.45, 0.45, 1.25); if (!low) composer.addPass(bloom); composer.addPass(new OutputPass());
+    const kit = makeStageKit(THREE);
+    R = { root, q, renderer, scene, camera, composer, bloom, kit, stages: new Map(), w: 1, h: 1, low, open: false, t: 0, last: 0, speed: +store.get(SPEEDK, '1') || 1, msg: null, journal: new Set(JSON.parse(store.get(JOURNAL, '[]'))) };
+    R.cam = makeCam(camera);
+    const ui = {
+      flash(color, a, dur) { const el = q('.bt-flash'); el.style.transition = 'none'; el.style.background = color; el.style.opacity = String(fx().reduce ? a * 0.3 : a); void el.offsetWidth; el.style.transition = `opacity ${dur / fx().timeScale}s ease-out`; el.style.opacity = '0'; },
+      darken(k) { q('.bt-dark').style.opacity = String(k); },
+    };
+    R.fx = makeFx(THREE, scene, { kit, cam: R.cam, ui, sfx, get ground() { return B?.stage.ground ?? 0.35; }, stage: { setGlow: k => B?.stage.setGlow(k) }, camPos: () => camera.position, side: () => V().setFromMatrixColumn(camera.matrixWorld, 0) });
+    R.fx.reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const resize = () => { const w = root.clientWidth || innerWidth, h = root.clientHeight || innerHeight; R.w = w; R.h = h; const pr = Math.min(devicePixelRatio || 1, low ? 1 : 1.5); renderer.setPixelRatio(pr); renderer.setSize(w, h, false); composer.setPixelRatio(pr); composer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix(); if (B && !B.intro) R.cam.shot('wide'); };
+    R.resize = resize; addEventListener('resize', () => { if (R.open) resize(); });
+    // chạm hộp lời thoại: hiện hết chữ / sang câu tiếp
+    q('.bt-msg').addEventListener('click', advance);
+    // bảng thông tin của mình luôn nằm ngay trên khung lệnh (khung cao thấp tuỳ đang chọn chiêu hay đang đọc lời dẫn)
+    new ResizeObserver(() => root.style.setProperty('--bt-panel', q('.bt-panel').offsetHeight + 'px')).observe(q('.bt-panel'));
+    root.addEventListener('click', onClick);
+    addEventListener('keydown', onKey, true);
+    return R;
   }
-  const card = (f, who) => `<div class="ar-card"><img alt="" src="${thumb(who.look) || ''}" width="96" height="96"><div class="ar-info"><b>${esc(who.name)}</b> <span class="chip">${ELEMENT_NAMES[f.element]}</span>
-    <div class="ar-hp" role="img" aria-label="${_t('Thể lực')} ${f.hp}/${f.maxHp}"><i style="width:${Math.round(f.hp / f.maxHp * 100)}%"></i></div><small>${f.hp}/${f.maxHp}${f.guard ? ' · 🛡' : ''}${f.boost ? ' · ⚔' : ''}${Object.keys(f.status).map(k => ' · ' + STATUS_INFO[k].name).join('')}</small></div></div>`;
-  function render() {
-    const el = sheet('arena');
-    if (st.tooYoung) { el.innerHTML = head(_t('Đấu trường'), _t('Đấu tập giao hữu')) + `<p class="hs-note">${_t('Bé còn nhỏ quá. Lên tuổi Nhí là bé học được chiêu đầu tiên và vào Đấu trường được.')}</p>`; return; }
-    const { me, foe } = st;
-    el.innerHTML = head(_t('Đấu trường'), _t('Đấu tập giao hữu · thua không mất gì')) + `<div class="ar-field">${card(foe, st.theirs)}<p class="ar-vs">${_t`Lượt ${st.turn}`}</p>${card(me, st.mine)}</div>
-      <ol class="ar-log" aria-live="polite">${st.log.slice(-3).map(l => `<li>${esc(lineText(l))}</li>`).join('')}</ol>
-      ${st.over === null ? `<div class="ar-moves">${me.moves.map((m, i) => { const mu = m.kind === 'attack' ? elementMult(m.element, foe.element) : 1; return `<button type="button" class="ar-move${mu > 1 ? ' good' : mu < 1 ? ' bad' : ''}" data-ar-move="${i}" title="${esc(moveDesc(m))}"><b>${esc(m.name)}</b><small>${KIND_NAMES[m.kind]}${m.power ? ' · ' + m.power : ''}${mu !== 1 ? ' · ×' + mu : ''}</small></button>`; }).join('')}</div>`
-        : `<p class="ar-result">${st.over === 0 ? _t('Thắng rồi! Bé vui lắm.') : st.over === 1 ? _t('Thua mất rồi. Không sao, tập thêm là giỏi.') : _t('Hoà nhau!')}</p><button type="button" class="btn-sm big" data-ar="again">${_t('Đấu trận nữa')}</button>`}`;
+
+  /* ---------- lời thoại chạy chữ ---------- */
+  function say(text, hold = 0.55) {
+    if (devFast) hold = Math.min(hold, 0.05);
+    if (R.msg?.res) R.msg.res();
+    return new Promise(res => { R.msg = { full: text, shown: 0, hold, res }; R.q('.bt-more').hidden = true; });
   }
-  function act(i) {
-    const { me, foe, rnd } = st, mv = [me.moves[i], pickMove(foe, me, rnd)], f = [me, foe];
-    const first = (mv[0].twist === 'first') !== (mv[1].twist === 'first') ? (mv[0].twist === 'first' ? 0 : 1) : speed(me) === speed(foe) ? (rnd() < 0.5 ? 0 : 1) : speed(me) > speed(foe) ? 0 : 1;
-    for (const w of [first, 1 - first]) { const a = f[w], d = f[1 - w]; if (a.hp <= 0 || d.hp <= 0) break;
-      if (a.status.daze && rnd() < 0.25) { st.log.push({ turn: st.turn, who: w, move: mv[w].name, dmg: 0, heal: 0, mult: 1, crit: false, skipped: true }); continue; }
-      st.log.push(useMove(a, d, mv[w], rnd, st.turn, w)); }
-    endTurn(me); endTurn(foe); st.turn++;
-    if (me.hp <= 0 || foe.hp <= 0 || st.turn > 30) { st.over = foe.hp <= 0 && me.hp > 0 ? 0 : me.hp <= 0 && foe.hp > 0 ? 1 : me.hp / me.maxHp > foe.hp / foe.maxHp ? 0 : me.hp / me.maxHp < foe.hp / foe.maxHp ? 1 : -1; sfx(st.over === 0 ? 'badge' : 'tap'); }
-    render();
+  function advance() { const m = R.msg; if (!m) return; if (m.shown < m.full.length) m.shown = m.full.length; else m.hold = 0; }
+  function stepMsg(dt) {
+    const m = R.msg; if (!m) return;
+    if (m.shown < m.full.length) { m.shown = Math.min(m.full.length, devFast ? m.full.length : m.shown + dt * 75); R.q('.bt-text').textContent = m.full.slice(0, Math.ceil(m.shown)); return; }
+    R.q('.bt-text').textContent = m.full; if (!m.res) return;
+    R.q('.bt-more').hidden = m.hold <= 0.01; m.hold -= dt; if (m.hold <= 0) { const r = m.res; m.res = null; r(); }
   }
-  sheet('arena').addEventListener('click', e => {
-    const m = e.target.closest('[data-ar-move]'); if (m && st && st.over === null) { act(+m.dataset.arMove); return; }
-    if (e.target.closest('[data-ar="again"]')) { start(); render(); }
-  });
-  function openArena() { open('arena'); start(); render(); }
-  return { openArena };
+
+  /* ---------- quái thú trên sân ---------- */
+  function makeSlot(pos, other) {
+    const s = { pos, off: V(), sq: 0, k: 0, tilt: 0, shake: 0, h: 1.4, r: 0.6, wrap: new THREE.Group(), body: new THREE.Group(), parts: null, phase: Math.random() * 6 };
+    s.dir = other.clone().sub(pos).setY(0).normalize(); s.wrap.add(s.body);
+    s.center = () => s.pos.clone().add(s.off).add(V(0, s.h * 0.5 * Math.max(0.2, s.k), 0));
+    s.head = () => s.pos.clone().add(s.off).add(V(0, s.h * 0.92 * Math.max(0.2, s.k), 0));
+    s.mouth = () => s.pos.clone().add(s.off).addScaledVector(s.dir, s.r * 0.9).add(V(0, s.h * 0.7, 0));
+    return s;
+  }
+  function buildMonster(s, look) {
+    s.parts = ctx.petBuilder.build(s.body, { ...look, face: true });
+    s.body.traverse(o => { if (o.isMesh && !o.userData.outline && !o.material?.transparent) o.castShadow = true; });
+    s.body.scale.setScalar(s.base = s.pos.z > 0 ? 1.0 : 1.15); s.body.updateMatrixWorld(true);
+    const b = new THREE.Box3().setFromObject(s.body), sz = b.getSize(V()); s.h = Math.max(0.8, sz.y); s.r = Math.max(0.45, Math.min(1.1, Math.max(sz.x, sz.z) * 0.32));
+  }
+  function stepSlot(s, t) {
+    const j = s.shake ? V((Math.random() - 0.5) * s.shake, 0, (Math.random() - 0.5) * s.shake) : V();
+    s.wrap.position.copy(s.pos).add(s.off).add(j); s.wrap.rotation.set(0, Math.atan2(s.dir.x, s.dir.z), s.tilt);
+    s.wrap.scale.set(s.k * (1 - s.sq * 0.5), s.k * (1 + s.sq), s.k * (1 - s.sq * 0.5)); s.sq *= 0.9;
+    s.body.position.y = Math.sin(t * 2.2 + s.phase) * 0.025; s.body.scale.y = s.base * (1 + Math.sin(t * 2.2 + s.phase) * 0.012);
+    if (s.parts) ctx.petBuilder.animate(s.parts, t, false);
+  }
+
+  /* ---------- bảng thông tin hai bên ---------- */
+  function plate(i) {
+    const F = i ? B.foe : B.me, who = i ? B.theirs : B.mine, el = F.element, E = ELEMENT_FX[el];
+    R.q(`.bt-plate[data-p="${i}"]`).innerHTML = `<div class="bt-name"><b>${esc(who.name)}</b><span class="bt-el" style="--el:${E.c}">${E.icon} ${ELEMENT_NAMES[el]}</span><span class="bt-lv">${_t('Gắn bó')} ${who.bond}</span></div>
+      <div class="bt-hp"><span>${_t('TL')}</span><div class="bt-bar"><i></i></div></div><div class="bt-sub"><span class="bt-num"></span><span class="bt-st"></span></div>`;
+    who.disp = F.hp; who.stKey = '';
+  }
+  function stepPlates(dt) {
+    [[B.me, B.mine, 0], [B.foe, B.theirs, 1]].forEach(([F, who, i]) => {
+      const el = R.q(`.bt-plate[data-p="${i}"]`), tgt = who.tgt ?? F.hp, rate = F.maxHp * 0.9 * dt;
+      who.disp += Math.max(-rate, Math.min(rate, tgt - who.disp)); const k = Math.max(0, who.disp / F.maxHp), bar = el.querySelector('.bt-bar i');
+      bar.style.width = (k * 100).toFixed(1) + '%'; bar.className = k > 0.5 ? '' : k > 0.2 ? 'mid' : 'low';
+      el.querySelector('.bt-num').textContent = `${Math.round(who.disp)}/${F.maxHp}`;
+      const st = [...Object.keys(F.status).map(s => STATUS_INFO[s].name), F.guard ? '🛡' : '', F.boost ? '⚔' : '', F.focus ? '🎯' : ''].filter(Boolean).join(' · ');
+      if (st !== who.stKey) { who.stKey = st; el.querySelector('.bt-st').textContent = st; }
+    });
+  }
+  const hpTo = (i, v) => { (i ? B.theirs : B.mine).tgt = Math.max(0, Math.round(v)); };
+  function pop(s, text, cls = '') {
+    const p = s.head().add(V(0, 0.25, 0)).project(R.camera), el = document.createElement('div');
+    el.className = 'bt-pop ' + cls; el.textContent = text; el.style.left = ((p.x * 0.5 + 0.5) * 100).toFixed(1) + '%'; el.style.top = ((-p.y * 0.5 + 0.5) * 100).toFixed(1) + '%';
+    R.q('.bt-pops').appendChild(el); setTimeout(() => el.remove(), 1300);
+  }
+
+  /* ---------- nút chiêu và Sổ khắc hệ ---------- */
+  const known = (a, d) => R.journal.has(`${a}>${d}`);
+  function learn(a, d) { const k = `${a}>${d}`; if (R.journal.has(k)) return; R.journal.add(k); B.found++; store.set(JOURNAL, JSON.stringify([...R.journal])); }
+  function renderMoves() {
+    const { me, foe, field } = B;
+    R.q('.bt-moves').innerHTML = me.moves.map((m, i) => {
+      const E = ELEMENT_FX[m.element], atk = m.kind === 'attack', mu = elementMult(m.element, foe.element), k = known(m.element, foe.element);
+      const hint = !atk ? `<em>${KIND_NAMES[m.kind]}</em>` : k ? `<em class="${mu > 1 ? 'up' : mu < 1 ? 'down' : ''}">${mu > 1 ? '▲' : mu < 1 ? '▼' : '='} ${MULT_TXT(mu)}</em>` : `<em class="unk">? ${_t('Chưa rõ')}</em>`;
+      return `<button type="button" class="bt-move" data-move="${i}" style="--el:${E.c}" aria-describedby="bt-desc"><span class="bt-mi">${E.icon}</span><b>${esc(m.name)}</b>
+        <small>${atk ? `${_t('Sức mạnh')} ${Math.round(m.power)}` : m.kind === 'guard' ? _t('Lá chắn 2 lượt') : m.kind === 'boost' ? _t('Cường hoá 3 lượt') : _t('Hồi 30% thể lực')}${m.element === field ? ' · ' + _t('+10% sân') : ''}</small>${hint}<kbd>${i + 1}</kbd></button>`;
+    }).join('');
+    R.q('[data-bt="speed"]').textContent = `⏩ ×${R.speed}`;
+    R.q('.bt-moves').querySelectorAll('.bt-move').forEach(b => { const show = () => { if (B.awaiting) R.q('.bt-text').textContent = moveDesc(me.moves[+b.dataset.move]); }; b.addEventListener('pointerenter', show); b.addEventListener('focus', show); });
+  }
+  function renderChart() {
+    const el = R.q('.bt-chart'), cell = (a, d) => { if (!known(a, d)) return '<td class="unk">?</td>'; const m = elementMult(a, d); return `<td class="${m > 1 ? 'up' : m < 1 ? 'down' : ''}">×${m}</td>`; };
+    el.innerHTML = `<div class="bt-card"><h3>📖 ${_t('Sổ khắc hệ')}</h3><p class="bt-note">${_t('Hàng: hệ của chiêu · Cột: hệ của đối thủ. Ô chỉ hiện sau khi bạn gặp cặp hệ đó trong trận.')}</p>
+      <table><tr><th></th>${ELEMENT_FX.map((E, i) => `<th>${E.icon}<br>${ELEMENT_NAMES[i]}</th>`).join('')}</tr>${ELEMENT_FX.map((E, a) => `<tr><th>${E.icon} ${ELEMENT_NAMES[a]}</th>${ELEMENT_FX.map((_, d) => cell(a, d)).join('')}</tr>`).join('')}</table>
+      <p class="bt-note">${_t`Đã khám phá ${R.journal.size}/25 cặp. Sân đấu cộng 10% cho chiêu cùng hệ với sân.`}</p><button type="button" class="bt-btn wide" data-bt="chart-close">${_t('Đóng')}</button></div>`;
+    el.hidden = false; el.querySelector('[data-bt="chart-close"]').focus();
+  }
+
+  /* ---------- một trận ---------- */
+  async function start() {
+    const S = getS(), lv = bondLevel(S.bondXp), me = fighterOf({ species: S.species, stage: S.stage, form: S.form, bond: lv });
+    R.q('.bt-result').hidden = true; R.q('.bt-chart').hidden = true; R.q('.bt-cmds').hidden = true;
+    if (B) { [B.mine, B.theirs].forEach(s => { R.fx.clearStatus(s); R.scene.remove(s.wrap); }); R.scene.remove(B.stage.group); }
+    if (!me) { B = null; showResult(null); return; }
+    const stage = S.stage === 'elder' ? 'adult' : S.stage, pool = SPECIES.filter(x => x.id !== S.species), sp = pool[Math.floor(Math.random() * pool.length)];
+    const fb = Math.max(1, Math.min(10, lv + Math.floor(Math.random() * 3) - 1)), forms = ['tron', 'nhanh', 'thuong', 'sang'], form = stage === 'adult' ? forms[Math.floor(Math.random() * 4)] : null;
+    const fa = new URLSearchParams(location.search).get('arena'), field = /[?&]dev\b/.test(location.search) && fa !== null ? +fa % 5 : Math.floor(Math.random() * 5);
+    if (!R.stages.has(field)) R.stages.set(field, R.kit.build(field));
+    const st = R.stages.get(field); R.scene.add(st.group); R.scene.fog = new THREE.Fog(st.fog, 24, 80);
+    const gy = st.ground, P = V(-2.25, gy, 1.55), O = V(2.15, gy, -1.95);
+    B = { me, foe: fighterOf({ species: sp.id, stage, form, bond: fb }), field, stage: st, rnd: rngOf((Math.random() * 2 ** 31) | 0), turn: 1, over: null, awaiting: false, intro: true, found: 0, best: null,
+      mine: null, theirs: null };
+    B.mine = Object.assign(makeSlot(P, O), { name: S.name || SPECIES_BY_ID[S.species].name, bond: lv }); B.theirs = Object.assign(makeSlot(O, P), { name: sp.name, bond: fb });
+    buildMonster(B.mine, { species: S.species, stage: S.stage, form: S.form, genes: S.genes || {} }); buildMonster(B.theirs, { species: sp.id, stage, form, genes: {} });
+    R.scene.add(B.mine.wrap); R.scene.add(B.theirs.wrap);
+    for (let e = 0; e < 5; e++) learn(me.element, e); B.found = 0; // hệ của bé thì bảng Chỉ số đã cho biết
+    plate(0); plate(1); R.q('.bt-plate.mine').classList.remove('in'); R.q('.bt-plate.foe').classList.remove('in');
+    R.q('.bt-field').innerHTML = `<b>${esc(ARENAS[field].name)}</b> · ${ELEMENT_FX[field].icon} ${_t`${ELEMENT_NAMES[field]} +10%`}`;
+    R.cam.shot('intro'); R.cam.slow(0.9); R.cam.tPos.set(-1.2, 3.4, 8.2); R.cam.tLook.set(0.8, 1.2, -1.2);
+    R.q('.bt-text').textContent = '';
+    await R.fx.wait(0.6);
+    R.cam.tPos.copy(B.theirs.pos).addScaledVector(B.theirs.dir, 4.2).add(V(1.4, 1.6, 0)); R.cam.tLook.copy(B.theirs.pos).add(V(0, 0.9, 0)); R.cam.slow(2.2);
+    await R.fx.enter(B.theirs, B.foe.element); R.q('.bt-plate.foe').classList.add('in');
+    await say(_t`${B.theirs.name} hệ ${ELEMENT_NAMES[B.foe.element]} bước ra ${ARENAS[field].name}!`);
+    R.cam.shot('wide'); R.cam.slow(2);
+    await say(_t`Sân ${ARENAS[field].name}: chiêu hệ ${ELEMENT_NAMES[field]} mạnh thêm 10%.`, 0.6);
+    await R.fx.enter(B.mine, B.me.element); R.q('.bt-plate.mine').classList.add('in');
+    await say(_t`Tiến lên, ${B.mine.name}!`, 0.4);
+    B.intro = false; R.cam.shot('wide'); prompt();
+  }
+  function prompt() { if (!B || B.over !== null) return; renderMoves(); R.q('.bt-cmds').hidden = false; B.awaiting = true; say(_t`${B.mine.name} sẽ làm gì?`, 0); R.q('.bt-move')?.focus({ preventScroll: true }); }
+
+  async function choose(i) {
+    if (!B?.awaiting || !B.me.moves[i]) return;
+    B.awaiting = false; R.q('.bt-cmds').hidden = true; sfx('ui');
+    try { await turn(i); } catch (e) { console.error(e); }
+    if (B && B.over === null) prompt();
+  }
+  async function turn(i) {
+    const { me, foe, rnd, field } = B, F = [me, foe], SL = [B.mine, B.theirs], mv = [me.moves[i], pickMove(foe, me, rnd, field)];
+    const sp = f => f.spd * (f.status.root ? 0.7 : 1) * (f.haste ? 1.3 : 1);
+    const first = (mv[0].twist === 'first') !== (mv[1].twist === 'first') ? (mv[0].twist === 'first' ? 0 : 1) : sp(me) === sp(foe) ? (rnd() < 0.5 ? 0 : 1) : sp(me) > sp(foe) ? 0 : 1;
+    for (const w of [first, 1 - first]) {
+      const a = F[w], d = F[1 - w]; if (a.hp <= 0 || d.hp <= 0) break;
+      if (a.status.daze && rnd() < 0.25) { R.fx.hop(SL[w], 0.1, 0.3); await say(_t`${SL[w].name} choáng váng, không ra đòn được!`); continue; }
+      await act(w, mv[w]);
+      if (d.hp <= 0) { await down(1 - w); return; }
+      if (a.hp <= 0) { await down(w); return; }
+    }
+    for (const w of [0, 1]) {
+      const f = F[w], s = SL[w]; if (f.hp <= 0) continue; const r = endTurn(f);
+      if (r.burn) { R.fx.emit({ at: s.center(), n: 24, radial: true, up: 0.6, color: '#ffd23e', color2: '#ff3a0a', speed: [1, 2.5], life: [0.4, 0.7], size: [0.3, 0.05], hdr: 2 }); pop(s, '−' + r.burn, 'burn'); hpTo(w, f.hp); await say(_t`${s.name} bị bỏng thiêu đốt!`, 0.5); }
+      if (r.regen) { pop(s, '+' + r.regen, 'heal'); hpTo(w, f.hp); await say(_t`${s.name} hồi phục dần.`, 0.4); }
+      if (f.hp <= 0) { await down(w); return; }
+    }
+    B.turn++;
+    if (B.turn > 30) { const k = me.hp / me.maxHp - foe.hp / foe.maxHp; await say(_t('Hết giờ! Phân định theo thể lực còn lại.')); finish(k > 0 ? 0 : k < 0 ? 1 : -1); }
+  }
+  async function act(w, m) {
+    const F = [B.me, B.foe], a = F[w], d = F[1 - w], sa = w ? B.theirs : B.mine, sd = w ? B.mine : B.theirs, tier = tierOf(m), el = m.element;
+    say(_t`${sa.name} dùng ${m.name}!`, 0);
+    await R.fx.wait(0.28);
+    const before = { ah: a.hp, dh: d.hp, guard: d.guard > 0 }, line = useMove(a, d, m, B.rnd, B.turn, w, B.field);
+    if (m.kind !== 'attack') {
+      await R.fx.support(m, sa);
+      if (m.kind === 'heal') { pop(sa, '+' + line.heal, 'heal'); hpTo(w, a.hp); await say(_t`${sa.name} hồi ${line.heal} thể lực!`); }
+      if (m.kind === 'guard') await say(a.wall ? _t`${sa.name} dựng lá chắn kiên cố!` : a.thorns ? _t`${sa.name} dựng lá chắn gai!` : _t`${sa.name} dựng lá chắn!`);
+      if (m.kind === 'boost') await say(a.haste ? _t`${sa.name} tăng sức tấn công và tốc độ!` : a.focus ? _t`${sa.name} tập trung cao độ: đòn kế tiếp chắc chắn chí mạng!` : _t`${sa.name} tăng sức tấn công!`);
+      if (m.twist === 'cleanse') await say(_t`${sa.name} giũ sạch trạng thái xấu.`, 0.4);
+      return;
+    }
+    if (m.twist === 'first') R.fx.dash(sa);
+    if (m.twist === 'lowhp' && before.ah < a.maxHp / 2) { R.fx.self(sa, '#ff4a3a'); await R.fx.wait(0.2); }
+    const n = Math.max(1, line.hits), per = Array.from({ length: n }, (_, k) => Math.floor(line.dmg / n) + (k < line.dmg % n ? 1 : 0)); let dealt = 0;
+    const lift = y => { sd.off.y = y; };
+    for (let k = 0; k < n; k++) {
+      if (k === 0 && tier === 3) await R.fx.deliverUlt(el, sa, sd, lift); else if (k === 0 && tier === 2) await R.fx.deliverSig(el, sa, sd, lift); else await R.fx.deliverBasic(el, sa, sd);
+      if (k === 0 && m.twist === 'pierce' && before.guard) R.fx.shatter(sd);
+      const last = k === n - 1, hit = per[k];
+      R.fx.impact(sa, sd, el, { power: tier === 3 ? 2 : tier === 2 ? 1.4 : 1, crit: line.crit && last, mult: line.mult, onHit: () => { dealt += hit; pop(sd, '−' + hit, line.crit && last ? 'crit' : line.mult > 1 ? 'super' : line.mult < 1 ? 'weak' : ''); hpTo(1 - w, before.dh - dealt); } });
+      await R.fx.wait(n > 1 ? 0.22 : 0.35);
+    }
+    sd.off.y = 0; hpTo(1 - w, d.hp);
+    if (tier === 3) { R.q('.bt-dark').style.opacity = '0'; B.stage.setGlow(0); }
+    if (!B.best || line.dmg > B.best.dmg) B.best = { dmg: line.dmg, move: m.name, mine: !w };
+    learn(el, d.element);
+    if (n > 1) await say(_t`Trúng ${n} đòn!`, 0.35);
+    if (line.crit) await say(_t('Chí mạng!'), 0.4);
+    if (line.mult !== 1) await say(MULT_MSG(line.mult), 0.5);
+    if (line.back) { R.fx.self(sa, '#ff6a6a'); pop(sa, '−' + line.back); hpTo(w, a.hp); await say(_t`Lá chắn gai phản lại ${line.back} sát thương!`, 0.45); }
+    if (line.heal) { await R.fx.drain(sa, sd); pop(sa, '+' + line.heal, 'heal'); hpTo(w, a.hp); await say(_t`${sa.name} hút lại ${line.heal} thể lực.`, 0.45); }
+    if (line.self) { R.fx.self(sa, '#ffb03a'); pop(sa, '−' + line.self); hpTo(w, a.hp); await say(_t`${sa.name} chịu phản lực ${line.self}.`, 0.4); }
+    if (m.twist === 'cleanse') { R.fx.self(sa, '#ffffff'); await say(_t`${sa.name} giũ sạch trạng thái xấu.`, 0.4); }
+    if (line.status) await say(_t`${sd.name} bị ${STATUS_INFO[line.status].name}: ${STATUS_INFO[line.status].desc}.`, 0.6);
+  }
+  async function down(w) {
+    const s = w ? B.theirs : B.mine, f = w ? B.foe : B.me; R.fx.clearStatus(s); hpTo(w, 0);
+    await Promise.all([R.fx.faint(s, f.element), say(_t`${s.name} kiệt sức!`, 0.5)]);
+    finish(w ? 0 : 1);
+  }
+  async function finish(winner) {
+    B.over = winner; B.awaiting = false; R.q('.bt-cmds').hidden = true;
+    if (winner === 0) { R.cam.shot('win', B.mine); sfx('win'); R.fx.confetti(B.mine.pos); R.fx.hop(B.mine, 0.45, 0.5); await say(_t`${B.mine.name} chiến thắng!`, 0.9); }
+    else if (winner === 1) { R.cam.shot('win', B.theirs); sfx('lose'); await say(_t('Thua trận rồi. Không sao, mình tập tiếp nhé.'), 0.9); }
+    else await say(_t('Hai bên ngang tài, hoà!'), 0.9);
+    showResult(winner);
+  }
+  function showResult(winner) {
+    const el = R.q('.bt-result');
+    if (winner === null) el.innerHTML = `<div class="bt-card"><h3>${_t('Đấu trường')}</h3><p>${_t('Bé còn nhỏ quá. Lên tuổi Nhí là bé học được chiêu đầu tiên và vào Đấu trường được.')}</p><button type="button" class="bt-btn wide" data-bt="home">${_t('Về nhà')}</button></div>`;
+    else el.innerHTML = `<div class="bt-card"><h3>${winner === 0 ? _t('Chiến thắng!') : winner === 1 ? _t('Thua trận') : _t('Hoà')}</h3>
+      <ul><li>${_t`Số lượt: ${Math.min(30, B.turn)}`}</li>${B.best ? `<li>${_t`Đòn mạnh nhất: ${esc(B.best.move)} (${B.best.dmg})`}</li>` : ''}<li>${B.found ? _t`Sổ khắc hệ ghi thêm ${B.found} cặp hệ mới.` : _t('Không có cặp hệ mới nào.')}</li></ul>
+      <p class="bt-note">${_t('Đấu tập giao hữu: thua không mất gì.')}</p><div class="bt-row"><button type="button" class="bt-btn wide" data-bt="again">${_t('Trận mới')}</button><button type="button" class="bt-btn wide" data-bt="home">${_t('Về nhà')}</button></div></div>`;
+    el.hidden = false; el.querySelector('button')?.focus();
+  }
+
+  /* ---------- nhập liệu ---------- */
+  let runAt = 0;
+  function onClick(e) {
+    const mv = e.target.closest('[data-move]'); if (mv) { choose(+mv.dataset.move); return; }
+    const b = e.target.closest('[data-bt]'); if (!b) return; const k = b.dataset.bt;
+    if (k === 'chart') renderChart();
+    if (k === 'chart-close') { R.q('.bt-chart').hidden = true; R.q('.bt-move')?.focus(); }
+    if (k === 'speed') { R.speed = R.speed === 1 ? 2 : 1; store.set(SPEEDK, String(R.speed)); R.fx.timeScale = devFast ? 10 : R.speed; b.textContent = `⏩ ×${R.speed}`; }
+    if (k === 'run') { if (performance.now() - runAt < 3000) close(); else { runAt = performance.now(); b.textContent = _t('Bấm lần nữa để rời'); setTimeout(() => { if (b.isConnected) b.textContent = _t('Rời trận'); }, 3000); } }
+    if (k === 'again') start();
+    if (k === 'home') close();
+  }
+  function onKey(e) {
+    if (!R?.open) return;
+    if (e.key === 'Escape') { e.stopPropagation(); e.preventDefault(); if (!R.q('.bt-chart').hidden) { R.q('.bt-chart').hidden = true; return; } if (!R.q('.bt-result').hidden) { close(); return; } R.q('[data-bt="run"]')?.click(); return; }
+    if (/^[1-4]$/.test(e.key) && B?.awaiting) { e.stopPropagation(); choose(+e.key - 1); return; }
+    if ((e.key === ' ' || e.key === 'Enter') && !B?.awaiting && R.q('.bt-result').hidden && R.q('.bt-chart').hidden && !(e.target instanceof HTMLButtonElement)) { e.stopPropagation(); e.preventDefault(); advance(); }
+  }
+
+  /* ---------- vòng lặp vẽ ---------- */
+  function frame(now) {
+    const real = Math.min(0.1, R.last ? (now - R.last) / 1000 : 0.016); R.last = now;
+    const sizeK = (R.renderer.getDrawingBufferSize(new THREE.Vector2()).y / 2) / Math.tan((R.camera.fov * Math.PI / 180) / 2);
+    if (R.hold) { R.cam.update(0); R.composer.render(); return; }
+    const dt = R.fx.update(real, sizeK); R.t += dt; if (R.holdAt != null && R.t >= R.holdAt) { R.holdAt = null; R.hold = true; }
+    if (B) { B.stage.update(R.t); [B.mine, B.theirs].forEach(s => stepSlot(s, R.t)); R.fx.syncStatus(B.mine, B.me, dt); R.fx.syncStatus(B.theirs, B.foe, dt); stepPlates(real); }
+    stepMsg(dt || real * 0.0001); R.cam.update(real); R.composer.render();
+  }
+  function openArena() {
+    closeAll(); ensure(); R.root.hidden = false; R.open = true; R.fx.timeScale = devFast ? 10 : R.speed; ctx.pauseWorld?.(true);
+    R.resize(); R.last = 0; R.renderer.setAnimationLoop(frame); start();
+  }
+  function close() {
+    if (!R) return; R.open = false; R.renderer.setAnimationLoop(null); R.root.hidden = true; ctx.pauseWorld?.(false);
+    if (B) { [B.mine, B.theirs].forEach(s => { R.fx.clearStatus(s); R.scene.remove(s.wrap); }); R.scene.remove(B.stage.group); B = null; }
+    if (R.msg?.res) { const r = R.msg.res; R.msg = null; r(); }
+  }
+  if (/[?&]dev\b/.test(location.search)) window.__battle = { state: () => (B ? { t: +R.t.toFixed(2), hold: !!R.hold, awaiting: B.awaiting, over: B.over, turn: B.turn, hp: [B.me.hp, B.foe.hp], els: [B.me.element, B.foe.element], field: B.field, moves: B.me.moves.length, found: R.journal.size } : { none: true }), choose, open: openArena, close, /** dừng hình sau `s` giây đồng hồ trận (để chụp hiệu ứng) */ holdIn: s => { R.hold = false; R.holdAt = R.t + s; }, held: () => !!R.hold, resume: () => { R.hold = false; R.holdAt = null; },
+    /** thử riêng hiệu ứng một hệ / một tầng chiêu (0 cơ bản, 2 tuyệt chiêu, 3 tối thượng) */ demo: (el, tier, who = 0) => { const a = who ? B.theirs : B.mine, d = who ? B.mine : B.theirs, lift = y => { d.off.y = y; };
+      (tier === 3 ? R.fx.deliverUlt(el, a, d, lift) : tier === 2 ? R.fx.deliverSig(el, a, d, lift) : R.fx.deliverBasic(el, a, d)).then(() => { R.fx.impact(a, d, el, { power: tier === 3 ? 2 : tier === 2 ? 1.4 : 1, mult: 1.5 }); if (tier === 3) { R.q('.bt-dark').style.opacity = '0'; B.stage.setGlow(0); } }); } };
+  return { openArena, close };
 }

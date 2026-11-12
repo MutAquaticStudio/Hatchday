@@ -1272,6 +1272,7 @@ home = initHome({
   getArea: () => area, goTo, goCook, atStove, isIdle: () => !busy(performance.now()), isNight: () => period === 'dem',
   onJob: () => { if (jobActive() && area !== 'home') goTo('home'); },
   setZoom: z => { zoomExtra = z; },
+  pauseWorld: on => { worldPaused = !!on; },
   closeGameSheets: () => { toggleSheet(null); settings.close(); ['stats', 'diary'].forEach(id => { $(id).hidden = true; }); $('btn-stats').setAttribute('aria-expanded', 'false'); $('btn-diary').setAttribute('aria-expanded', 'false'); },
   setEditing: on => {
     editing = on; wander = null; action = null; moveYaw = null; petOff.set(0, 0, 0);
@@ -1375,7 +1376,9 @@ function tick(now, dt) {
 }
 /* Vòng lặp theo skill threejs-scene-setup: setAnimationLoop + Timer, dt kẹp trong [0, 0.1] */
 const timer = new THREE.Timer(); timer.connect(document);
-renderer.setAnimationLoop(() => { timer.update(); tick(performance.now(), Math.min(Math.max(timer.getDelta(), 0), 0.1)); });
+/** Đấu trường vẽ bằng renderer riêng: lúc đó dừng vẽ thế giới cho nhẹ máy (chỉ số vẫn tính tiếp khi quay lại vì decay theo thời gian thật). */
+let worldPaused = false;
+renderer.setAnimationLoop(() => { timer.update(); const d = Math.min(Math.max(timer.getDelta(), 0), 0.1); if (worldPaused) return; tick(performance.now(), d); });
 initTour({ isBusy: () => growth.isEvolving() });
 initCompanion({ say, startAction, spawn, sfx, goTo, openClinic: () => home && home.openClinic(), isBusy: () => growth.isEvolving() || editing || !!anim, dev: DEV });
 initFarewell();

@@ -16,7 +16,7 @@
 // nhịp, cao độ và độ sáng khác nhau. Nhạc tự sinh từ thang ngũ cung nên không lặp đúng một đoạn.
 // Muốn thay bằng file thật sau này: giữ nguyên sfx()/music(), chỉ đổi phần "giọng" bên dưới.
 
-/** @typedef {'pet'|'feed'|'talk'|'bath'|'play'|'sleep'|'wake'|'evolve'|'coin'|'buy'|'place'|'ui'|'boing'|'creak'|'whee'|'thud'|'quack'|'kick'|'splash'|'sit'|'cheer'|'flap'|'sip'|'purr'|'kettle'|'badge'|'catch'|'miss'|'rain'} SfxName */
+/** @typedef {'pet'|'feed'|'talk'|'bath'|'play'|'sleep'|'wake'|'evolve'|'coin'|'buy'|'place'|'ui'|'boing'|'creak'|'whee'|'thud'|'quack'|'kick'|'splash'|'sit'|'cheer'|'flap'|'sip'|'purr'|'kettle'|'badge'|'catch'|'miss'|'rain'|'hit'|'hitBig'|'crit'|'whoosh'|'fire'|'water'|'leaf'|'wind'|'shadow'|'zap'|'shield'|'heal'|'power'|'faint'|'win'|'lose'} SfxName */
 
 const KEY = 'hatchday-audio';
 const reduce = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -124,6 +124,23 @@ const VOICES = {
   catch: t => { const f = hz(84 + pick(PENTA)); tone(f, t, 0.12, { type: 'triangle', vol: 0.12, to: f * 1.5 }); },
   miss: t => { tone(240, t, 0.18, { type: 'triangle', vol: 0.08, to: 150 }); },
   rain: t => { noise(t, 1.0, { freq: 4200, q: 0.5, type: 'bandpass', vol: 0.02 }); },
+  /* Đấu trường: đòn trúng, nguyên tố, lá chắn, hồi phục, tụ lực, gục ngã, kết quả */
+  hit: t => { tone(170, t, 0.12, { vol: 0.32, to: 70 }); noise(t, 0.08, { freq: 1600, vol: 0.14 }); },
+  hitBig: t => { tone(120, t, 0.32, { vol: 0.42, to: 40 }); noise(t, 0.28, { freq: 900, to: 260, vol: 0.2 }); noise(t, 0.06, { freq: 4200, type: 'highpass', vol: 0.1 }); },
+  crit: t => { VOICES.hitBig(t); bell(91, t + 0.02, 0.45, 0.1); bell(96, t + 0.07, 0.35, 0.07); },
+  whoosh: t => { noise(t, 0.26, { freq: 600, to: 3200, q: 1.2, vol: 0.1 }); },
+  fire: t => { noise(t, 0.55, { freq: 500, to: 1600, q: 0.7, vol: 0.15 }); tone(90, t, 0.45, { type: 'sawtooth', vol: 0.06, to: 55, cutoff: 600 }); },
+  water: t => { noise(t, 0.42, { freq: 1900, to: 650, q: 1, vol: 0.13 }); for (let i = 0; i < 3; i++) { const f = jitter(620 + Math.random() * 500); tone(f, t + 0.05 + i * 0.06, 0.08, { vol: 0.05, to: f * 1.8 }); } },
+  leaf: t => { for (let i = 0; i < 6; i++) noise(t + i * 0.035, 0.06, { freq: 2400 + i * 280, q: 4, vol: 0.05 }); },
+  wind: t => { noise(t, 0.65, { freq: 380, to: 2400, q: 2.5, vol: 0.11 }); },
+  shadow: t => { tone(230, t, 0.42, { type: 'sawtooth', vol: 0.05, to: 85, cutoff: 900 }); noise(t, 0.32, { freq: 320, to: 120, q: 3, vol: 0.09 }); },
+  zap: t => { for (let i = 0; i < 4; i++) noise(t + i * 0.03, 0.05, { freq: 5200, type: 'highpass', vol: 0.09 }); tone(1600, t, 0.2, { type: 'square', vol: 0.03, to: 300, cutoff: 3000 }); },
+  shield: t => { bell(84, t, 0.5, 0.08); tone(660, t, 0.3, { type: 'triangle', vol: 0.06, to: 990 }); },
+  heal: t => { [79, 84, 88, 91].forEach((m, i) => bell(m, t + i * 0.06, 0.5, 0.07)); },
+  power: t => { tone(110, t, 0.9, { type: 'sawtooth', vol: 0.06, to: 440, cutoff: 1800 }); noise(t, 0.9, { freq: 300, to: 2600, q: 1, vol: 0.06 }); },
+  faint: t => { tone(440, t, 0.75, { type: 'triangle', vol: 0.1, to: 110 }); },
+  win: t => { [72, 76, 79, 84, 88, 91].forEach((m, i) => bell(m, t + i * 0.09, 0.9, 0.12)); },
+  lose: t => { [72, 69, 65, 60].forEach((m, i) => bell(m - 12, t + i * 0.16, 0.8, 0.1)); },
 };
 // Một số tiếng bị gọi liên tục (vuốt ve, kỳ cọ): giãn khoảng cách tối thiểu cho đỡ rối.
 const GAP = { pet: 0.11, bath: 0.12, talk: 0.08, ui: 0.04, creak: 0.4, boing: 0.25, splash: 0.2, quack: 0.3, flap: 0.3, catch: 0.06, rain: 0.8, purr: 0.5 };

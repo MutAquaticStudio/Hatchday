@@ -130,7 +130,7 @@ export function initHome(ctx) {
   app.addEventListener('click', e => { if (e.target.closest('[data-close]')) { closeAll(); $('a-house').focus(); } });
   const f2p = initF2P({ ctx, app, $, open, head, COIN_SVG, onChange: () => { if ($('quests') && !$('quests').hidden) renderQuests(); } });
   initSupport({ ctx, $, open, head });
-  const arena = initArena({ ctx, open, head, sheet, getS: () => S, thumb: id => thumb(id) });
+  const arena = initArena({ ctx, closeAll: () => closeAll(), getS: () => S });
 
   /* ---------- Menu Nhà ---------- */
   const worldReady = () => !!S.world && (S.world.explore.some(t => t.ready && !t.claimed) || S.world.badges.some(b => !b.claimed && b.progress >= b.target));

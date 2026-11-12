@@ -889,3 +889,79 @@ body.pad :focus-visible,body.pad :focus{outline:3px solid #ff6fa8!important;outl
 .ar-move.good { border-color: #3fae6a; } .ar-move.bad { border-color: #c98a8a; opacity: .85; }
 .ar-move small { opacity: .75; }
 .ar-result { font-weight: 800; text-align: center; margin: 10px 0; }
+
+/* ================= Đấu trường (trận theo lượt) =================
+   Bảng sơn mài tối viền đồng, góc vát; chữ vàng; thanh thể lực xanh → vàng → đỏ. */
+.bt { position: fixed; inset: 0; z-index: 57; background: #0b0a14; color: #f6efe2; font-family: inherit; overflow: hidden; touch-action: manipulation; }
+.bt-cv { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.bt-dark, .bt-flash { position: absolute; inset: 0; pointer-events: none; opacity: 0; }
+.bt-dark { background: radial-gradient(ellipse at center, rgba(8, 4, 20, .35), rgba(8, 4, 20, .92)); transition: opacity .35s; }
+.bt-flash { mix-blend-mode: screen; }
+.bt-pops { position: absolute; inset: 0; pointer-events: none; }
+.bt-pop { position: absolute; transform: translate(-50%, -50%); font-weight: 900; font-size: clamp(20px, 3vw, 30px); color: #fff; text-shadow: 0 2px 0 #1a1024, 0 0 10px rgba(0,0,0,.6); -webkit-text-stroke: 1px #1a1024; animation: bt-pop 1.2s ease-out forwards; white-space: nowrap; }
+.bt-pop.super { color: #ffe066; font-size: clamp(24px, 3.6vw, 36px); }
+.bt-pop.crit { color: #ff5a4a; font-size: clamp(28px, 4.2vw, 42px); }
+.bt-pop.weak { color: #b9b4c8; font-size: clamp(16px, 2.4vw, 24px); }
+.bt-pop.heal { color: #8dff9e; }
+.bt-pop.burn { color: #ffa53a; }
+@keyframes bt-pop { 0% { opacity: 0; transform: translate(-50%, -20%) scale(.6); } 12% { opacity: 1; transform: translate(-50%, -60%) scale(1.15); } 25% { transform: translate(-50%, -70%) scale(1); } 100% { opacity: 0; transform: translate(-50%, -190%); } }
+.bt-plate { position: absolute; width: min(360px, 44vw); padding: 10px 14px 8px; background: linear-gradient(180deg, rgba(40, 22, 44, .94), rgba(20, 12, 28, .94)); border: 2px solid #c99a4a; box-shadow: 0 6px 18px rgba(0,0,0,.45), inset 0 0 0 1px rgba(255, 220, 150, .15);
+  clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px); opacity: 0; transition: opacity .4s, transform .4s; }
+.bt-plate.foe { top: 14px; left: 14px; transform: translateX(-30px); }
+.bt-plate.mine { right: 14px; bottom: calc(var(--bt-panel, 150px) + 14px); transform: translateX(30px); }
+.bt-plate.in { opacity: 1; transform: none; }
+.bt-name { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.bt-name b { font-size: 1.12rem; color: #ffe6a8; letter-spacing: .01em; }
+.bt-el { font-size: .78rem; padding: 1px 8px; border-radius: 999px; background: color-mix(in srgb, var(--el) 30%, transparent); border: 1px solid var(--el); }
+.bt-lv { margin-left: auto; font-size: .78rem; color: #d8c8a8; }
+.bt-hp { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+.bt-hp span { font-size: .72rem; font-weight: 800; color: #ffcf6a; }
+.bt-bar { flex: 1; height: 10px; border-radius: 3px; background: #1a0f1c; border: 1px solid #6b5230; overflow: hidden; }
+.bt-bar i { display: block; height: 100%; background: linear-gradient(180deg, #8af0a0, #3cbf63); }
+.bt-bar i.mid { background: linear-gradient(180deg, #ffe27a, #e0a82a); } .bt-bar i.low { background: linear-gradient(180deg, #ff8a7a, #d8392a); }
+.bt-sub { display: flex; justify-content: space-between; gap: 8px; margin-top: 4px; font-size: .8rem; color: #e8dcc8; min-height: 1.2em; }
+.bt-st { color: #ffb3c8; text-align: right; }
+.bt-field { position: absolute; top: 14px; right: 14px; padding: 6px 12px; font-size: .82rem; background: rgba(20, 12, 28, .8); border: 1px solid #c99a4a; border-radius: 999px; color: #f0e2c4; }
+.bt-panel { position: absolute; left: 0; right: 0; bottom: 0; display: grid; grid-template-columns: 1fr; gap: 10px; padding: 12px 14px calc(12px + env(safe-area-inset-bottom)); background: linear-gradient(180deg, rgba(14, 8, 20, 0), rgba(14, 8, 20, .85) 22%); }
+.bt-panel:has(.bt-cmds:not([hidden])) { grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); }
+.bt-msg { position: relative; min-height: 92px; padding: 14px 18px; background: linear-gradient(180deg, rgba(36, 20, 40, .96), rgba(18, 10, 24, .96)); border: 2px solid #c99a4a; cursor: pointer;
+  clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px); }
+.bt-text { margin: 0; font-size: clamp(15px, 1.6vw, 19px); line-height: 1.45; }
+.bt-more { position: absolute; right: 16px; bottom: 8px; color: #ffcf6a; animation: bt-bob .8s ease-in-out infinite; }
+@keyframes bt-bob { 50% { transform: translateY(3px); } }
+.bt-cmds { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+.bt-moves { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.bt-move { position: relative; display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto auto; column-gap: 8px; align-items: center; text-align: left; min-height: 64px; padding: 8px 12px 8px 10px; color: #f6efe2; font: inherit; cursor: pointer;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--el) 26%, #241430), #170d1f); border: 2px solid color-mix(in srgb, var(--el) 70%, #c99a4a); border-left-width: 6px; border-radius: 4px 14px 4px 14px; transition: transform .08s, filter .15s; }
+.bt-move:hover, .bt-move:focus-visible { filter: brightness(1.18); transform: translateY(-1px); outline: none; box-shadow: 0 0 0 3px rgba(255, 220, 140, .55); }
+.bt-move:active { transform: translateY(1px); }
+.bt-mi { grid-row: 1 / 4; font-size: 1.35rem; }
+.bt-move b { font-size: .98rem; line-height: 1.15; }
+.bt-move small { font-size: .74rem; color: #d8c8b0; }
+.bt-move em { font-style: normal; font-size: .74rem; font-weight: 800; color: #e8e0d0; }
+.bt-move em.up { color: #8dff9e; } .bt-move em.down { color: #ff9a8a; } .bt-move em.unk { color: #b8a8d8; }
+.bt-move kbd { position: absolute; top: 4px; right: 8px; font-size: .65rem; opacity: .55; font-family: inherit; }
+.bt-side { display: grid; gap: 6px; align-content: start; }
+.bt-btn { min-height: 40px; padding: 6px 12px; font: inherit; font-size: .84rem; color: #f6efe2; background: #241430; border: 1.5px solid #c99a4a; border-radius: 4px 12px 4px 12px; cursor: pointer; }
+.bt-btn:hover, .bt-btn:focus-visible { filter: brightness(1.25); outline: none; box-shadow: 0 0 0 3px rgba(255, 220, 140, .45); }
+.bt-btn.wide { width: 100%; min-height: 46px; font-weight: 800; }
+.bt-chart, .bt-result { position: absolute; inset: 0; display: grid; place-items: center; padding: 16px; background: rgba(8, 4, 16, .55); }
+.bt-chart[hidden], .bt-result[hidden] { display: none; }
+.bt-card { width: min(520px, 100%); max-height: 100%; overflow: auto; padding: 18px 20px; background: linear-gradient(180deg, #2a1830, #160c1e); border: 2px solid #c99a4a; clip-path: polygon(16px 0, 100% 0, 100% calc(100% - 16px), calc(100% - 16px) 100%, 0 100%, 0 16px); }
+.bt-card h3 { margin: 0 0 10px; color: #ffe6a8; font-size: 1.35rem; }
+.bt-card ul { margin: 0 0 10px; padding-left: 18px; line-height: 1.6; }
+.bt-note { font-size: .82rem; color: #d8c8b0; }
+.bt-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.bt-card table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: .82rem; text-align: center; }
+.bt-card th, .bt-card td { padding: 6px 4px; border: 1px solid rgba(201, 154, 74, .35); }
+.bt-card td.up { color: #8dff9e; font-weight: 800; } .bt-card td.down { color: #ff9a8a; font-weight: 800; } .bt-card td.unk { color: #8a7aa8; }
+@media (max-width: 720px), (orientation: portrait) {
+  .bt-panel:has(.bt-cmds:not([hidden])) { grid-template-columns: 1fr; }
+  .bt-plate { width: min(320px, 62vw); padding: 8px 12px 6px; }
+  .bt-plate.mine { bottom: calc(var(--bt-panel, 260px) + 10px); }
+  .bt-field { top: auto; bottom: calc(var(--bt-panel, 260px) + 10px); left: 14px; right: auto; font-size: .74rem; }
+  .bt-msg { min-height: 70px; padding: 10px 14px; }
+  .bt-cmds { grid-template-columns: 1fr; } .bt-side { grid-template-columns: repeat(3, 1fr); }
+  .bt-move { min-height: 58px; }
+}
+@media (prefers-reduced-motion: reduce) { .bt-pop { animation-duration: .01s; } .bt-more { animation: none; } }
