@@ -965,3 +965,27 @@ body.pad :focus-visible,body.pad :focus{outline:3px solid #ff6fa8!important;outl
   .bt-move { min-height: 58px; }
 }
 @media (prefers-reduced-motion: reduce) { .bt-pop { animation-duration: .01s; } .bt-more { animation: none; } }
+/* Sảnh Đấu trường */
+.bt.in-lobby .bt-plate, .bt.in-lobby .bt-panel, .bt.in-lobby .bt-field { display: none; }
+.bt-lobby { position: absolute; top: 0; right: 0; bottom: 0; width: min(440px, 100%); padding: 14px; overflow: auto; }
+.bt-lobby[hidden] { display: none; }
+.bt-card.lobby { width: 100%; max-height: none; }
+.bt-lob-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.bt-lob-head h3 { margin: 0; }
+.bt-card h4 { margin: 14px 0 6px; color: #ffe6a8; font-size: 1rem; }
+.bt-card h4 small { color: #d8c8b0; font-weight: 400; }
+.bt-who, .bt-rank { margin: 6px 0; }
+.bt-rank small { color: #d8c8b0; }
+.bt-warn { color: #ffb3a8; font-weight: 700; }
+.bt-gain { font-size: 1.15rem; font-weight: 900; color: #ffe066; margin: 6px 0; }
+.bt-up { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid rgba(201, 154, 74, .2); }
+.bt-up-n b { color: #ffe6a8; margin-left: 4px; }
+.bt-pips { display: flex; gap: 3px; } .bt-pips i { width: 10px; height: 10px; border-radius: 2px; border: 1px solid #c99a4a; transform: rotate(45deg); } .bt-pips i.on { background: #ffcf6a; }
+.bt-up .bt-btn { min-height: 44px; font-size: .78rem; }
+.bt-modes { display: grid; gap: 8px; }
+.bt-modes .bt-btn { display: grid; text-align: left; min-height: 56px; } .bt-modes small { font-weight: 400; font-size: .76rem; color: #d8c8b0; }
+.bt-btn:disabled { opacity: .45; cursor: default; filter: none; }
+.bt-friends { display: grid; gap: 6px; margin-top: 8px; }
+.bt-top { margin-top: 12px; } .bt-top summary { cursor: pointer; color: #ffe6a8; font-weight: 800; min-height: 44px; display: flex; align-items: center; }
+.bt-top ol { margin: 4px 0 0; padding-left: 22px; line-height: 1.7; } .bt-top li.me { color: #8dff9e; }
+@media (max-width: 720px), (orientation: portrait) { .bt-lobby { top: auto; height: 62%; width: 100%; } }

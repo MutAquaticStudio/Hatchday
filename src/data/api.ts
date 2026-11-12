@@ -3,6 +3,9 @@ import * as demo from './demo-api';
 import * as demoSocial from './demo-social';
 import * as demoF2P from './demo-f2p';
 import * as demoSupport from './demo-support';
+import * as demoArena from './demo-arena';
+import type { ArenaFinish, ArenaMode, ArenaResult, ArenaStart, ArenaState } from '../game/arena';
+import type { Upgrades } from '../game/battle';
 import type { ActiveEvent, EventGoal } from '../game/events';
 import type { AdState, AdTicket } from '../game/ads';
 import type { ActivityResult, MiniResult, WorldProgress } from '../game/world-activity';
@@ -236,6 +239,12 @@ export const writeGuestNote = (who: string, body: string) => (isDemo ? demoSocia
 export const getGuestNotes = (): Promise<GuestNote[]> => (isDemo ? demoSocial.getGuestNotes() : rpc<GuestNote[]>('get_guest_notes'));
 export const deleteGuestNote = (id: number) => (isDemo ? demoSocial.deleteGuestNote(id) : rpc<void>('delete_guest_note', { p_id: id }));
 export const getVisitors = (place: string): Promise<Visitor[]> => (isDemo ? demoSocial.getVisitors(place) as Promise<Visitor[]> : rpc<Visitor[]>('get_visitors', { p_place: place }));
+
+/* ---------- Đấu trường (máy chủ chọn đối thủ, sân, hạt giống; trận đánh tính ở máy) ---------- */
+export const getArenaState = (): Promise<ArenaState> => (isDemo ? demoArena.getArenaState() : rpc<ArenaState>('get_arena_state'));
+export const buyUpgrade = (stat: keyof Upgrades) => (isDemo ? demoArena.buyUpgrade(stat) : rpc<{ upgrades: Upgrades; coins: number; cost: number }>('buy_upgrade', { p_stat: stat }));
+export const arenaStart = (mode: ArenaMode, who?: string): Promise<ArenaStart> => (isDemo ? demoArena.arenaStart(mode, who) : rpc<ArenaStart>('arena_start', { p_mode: mode, p_who: who ?? null }));
+export const arenaFinish = (id: number, result: ArenaResult, turns: number | null): Promise<ArenaFinish> => (isDemo ? demoArena.arenaFinish(id, result, turns) : rpc<ArenaFinish>('arena_finish', { p_id: id, p_result: result, p_turns: turns }));
 
 /* ---------- Góp ý & Hỗ trợ; thông tin trang (ủng hộ, email liên hệ) ---------- */
 export const submitTicket = (kind: TicketKind, subject: string, body: string, meta: Record<string, unknown>) =>

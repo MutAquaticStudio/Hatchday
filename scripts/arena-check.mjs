@@ -20,7 +20,14 @@ async function session(b, vp, label, full) {
   await p.goto(U); await p.click('#demo'); await until(p, () => !!document.querySelector('#a-house'), 30000); await p.waitForTimeout(1200);
   await p.evaluate(() => { document.querySelector('.welcome [data-w="close"]')?.click(); document.querySelector('#a-house').click(); }); await p.waitForTimeout(300);
   await p.click('[data-go="arena"]');
-  ok(`${label}: mở Đấu trường thì hiện sân đấu`, await until(p, () => !document.querySelector('#battle').hidden, 5000));
+  ok(`${label}: mở Đấu trường thì hiện sảnh`, await until(p, () => window.__battle?.lobbyReady(), 60000));
+  if (full) {
+    const c0 = await p.evaluate(() => JSON.parse(localStorage.getItem('hatchday-demo')).coins);
+    await p.click('[data-up="atk"]'); await until(p, () => (window.__battle.upgrades() || {}).atk === 1, 8000);
+    const c1 = await p.evaluate(() => JSON.parse(localStorage.getItem('hatchday-demo')).coins);
+    ok(`${label}: mua Đá Mãnh Công bậc 1 trừ 100 xu`, c0 - c1 === 100 && (await p.evaluate(() => window.__battle.upgrades().atk)) === 1, `${c0} → ${c1}`);
+  }
+  await p.click(full ? '[data-mode="ranked"]' : '[data-mode="practice"]');
   const ready = await until(p, () => window.__battle.state().awaiting, 180000);
   const st = await p.evaluate(() => window.__battle.state());
   ok(`${label}: sau phần giới thiệu thì hiện 4 chiêu để chọn`, ready && st.moves === 4 && (await p.$$('.bt-move')).length === 4, JSON.stringify(st));
@@ -33,7 +40,10 @@ async function session(b, vp, label, full) {
   ok(`${label}: nút chiêu nằm trọn trong màn hình, không đè bảng thông tin, đủ cao để bấm`, lay.inside && !lay.over && lay.minH >= 44, JSON.stringify(lay));
   if (!full) {
     await p.click('[data-bt="run"]'); await p.click('[data-bt="run"]');
-    ok(`${label}: bấm Rời trận hai lần thì thoát`, await until(p, () => document.querySelector('#battle').hidden, 4000));
+    ok(`${label}: bấm Rời trận hai lần thì về sảnh`, await until(p, () => window.__battle.lobbyReady(), 30000));
+    const lob = await p.evaluate(() => { const r = document.querySelector('.bt-lobby').getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth + 0.5 && r.bottom <= innerHeight + 0.5; });
+    ok(`${label}: sảnh nằm trọn trong màn hình`, lob);
+    await p.click('[data-bt="home"]'); ok(`${label}: Về nhà thì đóng Đấu trường`, await until(p, () => document.querySelector('#battle').hidden, 4000));
     ok(`${label}: không có lỗi trang`, !errs.length, errs.join(' | '));
     return p.context().close();
   }
@@ -48,10 +58,12 @@ async function session(b, vp, label, full) {
   ok(`${label}: trận kết thúc có thắng thua`, end.over === 0 || end.over === 1 || end.over === -1, JSON.stringify(end));
   ok(`${label}: một bên về 0 thể lực hoặc hết 30 lượt`, end.hp[0] === 0 || end.hp[1] === 0 || end.turn > 30, JSON.stringify(end.hp));
   ok(`${label}: hiện màn kết quả`, await until(p, () => !document.querySelector('.bt-result').hidden, 60000));
+  const gain = await p.textContent('.bt-result .bt-gain').catch(() => '');
+  ok(`${label}: kết quả có thưởng xu và điểm xếp hạng`, /xu/.test(gain) && /🏆/.test(gain), gain);
   const jn = await p.evaluate(() => JSON.parse(localStorage.getItem('hatchday-matchups') || '[]').length);
   ok(`${label}: Sổ khắc hệ lưu cặp hệ đối thủ đã dùng (đối thủ khác hệ thì có thêm cặp mới)`, end.els[0] === end.els[1] ? jn === 5 : jn > 5, `${jn} cặp, hệ ${end.els}`);
-  await p.click('[data-bt="again"]');
-  ok(`${label}: Trận mới bắt đầu lại`, await until(p, () => window.__battle.state().turn === 1 && document.querySelector('.bt-result').hidden, 10000));
+  await p.click('[data-bt="lobby"]');
+  ok(`${label}: Về sảnh thì thấy thành tích mới`, await until(p, () => window.__battle.lobbyReady() && /Thắng|Thua/.test(document.querySelector('.bt-rank')?.textContent || ''), 30000));
   await p.evaluate(() => window.__battle.close()); await p.waitForTimeout(500);
   ok(`${label}: về nhà thì đóng Đấu trường`, await p.evaluate(() => document.querySelector('#battle').hidden));
   ok(`${label}: không có lỗi trang`, !errs.length, errs.join(' | '));
