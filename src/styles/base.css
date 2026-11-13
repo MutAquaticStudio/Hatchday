@@ -1,13 +1,33 @@
-/* Token dùng chung cho màn hình tài khoản và tạo thú (game có game.css riêng) */
+/* Design tokens dùng chung cho toàn bộ giao diện (tài khoản, tạo thú, game, Đấu trường). Một nguồn duy nhất: game.css không khai báo lại.
+   Phông chữ tự lưu ở public/fonts (index.html nạp /fonts/fonts.css) để bản Steam chạy không cần mạng. */
 :root{
-  --ink:#4a2140; --ink-soft:#7a5a78; --candy:#fff7fb; --candy-edge:#f3c4d9; --accent:#ff6fa8; --accent-deep:#e04b8b;
-  --lcd:#cfe3a8; --lcd-ink:#2f4a24; --lcd-edge:#5b4a6e; --bad:#d6336c;
-  --f-display:"Baloo 2","Nunito",system-ui,sans-serif; --f-body:"Nunito",system-ui,sans-serif;
-  color-scheme:light;
+  /* nền và bề mặt */
+  --bg:#0e1118; --panel:#161b26; --panel-2:#1f2633; --panel-3:#28303f; --panel-a:rgba(22,27,38,.92); --inv:#090c12;
+  --line:#2e3748; --line-hi:#4a5670;
+  /* chữ */
+  --text:#eef2f8; --text-2:#a9b3c6; --text-3:#8591a8;
+  /* nhấn */
+  --accent:#38e0c8; --accent-hi:#6ff0dc; --accent-deep:#1a9c8a; --accent-ink:#04201c; --accent-soft:rgba(56,224,200,.16);
+  --gold:#ffcc4d; --gold-deep:#a8781c; --gold-soft:rgba(255,204,77,.14); --danger:#ff5a5f; --ok:#5ef08a; --bad:#ff5a5f;
+  /* hệ */
+  --el-wood:#5fd35a; --el-water:#2fa8ff; --el-wind:#c9d3e0; --el-night:#9b6bff; --el-fire:#ff6a2b;
+  /* hình khối */
+  --r-sm:6px; --r-md:10px; --r-lg:14px; --r-pill:8px;
+  --edge:1.5px solid var(--line); --sh-lip:0 2px 0 rgba(0,0,0,.6); --shadow:0 2px 0 rgba(0,0,0,.6),0 8px 24px rgba(0,0,0,.5);
+  /* tên cũ (nhiều quy tắc còn dùng): trỏ sang hệ mới */
+  --ink:var(--text); --ink-soft:var(--text-2); --candy:var(--panel-a); --candy-edge:var(--line);
+  --lcd:#0b1a1c; --lcd-ink:#7df0de; --lcd-edge:#23545a;
+  --f-display:"Barlow Condensed","Be Vietnam Pro",system-ui,sans-serif; --f-body:"Be Vietnam Pro",system-ui,-apple-system,"Segoe UI",sans-serif;
+  color-scheme:dark;
 }
 *{box-sizing:border-box}
 html,body,#root{height:100%}
-body{margin:0;color:var(--ink);font-family:var(--f-body);background:#ffe6f0}
+body{margin:0;color:var(--text);font-family:var(--f-body);font-size:16px;font-weight:500;background:var(--bg)}
 button{font:inherit;color:inherit;cursor:pointer}
-button:focus-visible,input:focus-visible,a:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+button:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 [hidden]{display:none!important}
+/* Nền chung cho các màn ngoài game (đăng nhập, tạo thú, trang chủ, màn tiêu đề): tối, ánh nhấn ở mép trên, lưới mảnh */
+.screen,.landing,.title-screen{background-color:var(--bg);
+  background-image:radial-gradient(ellipse 90% 60% at 50% -10%,rgba(56,224,200,.16),transparent 62%),radial-gradient(ellipse 70% 50% at 100% 100%,rgba(155,107,255,.12),transparent 60%),
+    linear-gradient(rgba(255,255,255,.028) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.028) 1px,transparent 1px);
+  background-size:100% 100%,100% 100%,32px 32px,32px 32px}
