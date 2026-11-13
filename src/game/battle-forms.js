@@ -62,6 +62,8 @@ export const shapeOf = motif => { const k = SHAPE_OF[motif] || motif; return SHA
 export const hasShape = motif => !!SHAPES[SHAPE_OF[motif] || motif];
 export const FORM_NAMES = ['shot', 'volley', 'melee', 'ram', 'beam', 'rain', 'erupt', 'vortex', 'wave', 'swarm', 'meteor', 'roar', 'summon', 'eclipse', 'bolt', 'dive', 'flurry', 'orbit', 'burst', 'lash', 'ward', 'veil', 'aura', 'chant', 'bloom', 'rest'];
 const RAINBOW = ['#ff5a5a', '#ff9a3a', '#ffe14a', '#5fdc6a', '#4ab8ff', '#6a6aff', '#c86aff'], TRI = ['#ff6a7a', '#fff6e0', '#5fdc8a'];
+/** Hoạ tiết phóng to so với kích thước khai báo trong các dạng (máy quay rộng của Đấu trường làm hình nhỏ đi); vòng giữ đúng bán kính thật. */
+const MOTIF_SCALE = 1.45;
 const SKY_FORMS = { rain: 1, meteor: 1, bolt: 1, dive: 1, summon: 1, eclipse: 1 }, MOVERS = { melee: 1, ram: 1, dive: 1, flurry: 1 };
 
 export function makeForms(THREE, scene, H, fx, P) {
@@ -105,7 +107,7 @@ export function makeForms(THREE, scene, H, fx, P) {
     const aA = new THREE.InstancedBufferAttribute(new Float32Array(cap), 1).setUsage(THREE.DynamicDrawUsage); g.setAttribute('aA', aA);
     const mat = new THREE.ShaderMaterial({ vertexShader: SV, fragmentShader: SF, transparent: true, depthWrite: false, side: THREE.DoubleSide, fog: false, uniforms: { uC: { value: new THREE.Color(c) }, uC2: { value: new THREE.Color(c2).multiplyScalar(1.5) }, uInk: { value: new THREE.Color(ink) } } });
     const m = new THREE.InstancedMesh(g, mat, cap); m.frustumCulled = false; m.renderOrder = 19; m.count = 0; m.visible = false; scene.add(m);
-    b = { key, m, g, mat, aA, cap, live: 0, idle: 0, S: [] };
+    b = { key, m, g, mat, aA, cap, live: 0, idle: 0, S: [], k: shape === 'ring' ? 1 : MOTIF_SCALE };
     for (let i = 0; i < cap; i++) { const s = { on: false, was: false, p: V(), s: 1, sx: 1, sy: 1, roll: 0, a: 1, flat: false, kill() { if (s.on) { s.on = false; b.live--; } } }; b.S.push(s); }
     batches.set(key, b); return b;
   }
@@ -122,7 +124,7 @@ export function makeForms(THREE, scene, H, fx, P) {
       let hi = 0;
       for (let i = 0; i < b.cap; i++) { const s = b.S[i];
         if (!s.on) { if (s.was) { b.m.setMatrixAt(i, ZERO); s.was = false; } continue; }
-        hi = i + 1; _qz.setFromAxisAngle(ZAX, s.roll); _q.copy(s.flat ? FLATQ : cq).multiply(_qz); _s.set(s.s * s.sx, s.s * s.sy, 1); _m.compose(s.p, _q, _s); b.m.setMatrixAt(i, _m); b.aA.array[i] = s.a; s.was = true; }
+        hi = i + 1; _qz.setFromAxisAngle(ZAX, s.roll); _q.copy(s.flat ? FLATQ : cq).multiply(_qz); _s.set(s.s * s.sx * b.k, s.s * s.sy * b.k, 1); _m.compose(s.p, _q, _s); b.m.setMatrixAt(i, _m); b.aA.array[i] = s.a; s.was = true; }
       b.m.count = hi; b.m.visible = hi > 0; b.m.instanceMatrix.needsUpdate = true; b.aA.needsUpdate = true;
     }
   }

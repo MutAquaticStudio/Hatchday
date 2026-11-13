@@ -449,6 +449,7 @@ export function initArena({ ctx, closeAll, getS }) {
     demoTick: (kind, who = 1) => R.fx.tick(who ? B.theirs : B.mine, kind),
     demoEnter: (who = 1) => R.fx.enter(who ? B.theirs : B.mine, (who ? B.foe : B.me).element),
     demoFaint: async (who = 1) => { const s = who ? B.theirs : B.mine; await R.fx.faint(s, (who ? B.foe : B.me).element); s.k = 1; s.tilt = 0; s.off.set(0, 0, 0); },
+    /** đổi sân đang đấu (xem hiệu ứng trên đủ 5 sân) */ setArena: i => { R.scene.remove(B.stage.group); B.stage = useStage(i); B.field = i; },
     fxStats: () => R.fx.stats(),
     setSpeed: k => { R.fx.timeScale = k; },
     setReduce: v => { R.fx.reduce = !!v; },
