@@ -482,6 +482,7 @@ function lighten(hex, k) {
 export function disposePet(group) {
   group.traverse(o => {
     if (!o.isMesh) return;
+    if (o.isSkinnedMesh) o.skeleton?.dispose(); // xương của quái thú (lưới thì nằm trong bộ nhớ đệm dựng hình, tải lại khi dùng lại)
     o.geometry?.dispose();
     if (!o.userData.outline) (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => m?.dispose());
   });

@@ -57,6 +57,9 @@ const INK_GLSL = `
     #endif
     #ifdef USE_SKINNING
       inkN = transformedNormal;
+      #ifdef FLIP_SIDED
+        inkN = - inkN; // vỏ mặt sau: three đã lật pháp tuyến, lật lại để đẩy ra ngoài
+      #endif
     #else
       #ifdef USE_INSTANCING
         mat3 inkIm = mat3( instanceMatrix );

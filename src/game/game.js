@@ -1401,4 +1401,5 @@ setPresence('home');
 const achievementTick = () => syncAchievements({ bondXp: S.bondXp, generation: S.generation, stage: S.stage, seen: S.seen || [], badges: S.world?.badges || [] });
 setTimeout(achievementTick, 3000); setInterval(achievementTick, 15000);
 initGamepad();
+if (DEV) window.__scene = () => ({ scene, renderer, camera });
 if (DEV) window.__look = (species, stage, form) => { S.species = species; S.stage = stage; S.form = form || null; buildLook(); };

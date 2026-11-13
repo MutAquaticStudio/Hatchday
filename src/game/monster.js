@@ -427,7 +427,6 @@ export function makeMonsterBuilder(K) {
     const px = skinned(R.loGeo, proxyMat, skel, R); px.userData.cast = true; px.userData.noRecv = true; px.userData.shadowProxy = true; px.castShadow = true;
     px.onBeforeShadow = () => { R.loGeo.drawRange.start = 0; }; px.onBeforeRender = () => { R.loGeo.drawRange.start = 1e9; };
     root.add(cel, inkO, px);
-    { const g = R.geo, off = () => { g.removeEventListener('dispose', off); skel.dispose(); }; g.addEventListener('dispose', off); }
     into.add(root);
     return { body: anchor, ears, top: topG, tail, arms, feet, anim, sockets, flicker: false, headY: R.headTop + R.hover, mouth: [R.mouth.x, R.mouth.y + R.hover, R.mouth.z], center: [0, R.sy + R.hover, 0], plan: 'thu4', stage, species: sp };
   }
