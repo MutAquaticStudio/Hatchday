@@ -35,13 +35,15 @@ export function hdThree(T) {
   class CapsuleGeometry extends T.CapsuleGeometry { constructor(r = 1, h = 1, cs = 4, rs = 8, ...a) { const r2 = segs(r, rs); super(r, h, r2 > rs ? Math.max(cs, Math.round(r2 / 3)) : cs, r2, ...a); } }
   class LatheGeometry extends T.LatheGeometry { constructor(pts, n = 12, ...a) { let r = 0.1; if (pts) for (const p of pts) r = Math.max(r, Math.abs(p.x)); super(pts, segs(r, n), ...a); } }
   class TubeGeometry extends T.TubeGeometry { constructor(path, ts = 64, r = 1, rs = 8, closed = false) { const k = fine(); super(path, k ? Math.round(ts * (k > 1 ? 2 : 1.5)) : ts, r, k && rs >= 5 ? Math.max(rs, Math.round(segs(r, 8) * 0.75)) : rs, closed); } }
+  class ExtrudeGeometry extends T.ExtrudeGeometry { constructor(sh, o = {}) { const k = fine(); super(sh, k ? { ...o, curveSegments: Math.max(o.curveSegments ?? 12, Math.round(18 * k)), bevelSegments: o.bevelEnabled === false ? o.bevelSegments : Math.max(o.bevelSegments ?? 3, k > 1 ? 4 : 3) } : o); } }
+  class ShapeGeometry extends T.ShapeGeometry { constructor(sh, cs = 12) { super(sh, fine() ? Math.max(cs, Math.round(18 * fine())) : cs); } }
   /** Hộp bo cạnh: chỉ áp cho hộp đặc cỡ đồ vật (không chia đoạn, không quá mỏng, không phải tường/sàn lớn). */
   function BoxGeometry(w = 1, h = 1, d = 1, sw = 1, sh = 1, sd = 1) {
     const k = fine(), mn = Math.min(w, h, d), mx = Math.max(w, h, d);
     if (!k || sw > 1 || sh > 1 || sd > 1 || !(mn >= 0.02) || mx > 5) return new T.BoxGeometry(w, h, d, sw, sh, sd);
     const g = new RoundedBoxGeometry(w, h, d, k > 1 ? 2 : 1, Math.min(0.035, mn * 0.22)); g.type = 'BoxGeometry'; g.parameters = { width: w, height: h, depth: d, widthSegments: 1, heightSegments: 1, depthSegments: 1 }; return g;
   }
-  H = { ...T, SphereGeometry, CylinderGeometry, ConeGeometry, CircleGeometry, RingGeometry, TorusGeometry, CapsuleGeometry, LatheGeometry, TubeGeometry, BoxGeometry, RAW: T };
+  H = { ...T, SphereGeometry, CylinderGeometry, ConeGeometry, CircleGeometry, RingGeometry, TorusGeometry, CapsuleGeometry, LatheGeometry, TubeGeometry, ExtrudeGeometry, ShapeGeometry, BoxGeometry, RAW: T };
   wrapped.set(T, H); wrapped.set(H, H); return H;
 }
 
