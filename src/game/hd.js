@@ -16,21 +16,21 @@ export const setTier = t => { if (t) TIER = t; };
 export const fine = () => (TIER === 'thap' ? 0 : TIER === 'vua' ? 1 : 1.4);
 /** Chọn giá trị theo tầng: pick(thấp, vừa, cao). */
 export const pick = (lo, mid, hi) => (TIER === 'thap' ? lo : TIER === 'vua' ? mid : hi);
-/** Số múi quanh trục cho khối tròn bán kính r mà mã gốc xin n múi. */
-export function segs(r, n) {
-  const k = fine(); if (!k || !(n >= 7)) return n;
+/** Số múi quanh trục cho khối tròn bán kính r mà mã gốc xin n múi (n < min giữ nguyên: đa giác có chủ ý). */
+export function segs(r, n, min = 7) {
+  const k = fine(); if (!k || !(n >= min)) return n;
   return Math.max(n, Math.min(64, Math.round(k * (8 + 24 * Math.sqrt(Math.min(Math.abs(r) || 0.1, 2.5))))));
 }
 
 const wrapped = new WeakMap();
 export function hdThree(T) {
   let H = wrapped.get(T); if (H) return H;
-  const up = (r, n, def) => segs(r, n === undefined ? def : n);
-  class SphereGeometry extends T.SphereGeometry { constructor(r = 1, w = 32, h = 16, ...a) { const w2 = segs(r, w); super(r, w2, w2 > w ? Math.min(48, Math.max(h, Math.round(h * w2 / w))) : h, ...a); } }
+  const up = (r, n, def) => segs(r, n === undefined ? def : n, 5);   // 5–6 múi (cột, cuống, cà rốt) cũng làm tròn; ≤ 4 là chóp/cột vuông có chủ ý
+  class SphereGeometry extends T.SphereGeometry { constructor(r = 1, w = 32, h = 16, ...a) { const w2 = segs(r, w, 4); super(r, w2, w2 > w ? Math.min(48, Math.max(h, Math.round(h * w2 / w))) : h, ...a); } }
   class CylinderGeometry extends T.CylinderGeometry { constructor(rt = 1, rb = 1, h = 1, n, ...a) { super(rt, rb, h, up(Math.max(rt, rb), n, 32), ...a); } }
   class ConeGeometry extends T.ConeGeometry { constructor(r = 1, h = 1, n, ...a) { super(r, h, up(r, n, 32), ...a); } }
-  class CircleGeometry extends T.CircleGeometry { constructor(r = 1, n, ...a) { super(r, up(r, n, 32), ...a); } }
-  class RingGeometry extends T.RingGeometry { constructor(ri = 0.5, ro = 1, n, ...a) { super(ri, ro, up(ro, n, 32), ...a); } }
+  class CircleGeometry extends T.CircleGeometry { constructor(r = 1, n, ...a) { super(r, segs(r, n ?? 32), ...a); } }
+  class RingGeometry extends T.RingGeometry { constructor(ri = 0.5, ro = 1, n, ...a) { super(ri, ro, segs(ro, n ?? 32), ...a); } }
   class TorusGeometry extends T.TorusGeometry { constructor(R = 1, tube = 0.4, rs = 12, ts = 48, ...a) { super(R, tube, fine() && rs >= 5 ? Math.max(rs, Math.round(segs(tube, 8) * 0.75)) : rs, segs(R, ts), ...a); } }
   class CapsuleGeometry extends T.CapsuleGeometry { constructor(r = 1, h = 1, cs = 4, rs = 8, ...a) { const r2 = segs(r, rs); super(r, h, r2 > rs ? Math.max(cs, Math.round(r2 / 3)) : cs, r2, ...a); } }
   class LatheGeometry extends T.LatheGeometry { constructor(pts, n = 12, ...a) { let r = 0.1; if (pts) for (const p of pts) r = Math.max(r, Math.abs(p.x)); super(pts, segs(r, n), ...a); } }
@@ -60,7 +60,7 @@ const INK_GLSL = `
     #ifdef USE_SKINNING
       inkN = transformedNormal;
       #ifdef FLIP_SIDED
-        inkN = - inkN; // vỏ mặt sau: three đã lật pháp tuyến, lật lại để đẩy ra ngoài
+        inkN = - inkN; // BackSide: three flipped the normal, flip back to push outward
       #endif
     #else
       #ifdef USE_INSTANCING
