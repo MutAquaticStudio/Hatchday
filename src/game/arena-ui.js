@@ -450,6 +450,7 @@ export function initArena({ ctx, closeAll, getS }) {
     demoEnter: (who = 1) => R.fx.enter(who ? B.theirs : B.mine, (who ? B.foe : B.me).element),
     demoFaint: async (who = 1) => { const s = who ? B.theirs : B.mine; await R.fx.faint(s, (who ? B.foe : B.me).element); s.k = 1; s.tilt = 0; s.off.set(0, 0, 0); },
     /** đổi sân đang đấu (xem hiệu ứng trên đủ 5 sân) */ setArena: i => { R.scene.remove(B.stage.group); B.stage = useStage(i); B.field = i; },
+    /** thời lượng dự kiến (giây, ×1) của chiêu theo công thức */ plan: (speciesId, idx) => moveDuration(recipeOf(movesOf(speciesId)[idx]), 1),
     fxStats: () => R.fx.stats(),
     setSpeed: k => { R.fx.timeScale = k; },
     setReduce: v => { R.fx.reduce = !!v; },

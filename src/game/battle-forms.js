@@ -105,7 +105,7 @@ export function makeForms(THREE, scene, H, fx, P) {
     const key = shape + c + c2 + ink; let b = batches.get(key); if (b) return b;
     const src = motifGeo(shape), g = new THREE.BufferGeometry(), cap = Q.sprites; g.setAttribute('position', src.pos); g.setAttribute('aK', src.k); g.setIndex(src.idx);
     const aA = new THREE.InstancedBufferAttribute(new Float32Array(cap), 1).setUsage(THREE.DynamicDrawUsage); g.setAttribute('aA', aA);
-    const mat = new THREE.ShaderMaterial({ vertexShader: SV, fragmentShader: SF, transparent: true, depthWrite: false, side: THREE.DoubleSide, fog: false, uniforms: { uC: { value: new THREE.Color(c) }, uC2: { value: new THREE.Color(c2).multiplyScalar(1.5) }, uInk: { value: new THREE.Color(ink) } } });
+    const mat = new THREE.ShaderMaterial({ vertexShader: SV, fragmentShader: SF, transparent: true, depthWrite: false, side: THREE.DoubleSide, fog: false, uniforms: { uC: { value: new THREE.Color(c) }, uC2: { value: new THREE.Color(c2).multiplyScalar(1.15) }, uInk: { value: new THREE.Color(ink) } } });
     const m = new THREE.InstancedMesh(g, mat, cap); m.frustumCulled = false; m.renderOrder = 19; m.count = 0; m.visible = false; scene.add(m);
     b = { key, m, g, mat, aA, cap, live: 0, idle: 0, S: [], k: shape === 'ring' ? 1 : MOTIF_SCALE };
     for (let i = 0; i < cap; i++) { const s = { on: false, was: false, p: V(), s: 1, sx: 1, sy: 1, roll: 0, a: 1, flat: false, kill() { if (s.on) { s.on = false; b.live--; } } }; b.S.push(s); }
@@ -232,7 +232,7 @@ export function makeForms(THREE, scene, H, fx, P) {
     H.sfx(c.snd, { pitch: c.pitch });
     for (let i = 0; i < n; i++) after(i / n * span, () => { const lead = i === leadI, r = lead ? 0 : rand(0.2, 1.1), an = rand(0, TAU), to = V(d.pos.x + Math.cos(an) * r, lead ? d.center().y : H.ground + 0.08, d.pos.z + Math.sin(an) * r), from = top ? top.clone().add(jit(0.5)) : to.clone().add(slant).add(V(0, 4.8, 0)), s = spr(R.motif, colOf(R, i), R.c2);
       if (i % 3 === 0) H.sfx('tick', { pitch: rand(0.8, 1.5), gain: 0.5 });
-      toss(s, from, to, fall, { ease: E.in2, s0: 0.2 * R.s * (0.8 + c.cls * 0.15), trail: i % 2 || n < 12 ? colOf(R, i) : null, tw: 0.1, spin: R.motif === 'star' || R.motif === 'cloud' ? 6 : 0, end: p => { gring(p, R.c2, 0.1, 0.5, 0.25); if (i % 2) emit({ at: p, n: 3, radial: true, up: 0.8, color: R.c2, color2: R.c, speed: [1, 2.2], gravity: 6, life: [0.2, 0.4], size: [0.12, 0.04], blend: 'alpha' }); } }); });
+      toss(s, from, to, fall, { ease: E.in2, s0: 0.3 * R.s * (0.8 + c.cls * 0.15), trail: i % 3 === 0 || n < 10 ? colOf(R, i) : null, tw: 0.08, spin: R.motif === 'star' || R.motif === 'cloud' ? 6 : 0, end: p => { gring(p, R.c2, 0.1, 0.5, 0.25); if (i % 2) emit({ at: p, n: 3, radial: true, up: 0.8, color: R.c2, color2: R.c, speed: [1, 2.2], gravity: 6, life: [0.2, 0.4], size: [0.12, 0.04], blend: 'alpha' }); } }); });
     return wait(act);
   };
   F.erupt = async c => {
@@ -248,7 +248,7 @@ export function makeForms(THREE, scene, H, fx, P) {
       if (kd === 'lava') decal(d.pos, 4, 2.2);
       for (let i = 0; i < Math.round(8 * Q.n); i++) after(rand(0, grow + 0.2), () => { const s = spr(R.motif, i % 2 ? R.c : R.c2, R.ac), p0 = at.clone().add(V(rand(-0.4, 0.4), 0, rand(-0.4, 0.4))); toss(s, p0, p0.clone().add(V(rand(-0.9, 0.9), h + rand(0.3, 1.4), rand(-0.9, 0.9))), 0.45, { ease: E.out3, s0: 0.3, s1: 0.05 }); });
     } else if (kd === 'tree') {
-      const tk = new THREE.Mesh(P.G.cyl8, H.kit.cel('#7a5634')); tk.add(new THREE.Mesh(P.G.cyl8, H.kit.inkM(0.03))); tk.position.copy(at); tk.scale.setScalar(0.001); scene.add(tk); const crown = [], life = grow + 0.75, hh = h + 1.4;
+      const tk = new THREE.Mesh(P.G.cyl8, H.kit.cel('#7a5634')); tk.add(new THREE.Mesh(P.G.cyl8, H.kit.inkM(0.03))); at.add(tv.copy(d.pos).sub(H.camPos()).setY(0).normalize().multiplyScalar(d.r + 0.25)); tk.position.copy(at); /* thân cây mọc ngay sau lưng đối thủ (không che người) rồi hất tung lên */ tk.scale.setScalar(0.001); scene.add(tk); const crown = [], life = grow + 0.75, hh = h + 1.4;
       for (let i = 0; i < 5; i++) { const m = new THREE.Mesh(P.G.ico, H.kit.cel(i % 2 ? R.c : '#2f8a3a')); m.add(new THREE.Mesh(P.G.ico, H.kit.inkM(0.03))); m.scale.setScalar(0.001); scene.add(m); crown.push({ m, o: i ? V(Math.cos(i * 1.6) * 0.75, rand(-0.25, 0.3), Math.sin(i * 1.6) * 0.75) : V(0, 0.35, 0), r: i ? rand(0.6, 0.8) : 1.0 }); }
       tween(life, u => { const t = u * life, g = E.back(Math.min(1, t / grow)), out = t > life - 0.25 ? (life - t) / 0.25 : 1, y = hh * g * out; tk.scale.set(0.26 * out + 0.001, Math.max(0.01, y), 0.26 * out + 0.001); tk.position.y = H.ground + y / 2; crown.forEach(({ m, o, r }, i) => { const cg = E.back(Math.min(1, Math.max(0, (t - grow * 0.55 - i * 0.03) / 0.22))) * out; m.scale.setScalar(Math.max(0.001, r * cg)); m.position.set(at.x + o.x * cg, H.ground + y + o.y, at.z + o.z * cg); }); d.off.y = 0.9 * E.bell(t / life); }, () => { scene.remove(tk); crown.forEach(x => scene.remove(x.m)); d.off.y = 0; });
       after(grow * 0.8, () => { for (let i = 0; i < Math.round(14 * Q.n); i++) { const s = spr('leaf', i % 2 ? R.c : R.c2, R.ac), p0 = at.clone().add(V(rand(-1, 1), hh + rand(-0.3, 0.6), rand(-1, 1))); toss(s, p0, p0.clone().add(V(rand(-1.6, 1.6), -hh * rand(0.5, 1), rand(-1.6, 1.6))), rand(0.7, 1.1), { ease: E.out, s0: 0.2, s1: 0.1, spin: rand(-6, 6), side: rand(-0.6, 0.6) }); } });
@@ -316,7 +316,7 @@ export function makeForms(THREE, scene, H, fx, P) {
     tween(life, u => { const t = u * life, g = t < act ? E.io(t / act) : 1 - E.in2((t - act) / 0.22); sph.position.copy(to); rim.position.copy(to); rim.quaternion.copy(H.camQuat()); sph.scale.setScalar(Math.max(0.01, r * g)); const rr = r * (1.9 - 0.8 * Math.min(1, t / act)) * (t < act ? 1 : 1 + (t - act) * 9); rim.scale.set(rr, rr, 1.2 + 3 * (1 - g)); rim.material.opacity = t < act ? 1 : Math.max(0, 1 - (t - act) / 0.22);
       moon.p.copy(from).lerp(to, E.io(Math.min(1, t / act))); moon.s = 0.5 * (t < act ? 1 : Math.max(0, 1 - (t - act) / 0.1)); d.shake = 0.03 * g; }, () => { free(sph); free(rim); moon.kill(); d.shake = 0; H.ui.darken(c.cls === 2 ? 0.3 : 0); });
     emit({ at: i => to.clone().add(V(Math.cos(i * 1.3) * 2.2, rand(-0.6, 1.2), Math.sin(i * 1.3) * 2.2)), n: 16, to, life: act * 0.9, color: '#1a0a2a', color2: R.c, size: [0.5, 0.15], blend: 'alpha', alpha: 0.85, arc: 0, wobble: 0.2, stagger: 0.02 });
-    await wait(act); gring(to, R.c2, 0.3, 3.4, 0.4, { flat: false });
+    await wait(act); gring(to, R.c, 0.3, 2.2, 0.35, { flat: false });
   };
   F.bolt = async c => {
     const { d, R, act } = c, n = R.n || 1, at = groundAt(d.pos), pillar = R.k === 'pillar', line = mesh('cyl', R.c, 0.75); line.scale.setScalar(0.001); H.sfx('beamUp', { pitch: c.pitch * 1.3 });
@@ -448,7 +448,7 @@ export function makeForms(THREE, scene, H, fx, P) {
       for (let i = 0; i < 4; i++) after(0.1 + i * 0.07, () => puff('spark', a.center().add(jit(a.r)), '#ffffff', '#c8f2ff', 0.34, 0.3, { spin: 6 }));
       return tween(0.45, u => { s.p.set(a.pos.x, a.pos.y + 0.05 + E.io(u) * (a.h + 0.2), a.pos.z); s.s = (a.r * 1.5 + 0.3) * (0.8 + 0.3 * Math.sin(u * Math.PI)); s.a = 1 - u * u; }, () => s.kill()); },
     /** Chí mạng: sao bốn cánh dài xé ngang + vòng đôi. */
-    crit(at, c) { const s = spr('spark', '#fff2a0', '#ffffff', '#ff5a2a'), s2 = spr('spark', '#ffffff', '#ffffff', c); s.p.copy(at); s2.p.copy(at); s2.roll = Math.PI / 4; s.s = s2.s = 0; tween(0.34, u => { const k = u < 0.2 ? E.back(u / 0.2) : 1 - E.in2((u - 0.2) / 0.8); s.s = 2.3 * k; s.sx = 0.55; s2.s = 1.3 * k; s.roll = 0.2 + u * 0.3; }, () => { s.kill(); s2.kill(); }); gring(at, '#fff2a0', 0.3, 2.4, 0.3, { flat: false }); gring(at, '#ff5a2a', 0.2, 1.7, 0.36, { flat: false }); },
+    crit(at, c) { const s = spr('spark', '#fff2a0', '#ffffff', '#ff5a2a'), s2 = spr('spark', '#ffffff', '#ffffff', c); s.p.copy(at); s2.p.copy(at); s2.roll = Math.PI / 4; s.s = s2.s = 0; tween(0.34, u => { const k = u < 0.2 ? E.back(u / 0.2) : 1 - E.in2((u - 0.2) / 0.8); s.s = 1.25 * k; s.sx = 0.5; s2.s = 0.7 * k; s.roll = 0.2 + u * 0.3; }, () => { s.kill(); s2.kill(); }); gring(at, '#ff5a2a', 0.3, 1.9, 0.3, { flat: false }); },
   };
 
   /* ---------- gây trạng thái · trạng thái cuối lượt · ra sân · gục ---------- */
@@ -520,8 +520,8 @@ export function makeForms(THREE, scene, H, fx, P) {
     rune(a.pos, R.c, 1.8, T * 0.8, 0.3); const n = low ? 5 : 9, sp = [];
     for (let i = 0; i < n; i++) { const s = spr(R.motif, colOf(R, i), R.c2); s.s = 0; sp.push(s); }
     const rel = T * 0.86; windup(a, rel, 1.4);
-    await tween(rel, u => { const sq = E.in2(u); sp.forEach((s, i) => { const an = u * 9 + i / n * TAU, r = 2.3 - 2.0 * sq; s.p.set(a.pos.x + Math.cos(an) * r, a.pos.y + 0.2 + (i / n) * (a.h + 0.6) * (0.4 + 0.6 * u), a.pos.z + Math.sin(an) * r); s.s = 0.3 * Math.min(1, u * 5) * (1 - sq * 0.4); s.roll = an; }); a.shake = 0.035 * u; });
-    sp.forEach(s => s.kill()); a.shake = 0; H.sfx('release'); pow(ce, R.c2, 1.5, 0.3, R.c); gring(ce, R.c, 0.4, 3.0, 0.4, { flat: false }); gring(a.pos, R.c2, 0.4, 3.4, 0.45); H.ui.flash(R.c, 0.3, 0.18); H.cam.shake(0.35);
+    await tween(rel, u => { const sq = E.in2(u); sp.forEach((s, i) => { const an = u * 9 + i / n * TAU, r = 2.3 - 2.0 * sq; s.p.set(a.pos.x + Math.cos(an) * r, a.pos.y + 0.2 + (i / n) * (a.h + 0.6) * (0.4 + 0.6 * u), a.pos.z + Math.sin(an) * r); s.s = 0.2 * Math.min(1, u * 5) * (1 - sq * 0.4); s.roll = an; }); a.shake = 0.035 * u; });
+    sp.forEach(s => s.kill()); a.shake = 0; H.sfx('release'); pow(ce, R.c, 0.75, 0.26, R.c2); gring(ce, R.c, 0.4, 1.7, 0.32, { flat: false, a: 0.8 }); gring(a.pos, R.c, 0.4, 3.0, 0.45); H.ui.flash(R.c, 0.3, 0.18); H.cam.shake(0.35);
     H.cam.shot(SKY_FORMS[R.form] ? 'sky' : 'wide'); H.ui.darken(0.3);
     await wait(T - rel);
   }

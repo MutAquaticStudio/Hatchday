@@ -1,6 +1,6 @@
 // Dải khung hình hiệu ứng chiêu thức (trình xem ?dev của Đấu trường): mỗi chiêu chụp 8 khung trải đều trên thời lượng của nó,
 // ghép thành một ảnh 4×2 để xem nhịp (lấy đà → hành động → trúng → dư âm), độ rõ trên từng sân, rác hình còn sót.
-// Chạy sau `npm run build`: node scripts/vfx-strips.mjs [thư-mục-ra] [lọc-tên]   (mặc định ./vfx-strips)
+// Chạy sau `npm run build`: node scripts/vfx-strips.mjs [thư-mục-ra] [lọc: tên chiêu hoặc khoảng số thứ tự 0-19] [cổng]   (mặc định ./vfx-strips)
 // Kèm kiểm tra: thời lượng đo được ≤ trần sổ tay (docs/VFX-STYLE-GUIDE.md), không lỗi trang, hiệu ứng tự dọn sau khi xong.
 import { createRequire } from 'node:module';
 import http from 'node:http';
@@ -8,7 +8,7 @@ import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'no
 import { extname, join } from 'node:path';
 const { chromium } = createRequire(import.meta.url)('playwright');
 const root = new URL('../dist/', import.meta.url).pathname, types = { '.js': 'text/javascript', '.css': 'text/css', '.html': 'text/html', '.svg': 'image/svg+xml' };
-const PORT = 4591, OUT = process.argv[2] || 'vfx-strips', ONLY = process.argv[3] || '';
+const PORT = +(process.argv[4] || 4591), OUT = process.argv[2] || 'vfx-strips', ONLY = process.argv[3] || '';
 const srv = http.createServer((q, r) => { let f = join(root, decodeURIComponent(q.url.split('?')[0])); if (!existsSync(f) || statSync(f).isDirectory()) f = join(root, 'index.html'); r.setHeader('content-type', types[extname(f)] || 'application/octet-stream'); r.end(readFileSync(f)); }).listen(PORT);
 const until = async (p, fn, ms = 10000) => { const t = Date.now(); while (Date.now() - t < ms) { if (await p.evaluate(fn).catch(() => false)) return true; await p.waitForTimeout(60); } return false; };
 
@@ -25,7 +25,7 @@ const SAMPLE = [
 (async () => {
   mkdirSync(OUT, { recursive: true });
   const b = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
-  const ctx = await b.newContext({ viewport: { width: 1280, height: 720 } }), p = await ctx.newPage(), errs = [], report = [];
+  const ctx = await b.newContext({ viewport: { width: 960, height: 540 } }), p = await ctx.newPage(), errs = [], report = [];
   p.on('pageerror', e => errs.push(e.message)); p.on('console', m => { if (m.type() === 'error') errs.push(m.text()); });
   const U = `http://localhost:${PORT}/?dev&weather=clear`;
   await p.goto(U); await p.click('#demo'); await p.click('button[type=submit]').catch(() => {}); await until(p, () => !!document.querySelector('#a-house'), 30000);
@@ -43,12 +43,10 @@ const SAMPLE = [
   }, { imgs, label });
 
   for (const [sp, idx, arena, o = {}] of SAMPLE) {
-    const id = `${sp}-${idx + 1}`; if (ONLY && !id.includes(ONLY)) continue;
+    const id = `${sp}-${idx + 1}`, k = SAMPLE.findIndex(x => x[0] === sp && x[1] === idx), rg = /^(\d+)-(\d+)$/.exec(ONLY);
+    if (rg ? k < +rg[1] || k > +rg[2] : ONLY && !id.includes(ONLY)) continue;
     await p.evaluate(a => window.__battle.setArena(a), arena);
-    // lượt "khô" để dựng hình quái thú của loài và đo thời lượng
-    const dry = await p.evaluate(([sp, idx, o]) => window.__battle.demoMove(sp, idx, o), [sp, idx, o]);
-    await p.waitForTimeout(300);
-    const span = 0.28 + dry.t + 0.15, frames = [];
+    const plan = await p.evaluate(([sp, idx]) => window.__battle.plan(sp, idx), [sp, idx]), span = 0.28 + plan + 0.15, frames = [];
     await p.evaluate(([sp, idx, o, first]) => { window.__battle.holdIn(first); window.__demo = window.__battle.demoMove(sp, idx, o); }, [sp, idx, o, 0.28 + 0.06]);
     let at = 0.34;
     for (let i = 0; i < 8; i++) {
@@ -56,8 +54,8 @@ const SAMPLE = [
       frames.push({ png: (await p.screenshot()).toString('base64'), t: at - 0.28 });
       const next = 0.28 + 0.06 + (span - 0.34) * (i + 1) / 7; await p.evaluate(dt => { window.__battle.resume(); if (dt > 0) window.__battle.holdIn(dt); }, i < 7 ? next - at : 0); at = next;
     }
-    await p.evaluate(() => { window.__battle.resume(); return window.__demo; });
-    const name = `${String(report.length + 1).padStart(2, '0')}-${id}-${dry.form}-${dry.motif}.png`, label = `${dry.name} · ${id} · ${dry.form}/${dry.motif} · sân ${arena} · ${dry.t.toFixed(2)} s / trần ${dry.budget} s`;
+    const dry = await p.evaluate(() => { window.__battle.resume(); return window.__demo; });
+    const name = `${String(k + 1).padStart(2, '0')}-${id}-${dry.form}-${dry.motif}.png`, label = `${dry.name} · ${id} · ${dry.form}/${dry.motif} · sân ${arena} · ${dry.t.toFixed(2)} s / trần ${dry.budget} s`;
     writeFileSync(join(OUT, name), Buffer.from(await compose(frames, label), 'base64'));
     report.push(`${dry.t <= dry.budget + 0.45 ? 'OK  ' : 'FAIL'} ${id.padEnd(16)} ${(dry.form + '/' + dry.motif).padEnd(18)} đo ${dry.t.toFixed(2)} s · kế hoạch ${dry.plan.toFixed(2)} s · trần ${dry.budget} s · ${name}`);
     await p.waitForTimeout(200);

@@ -22,8 +22,11 @@ export function makeFx(THREE, scene, H) {
 
   /* ---------- đồng hồ và tác vụ theo thời gian ---------- */
   const tasks = new Set(), run = [];
+  // Nhịp chính xác: tác vụ nối tiếp (await tween → tween mới) được tạo giữa hai khung hình nên nhận lại phần thời gian
+  // tác vụ trước đã chạy lố trong khung vừa rồi (carry), để chuỗi pha không trễ thêm một khung mỗi bước.
+  let carry = 0;
   /** Chạy fn(u, dt) trong `dur` giây (u từ 0 tới 1); trả về Promise khi xong. */
-  const tween = (dur, fn, end) => new Promise(res => tasks.add({ t: 0, dur: Math.max(1e-4, dur), fn, end, res }));
+  const tween = (dur, fn, end) => new Promise(res => tasks.add({ t: carry, dur: Math.max(1e-4, dur), fn, end, res }));
   const wait = s => tween(s);
   const easeOut = u => 1 - (1 - u) * (1 - u), back = u => { const c = 1.7; return 1 + (c + 1) * Math.pow(u - 1, 3) + c * Math.pow(u - 1, 2); };
 
@@ -198,7 +201,7 @@ export function makeFx(THREE, scene, H) {
   function impact(a, d, el, { power = 1, cls, crit = false, mult = 1, onHit, pitch = 1, final = true } = {}) {
     const E = ELEMENT_FX[el], at = d.center(), tier = cls ?? (power >= 2 ? 2 : power >= 1.4 ? 1 : 0), big = power * (mult > 1.15 ? 1.2 : 1) * (crit ? 1.3 : 1) * (final ? 1 : 0.8);
     onHit?.();
-    burst(at, E.c, 0.8 * big, 0.3); flash(at, E.c2, 0.7 * big, 0.2); forms.gring(at, E.c2, 0.3, 1.4 * big, 0.28, { flat: false }); ring(d.pos.clone().setY(H.ground + 0.03), E.c, 0.3, 1.6 * big, 0.45);
+    burst(at, E.c, 0.8 * big, 0.3); flash(at, E.c, 0.45 * big, 0.16); forms.gring(at, E.c, 0.3, 1.2 * big, 0.26, { flat: false }); ring(d.pos.clone().setY(H.ground + 0.03), E.c, 0.3, 1.6 * big, 0.45);
     emit({ at, n: 14 * big, radial: true, color: E.c, color2: E.c2, speed: [3, 6.5], drag: 4, life: [0.25, 0.45], size: [0.22, 0.05], shape: 1, blend: 'alpha' });
     emit({ at, n: 6 * big, radial: true, color: '#ffffff', speed: [4, 7], drag: 4, life: [0.2, 0.32], size: [0.12, 0.03], shape: 1, hdr: 1.4 });
     if (el === 1) emit({ at, n: 16, radial: true, up: 0.8, color: '#9fdcff', color2: '#e8f8ff', speed: [2.5, 5], gravity: 9, life: [0.5, 0.8], size: [0.12, 0.06], shape: 4, blend: 'alpha' });
@@ -255,8 +258,9 @@ export function makeFx(THREE, scene, H) {
     for (const k in SYS) SYS[k].m.uniforms.uScale.value = sizeK;
     if (fx.freeze > 0) { fx.freeze -= realDt; return 0; }
     const dt = realDt * fx.timeScale; clock += dt;
-    run.length = 0; for (const k of tasks) run.push(k);
-    for (let i = 0; i < run.length; i++) { const k = run[i]; k.t += dt; const u = Math.min(1, k.t / k.dur); try { k.fn?.(u, dt); } catch (e) { console.error(e); } if (u >= 1) { tasks.delete(k); try { k.end?.(); } catch (e) { console.error(e); } k.res(); } }
+    run.length = 0; for (const k of tasks) run.push(k); carry = 0; let over = 0;
+    for (let i = 0; i < run.length; i++) { const k = run[i]; k.t += dt; const u = Math.min(1, k.t / k.dur); try { k.fn?.(u, dt); } catch (e) { console.error(e); } if (u >= 1) { over = Math.max(over, Math.min(dt, k.t - k.dur)); tasks.delete(k); try { k.end?.(); } catch (e) { console.error(e); } k.res(); } }
+    carry = over;
     stepParticles(dt); forms.stepSprites(dt);
     return dt;
   }

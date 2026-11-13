@@ -59,7 +59,7 @@ export const QUALITY = {
 /** Hoạ tiết: hình khối cel (xem MOTIF_SHAPES ở battle-forms.js). c/c2 là màu riêng nếu không theo màu hệ; snd là tiếng lúc phóng. */
 export const MOTIFS: Record<string, { c?: string; c2?: string; snd: string }> = {
   leaf: { snd: 'leaf' }, petal: { c: '#ffb0d0', c2: '#fff0f6', snd: 'leaf' }, grain: { c: '#f2c64a', c2: '#fff3b0', snd: 'pluck' }, thorn: { snd: 'pluck' },
-  flower: { c: '#ffd84a', c2: '#fff6c0', snd: 'chime' }, lotus: { c: '#ff9ac0', c2: '#fff0f6', snd: 'chime' }, bee: { c: '#ffc21e', c2: '#fff3b0', snd: 'buzz' }, tree: { c: '#3fa04a', c2: '#b8f08a', snd: 'thump' },
+  flower: { c: '#ffd84a', c2: '#fff6c0', snd: 'chime' }, lotus: { c: '#ff9ac0', c2: '#fff0f6', snd: 'chime' }, bee: { c: '#ffc21e', c2: '#2a1808', snd: 'buzz' }, tree: { c: '#3fa04a', c2: '#b8f08a', snd: 'thump' },
   antler: { c: '#c89a5a', c2: '#fff0c8', snd: 'swish' }, drop: { snd: 'water' }, bubble: { c: '#8fd8ff', c2: '#ffffff', snd: 'bubble' }, pearl: { c: '#f4ecff', c2: '#ffffff', snd: 'chime' },
   shell: { c: '#e8c8a8', c2: '#fff4e4', snd: 'thump' }, scale: { c: '#2a8aff', c2: '#b8f0ff', snd: 'swish' }, crest: { snd: 'swish' }, cloud: { c: '#f4faff', c2: '#ffffff', snd: 'gust' },
   feather: { c: '#f4faff', c2: '#ffffff', snd: 'flap' }, kite: { c: '#ff5a4a', c2: '#ffe08a', snd: 'gust' }, star: { c: '#ffe45a', c2: '#fffbe0', snd: 'chime' }, spark: { c: '#fff6b0', c2: '#ffffff', snd: 'chime' },
