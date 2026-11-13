@@ -171,3 +171,10 @@ export function spireGeo(THREE, seed = 0) {
   for (let i = 0; i < rs; i++) idx.push(hs * rs + i, tip, hs * rs + (i + 1) % rs);
   g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals(); g.computeBoundingSphere(); geoCache.set(ck, g); return g;
 }
+
+/** Tinh thể cắt mặt (đá quý): lăng trụ hai chóp có vành vát, `sides` mặt, mặt phẳng sắc (cố ý có cạnh), cao 2, bán kính 0.62. */
+export function gemGeo(THREE, sides = 8) {
+  const T = THREE.RAW || THREE, ck = 'gem' + sides; let g = geoCache.get(ck); if (g) return g;
+  const P = [[0, -1], [0.5, -0.32], [0.62, -0.06], [0.6, 0.18], [0.42, 0.62], [0.12, 0.94], [0, 1]].map(([x, y]) => new T.Vector2(x, y));
+  g = new T.LatheGeometry(P, sides).toNonIndexed(); g.computeVertexNormals(); g.computeBoundingSphere(); geoCache.set(ck, g); return g;
+}

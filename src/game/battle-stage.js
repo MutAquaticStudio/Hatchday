@@ -3,6 +3,8 @@
 // năm trụ ngũ hành mang tinh thể năm màu (trụ cùng hệ với sân sáng hơn), cờ hai bên, bầu trời và hạt bay theo cảnh.
 // Luật sân (chiêu cùng hệ mạnh thêm 10%) ở battle.ts. Sân được dựng một lần rồi dùng lại.
 import { _t } from '../i18n';
+import { hdThree, inkMaterial, inkNormals, rockGeo as hdRock, blobGeo, spireGeo, gemGeo, pick } from './hd.js';
+import { bakeStatic } from './places/world.js';
 
 export const ARENAS = [
   { el: 0, name: _t('Rừng Cổ Thụ'), sky: ['#7fc6ff', '#ffe9b8', '#5a8f4a'], fog: '#cfe6c0', stone: '#b9b29a', line: '#6f6450', glow: '#7dff8a', sun: '#fff1d6', hemi: ['#d9f2ff', '#4f6b3a'], key: 2.4 },
@@ -15,25 +17,23 @@ const ELC = ['#5fd068', '#3fb2ff', '#9ee8ff', '#9a5cff', '#ff6a1a'];
 
 const h1 = n => { const s = Math.sin(n * 127.1 + 311.7) * 43758.5453; return s - Math.floor(s); };
 
-export function makeStageKit(THREE) {
+export function makeStageKit(THREE0) {
+  const THREE = hdThree(THREE0);   // khối tròn nhiều múi theo tầng chất lượng (hd.js)
   const ramp = new THREE.DataTexture(new Uint8Array([120, 120, 130, 255, 196, 196, 204, 255, 255, 255, 255, 255]), 3, 1, THREE.RGBAFormat);
   ramp.minFilter = ramp.magFilter = THREE.NearestFilter; ramp.needsUpdate = true;
   const mats = new Map(), inks = new Map();
   /** Vật liệu cel theo màu (dùng chung). */
   const cel = (color, o = {}) => { const k = color + JSON.stringify(o); let m = mats.get(k); if (!m) { m = new THREE.MeshToonMaterial({ color, gradientMap: ramp, ...o }); mats.set(k, m); } return m; };
-  /** Viền mực: vỏ mặt sau đẩy theo pháp tuyến (độ dày theo đơn vị thế giới). */
-  const inkM = (t, col = '#1a1424') => { const k = t + col; let m = inks.get(k); if (!m) { m = new THREE.MeshBasicMaterial({ color: col, side: THREE.BackSide }); m.onBeforeCompile = sh => { sh.vertexShader = sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>\n transformed += normalize( normal ) * ${t.toFixed(4)};`); }; m.customProgramCacheKey = () => 'stage-ink' + k; inks.set(k, m); } return m; };
+  /** Viền mực dùng chung (hd.js): độ dày theo màn hình, không phình khi vật bị phóng to. `t` là độ dày cũ tính theo đơn vị thế giới (0.03 = nét chuẩn). */
+  const inkM = (t, col = '#1a1424') => inkMaterial(THREE, col, { k: t / 0.03 });
+  const inkS = (t, col = '#1a1424') => inkMaterial(THREE, col, { k: t / 0.03, smooth: true });
   function put(parent, geo, mat, { x = 0, y = 0, z = 0, ink = 0.03, shadow = true, recv = true } = {}) {
     const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = shadow; m.receiveShadow = recv; parent.add(m);
-    if (ink) { const o = new THREE.Mesh(geo, inkM(ink)); o.raycast = () => {}; m.add(o); }
+    if (ink) { inkNormals(THREE, geo); const o = new THREE.Mesh(geo, inkS(ink)); o.raycast = () => {}; m.add(o); }
     return m;
   }
-  /** Khối đá méo (icosahedron dời đỉnh) cho vách, tảng, mỏm. */
-  function rockGeo(seed, det = 1) {
-    const g = new THREE.IcosahedronGeometry(1, det), p = g.attributes.position, v = new THREE.Vector3();
-    for (let i = 0; i < p.count; i++) { v.fromBufferAttribute(p, i); const k = 0.78 + 0.32 * h1(Math.round(v.x * 5 + v.y * 9 + v.z * 13) + seed * 7.3); v.multiplyScalar(k); p.setXYZ(i, v.x, v.y, v.z); }
-    g.computeVertexNormals(); return g;
-  }
+  /** Tảng đá / vách / mỏm: khối tròn chia nhỏ, vạt mặt và dời theo nhiễu, pháp tuyến mượt (hd.js). `det` cũ giữ chữ ký, không còn dùng. */
+  const rockGeo = seed => hdRock(THREE, Math.round(seed) % 24);
 
   /* ---------- mặt sàn: hoa văn trống đồng ---------- */
   function drumTex(A) {
@@ -95,8 +95,8 @@ export function makeStageKit(THREE) {
   /* ---------- đồ dựng theo cảnh ---------- */
   function tree(par, x, z, s, A) {
     const t = new THREE.Group(); t.position.set(x, 0, z); t.scale.setScalar(s); t.rotation.y = h1(x * 3 + z) * 6; par.add(t);
-    put(t, new THREE.CylinderGeometry(0.28, 0.5, 4, 9), cel('#6b4a34'), { y: 2, ink: 0.04 });
-    [[0, 4.6, 0, 1.9], [-1.0, 3.9, 0.4, 1.3], [1.0, 4.0, -0.3, 1.4], [0.2, 5.6, 0.1, 1.3]].forEach(([a, b, c, r], i) => { const m = put(t, rockGeo(i + x, 1), cel(['#4f9a4a', '#5fb05a', '#468a44', '#6cc066'][i]), { x: a, y: b, z: c, ink: 0.05 }); m.scale.setScalar(r); });
+    put(t, new THREE.CylinderGeometry(0.28, 0.5, 4, 9, pick(1, 4, 6)), cel('#6b4a34'), { y: 2, ink: 0.04 });
+    [[0, 4.6, 0, 1.9], [-1.0, 3.9, 0.4, 1.3], [1.0, 4.0, -0.3, 1.4], [0.2, 5.6, 0.1, 1.3]].forEach(([a, b, c, r], i) => { const m = put(t, blobGeo(THREE, (i * 5 + Math.round(Math.abs(x) * 3)) % 12, { lumps: 12, amp: 0.34 }), cel(['#4f9a4a', '#5fb05a', '#468a44', '#6cc066'][i]), { x: a, y: b, z: c, ink: 0.05 }); m.scale.setScalar(r); });
   }
   function column(par, x, z, h, broken, col) {
     const g = new THREE.Group(); g.position.set(x, 0, z); par.add(g);
@@ -114,18 +114,18 @@ export function makeStageKit(THREE) {
     // bệ đá và mặt trống đồng
     const topM = new THREE.MeshToonMaterial({ color: '#ffffff', map: tex.map, gradientMap: ramp, emissive: '#ffffff', emissiveMap: tex.emissive, emissiveIntensity: 0.12 }); glowMats.push(topM);
     const plat = new THREE.Mesh(new THREE.CylinderGeometry(4.9, 5.15, gy, 72), [cel(A.stone), topM, cel(A.stone)]); plat.position.y = gy / 2; plat.receiveShadow = true; plat.castShadow = true; G.add(plat);
-    { const o = new THREE.Mesh(plat.geometry, inkM(0.04)); plat.add(o); }
+    { inkNormals(THREE, plat.geometry); const o = new THREE.Mesh(plat.geometry, inkS(0.04)); plat.add(o); }
     put(G, new THREE.TorusGeometry(4.98, 0.11, 8, 96), cel('#b88a3a'), { y: gy, ink: 0.02 }).rotation.x = Math.PI / 2;
     for (let i = 0; i < 36; i++) { const a = i / 36 * Math.PI * 2, b = put(G, new THREE.BoxGeometry(0.9, 0.42, 0.55), cel(i % 2 ? A.stone : A.line), { x: Math.cos(a) * 5.45, y: 0.12, z: Math.sin(a) * 5.45, ink: 0.025 }); b.rotation.y = -a; b.scale.y = 0.7 + h1(i) * 0.5; }
     // năm trụ ngũ hành phía sau
     const pillars = [];
     ELC.forEach((c, i) => { const a = Math.PI * (1.12 + i * 0.19), x = Math.cos(a) * 6.6, z = Math.sin(a) * 6.6, P = column(G, x, z, 2.6 + (i === 2 ? 0.6 : 0), false, A.stone);
       const cm = new THREE.MeshToonMaterial({ color: c, gradientMap: ramp, emissive: c, emissiveIntensity: i === el ? 1.4 : 0.45 }); glowMats.push(cm);
-      const cr = put(P, new THREE.OctahedronGeometry(0.42, 0), cm, { y: 3.75 + (i === 2 ? 0.6 : 0), ink: 0.025 }); cr.scale.y = 1.6; pillars.push(cr); });
+      const cr = put(P, gemGeo(THREE, 8), cm, { y: 3.75 + (i === 2 ? 0.6 : 0), ink: 0.025 }); cr.scale.set(0.62, 0.67, 0.62); cr.userData.keep = true; pillars.push(cr); });
     anim.push(t => pillars.forEach((p, i) => { p.rotation.y = t * 0.6 + i; p.position.y += Math.sin(t * 1.5 + i) * 0.002; }));
     // cờ hai bên
     [-1, 1].forEach(s => { const x = s * 6.2, z = 1.8; put(G, new THREE.CylinderGeometry(0.07, 0.09, 5.2, 8), cel('#5a3a24'), { x, y: 2.6, z, ink: 0.02 });
-      const fl = new THREE.Group(); fl.position.set(x + s * 0.06, 4.5, z); G.add(fl); const cloth = put(fl, new THREE.PlaneGeometry(1.1, 2.4, 1, 8), cel(ELC[el], { side: THREE.DoubleSide }), { x: s * 0.6, y: -1.0, ink: 0 });
+      const fl = new THREE.Group(); fl.userData.keep = true; fl.position.set(x + s * 0.06, 4.5, z); G.add(fl); const cloth = put(fl, new THREE.PlaneGeometry(1.1, 2.4, pick(1, 6, 10), pick(8, 20, 32)), cel(ELC[el], { side: THREE.DoubleSide }), { x: s * 0.6, y: -1.0, ink: 0 });
       anim.push(t => { const p = cloth.geometry.attributes.position; for (let i = 0; i < p.count; i++) p.setZ(i, Math.sin(t * 2.4 + p.getY(i) * 2 + s) * 0.12 * (1 - (p.getY(i) + 1.2) / 2.4)); p.needsUpdate = true; }); });
 
     // cảnh nền
@@ -153,10 +153,10 @@ export function makeStageKit(THREE) {
     }
     if (el === 2) {
       put(G, new THREE.CylinderGeometry(5.6, 9, 8, 14), cel('#9a9488'), { y: -4.1, ink: 0.05 });
-      for (let i = 0; i < 60; i++) { const a = h1(i * 2) * Math.PI * 2, r = 9 + h1(i * 3) * 26, c = put(G, new THREE.IcosahedronGeometry(1, 1), cel(i % 3 ? '#ffffff' : '#e6eeff'), { x: Math.cos(a) * r, y: -3 - h1(i * 5) * 2, z: Math.sin(a) * r, ink: 0, shadow: false }); c.scale.set(3 + h1(i) * 4, 1.4 + h1(i * 7), 3 + h1(i * 9) * 4); }
-      for (let i = 0; i < 6; i++) { const a = Math.PI * (1.1 + i * 0.16), r = 13 + h1(i) * 5, R = new THREE.Group(); R.position.set(Math.cos(a) * r, 3 + h1(i * 3) * 4, Math.sin(a) * r); G.add(R); const b = put(R, rockGeo(i + 40, 1), cel('#9a9488'), { ink: 0.05 }); b.scale.set(1.8, 1.2, 1.6); put(R, new THREE.CylinderGeometry(1.7, 1.6, 0.3, 10), cel('#7fc06a'), { y: 1.1, ink: 0.03 }); anim.push(t => { R.position.y += Math.sin(t * 0.8 + i) * 0.003; }); }
+      for (let i = 0; i < 60; i++) { const a = h1(i * 2) * Math.PI * 2, r = 9 + h1(i * 3) * 26, c = put(G, blobGeo(THREE, 30 + i % 8, { lumps: 9, amp: 0.4 }), cel(i % 3 ? '#ffffff' : '#e6eeff'), { x: Math.cos(a) * r, y: -3 - h1(i * 5) * 2, z: Math.sin(a) * r, ink: 0, shadow: false }); c.scale.set(3 + h1(i) * 4, 1.4 + h1(i * 7), 3 + h1(i * 9) * 4); }
+      for (let i = 0; i < 6; i++) { const a = Math.PI * (1.1 + i * 0.16), r = 13 + h1(i) * 5, R = new THREE.Group(); R.userData.keep = true; R.position.set(Math.cos(a) * r, 3 + h1(i * 3) * 4, Math.sin(a) * r); G.add(R); const b = put(R, rockGeo(i + 40, 1), cel('#9a9488'), { ink: 0.05 }); b.scale.set(1.8, 1.2, 1.6); put(R, new THREE.CylinderGeometry(1.7, 1.6, 0.3, 10), cel('#7fc06a'), { y: 1.1, ink: 0.03 }); anim.push(t => { R.position.y += Math.sin(t * 0.8 + i) * 0.003; }); }
       // dây cờ cầu phúc
-      [-1, 1].forEach(s => { const flags = new THREE.Group(); G.add(flags); for (let i = 0; i < 9; i++) { const u = i / 8, f = put(flags, new THREE.PlaneGeometry(0.42, 0.5), cel(ELC[i % 5], { side: THREE.DoubleSide }), { x: s * (6.2 - u * 0.2), y: 4.7 - Math.sin(u * Math.PI) * 0.8, z: 1.8 - u * 9, ink: 0, shadow: false }); f.rotation.y = Math.PI / 2; anim.push(t => { f.rotation.x = Math.sin(t * 3 + i) * 0.3; }); } });
+      [-1, 1].forEach(s => { const flags = new THREE.Group(); flags.userData.keep = true; G.add(flags); for (let i = 0; i < 9; i++) { const u = i / 8, f = put(flags, new THREE.PlaneGeometry(0.42, 0.5), cel(ELC[i % 5], { side: THREE.DoubleSide }), { x: s * (6.2 - u * 0.2), y: 4.7 - Math.sin(u * Math.PI) * 0.8, z: 1.8 - u * 9, ink: 0, shadow: false }); f.rotation.y = Math.PI / 2; anim.push(t => { f.rotation.x = Math.sin(t * 3 + i) * 0.3; }); } });
       G.add(motes(60, { color: '#ffffff', size: 0.12, area: [30, 8, 30], rise: 0.0, sway: 3.0 }));
     }
     if (el === 3) {
@@ -165,8 +165,9 @@ export function makeStageKit(THREE) {
       { const arch = put(G, new THREE.TorusGeometry(3.2, 0.42, 10, 24, Math.PI), cel('#8a86a8'), { x: 0, y: 5.6, z: -12.4, ink: 0.04 }); arch.scale.y = 0.9; }
       const moon = new THREE.Mesh(new THREE.CircleGeometry(4.2, 48), new THREE.MeshBasicMaterial({ color: new THREE.Color(2.2, 2.2, 2.6), fog: false })); moon.position.set(-14, 16, -40); moon.lookAt(0, 2, 0); G.add(moon);
       [5.2, 6.6].forEach((r, i) => { const h = new THREE.Mesh(new THREE.CircleGeometry(r, 48), new THREE.MeshBasicMaterial({ color: '#8a90ff', transparent: true, opacity: 0.18 - i * 0.07, fog: false, depthWrite: false })); h.position.set(-14, 16, -40.2 - i * 0.1); h.lookAt(0, 2, 0); G.add(h); });
-      for (let i = 0; i < 12; i++) { const a = Math.PI * (0.95 + h1(i) * 1.1), r = 7 + h1(i * 3) * 6, cm = new THREE.MeshToonMaterial({ color: '#b48cff', gradientMap: ramp, emissive: '#7a4cff', emissiveIntensity: 0.9 }); glowMats.push(cm);
-        const c = put(G, new THREE.OctahedronGeometry(0.5, 0), cm, { x: Math.cos(a) * r, y: 0.5, z: Math.sin(a) * r, ink: 0.02 }); c.scale.set(0.6, 1.8 + h1(i) * 1.5, 0.6); c.rotation.z = (h1(i * 5) - 0.5) * 0.6; }
+      const cm = new THREE.MeshToonMaterial({ color: '#b48cff', gradientMap: ramp, emissive: '#7a4cff', emissiveIntensity: 0.9 }); glowMats.push(cm);
+      for (let i = 0; i < 12; i++) { const a = Math.PI * (0.95 + h1(i) * 1.1), r = 7 + h1(i * 3) * 6;
+        const c = put(G, gemGeo(THREE, 6), cm, { x: Math.cos(a) * r, y: 0.5, z: Math.sin(a) * r, ink: 0.02 }); c.scale.set(0.5, 0.45 * (1.8 + h1(i) * 1.5), 0.5); c.rotation.z = (h1(i * 5) - 0.5) * 0.6; }
       G.add(motes(120, { color: '#c8b0ff', size: 0.07, area: [30, 9, 30], rise: 0.25, sway: 0.5 }));
     }
     if (el === 4) {
@@ -176,11 +177,13 @@ export function makeStageKit(THREE) {
             vec3 c = mix( vec3( 1.6, 0.9, 0.15 ), vec3( 0.55, 0.12, 0.05 ), smoothstep( 0.08, 0.5, m ) ); gl_FragColor = vec4( c, 1.0 ); }` });
       const lava = new THREE.Mesh(new THREE.CircleGeometry(60, 64).rotateX(-Math.PI / 2), lm); lava.position.y = -0.3; G.add(lava); anim.push(t => { lm.uniforms.uT.value = t; });
       put(G, new THREE.CylinderGeometry(5.6, 6.6, 1.0, 16), cel('#3a2c2c'), { y: -0.45, ink: 0.04 });
-      for (let i = 0; i < 16; i++) { const a = Math.PI * (0.9 + h1(i) * 1.2), r = 11 + h1(i * 2) * 10, s = put(G, new THREE.ConeGeometry(1.4 + h1(i) * 1.4, 4 + h1(i * 3) * 7, 7), cel(i % 2 ? '#3a2c2c' : '#4a3634'), { x: Math.cos(a) * r, y: 2, z: Math.sin(a) * r, ink: 0.05 }); s.position.y = s.geometry.parameters.height / 2 - 0.5; }
+      for (let i = 0; i < 16; i++) { const a = Math.PI * (0.9 + h1(i) * 1.2), r = 11 + h1(i * 2) * 10, rw = 1.4 + h1(i) * 1.4, rh = 4 + h1(i * 3) * 7, s = put(G, spireGeo(THREE, i % 10), cel(i % 2 ? '#3a2c2c' : '#4a3634'), { x: Math.cos(a) * r, y: -0.5, z: Math.sin(a) * r, ink: 0.05 }); s.scale.set(rw, rh, rw); s.rotation.y = h1(i * 7) * 6; }
       for (let i = 0; i < 18; i++) { const a = h1(i * 13) * Math.PI * 2, r = 7.2 + h1(i * 17) * 6, b = put(G, rockGeo(i + 60, 0), cel('#2c2222'), { x: Math.cos(a) * r, y: -0.1, z: Math.sin(a) * r, ink: 0.03 }); b.scale.set(0.8 + h1(i) * 0.8, 0.5, 0.8 + h1(i + 2) * 0.8); }
       G.add(motes(140, { color: '#ffb040', size: 0.08, area: [28, 10, 28], rise: 0.9, sway: 0.35 }));
     }
 
+    // gộp đồ tĩnh cùng vật liệu (cây, đá, bậc, trụ, viền mực…) thành ít lưới: giảm lệnh vẽ để có chỗ cho khối mịn hơn
+    bakeStatic(THREE, G); G.traverse(o => { if (o.userData.baked && !o.userData.outline) { o.castShadow = true; o.receiveShadow = true; } });
     const sk = sky(A, el === 3); G.add(sk);
     const hemi = new THREE.HemisphereLight(A.hemi[0], A.hemi[1], el === 3 ? 0.95 : 1.1); G.add(hemi);
     const key = new THREE.DirectionalLight(A.sun, A.key * 0.8); key.position.set(el === 3 ? -6 : 6, 10, 6); key.castShadow = true; key.shadow.mapSize.set(2048, 2048); Object.assign(key.shadow.camera, { left: -8, right: 8, top: 8, bottom: -8, near: 1, far: 30 }); key.shadow.bias = -0.0006; key.shadow.normalBias = 0.03; G.add(key); G.add(key.target);
