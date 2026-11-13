@@ -949,7 +949,10 @@ body.pad :focus-visible,body.pad :focus{outline:3px solid var(--accent)!importan
 .bt-side { display: grid; gap: 6px; align-content: start; }
 .bt-btn { min-height: 40px; padding: 6px 12px; font: inherit; font-size: .84rem; color: var(--text); background: var(--panel-2); border: 1.5px solid var(--line-hi); border-radius: var(--r-md); box-shadow: var(--sh-lip); cursor: pointer; }
 .bt-btn:hover, .bt-btn:focus-visible { filter: brightness(1.25); outline: none; box-shadow: 0 0 0 3px rgba(56, 224, 200, .5); }
-.bt-btn.wide { width: 100%; min-height: 46px; font-weight: 700; background: var(--accent); color: var(--accent-ink); border-color: var(--accent-deep); box-shadow: 0 2px 0 var(--accent-deep); }
+.bt-btn.wide { width: 100%; min-height: 46px; font-weight: 700; }
+/* nút chính: nền nhấn chữ mực tối (nút đầu của hàng kết quả, Xếp hạng); nút còn lại là nút viền */
+.bt-row .bt-btn.wide:first-child, .bt-modes [data-mode="ranked"], .bt-card > .bt-btn.wide:last-child { background: var(--accent); color: var(--accent-ink); border-color: var(--accent-deep); box-shadow: 0 2px 0 var(--accent-deep); }
+.bt-modes [data-mode="ranked"] small { color: var(--accent-ink); opacity: .85; }
 .bt-chart, .bt-result { position: absolute; inset: 0; display: grid; place-items: center; padding: 16px; background: rgba(6, 8, 13, .8); }
 .bt-chart[hidden], .bt-result[hidden] { display: none; }
 .bt-card { width: min(520px, 100%); max-height: 100%; overflow: auto; padding: 18px 20px; background: var(--panel); border: 1.5px solid var(--line-hi); border-top: 2px solid var(--gold); border-radius: var(--r-lg); box-shadow: var(--shadow); }
