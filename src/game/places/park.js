@@ -10,7 +10,7 @@ import { rockGeo } from '../hd.js';
 export function initPark(c) {
   const { THREE, add, toon, canvasTex, scene } = c, kit = makeKit(c, { cull: true });
   const g = new THREE.Group(); g.visible = false; scene.add(g);
-  const world = makeWorld(c, g), props = makeProps({ THREE, add, toon, canvasTex, kit, world });
+  const world = makeWorld(c, g), props = makeProps({ THREE, add, toon, canvasTex, kit, world, glowMat: c.glowMat });
   const shared = makeShared(c, { placeId: 'park', group: g });
   const grass = canvasTex(128, 128, d => { d.fillStyle = '#b6e89a'; d.fillRect(0, 0, 128, 128); d.fillStyle = '#9ed97e'; for (let i = 0; i < 50; i++) d.fillRect((i * 41) % 128, (i * 59) % 128, 3, 7); d.fillStyle = '#fff6b0'; for (let i = 0; i < 6; i++) d.fillRect((i * 67) % 128, (i * 43) % 128, 3, 3); }, [14, 10]);
   const pathTex = canvasTex(64, 64, d => { d.fillStyle = '#f3e3c3'; d.fillRect(0, 0, 64, 64); d.fillStyle = '#e4cfa6'; for (let i = 0; i < 14; i++) d.fillRect((i * 23) % 64, (i * 37) % 64, 4, 3); }, [10, 1]);
@@ -132,7 +132,7 @@ export function initPark(c) {
   world.zone({ id: 'core', core: true, cx: 0, cz: 0, build(z) {
     add(z, new THREE.BoxGeometry(46, 0.4, 32), toon('#ffffff', grass), 0, -0.2, 0, '#6aa05a', 0.03);
     // lối đi vòng quanh đồng cỏ
-    const ring = new THREE.Mesh(new THREE.RingGeometry(5.2, 6.4, 48), new THREE.MeshToonMaterial({ color: '#f3e3c3', gradientMap: c.grad })); ring.rotation.x = -Math.PI / 2; ring.position.set(0, 0.03, 0.8); ring.scale.y = 0.8; z.add(ring);
+    const ring = new THREE.Mesh(new THREE.RingGeometry(5.2, 6.4, 48), toon('#f3e3c3')); ring.rotation.x = -Math.PI / 2; ring.position.set(0, 0.03, 0.8); ring.scale.y = 0.8; z.add(ring);
     add(z, new THREE.BoxGeometry(34, 0.08, 1.6), toon('#ffffff', pathTex), 0, 0.03, 6.8, null);
     // cây lớn giữa đồng cỏ
     props.trees(z, [{ x: 0, z: -1.5, s: 1.9 }, { x: -3.4, z: -3.4, s: 1.2 }, { x: 3.6, z: -3.2, s: 1.1 }]);
@@ -160,7 +160,7 @@ export function initPark(c) {
     add(gate, new THREE.BoxGeometry(4.0, 0.5, 0.5), toon('#ffb3c9'), 0, 3.0, 0, '#a8507a', 0.03);
     const sg = kit.sign(_t('← Quảng trường'), 2.4, 0.5, '#fff0f6', '#8a3a5a', 30); sg.position.set(0, 3.0, 0.28); gate.add(sg);
     kit.hotspot({ id: 'go-plaza', label: _t('Quảng trường'), at: [-17.5, 3.9, 4.5], stand: [-15.5, 4.5], act: () => c.goTo('plaza') }, gate);
-    butterflies = Array.from({ length: Math.round(6 * dens) }, (_, i) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(0.22, 0.16), new THREE.MeshBasicMaterial({ color: ['#ff9ec4', '#ffd36e', '#c9a6ff'][i % 3], side: THREE.DoubleSide })); m.userData = { keep: true, ph: i * 1.3, cx: -8 + i * 3, cz: -2 + (i % 3) * 2 }; z.add(m); return m; });
+    butterflies = Array.from({ length: Math.round(6 * dens) }, (_, i) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(0.22, 0.16), new THREE.MeshBasicMaterial({ color: ['#38e0c8', '#ffcc4d', '#9b6bff'][i % 3], side: THREE.DoubleSide })); m.userData = { keep: true, ph: i * 1.3, cx: -8 + i * 3, cz: -2 + (i % 3) * 2 }; z.add(m); return m; });
     { // diều bay trên trời phía bắc, dây buộc vào cọc sau lùm cây
       add(z, new THREE.CylinderGeometry(0.05, 0.06, 0.6, 6), toon('#a8744a'), -7.5, 0.3, -7.6, null);
       kite = new THREE.Group(); kite.userData.keep = true; kite.position.set(-10, 8.2, -15); z.add(kite);

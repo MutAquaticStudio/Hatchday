@@ -7,6 +7,7 @@
 import { _t } from '../../i18n';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { inkFor } from '../hd.js';
+import { gradeInk, gradeTex } from '../grade.js';
 const BUDGET_MS = 4;
 
 /**
@@ -55,12 +56,12 @@ export function makeWorld(c, group) {
   function scatter(parent, geometry, material, items, outline = '#6a4a5a', thick = 0.04) {
     if (!items.length) return null;
     if (c.noOutline) outline = null; // chế độ Điện ảnh không dùng nét viền
-    const n = items.length, m = new THREE.InstancedMesh(geometry, material, n), o = outline ? new THREE.InstancedMesh(geometry, inkFor(THREE, geometry, outline, thick / 0.03), n) : null;   // viền chung (hd.js): dày đều theo màn hình, không phình theo tỉ lệ vật
+    const n = items.length, m = new THREE.InstancedMesh(geometry, material, n), o = outline ? new THREE.InstancedMesh(geometry, inkFor(THREE, geometry, gradeInk(outline), thick / 0.03), n) : null;   // viền chung (hd.js): dày đều theo màn hình, không phình theo tỉ lệ vật
     items.forEach((it, i) => {
       const sx = it.sx ?? it.s ?? 1, sy = it.sy ?? it.s ?? 1, sz = it.sz ?? it.s ?? 1;
       dummy.position.set(it.x, it.y ?? 0, it.z); dummy.rotation.set(it.rx ?? 0, it.ry ?? 0, it.rz ?? 0); dummy.scale.set(sx, sy, sz); dummy.updateMatrix(); m.setMatrixAt(i, dummy.matrix);
       if (o) o.setMatrixAt(i, dummy.matrix);
-      if (it.color) m.setColorAt(i, color.set(it.color));
+      if (it.color) m.setColorAt(i, color.set(gradeTex(it.color)));
     });
     m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true;
     m.castShadow = false; m.receiveShadow = true; m.userData.instanced = true; parent.add(m);
@@ -106,7 +107,7 @@ export function makeWorld(c, group) {
 
 /** Đom đóm ban đêm: các chấm sáng bay lượn trong hình chữ nhật (x0,x1,z0,z1); ban ngày ẩn. Trả về hàm update(t, night). */
 export function makeFireflies(THREE, parent, box, n = 14) {
-  const m = new THREE.InstancedMesh(new THREE.SphereGeometry(0.06, 6, 5), new THREE.MeshBasicMaterial({ color: '#fff3a0', transparent: true, opacity: 0.9 }), n), d = new THREE.Object3D(), ph = Array.from({ length: n }, (_, i) => ({ a: i * 1.7, x: box.x0 + ((i * 37) % 100) / 100 * (box.x1 - box.x0), z: box.z0 + ((i * 59) % 100) / 100 * (box.z1 - box.z0) }));
+  const m = new THREE.InstancedMesh(new THREE.SphereGeometry(0.06, 6, 5), new THREE.MeshBasicMaterial({ color: '#7ff5d6', transparent: true, opacity: 0.9 }), n), d = new THREE.Object3D(), ph = Array.from({ length: n }, (_, i) => ({ a: i * 1.7, x: box.x0 + ((i * 37) % 100) / 100 * (box.x1 - box.x0), z: box.z0 + ((i * 59) % 100) / 100 * (box.z1 - box.z0) }));
   m.visible = false; m.frustumCulled = false; parent.add(m);
   return (t, night) => {
     m.visible = night; if (!night) return;
@@ -116,7 +117,7 @@ export function makeFireflies(THREE, parent, box, n = 14) {
 }
 
 /** Bộ vật trang trí dùng chung (nhận { THREE, add, toon, canvasTex, kit, world }). Mỗi hàm thêm vào `g` và trả về nhóm. */
-export function makeProps({ THREE, add, toon, canvasTex, kit, world }) {
+export function makeProps({ THREE, add, toon, canvasTex, kit, world, glowMat }) {
   const rnd = (seed => () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; });
   const trees = (g, items, palette = ['#7edb72', '#6fcf6a', '#8be07a']) => {
     const trunk = world.geo('trunk', () => new THREE.CylinderGeometry(0.16, 0.24, 1.2, 8)), ball = world.geo('ball', () => new THREE.SphereGeometry(1, 12, 10));
@@ -146,7 +147,7 @@ export function makeProps({ THREE, add, toon, canvasTex, kit, world }) {
     add(l, new THREE.CylinderGeometry(0.06, 0.09, 2.3, 8), toon('#7a6a8a'), 0, 1.4, 0, '#443', 0.02);
     add(l, new THREE.TorusGeometry(0.1, 0.03, 6, 14), toon('#ffd36e'), 0, 1.1, 0, null).rotation.x = Math.PI / 2;
     add(l, new THREE.CylinderGeometry(0.17, 0.08, 0.1, 4), toon('#6a5a7a'), 0, 2.46, 0, '#3a3044', 0.015).rotation.y = Math.PI / 4;
-    const bulb = add(l, new THREE.SphereGeometry(0.17, 12, 10), new THREE.MeshBasicMaterial({ color: '#fff3c4' }), 0, 2.66, 0, null); bulb.userData.lamp = true; lamps.push(bulb);
+    const bulb = add(l, new THREE.SphereGeometry(0.17, 12, 10), new THREE.MeshBasicMaterial({ color: '#ffcf7a' }), 0, 2.66, 0, null); bulb.userData.lamp = true; lamps.push(bulb);
     [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sz]) => add(l, new THREE.BoxGeometry(0.025, 0.36, 0.025), toon('#5a4a6a'), sx * 0.15, 2.66, sz * 0.15, null));
     add(l, new THREE.ConeGeometry(0.28, 0.22, 4), toon('#6a5a7a'), 0, 2.95, 0, '#3a3044', 0.015).rotation.y = Math.PI / 4;
     add(l, new THREE.SphereGeometry(0.045, 8, 6), toon('#ffd36e'), 0, 3.08, 0, null);
@@ -203,7 +204,7 @@ export function makeProps({ THREE, add, toon, canvasTex, kit, world }) {
     for (let i = 0; i <= n; i++) { const t = i / n; items.push({ x: x0 + (x1 - x0) * t, y: y - Math.sin(t * Math.PI) * 0.35 - 0.12, z: z0 + (z1 - z0) * t, rx: Math.PI, ry: Math.atan2(x1 - x0, z1 - z0), s: 1, color: cols[i % cols.length] }); }
     return world.scatter(g, tri, world.toonC('#ffffff'), items, null);
   };
-  const cloud = (g, x, y, z, s = 1) => { const c = new THREE.Group(); c.userData.keep = true; c.position.set(x, y, z); c.scale.setScalar(s); g.add(c); const m = new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.92 }); [[0, 0, 0, 1.2], [1.1, -0.1, 0, 0.9], [-1.1, -0.15, 0, 0.8], [0.4, 0.5, 0, 0.8]].forEach(([dx, dy, dz, r]) => { const b = new THREE.Mesh(world.geo('cloud', () => new THREE.SphereGeometry(1, 12, 8)), m); b.position.set(dx, dy, dz); b.scale.set(r, r * 0.7, r * 0.8); c.add(b); }); return c; };
+  const cloud = (g, x, y, z, s = 1) => { const c = new THREE.Group(); c.userData.keep = true; c.position.set(x, y, z); c.scale.setScalar(s); g.add(c); const m = (glowMat || (x => x))(new THREE.MeshBasicMaterial({ color: '#c9d6ec', transparent: true, opacity: 0.85 })); [[0, 0, 0, 1.2], [1.1, -0.1, 0, 0.9], [-1.1, -0.15, 0, 0.8], [0.4, 0.5, 0, 0.8]].forEach(([dx, dy, dz, r]) => { const b = new THREE.Mesh(world.geo('cloud', () => new THREE.SphereGeometry(1, 12, 8)), m); b.position.set(dx, dy, dz); b.scale.set(r, r * 0.7, r * 0.8); c.add(b); }); return c; };
   /** Đồi xa làm nền: các nửa quả cầu xanh nhạt xếp theo hàng. */
   const hills = (g, z, xs, cols = ['#bfe8a8', '#aee09a', '#c9eeb5']) => xs.forEach((x, i) => { const h = new THREE.Mesh(world.geo('hill', () => new THREE.SphereGeometry(1, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2)), world.toonC(cols[i % cols.length])); h.position.set(x, -0.2, z); h.scale.set(7 + (i % 3) * 2, 2.2 + (i % 2) * 1.4, 4); g.add(h); });
   const stripeTex = (a, b, n = 4) => canvasTex(64, 32, d => { d.fillStyle = b; d.fillRect(0, 0, 64, 32); d.fillStyle = a; for (let i = 0; i < n; i++) d.fillRect(i * 64 / n, 0, 32 / n, 32); }, [1, 1]);

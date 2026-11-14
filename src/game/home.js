@@ -562,7 +562,7 @@ export function initHome(ctx) {
     for (let r = 0; r <= GRID.wallRows; r++) pts.push(GRID.x0, GRID.wallY0 + r, -3.47, GRID.x0 + GRID.cols, GRID.wallY0 + r, -3.47);
     const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
     gridGroup.add(new THREE.LineSegments(geo, lineMat));
-    const pz = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.MeshBasicMaterial({ color: '#ff9ec4', transparent: true, opacity: 0.18, depthWrite: false }));
+    const pz = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.MeshBasicMaterial({ color: '#38e0c8', transparent: true, opacity: 0.18, depthWrite: false }));
     pz.rotation.x = -Math.PI / 2; pz.position.set(GRID.x0 + 4, 0.07, GRID.z0 + 4); gridGroup.add(pz);
   }
   const hiGood = new THREE.MeshBasicMaterial({ color: '#5fd38a', transparent: true, opacity: 0.45, depthWrite: false });

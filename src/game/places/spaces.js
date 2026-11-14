@@ -4,11 +4,11 @@ import { _t } from '../../i18n';
 import { makeKit } from './kit.js';
 
 export function initBalcony(c) {
-  const { THREE, add, toon, canvasTex, scene } = c, kit = makeKit(c);
+  const { THREE, add, toon, canvasTexRaw, scene } = c, kit = makeKit(c);
   const g = new THREE.Group(); g.visible = false; scene.add(g);
-  const sky = canvasTex(64, 64, d => { const gr = d.createLinearGradient(0, 0, 0, 64); gr.addColorStop(0, '#9fd8ff'); gr.addColorStop(1, '#ffe9c4'); d.fillStyle = gr; d.fillRect(0, 0, 64, 64); }, [1, 1]);
+  const sky = canvasTexRaw(64, 64, d => { const gr = d.createLinearGradient(0, 0, 0, 64); gr.addColorStop(0, '#4f86b8'); gr.addColorStop(1, '#f3c08a'); d.fillStyle = gr; d.fillRect(0, 0, 64, 64); }, [1, 1]);
   add(g, new THREE.BoxGeometry(7, 0.4, 5), toon('#e8d0a8'), 0, -0.2, 0.2, '#9a7f5a', 0.03);
-  add(g, new THREE.PlaneGeometry(14, 6), new THREE.MeshBasicMaterial({ map: sky }), 0, 2.2, -3.2);
+  add(g, new THREE.PlaneGeometry(14, 6), c.glowMat(new THREE.MeshBasicMaterial({ map: sky })), 0, 2.2, -3.2);
   add(g, new THREE.BoxGeometry(7, 0.08, 0.1), toon('#ffffff'), 0, 1.0, 2.6, '#aaa', 0.02);
   for (let i = -3; i <= 3; i++) add(g, new THREE.BoxGeometry(0.05, 1.0, 0.05), toon('#ffffff'), i, 0.5, 2.6, '#aaa', 0.01);
   [[-3.0, -1.2], [3.0, -1.2], [-3.1, 1.4]].forEach(([x, z]) => kit.plant(g, x, z, 1.1));

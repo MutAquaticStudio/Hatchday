@@ -3,6 +3,8 @@
 // Đồ treo tường có gốc ở tâm khối, mặt sau sát tường (z = 0), hướng +z.
 import { _t } from '../i18n';
 
+import { grade } from './grade.js';
+
 export function makeDecor(K) {
   const { THREE, toon, add, canvasTex } = K;
   const INK = '#7a4a63', WOOD = '#d9a06b', WOOD_D = '#a8744e', WOOD_INK = '#7a4a2e';
@@ -283,11 +285,12 @@ export function makeDecor(K) {
     const tbl = kind === 'wall' ? WALLS : FLOORS, e = tbl[id] || Object.values(tbl)[0];
     const k = kind + id;
     if (!texCache[k]) { const size = kind === 'wall' ? 128 : 256; texCache[k] = canvasTex(size, size, e[1]); texCache[k].wrapS = texCache[k].wrapT = THREE.RepeatWrapping; }
-    return { color: e[0], map: texCache[k] };
+    return { color: grade(e[0]), map: texCache[k] };
   }
 
   /* ---------- Trang phục (gắn vào pivot của thú) ---------- */
-  const O = {
+  const O = (() => { const toon = K.toonRaw || K.toon, add = K.addRaw || K.add, canvasTex = K.canvasTexRaw || K.canvasTex; return { // trang phục: giữ màu sáng gốc, không qua bộ chỉnh màu tối của thế giới
+
     'no-hong': g => { const p = toon('#ff6fa8'); [-1, 1].forEach(s => { const c = add(g, new THREE.ConeGeometry(0.13, 0.24, 14), p, s * 0.12, 0, 0, '#a8507a', 0.015); c.rotation.z = s * Math.PI / 2; }); add(g, S(0.07, 12, 10), toon('#ff9ec4'), 0, 0, 0, '#a8507a'); g.position.set(-0.52, 1.72, 0.42); g.rotation.set(0.3, -0.5, 0.35); },
     'mu-len': g => {
       const m = toon('#7ab8ff'); const cap = add(g, new THREE.SphereGeometry(0.66, 28, 14, 0, Math.PI * 2, 0, Math.PI / 2), m, 0, 0, 0, '#3a5a8a'); cap.scale.y = 0.72; cap.material.side = THREE.DoubleSide;
@@ -305,7 +308,7 @@ export function makeDecor(K) {
     balo: g => { add(g, Bx(0.7, 0.72, 0.32), toon('#ffd36e'), 0, 0, 0, '#a8742e'); add(g, Bx(0.46, 0.3, 0.1), toon('#ffb36b'), 0, -0.14, -0.2, '#a8742e'); [-1, 1].forEach(s => { const st = add(g, new THREE.TorusGeometry(0.36, 0.035, 6, 20, Math.PI), toon('#ffb36b'), s * 0.22, 0.05, 0.25, null); st.rotation.y = Math.PI / 2; st.userData.wrapAround = true; }); g.position.set(0, 0.95, -0.98); },
     canh: g => { g.userData.flap = []; [-1, 1].forEach(s => { const w = new THREE.Group(); w.position.set(s * 0.25, 0, 0); g.add(w); const f = add(w, S(0.4, 18, 12), toon('#ffffff'), s * 0.38, 0.12, 0, '#a8a0c8'); f.scale.set(1, 0.6, 0.12); f.rotation.z = s * 0.4; w.userData.s = s; g.userData.flap.push(w); }); g.position.set(0, 1.15, -0.85); },
     'ao-choang': g => { const t = canvasTex(128, 128, c => { c.fillStyle = '#3a3f86'; c.fillRect(0, 0, 128, 128); c.fillStyle = '#fff3a8'; [[20, 30], [80, 20], [50, 80], [100, 100], [20, 110]].forEach(([x, y]) => c.fillRect(x, y, 5, 5)); }); const c = new THREE.Mesh(new THREE.CylinderGeometry(0.75, 1.05, 1.2, 24, 1, true, Math.PI * 0.6, Math.PI * 0.8), new THREE.MeshToonMaterial({ map: t, gradientMap: K.grad, side: THREE.DoubleSide })); c.position.y = 0; g.add(c); const knot = add(g, S(0.08, 10, 8), toon('#ffd36e'), 0, 0.58, 0.72, INK); g.position.set(0, 0.95, -0.05); },
-  };
+  }; })();
   /** Tạo món trang phục, đã đặt sẵn vị trí trong không gian pivot của thú. */
   function buildOutfit(id) {
     const g = new THREE.Group(); g.userData.itemId = id;
