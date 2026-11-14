@@ -5,6 +5,7 @@ import { _t } from '../../i18n';
 import { makeKit } from './kit.js';
 import { makeShared } from './shared.js';
 import { makeFireflies, makeProps, makeWorld } from './world.js';
+import { rockGeo } from '../hd.js';
 
 export function initPark(c) {
   const { THREE, add, toon, canvasTex, scene } = c, kit = makeKit(c, { cull: true });
@@ -202,7 +203,7 @@ export function initPark(c) {
         kit.hotspot({ id: 'fish', label: _t('Câu cá'), at: [-13.6, 1.6, 0.1], stand: [-13.6, 1.3], act: () => c.open.mini('fish') }, dock);
         kit.hotspot({ id: 'duck', label: _t('Cho vịt ăn'), at: [-12, 1.9, -2.4], stand: [-8.4, -0.6], act: () => { if (c.playToy('ducks')) { c.spawn('sparkle', 4, 0.8); feedDucks(); } } }, pond);
       },
-      () => { const rocks = []; for (let i = 0; i < Math.round(10 * dens); i++) { const a = i * 0.63; rocks.push({ x: -12 + Math.cos(a) * 3.9, z: -2.4 + Math.sin(a) * 2.8, y: 0.12, s: 0.18 + (i % 3) * 0.08, color: '#c9c2b4' }); } world.scatter(z, world.geo('rock', () => new THREE.DodecahedronGeometry(1, 0)), world.toonC('#ffffff'), rocks, '#7a7468', 0.02); },
+      () => { const rocks = []; for (let i = 0; i < Math.round(10 * dens); i++) { const a = i * 0.63; rocks.push({ x: -12 + Math.cos(a) * 3.9, z: -2.4 + Math.sin(a) * 2.8, y: 0.12, s: 0.18 + (i % 3) * 0.08, color: '#c9c2b4' }); } world.scatter(z, world.geo('rock', () => rockGeo(THREE, 3)), world.toonC('#ffffff'), rocks, '#7a7468', 0.02); },
       () => props.trees(z, [{ x: -17, z: -6, s: 1.3 }, { x: -16.5, z: 0.5, s: 1.1 }, { x: -9, z: -7.2, s: 1.15 }].slice(0, Math.round(3 * dens) || 2)),
       () => { const p = []; for (let i = 0; i < Math.round(26 * dens); i++) p.push({ x: -17 + (i % 13) * 0.55, z: 2 + Math.floor(i / 13) * 0.6 }); props.flowers(z, p); },
       () => { props.fence(z, -20.5, -9, -20.5, 8, 0.8); props.fence(z, -20, -9.4, -4, -9.4, 0.8, true); },

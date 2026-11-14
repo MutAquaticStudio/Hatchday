@@ -182,7 +182,7 @@ export function initHome(ctx) {
       let g;
       if (id.startsWith('pet:')) {
         const [, species, stage, form, wear] = id.split(':'); g = new THREE.Group();
-        const parts = ctx.petBuilder.build(g, { species, stage, form: form || null, genes: {}, face: true });
+        const parts = ctx.petBuilder.build(g, { species, stage, form: form || null, genes: {}, face: true, thumb: true });
         (wear ? wear.split(',') : []).forEach(w => { const it = BY_ID[w]; if (!it) return; const o = fitter.fit(D.buildOutfit(w), it, parts.sockets); if (o.userData.fit?.hideTop) parts.top.visible = false; g.add(o); });
       }
       else { const it = BY_ID[id]; g = it.kind === 'outfit' ? D.buildOutfit(id) : it.layer === 'wallpaper' || it.layer === 'flooring' ? swatch(it) : D.build(id); if (it.kind === 'outfit') g.position.set(0, 0, 0); }

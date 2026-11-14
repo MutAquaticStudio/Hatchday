@@ -5,6 +5,7 @@
 // Bốn khung dáng: bốn chân, đứng hai chân, chim, rắn/cá bay lượn; cả 50 loài khai trong DEF. Bộ dựng cũ trong pet3d.js chỉ còn là dự phòng.
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { SPECIES_BY_ID, SPECIES, STAGES } from './species';
+import { inkMaterial } from './hd.js';
 
 const S = 0.56, XOFF = 0.45;
 const smin = (a, b, k) => { const h = Math.max(k - Math.abs(a - b), 0) / k; return Math.min(a, b) - h * h * k * 0.25; };
@@ -13,10 +14,22 @@ const ell = (x, y, z, cx, cy, cz, rx, ry, rz) => { const px = (x - cx) / rx, py 
 const sst = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 const h3 = (x, y, z) => { const s = Math.sin(x * 127.1 + y * 311.7 + z * 74.7) * 43758.5453; return s - Math.floor(s); };
 
-/** Lưới từ SDF bằng surface nets (không cần bảng tra như marching cubes). Trả về { pos, idx }. */
+/**
+ * Lưới từ SDF bằng surface nets (không cần bảng tra như marching cubes). Trả về { pos, idx }.
+ * Lấy mẫu thưa trước: mỗi khối B³ ô chỉ tính một điểm giữa khối; khối nào ở xa bề mặt hơn nửa đường chéo (có dư) thì bỏ qua,
+ * chỉ các khối gần bề mặt mới tính đủ. Nhờ vậy lưới mịn hơn mà thời gian dựng không tăng theo thể tích.
+ */
+export const NETS = { dense: false };
 function surfaceNets(f, min, max, h) {
   const nx = Math.ceil((max[0] - min[0]) / h) + 1, ny = Math.ceil((max[1] - min[1]) / h) + 1, nz = Math.ceil((max[2] - min[2]) / h) + 1, V = new Float32Array(nx * ny * nz);
-  for (let k = 0; k < nz; k++) for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) V[i + nx * (j + ny * k)] = f(min[0] + i * h, min[1] + j * h, min[2] + k * h);
+  if (NETS.dense) { for (let k = 0; k < nz; k++) for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) V[i + nx * (j + ny * k)] = f(min[0] + i * h, min[1] + j * h, min[2] + k * h); }
+  else {
+    const B = 3, far = h * B * 0.866 * 1.5, st = new Uint8Array(nx * ny * nz);
+    for (let k0 = 0; k0 < nz - 1; k0 += B) for (let j0 = 0; j0 < ny - 1; j0 += B) for (let i0 = 0; i0 < nx - 1; i0 += B) {
+      const d = f(min[0] + (i0 + B / 2) * h, min[1] + (j0 + B / 2) * h, min[2] + (k0 + B / 2) * h), skip = Math.abs(d) > far, i1 = Math.min(i0 + B, nx - 1), j1 = Math.min(j0 + B, ny - 1), k1 = Math.min(k0 + B, nz - 1);
+      for (let k = k0; k <= k1; k++) for (let j = j0; j <= j1; j++) { let q = i0 + nx * (j + ny * k); for (let i = i0; i <= i1; i++, q++) { if (skip) { if (!st[q]) { V[q] = d; st[q] = 1; } } else if (st[q] !== 2) { V[q] = f(min[0] + i * h, min[1] + j * h, min[2] + k * h); st[q] = 2; } } }
+    }
+  }
   const id = new Int32Array(nx * ny * nz).fill(-1), pos = [], idx = [], C = [[0, 0, 0], [1, 0, 0], [0, 1, 0], [1, 1, 0], [0, 0, 1], [1, 0, 1], [0, 1, 1], [1, 1, 1]], E = [[0, 1], [2, 3], [4, 5], [6, 7], [0, 2], [1, 3], [4, 6], [5, 7], [0, 4], [1, 5], [2, 6], [3, 7]], v = new Float32Array(8);
   for (let k = 0; k < nz - 1; k++) for (let j = 0; j < ny - 1; j++) for (let i = 0; i < nx - 1; i++) {
     let m = 0; for (let c = 0; c < 8; c++) { v[c] = V[i + C[c][0] + nx * (j + C[c][1] + ny * (k + C[c][2]))]; if (v[c] < 0) m |= 1 << c; }
@@ -118,26 +131,36 @@ export function makeMonsterBuilder(K) {
   const UPv = new THREE.Vector3(0, 1, 0), FWv = new THREE.Vector3(0, 0, 1);
   const M = new THREE.Matrix4().set(0, 0, -S, 0, 0, S, 0, 0, S, 0, 0, -XOFF * S, 0, 0, 0, 1);   // hệ thiết kế → hệ game
   const toG = p => new THREE.Vector3(-(p[2] || 0) * S, p[1] * S, (p[0] - XOFF) * S);
-  const bake = (geo, pivot) => { geo.applyMatrix4(M); if (pivot) geo.translate(-pivot.x, -pivot.y, -pivot.z); return geo; };
+  /** Đưa lưới (và bản thô đổ bóng đi kèm) sang hệ của game. Mọi bộ phận nằm trong hệ của gốc thú ở tư thế nghỉ: chuyển động do xương lo. */
+  const bake = geo => { geo.applyMatrix4(M); const lo = geo.userData.lo; if (lo && !lo.baked) { const q = lo.pos, v = new THREE.Vector3(); for (let i = 0; i < q.length; i += 3) { v.set(q[i], q[i + 1], q[i + 2]).applyMatrix4(M); q[i] = v.x; q[i + 1] = v.y; q[i + 2] = v.z; } lo.baked = true; } return geo; };
+  /** Gộp các lưới của một bộ phận, gộp luôn bản thô (chỉ có vị trí) dùng để đổ bóng. */
+  const join = list => { const g = mergeGeometries(list, false), lp = [], li = []; for (const x of list) { const lo = x.userData.lo; if (!lo) continue; const o = lp.length / 3, q = lo.pos, ix = lo.idx; for (let i = 0; i < q.length; i++) lp.push(q[i]); for (let i = 0; i < ix.length; i++) li.push(ix[i] + o); } g.userData.lo = { pos: lp, idx: li }; return g; };
 
-  /** Dựng lưới có pháp tuyến (gradient của SDF), màu đỉnh và độ phát sáng từ hàm tô `paint(x, y, z, n, c)` (trả về độ phát sáng). */
-  function sculpt(sdf, min, max, cell, paint) {
+  /** Dựng lưới có pháp tuyến (gradient của SDF, lấy 4 mẫu tứ diện), màu đỉnh và độ phát sáng từ hàm tô `paint(x, y, z, n, c)` (trả về độ phát sáng). `lo` là cỡ ô của bản thô đổ bóng. */
+  function sculpt(sdf, min, max, cell, paint, lo = 0.13) {
     const sn = surfaceNets(sdf, min, max, cell), P = sn.pos, n = P.length / 3, nor = new Float32Array(n * 3), col = new Float32Array(n * 3), glow = new Float32Array(n), c = new THREE.Color(), N = [0, 0, 0], e = cell * 0.4;
     for (let i = 0; i < n; i++) { const x = P[i * 3], y = P[i * 3 + 1], z = P[i * 3 + 2];
-      let gx = sdf(x + e, y, z) - sdf(x - e, y, z), gy = sdf(x, y + e, z) - sdf(x, y - e, z), gz = sdf(x, y, z + e) - sdf(x, y, z - e); const l = Math.hypot(gx, gy, gz) || 1; N[0] = gx / l; N[1] = gy / l; N[2] = gz / l; nor.set(N, i * 3);
+      const a = sdf(x + e, y - e, z - e), b = sdf(x - e, y - e, z + e), d = sdf(x - e, y + e, z - e), f = sdf(x + e, y + e, z + e), gx = a - b - d + f, gy = -a - b + d + f, gz = -a + b - d + f, l = Math.hypot(gx, gy, gz) || 1; N[0] = gx / l; N[1] = gy / l; N[2] = gz / l; nor.set(N, i * 3);
       glow[i] = paint(x, y, z, N, c) || 0; col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b; }
-    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); g.setAttribute('normal', new THREE.BufferAttribute(nor, 3)); g.setAttribute('color', new THREE.BufferAttribute(col, 3)); g.setAttribute('aGlow', new THREE.BufferAttribute(glow, 1)); g.setIndex(sn.idx); return g;
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); g.setAttribute('normal', new THREE.BufferAttribute(nor, 3)); g.setAttribute('color', new THREE.BufferAttribute(col, 3)); g.setAttribute('aGlow', new THREE.BufferAttribute(glow, 1)); g.setIndex(sn.idx);
+    g.userData.lo = cell >= lo ? { pos: P.slice(), idx: sn.idx } : surfaceNets(sdf, min, max, lo); return g;
   }
-  let TD = { radial: 5, sub: 3 }; // độ mịn mặc định của ống quét, theo cỡ ô của lần dựng hiện tại
+  // độ mịn của ống quét (lọn lông, sừng, vây) theo tầng: radial/sub là mặc định, k nhân các số múi ghi cứng ở từng chỗ
+  const TD_LO = { radial: 4, sub: 2, k: 1 }, TD_MID = { radial: 5, sub: 3, k: 1 }, TD_HI = { radial: 6, sub: 3, k: 1.35 }, TD_MAX = { radial: 7, sub: 4, k: 1.75 };
+  let TD = TD_MID;
   /** Ống quét theo đường cong (lọn lông, sừng, râu): bán kính theo `radii`, màu chuyển từ c0 sang c1 về phía ngọn. */
   function sweep(pts, radii, o = {}) {
-    const radial = o.radial || TD.radial, sub = o.sub || TD.sub, curve = new THREE.CatmullRomCurve3(pts.map(p => (p.isVector3 ? p : new THREE.Vector3(p[0], p[1], p[2] || 0)))), N = (pts.length - 1) * sub, pos = [], nor = [], idx = [], col = [], gl = [];
+    const radial = o.radial ? Math.round(o.radial * TD.k) : TD.radial, sub = o.sub ? Math.round(o.sub * TD.k) : TD.sub, curve = new THREE.CatmullRomCurve3(pts.map(p => (p.isVector3 ? p : new THREE.Vector3(p[0], p[1], p[2] || 0)))), N = (pts.length - 1) * sub, pos = [], nor = [], idx = [], col = [], gl = [];
     const t = new THREE.Vector3(), side = new THREE.Vector3(), up2 = new THREE.Vector3(), p = new THREE.Vector3(), d = new THREE.Vector3(), c0 = new THREE.Color(o.c0 || '#fff'), c1 = new THREE.Color(o.c1 || o.c0 || '#fff'), c = new THREE.Color();
     for (let i = 0; i <= N; i++) { const u = i / N; curve.getPoint(u, p); curve.getTangent(u, t); const f = u * (pts.length - 1), i0 = Math.min(pts.length - 2, Math.floor(f)), k = f - i0, r = radii[i0] + (radii[i0 + 1] - radii[i0]) * k;
       side.crossVectors(Math.abs(t.y) > 0.92 ? FWv : UPv, t).normalize(); up2.crossVectors(t, side).normalize(); c.copy(c0).lerp(c1, sst(o.cs ?? 0.3, o.ce ?? 0.8, u));
       for (let j = 0; j <= radial; j++) { const a = j / radial * Math.PI * 2; d.copy(side).multiplyScalar(Math.cos(a)).addScaledVector(up2, Math.sin(a) * (o.flat || 1)); pos.push(p.x + d.x * r, p.y + d.y * r, p.z + d.z * r); d.normalize(); nor.push(d.x, d.y, d.z); col.push(c.r, c.g, c.b); gl.push((o.glow || 0) * sst(0.35, 0.9, u)); } }
     const W = radial + 1; for (let i = 0; i < N; i++) for (let j = 0; j < radial; j++) { const a = i * W + j, b = a + 1, e = a + W, g = e + 1; idx.push(a, b, e, b, g, e); }
-    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); g.setAttribute('aGlow', new THREE.Float32BufferAttribute(gl, 1)); g.setIndex(idx); return g;
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); g.setAttribute('aGlow', new THREE.Float32BufferAttribute(gl, 1)); g.setIndex(idx);
+    // bản thô đổ bóng: mỗi điểm điều khiển một vòng ba đỉnh
+    const lp = [], li = [], np = pts.length; for (let s = 0; s < np; s++) for (let j = 0; j < 3; j++) { const q = (s * sub * W + Math.round(j * radial / 3)) * 3; lp.push(pos[q], pos[q + 1], pos[q + 2]); }
+    for (let s = 0; s < np - 1; s++) for (let j = 0; j < 3; j++) { const a = s * 3 + j, b = s * 3 + (j + 1) % 3; li.push(a, b, a + 3, b, b + 3, a + 3); }
+    g.userData.lo = { pos: lp, idx: li }; return g;
   }
   /** Điểm trên bề mặt (sdf = 0) theo tia từ điểm trong thân c theo hướng d. */
   const surf = (sdf, c, d) => { const dv = new THREE.Vector3(d[0], d[1], d[2] || 0).normalize(); let a = 0, b = 2.4; for (let i = 0; i < 22; i++) { const m = (a + b) / 2; if (sdf(c[0] + dv.x * m, c[1] + dv.y * m, c[2] + dv.z * m) < 0) a = m; else b = m; } return new THREE.Vector3(c[0] + dv.x * a, c[1] + dv.y * a, c[2] + dv.z * a); };
@@ -160,9 +183,9 @@ export function makeMonsterBuilder(K) {
 
   /* ---------- khung bốn chân ---------- */
   const geoCache = new Map();
-  function beast(sp, stage, form, cell) {
-    const key = [sp.id, stage, form || '', cell].join('|'); let R = geoCache.get(key); if (R) return R;
-    TD = cell >= 0.08 ? { radial: 4, sub: 2 } : { radial: 5, sub: 3 }; // lọn lông thưa hơn khi dựng thô
+  function beast(sp, stage, form, cell, td = TD_MID) {
+    const key = [sp.id, stage, form || '', cell, td.radial, td.sub].join('|'); let R = geoCache.get(key); if (R) return R;
+    TD = td; // lọn lông thưa hơn khi dựng thô, dày và tròn hơn ở thú của mình
     const lvl = { baby: 0, child: 1, teen: 2, adult: 3, elder: 3 }[stage], g = [0, 0.4, 0.75, 1][lvl], rk = { thuong: 0, hiem: 1, quy: 2, huyen: 3 }[sp.rarity] || 0;
     const o = { bulk: 1, len: 1, leg: 1, neck: 1, ml: 1, ruff: 0.6, ears: 'point', earK: 1, horns: 'none', tail: 'plume', tailFat: 1, ...DEF[sp.id], ...ORN[sp.id] };
     const pose = o.pose || 'quad', bird = pose === 'bird', bi = pose === 'bi' || bird, serp = pose === 'serp'; if (bird) { o.tail = 'fan'; if (!DEF[sp.id].ears) o.ears = 'none'; if (o.beak !== false) o.beak = true; if (!o.wings) o.wings = 'feather'; } if (serp) { o.tail = 'whip'; if (!o.wings) o.wings = 'fin'; if (o.spikes === undefined) o.spikes = true; }
@@ -230,11 +253,11 @@ export function makeMonsterBuilder(K) {
       const Hd = [[hx, hipY - 0.3, s * 0.3, 0.24], [hx + 0.25, 0.78 * legLen, s * 0.34, 0.14], [hx - 0.17, 0.46 * legLen, s * 0.34, 0.09], [hx - 0.05, 0.12, s * 0.34, 0.085], [hx + 0.15, 0.085, s * 0.34, 0.1]];
       if (bi && !bird) { const A = [[shX + 0.02, chY + 0.12, s * 0.44, 0.19], [shX + 0.2, chY - 0.28, s * 0.58, 0.14], [shX + 0.46, chY - 0.46, s * 0.52, 0.13]], pv = toG(A[0]);
         const fa = (x, y, z) => smin(cap(x, y, z, A[0][0], A[0][1], A[0][2], A[1][0], A[1][1], A[1][2], A[0][3], A[1][3]), cap(x, y, z, A[1][0], A[1][1], A[1][2], A[2][0], A[2][1], A[2][2], A[1][3], A[2][3]), 0.07), handY = A[2][1] + 0.16;
-        arms.push({ s, pivot: pv, geo: bake(mergeGeometries([sculpt(fa, [shX - 0.26, A[2][1] - 0.2, s * 0.5 - 0.36], [A[2][0] + 0.2, A[0][1] + 0.26, s * 0.5 + 0.36], cell, (x, y, z, n, c) => { c.copy(pal.fur).lerp(pal.sock, sst(handY + 0.03, handY, y)); return 0; }), ...claws([A[2][0] + 0.04, A[2][1] - 0.02, A[2][2]])], false), pv) }); }
+        arms.push({ s, pivot: pv, geo: bake(join([sculpt(fa, [shX - 0.26, A[2][1] - 0.2, s * 0.5 - 0.36], [A[2][0] + 0.2, A[0][1] + 0.26, s * 0.5 + 0.36], cell, (x, y, z, n, c) => { c.copy(pal.fur).lerp(pal.sock, sst(handY + 0.03, handY, y)); return 0; }, 0.1), ...claws([A[2][0] + 0.04, A[2][1] - 0.02, A[2][2]])], false), pv) }); }
       (bi ? [[F, true]] : [[F, true], [Hd, false]]).forEach(([Pn, front]) => {
         const f = (x, y, z) => { let d = 1e9; for (let i = 0; i < Pn.length - 1; i++) { const a = Pn[i], b = Pn[i + 1]; d = smin(d, cap(x, y, z, a[0], a[1], a[2], b[0], b[1], b[2], a[3], i === Pn.length - 2 ? 0.105 : b[3]), 0.07); } return d; };
         const xs = Pn.map(p => p[0]), ys = Pn.map(p => p[1]);
-        const e = Pn[Pn.length - 1]; legs.push({ front, s, geo: bake(mergeGeometries([sculpt(f, [Math.min(...xs) - 0.36, 0, s * 0.32 - 0.36], [Math.max(...xs) + 0.24, Math.max(...ys) + 0.34, s * 0.32 + 0.36], cell, paintLeg), ...claws([e[0], 0.085, e[2]]), ...elbow(Pn)], false)) });
+        const e = Pn[Pn.length - 1]; legs.push({ front, s, geo: bake(join([sculpt(f, [Math.min(...xs) - 0.36, 0, s * 0.32 - 0.36], [Math.max(...xs) + 0.24, Math.max(...ys) + 0.34, s * 0.32 + 0.36], cell, paintLeg, 0.1), ...claws([e[0], 0.085, e[2]]), ...elbow(Pn)], false)) });
       });
     });
 
@@ -245,7 +268,7 @@ export function makeMonsterBuilder(K) {
       const f = (x, y, z) => -smin(-cap(x, y, z, a[0], a[1], a[2], b[0], b[1], b[2], r0, r1), ell(x, y, z, (a[0] + b[0]) / 2 + 0.07 * hs, (a[1] + b[1]) / 2 + 0.02, (a[2] + b[2]) / 2 - s * 0.01, 0.05 * hs, Math.max(0.08, 0.26 * el * hs), 0.085 * hs), 0.04);
       const tipY = a[1] + (b[1] - a[1]) * 0.72, paint = (x, y, z, n, c) => { c.copy(pal.fur).lerp(pal.inner, n[0] > 0.3 ? 1 : 0).lerp(pal.sock, round ? 0 : sst(tipY, tipY + 0.04, y)); return 0; };
       const lo = [Math.min(a[0], b[0]) - r0 - 0.05, a[1] - r0 - 0.05, Math.min(a[2], b[2]) - r0 - 0.05], hi = [Math.max(a[0], b[0]) + r0 + 0.05, b[1] + r1 + 0.08, Math.max(a[2], b[2]) + r0 + 0.05], pv = toG(a);
-      ears.push({ s, pivot: pv, geo: bake(sculpt(f, lo, hi, cell * 0.8, paint), pv) });
+      ears.push({ s, pivot: pv, geo: bake(sculpt(f, lo, hi, cell * 0.8, paint, 0.08), pv) });
     });
 
     /* lọn lông và phần cứng gắn liền thân (không tách hoạt ảnh) */
@@ -299,7 +322,7 @@ export function makeMonsterBuilder(K) {
       const paint = (x, y, z, n, c) => { const e = tipE + 0.16 * tk * Math.sin(z * 9 + x * 7), tT = plume ? sst(e, e + 0.04, y) : 0, band = plume && lvl >= 1 ? sst(0.045, 0.03, Math.abs(y - e + 0.16)) : 0, rb = patt === 'cauvong' ? Math.floor(((y - tb[1]) / tk) * 3.2) % 4 : -1;
         c.copy(pal.fur).lerp(pal.mantle, plume ? 0 : sst(0.2, 0.3, n[1])); if (rb >= 0 && plume) c.lerp(new THREE.Color(['#ff8fb8', '#ffd66a', '#7fe0a8', '#7fb8ff'][rb]), 0.75); c.lerp(pal.tip, tT).lerp(pal.glow, band); return Math.max(band, tT * 0.55); };
       const xs = P.map(p => p[0]), ys = P.map(p => p[1]), zs = P.map(p => p[2]), rm = Math.max(...P.map(p => p[3])) + 0.1, pv = toG(tb);
-      const parts = [sculpt(f, [Math.min(...xs) - rm, Math.min(...ys) - rm, Math.min(...zs) - rm], [Math.max(...xs) + rm, Math.max(...ys) + rm, Math.max(...zs) + rm], cell * (plume ? 1.15 : 1.0), paint)];
+      const parts = [sculpt(f, [Math.min(...xs) - rm, Math.min(...ys) - rm, Math.min(...zs) - rm], [Math.max(...xs) + rm, Math.max(...ys) + rm, Math.max(...zs) + rm], cell * (plume ? 1.1 : 1.0), paint, 0.11)];
       const P3 = P.map(p => new THREE.Vector3(p[0], p[1], p[2])), frame = (a, b) => { const ax = b.clone().sub(a).normalize(), u = new THREE.Vector3().crossVectors(ax, FWv).normalize(), v = new THREE.Vector3().crossVectors(ax, u).normalize(); return { ax, u, v }; };
       if (plume && lvl >= 1) {
         [[1, 2, 0.35, 6, 0.46, 0.2, FUR, FUR2, 0], [2, 3, 0.1, 7, 0.52, 0.24, FUR, FUR2, 0], [2, 3, 0.7, 7, 0.56, 0.24, FUR, TIP, 0.3], [3, 4, 0.3, 7, 0.7, 0.22, TIP, HOT, 1], [3, 4, 0.68, 5, 0.66, 0.17, TIP, HOT, 1]].forEach(([i0, i1, t, n, len, w, c0, c1, gl], row) => { if (lvl < 2 && row % 2) return; const { ax, u, v } = frame(P3[i0], P3[i1]), cc = P3[i0].clone().lerp(P3[i1], t);
@@ -308,7 +331,7 @@ export function makeMonsterBuilder(K) {
       } else if (style === 'fan') { const nf = lvl >= 2 ? 7 : 5; for (let q = 0; q < nf; q++) { const a = (q / (nf - 1) - 0.5) * 1.5; parts.push(tuftGeo(P3[1].clone(), [-1, -0.25 + 0.15 * Math.cos(a * 2), Math.sin(a) * 0.9], (0.75 - Math.abs(a) * 0.2) * tk * (rk >= 2 ? 1.5 : 1), 0.15 * tk, [0, -0.3, 0], { c0: q % 2 ? MAN : FUR, c1: q % 2 ? TIP : MAN2, flat: 0.3, glow: rk >= 2 ? 0.6 : 0 })); } }
       else if (style === 'whip' && lvl >= 1) { const { ax, u, v } = frame(P3[3], P3[4]); if (o.tip) parts.push(...orn(o.tip, P3[4].clone().addScaledVector(ax, -0.06), ax.toArray(), 1.15 * tk)); else for (let q = 0; q < 5; q++) { const a = q / 5 * Math.PI * 2, rad = u.clone().multiplyScalar(Math.cos(a)).addScaledVector(v, Math.sin(a)); parts.push(tuftGeo(P3[4].clone().addScaledVector(ax, -0.08), rad.clone().multiplyScalar(0.5).addScaledVector(ax, 1).toArray(), 0.42 * tk, 0.12 * tk, rad.clone().multiplyScalar(-0.5).toArray(), { c0: TIP, c1: HOT, glow: 1 })); } }
       if (style === 'stub' && o.tip && lvl >= 1) parts.push(...orn(o.tip, P3[2].clone(), [-0.7, 0.7, 0], 0.9 * tk));
-      tails.push({ k, pivot: pv, geo: bake(mergeGeometries(parts.map(p => (p.index ? p : p)), false), pv) });
+      tails.push({ k, pivot: pv, geo: bake(join(parts.map(p => (p.index ? p : p)), false), pv) });
     }
 
     /* cánh: quạt các lá dẹt (lông vũ, màng dơi) hoặc hai phiến mỏng (côn trùng); là lưới riêng để vỗ */
@@ -316,11 +339,11 @@ export function makeMonsterBuilder(K) {
     if (o.wings && lvl >= 1) [-1, 1].forEach(s => { const bug = o.wings === 'bug', bat = o.wings === 'bat', fin = o.wings === 'fin', wk = (0.5 + 0.5 * g) * (bug ? 0.9 : fin ? 0.62 : bird ? 1.45 : 1.3), wb = bi ? [shX - 0.22, chY + 0.12, s * 0.3] : fin ? [shX + 0.05, chY - 0.08, s * 0.3] : [shX - 0.1, chY + 0.3, s * 0.26], pv = toG(wb), base = new THREE.Vector3(...wb), parts = [], n = bug ? 2 : fin ? 3 : bat ? 4 : 6;
       for (let i = 0; i < n; i++) { const u = i / Math.max(1, n - 1), dir = bug ? [-0.5 - 0.3 * i, 0.55 - 0.5 * i, s * 0.9] : [-0.25 - 0.55 * u, 0.95 - 1.15 * u, s * (0.85 - 0.25 * u)];
         parts.push(tuftGeo(base.clone(), dir, (bug ? 1.2 : 1.25 - 0.35 * u) * wk, (bug ? 0.17 : bat ? 0.26 : 0.19) * wk, bug ? [0, 0, 0] : [-0.25, -0.5, 0], { c0: bug ? HOT : bat ? MAN : (i % 2 ? FUR : MAN2), c1: bug ? C(pal.glow) : bat ? C(pal.accent) : (i % 2 ? MAN2 : TIP), flat: bug ? 0.12 : 0.2, glow: bug ? 0.5 : 0, radial: 6 })); }
-      wings.push({ s, bug, pivot: pv, geo: bake(mergeGeometries(parts, false), pv) }); });
+      wings.push({ s, bug, pivot: pv, geo: bake(join(parts, false), pv) }); });
 
     /* mắt: hai miếng ôm theo đầu, lấy hình từ hai ô mắt của khuôn mặt 2D */
     const eyes = [-1, 1].map(s => {
-      const c0 = Wp([hc[0], hc[1], 0]), ctr = surf(torso, c0, [0.6, 0.06, s * 0.52]), fr = new THREE.Vector3(0.82, -0.12, -s * 0.5).normalize(), upv = new THREE.Vector3(0.1, 1, 0).normalize(), hw = 0.155 * hs, hh = 0.2 * hs, n = 6, pos = [], uv = [], idx = [];
+      const c0 = Wp([hc[0], hc[1], 0]), ctr = surf(torso, c0, [0.6, 0.06, s * 0.52]), fr = new THREE.Vector3(0.82, -0.12, -s * 0.5).normalize(), upv = new THREE.Vector3(0.1, 1, 0).normalize(), hw = 0.155 * hs, hh = 0.2 * hs, n = cell < 0.06 ? 12 : 6, pos = [], uv = [], idx = [];
       const u0 = s > 0 ? 0.2 : 0.56, u1 = s > 0 ? 0.44 : 0.8, cv = new THREE.Vector3(...c0);
       for (let j = 0; j <= n; j++) for (let i = 0; i <= n; i++) { const a = i / n * 2 - 1, b = j / n * 2 - 1, tp = ctr.clone().addScaledVector(fr, a * hw).addScaledVector(upv, b * hh), dir = tp.clone().sub(cv), p = surf(torso, c0, dir.toArray()); p.addScaledVector(dir.normalize(), 0.016);
         pos.push(p.x, p.y, p.z); const uu = (a + 1) / 2; uv.push(s > 0 ? u0 + (u1 - u0) * uu : u1 - (u1 - u0) * uu, 0.335 + 0.39 * (b + 1) / 2); }
@@ -328,7 +351,22 @@ export function makeMonsterBuilder(K) {
       const ge = new THREE.BufferGeometry(); ge.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); ge.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); ge.setIndex(idx); return bake(ge);
     });
 
-    R = { lvl, pal, pose, hover, torsoGeo: bake(torsoGeo), fixedGeo: fixed.length ? bake(mergeGeometries(fixed, false)) : null, legs, arms, ears, tails, wings, eyes,
+    /* gộp mọi bộ phận thành MỘT lưới có xương: mỗi nhóm chuyển động (từng chân, tay, tai, đuôi, cánh) gắn cứng vào một xương, thân và lọn lông cố định vào xương gốc.
+       Hình khối giữ nguyên từng đỉnh; chỉ số lệnh vẽ giảm (13 bộ phận × 3 lượt → lưới cel + vỏ mực + mắt + bản thô đổ bóng). */
+    const torsoG = bake(torsoGeo), fixedG = fixed.length ? bake(join(fixed)) : null, all = [], loP = [], loI = [], loS = [];
+    const use = (g, bi) => { const n = g.attributes.position.count, si = new Uint8Array(n * 4), sw = new Uint8Array(n * 4); for (let i = 0; i < n; i++) { si[i * 4] = bi; sw[i * 4] = 255; }
+      g.setAttribute('skinIndex', new THREE.BufferAttribute(si, 4)); g.setAttribute('skinWeight', new THREE.BufferAttribute(sw, 4, true)); all.push(g);
+      const lo = g.userData.lo, o = loP.length / 3; if (lo) { for (let i = 0; i < lo.pos.length; i++) loP.push(lo.pos[i]); for (let i = 0; i < lo.idx.length; i++) loI.push(lo.idx[i] + o); for (let i = 0; i < lo.pos.length / 3; i++) loS.push(bi, 0, 0, 0); } };
+    use(torsoG, 0); if (fixedG) use(fixedG, 0);
+    let nBones = 1; [legs, arms, ears, tails, wings].forEach(list => list.forEach(q => { q.bi = nBones++; use(q.geo, q.bi); }));
+    const geo = mergeGeometries(all, false); geo.computeBoundingSphere(); geo.computeBoundingBox();
+    const loGeo = new THREE.BufferGeometry(), loW = new Uint8Array(loS.length); for (let i = 0; i < loW.length; i += 4) loW[i] = 255;
+    loGeo.setAttribute('position', new THREE.Float32BufferAttribute(loP, 3)); loGeo.setAttribute('skinIndex', new THREE.BufferAttribute(new Uint8Array(loS), 4)); loGeo.setAttribute('skinWeight', new THREE.BufferAttribute(loW, 4, true)); loGeo.setIndex(loI);
+    // lưới va chạm (không vẽ): chỉ vị trí, để đo ổ cắm đồ mặc và vùng cấm quanh tai như trước
+    const col = (g, pv) => { const h = new THREE.BufferGeometry(); h.setAttribute('position', pv ? g.attributes.position.clone() : g.attributes.position); h.setIndex(g.index); if (pv) h.translate(-pv.x, -pv.y, -pv.z); return h; };
+    ears.forEach(q => { q.col = col(q.geo, q.pivot); }); [legs, arms, ears, tails, wings].forEach(list => list.forEach(q => { delete q.geo; }));
+    const eyeGeo = mergeGeometries(eyes, false);
+    R = { lvl, pal, pose, hover, geo, loGeo, nBones, col: { torso: col(torsoG), fixed: fixedG ? col(fixedG) : null }, tris: geo.index.count / 3, loTris: loI.length / 3, legs, arms, ears, tails, wings, eyeGeo,
       head: { c: toG(Wp([hc[0], hc[1], 0])), r: [0.29 * hs * S, 0.28 * hs * S, 0.33 * hs * S] }, body: { c: toG([mid, (hipY + chY) / 2, 0]), r: bi ? [0.42 * fat * S, (chY - hipY) / 2 * S + 0.2, 0.4 * fat * S] : [0.4 * fat * S, 0.42 * fat * S, (shX - hipX) / 2 * S + 0.2] },
       neck: { p: toG(Wp([(nb[0] + nt[0]) / 2 + 0.03, (nb[1] + nt[1]) / 2 + 0.02, 0])), r: (0.27 + 0.1 * ruff) * S * 1.12, tilt: Math.atan2(nt[0] - nb[0], nt[1] - nb[1]) * 0.8 },
       headTop: (hc[1] + 0.28 * hs) * S, mouth: toG(Wp([mzB[0], mzB[1] - 0.06, 0])), sy: (hipY + chY) / 2 * S };
@@ -337,51 +375,62 @@ export function makeMonsterBuilder(K) {
   }
 
   /* ---------- vật liệu ---------- */
-  const inkMats = new Map();
-  const ink = col => { const k = col.getHexString(); let m = inkMats.get(k); if (!m) { m = new THREE.MeshBasicMaterial({ color: col, side: THREE.BackSide }); m.onBeforeCompile = sh => { sh.vertexShader = sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n transformed += normalize( normal ) * 0.0125;'); }; m.customProgramCacheKey = () => 'mon-ink'; inkMats.set(k, m); } return m; };
   const hitGeo = new THREE.SphereGeometry(1, 10, 8), hitMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false });
-  let celM = null;
-  function put(parent, geo, inkM) {
-    const mesh = new THREE.Mesh(geo, celM || (celM = K.petCel())); parent.add(mesh);
-    const o = new THREE.Mesh(geo, inkM); o.userData.outline = true; o.raycast = () => {}; mesh.add(o); return mesh;
-  }
+  const IDENT = new THREE.Matrix4(), colMat = new THREE.MeshBasicMaterial(), proxyMat = new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false });
+  let celM = null, capGeo = null;
+  /** Lưới va chạm không vẽ (visible = false): tia đo ổ cắm và vùng cấm vẫn trúng, không tốn lệnh vẽ. */
+  const hid = (parent, geo) => { const m = new THREE.Mesh(geo, colMat); m.visible = false; m.userData.noShadow = true; parent.add(m); return m; };
+  const skinned = (geo, mat, skel, R) => { const m = new THREE.SkinnedMesh(geo, mat); m.bind(skel, IDENT); m.boundingSphere = new THREE.Sphere(R.geo.boundingSphere.center.clone(), R.geo.boundingSphere.radius * 1.35 + 0.25); m.boundingBox = R.geo.boundingBox.clone(); m.raycast = () => {}; return m; };
+  /** Vỏ trứng của thú sơ sinh: chỏm + 8 răng cưa gộp một lưới. */
+  const babyCap = () => { if (!capGeo) { const list = [new THREE.SphereGeometry(0.34, 22, 10, 0, Math.PI * 2, 0, 1.15).translate(0, -0.2, 0)]; for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2; list.push(new THREE.ConeGeometry(0.055, 0.1, 4).rotateX(Math.PI).translate(Math.cos(a) * 0.3, -0.08, Math.sin(a) * 0.3)); } capGeo = mergeGeometries(list, false); } return capGeo; };
 
-  /** look = { species, stage, form, genes, face?, lod? } → dựng vào `into`; trả về bộ phận cho game.js như pet3d.build, hoặc null nếu loài chưa có quái thú. */
+  /** look = { species, stage, form, genes, face?, lod?, thumb? } → dựng vào `into`; trả về bộ phận cho game.js như pet3d.build, hoặc null nếu loài chưa có quái thú. */
   function build(into, look, H) {
     const sp = SPECIES_BY_ID[look.species] || SPECIES[0]; if (!hasMonster(sp)) return null;
     const stage = look.stage && STAGES[look.stage] ? look.stage : 'baby', grown = stage === 'adult' || stage === 'elder', form = grown ? look.form : null;
-    // cỡ ô lưới dựng khối: thú của mình 0.065 (vừa/cao), máy yếu 0.08, thú người khác và đối thủ ở Đấu trường 0.1 (LOD)
-    const cell = look.lod ? 0.1 : K.quality && K.quality() === 'thap' ? 0.08 : 0.065;
-    const R = beast(sp, stage, form, cell), inkM = ink(R.pal.ink), root = new THREE.Group(), el = K.ELEMENT[sp.region] || K.ELEMENT[0];
-    const torso = put(root, R.torsoGeo, inkM); if (R.fixedGeo) put(root, R.fixedGeo, inkM);
+    // cỡ ô lưới dựng khối: thú của mình 0.052 (vừa) / 0.046 (cao), ảnh thu nhỏ 0.065, máy yếu 0.08, thú người khác và đối thủ ở Đấu trường 0.1 (LOD)
+    const q = K.quality ? K.quality() : 'vua', low = q === 'thap';
+    const cell = look.lod ? 0.1 : low ? 0.08 : look.thumb ? 0.065 : q === 'vua' ? 0.052 : 0.046, td = look.lod || low ? TD_LO : look.thumb ? TD_MID : q === 'vua' ? TD_HI : TD_MAX;
+    const R = beast(sp, stage, form, cell, td), root = new THREE.Group(), el = K.ELEMENT[sp.region] || K.ELEMENT[0], bones = [root];
+    const torso = hid(root, R.col.torso); if (R.col.fixed) hid(root, R.col.fixed);
     const faceTex = look.face ? H.simpleFace(el.iris, K.FIERCE[stage] || 0) : K.faceTex();
     const eyeM = new THREE.MeshBasicMaterial({ map: faceTex, transparent: true, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2 });
-    R.eyes.forEach(g => { const e = new THREE.Mesh(g, eyeM); e.userData.noShadow = true; e.raycast = () => {}; root.add(e); });
+    { const e = new THREE.Mesh(R.eyeGeo, eyeM); e.userData.noShadow = true; e.raycast = () => {}; root.add(e); }
     // chân: game đặt feet[i].position = (x, 0.1 + nhấc, 0.38 + bước)
     const legRig = new THREE.Group(); legRig.position.set(0, -0.1, -0.38); root.add(legRig); const backRig = new THREE.Group(); backRig.position.y = -0.1; root.add(backRig);
     const feet = [], backLegs = [];
-    [1, -1].forEach(s => R.legs.filter(l => l.s === s).forEach(l => { const g = new THREE.Group(); put(g, l.geo, inkM); if (l.front) { g.position.set(0, 0.1, 0.38); legRig.add(g); feet.push(g); } else { g.position.set(0, 0.1, 0); backRig.add(g); backLegs.push(g); } }));
-    const ears = R.ears.map(e => { const eg = new THREE.Group(), gs = -e.s; eg.userData.s = gs; eg.position.copy(e.pivot); eg.rotation.z = -gs * 0.38; const ig = new THREE.Group(); ig.rotation.z = gs * 0.38; eg.add(ig); put(ig, e.geo, inkM); root.add(eg); return eg; });
+    [1, -1].forEach(s => R.legs.filter(l => l.s === s).forEach(l => { const g = new THREE.Group(); bones[l.bi] = g; if (l.front) { g.position.set(0, 0.1, 0.38); legRig.add(g); feet.push(g); } else { g.position.set(0, 0.1, 0); backRig.add(g); backLegs.push(g); } }));
+    const ears = R.ears.map(e => { const eg = new THREE.Group(), gs = -e.s; eg.userData.s = gs; eg.position.copy(e.pivot); eg.rotation.z = -gs * 0.38; const ig = new THREE.Group(); ig.rotation.z = gs * 0.38; eg.add(ig); hid(ig, e.col); bones[e.bi] = ig; root.add(eg); return eg; });
     const tail = new THREE.Group(); root.add(tail);
-    const tails = R.tails.map(t => { const g = new THREE.Group(); g.position.copy(t.pivot); g.userData.k = t.k; put(g, t.geo, inkM); tail.add(g); return g; });
+    const tails = R.tails.map(t => { const g = new THREE.Group(); g.position.copy(t.pivot); g.userData.k = t.k; bones[t.bi] = g; tail.add(g); return g; });
     const topG = new THREE.Group(); topG.position.set(R.head.c.x, R.headTop - 0.03, R.head.c.z); root.add(topG);
-    if (R.lvl === 0) { const capM = K.toon('#fffaf0'); capM.side = THREE.DoubleSide; const cp = new THREE.Mesh(new THREE.SphereGeometry(0.34, 22, 10, 0, Math.PI * 2, 0, 1.15), capM); cp.position.y = -0.2; topG.add(cp); topG.rotation.z = 0.2; for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2, z = new THREE.Mesh(new THREE.ConeGeometry(0.055, 0.1, 4), capM); z.position.set(Math.cos(a) * 0.3, -0.08, Math.sin(a) * 0.3); z.rotation.x = Math.PI; topG.add(z); } }
+    if (R.lvl === 0) { const capM = K.toon('#fffaf0'); capM.side = THREE.DoubleSide; topG.add(new THREE.Mesh(babyCap(), capM)); topG.rotation.z = 0.2; }
     // vùng chạm vô hình bao quanh thân: vuốt ve / bấm trúng dễ như thú tròn cũ dù thân quái thú mảnh
     { const hit = new THREE.Mesh(hitGeo, hitMat); hit.visible = false; hit.userData.noShadow = true; hit.position.set(0, R.headTop * 0.52, (R.head.c.z + R.body.c.z) / 2); hit.scale.set(0.5, R.headTop * 0.52, Math.max(0.6, (R.head.c.z - R.body.c.z) / 2 + 0.45)); root.add(hit); }
     const anchor = new THREE.Group(); anchor.scale.setScalar(1e-4); anchor.position.copy(R.head.c); root.add(anchor);   // game gắn mặt 2D vào đây (ẩn): mắt đã lấy hình trực tiếp
-    // tay (khung đứng): game đặt arms[i].position = (±0.98, 0.78 + nhấc); lưới tay lệch lại cho khớp vai
+    // tay (khung đứng): game đặt arms[i].position = (±0.98, 0.78 + nhấc); xương tay lệch lại cho khớp vai
     const armRig = new THREE.Group(); root.add(armRig);
-    const arms = [1, -1].map(s => { const a = new THREE.Group(), gs = -s, d = R.arms.find(x => x.s === s); a.position.set(gs * 0.98, 0.78, 0); if (d) { const h = new THREE.Group(); h.position.set(d.pivot.x - gs * 0.98, d.pivot.y - 0.78, d.pivot.z); put(h, d.geo, inkM); a.add(h); armRig.add(a); } return a; });
-    const wingsG = R.wings.map(w => { const g = new THREE.Group(); g.position.copy(w.pivot); g.userData.s = -w.s; g.userData.side = !w.bug; put(g, w.geo, inkM); root.add(g); return g; });
+    const arms = [1, -1].map(s => { const a = new THREE.Group(), gs = -s, d = R.arms.find(x => x.s === s); a.position.set(gs * 0.98, 0.78, 0); if (d) { const h = new THREE.Group(); h.position.set(d.pivot.x - gs * 0.98, d.pivot.y - 0.78, d.pivot.z); bones[d.bi] = h; a.add(h); armRig.add(a); } return a; });
+    const wingsG = R.wings.map(w => { const g = new THREE.Group(); g.position.copy(w.pivot); g.userData.s = -w.s; g.userData.side = !w.bug; bones[w.bi] = g; root.add(g); return g; });
     const kind = R.pose === 'bi' || R.pose === 'bird' ? 'dung' : R.pose === 'serp' ? 'ran' : 'thu4'; root.position.y = R.hover;
     const anim = { wings: wingsG, halo: null, orbit: [], tent: [], spin: [], gems: [], backLegs, feet, segs: [], root, hover: R.hover, legRigZ: legRig.position.z, mon: { tails, torso } };
     const Hh = { y: R.head.c.y, z: R.head.c.z, sx: R.head.r[0], sy: R.head.r[1], sz: R.head.r[2] }, Bb = { y: R.body.c.y, z: R.body.c.z, sx: R.body.r[0], sy: R.body.r[1], sz: R.body.r[2] };
     const sockets = H.measureSockets(root, { H: Hh, B: Bb, Lo: { kind, hover: R.hover }, kH: Hh.sx / 1.06 * 1.7, kB: Bb.sx / 1.06, head: torso, neckM: torso, neckExtra: [], ears, topG, tail, armRig, legRig, backLegs, anim, sp, lvl: R.lvl });
     sockets.neck = { p: [R.neck.p.x, R.neck.p.y + R.hover, R.neck.p.z], rx: R.neck.r, rz: R.neck.r, tilt: R.neck.tilt };   // cổ lấy thẳng từ bộ xương (đo bằng tia sẽ dính vai, bờm, cánh)
+    /* lưới có xương: tư thế nghỉ là tư thế vừa dựng (đỉnh nằm trong hệ của gốc), mỗi xương là chính nhóm mà game vẫn xoay/dời như trước */
+    root.updateMatrixWorld(true); const rInv = root.matrixWorld.clone().invert();
+    const skel = new THREE.Skeleton(bones, bones.map(b => new THREE.Matrix4().multiplyMatrices(rInv, b.matrixWorld).invert()));
+    const cel = skinned(R.geo, celM || (celM = K.petCel()), skel, R); cel.userData.cast = false; cel.userData.monster = true;
+    Object.defineProperty(cel, 'castShadow', { get: () => false, set() {}, configurable: true });   // bóng do bản thô đổ, kể cả khi nơi khác bật castShadow cho mọi lưới
+    const inkO = skinned(R.geo, inkMaterial(THREE, R.pal.ink), skel, R); inkO.userData.outline = true;
+    /* bản thô đổ bóng: chỉ vẽ vào bản đồ bóng (lượt chính bỏ qua bằng khoảng vẽ rỗng) nên lưới mịn không phải vẽ thêm lần nữa */
+    const px = skinned(R.loGeo, proxyMat, skel, R); px.userData.cast = true; px.userData.noRecv = true; px.userData.shadowProxy = true; px.castShadow = true;
+    px.onBeforeShadow = () => { R.loGeo.drawRange.start = 0; }; px.onBeforeRender = () => { R.loGeo.drawRange.start = 1e9; };
+    root.add(cel, inkO, px);
     into.add(root);
     return { body: anchor, ears, top: topG, tail, arms, feet, anim, sockets, flicker: false, headY: R.headTop + R.hover, mouth: [R.mouth.x, R.mouth.y + R.hover, R.mouth.z], center: [0, R.sy + R.hover, 0], plan: 'thu4', stage, species: sp };
   }
   /** Hoạt ảnh riêng của quái thú: các đuôi đung đưa lệch pha. */
   function animate(parts, t) { const m = parts.anim.mon; if (!m) return; m.tails.forEach((g, i) => { g.rotation.z = Math.sin(t * 1.7 + i * 1.3) * 0.07 + g.userData.k * 0.02; g.rotation.x = Math.sin(t * 1.3 + i * 0.9) * 0.05; }); }
-  return { build, animate, has: hasMonster };
+  return { build, animate, has: hasMonster, mesh: beast, tiers: { TD_LO, TD_MID, TD_HI, TD_MAX } };
 }

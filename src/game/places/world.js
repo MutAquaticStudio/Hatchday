@@ -6,6 +6,7 @@
 // Mỗi nơi gọi makeWorld(c), khai báo zones rồi gọi world.update(dt, petX, petZ) mỗi khung hình.
 import { _t } from '../../i18n';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { inkFor } from '../hd.js';
 const BUDGET_MS = 4;
 
 /**
@@ -46,7 +47,6 @@ export function makeWorld(c, group) {
   const geo = (k, f) => { let g = gCache.get(k); if (!g) { g = f(); gCache.set(k, g); } return g; };
   const mat = (k, f) => { let m = mCache.get(k); if (!m) { m = f(); mCache.set(k, m); } return m; };
   const toonC = (col, map) => mat('t:' + col + (map ? map.uuid : ''), () => toon(col, map));
-  const outMat = col => mat('o:' + col, () => new THREE.MeshBasicMaterial({ color: col, side: THREE.BackSide }));
   /** 0.5 ở chất lượng Thấp, 1 còn lại: nhân số lượng vật trang trí phụ. */
   const density = () => (c.quality && c.quality() === 'thap' ? 0.5 : 1);
   const dummy = new THREE.Object3D(), color = new THREE.Color();
@@ -55,12 +55,11 @@ export function makeWorld(c, group) {
   function scatter(parent, geometry, material, items, outline = '#6a4a5a', thick = 0.04) {
     if (!items.length) return null;
     if (c.noOutline) outline = null; // chế độ Điện ảnh không dùng nét viền
-    const n = items.length, m = new THREE.InstancedMesh(geometry, material, n), o = outline ? new THREE.InstancedMesh(geometry, outMat(outline), n) : null;
-    geometry.computeBoundingSphere(); const r = Math.max(geometry.boundingSphere.radius, 0.05);
+    const n = items.length, m = new THREE.InstancedMesh(geometry, material, n), o = outline ? new THREE.InstancedMesh(geometry, inkFor(THREE, geometry, outline, thick / 0.03), n) : null;   // viền chung (hd.js): dày đều theo màn hình, không phình theo tỉ lệ vật
     items.forEach((it, i) => {
       const sx = it.sx ?? it.s ?? 1, sy = it.sy ?? it.s ?? 1, sz = it.sz ?? it.s ?? 1;
       dummy.position.set(it.x, it.y ?? 0, it.z); dummy.rotation.set(it.rx ?? 0, it.ry ?? 0, it.rz ?? 0); dummy.scale.set(sx, sy, sz); dummy.updateMatrix(); m.setMatrixAt(i, dummy.matrix);
-      if (o) { const k = 1 + thick / (r * Math.max(sx, sy, sz)); dummy.scale.set(sx * k, sy * k, sz * k); dummy.updateMatrix(); o.setMatrixAt(i, dummy.matrix); }
+      if (o) o.setMatrixAt(i, dummy.matrix);
       if (it.color) m.setColorAt(i, color.set(it.color));
     });
     m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true;

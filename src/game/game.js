@@ -1,6 +1,7 @@
 // Lớp hiển thị & tương tác 3D (chuyển từ bản mẫu). Sẽ tách nhỏ và chuyển sang TypeScript dần.
 import { _t } from '../i18n';
-import * as THREE from 'three';
+import * as THREE_RAW from 'three';
+import { hdThree, setTier, inkFor } from './hd.js';
 import { jobActive } from './store';
 import { addPhoto } from './album';
 import { FESTIVAL_BY_ID } from './f2p';
@@ -44,6 +45,9 @@ import { movesOf, moveUnlocked, moveDesc, moveLockNote, matchups, ELEMENT_NAMES,
 import { isSteam } from '../lib/platform';
 import { STAGES, SPECIES_BY_ID } from './species';
 import { AXES, TRAITS, describe as describePersona, greeting, idleGapFactor, idleWeights, petLine, pickWeighted, walkSpeedFactor } from './personality';
+
+/** THREE có khối tròn tự tăng số múi và hộp bo cạnh theo tầng chất lượng (hd.js); mọi mô-đun dựng hình nhận bản này qua ngữ cảnh. */
+const THREE = hdThree(THREE_RAW);
 let home = null, editing = false;
 const camOverride = { pos: null, look: null };
 
@@ -69,6 +73,7 @@ const CINE = cineWanted(isSteam);
 let quality = 'vua';
 try { const q = localStorage.getItem('hatchday-quality'); if (q && QUALITY[q]) quality = q; } catch (e) { /* bỏ qua */ }
 if (CINE) quality = 'dienanh'; else if (quality === 'dienanh') quality = 'cao';
+setTier(quality);
 const scene = new THREE.Scene();
 /** Sương mù chân trời: ngoài trời làm đồi và cây xa nhạt dần về màu trời cho có chiều sâu; trong nhà đẩy ra rất xa (vẫn tồn tại để không phải biên dịch lại shader khi đổi khu). */
 scene.fog = new THREE.Fog('#cfe9ff', 1000, 2000);
@@ -125,14 +130,10 @@ function petCel() {
   m.customProgramCacheKey = () => 'pet-cel';
   return m;
 }
-const outlineMats = {};
+/** Viền mực dùng chung (hd.js): vỏ mặt sau đẩy theo pháp tuyến đã làm mượt, nét dày đều theo màn hình cho mọi vật. `t` là độ dày cũ (0.03 = nét chuẩn). */
 function outline(mesh, color, t = 0.03) {
   if (cine) return mesh; // dựng hình vật lý không dùng nét viền
-  mesh.geometry.computeBoundingSphere();
-  const r = mesh.geometry.boundingSphere.radius;
-  const m = outlineMats[color] || (outlineMats[color] = new THREE.MeshBasicMaterial({ color, side: THREE.BackSide }));
-  const o = new THREE.Mesh(mesh.geometry, m);
-  o.scale.setScalar(1 + t / Math.max(r, 0.05));
+  const o = new THREE.Mesh(mesh.geometry, inkFor(THREE, mesh.geometry, color, t / 0.03));
   o.userData.outline = true;
   mesh.add(o);
   return mesh;
@@ -1226,7 +1227,7 @@ function applyQuality() {
 }
 document.querySelector('.quality')?.addEventListener('click', e => {
   const b = e.target.closest('.qbtn[data-q]'); if (!b) return;
-  const was = quality; quality = b.dataset.q; try { localStorage.setItem('hatchday-quality', quality); } catch (err) { /* bỏ qua */ }
+  const was = quality; quality = b.dataset.q; setTier(quality); try { localStorage.setItem('hatchday-quality', quality); } catch (err) { /* bỏ qua */ }
   if ((was === 'dienanh') !== (quality === 'dienanh')) { location.reload(); return; } // Điện ảnh dùng bộ vật liệu khác: phải tải lại
   applyQuality();
 });
@@ -1400,4 +1401,5 @@ setPresence('home');
 const achievementTick = () => syncAchievements({ bondXp: S.bondXp, generation: S.generation, stage: S.stage, seen: S.seen || [], badges: S.world?.badges || [] });
 setTimeout(achievementTick, 3000); setInterval(achievementTick, 15000);
 initGamepad();
+if (DEV) window.__scene = () => ({ scene, renderer, camera });
 if (DEV) window.__look = (species, stage, form) => { S.species = species; S.stage = stage; S.form = form || null; buildLook(); };
