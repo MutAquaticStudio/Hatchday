@@ -345,7 +345,7 @@ function rnd(seed) { let a = seed; return () => { a = (a * 16807) % 2147483647; 
 
 /* chuyển cảnh */
 /** Màu nền và biểu tượng của hoạt cảnh chuyển cảnh theo nơi đến. */
-const WIPE_THEME = { default: ['#ff9ec4', '✨'], home: ['#ffb3cf', '🏠'], kitchen: ['#ffd36e', '🍳'], bath: ['#8fd6ff', '🫧'], garden: ['#8fdc8a', '🌿'], bedroom: ['#a89ae8', '🌙'], hospital: ['#7fd9bd', '🏥'], market: ['#ffb36b', '🧺'], tailor: ['#f59ac8', '✂️'], library: ['#c9a06a', '📚'], plaza: ['#ffa6a6', '⛲'], tea: ['#d9a86a', '🍵'], park: ['#9fe07a', '🌳'], balcony: ['#9fd8ff', '☀️'], playroom: ['#ffc46b', '🧸'], rooftop: ['#8fa8ff', '🔭'] };
+const WIPE_THEME = { default: ['#174f45', '✨'], home: ['#174f45', '🏠'], kitchen: ['#4f3e17', '🍳'], bath: ['#173b4f', '🫧'], garden: ['#1b4f17', '🌿'], bedroom: ['#21174f', '🌙'], hospital: ['#174f3d', '🏥'], market: ['#4f3217', '🧺'], tailor: ['#174f45', '✂️'], library: ['#4b361b', '📚'], plaza: ['#4f1717', '⛲'], tea: ['#4f3617', '🍵'], park: ['#2b4f17', '🌳'], balcony: ['#17384f', '☀️'], playroom: ['#4f3917', '🧸'], rooftop: ['#17234f', '🔭'] };
 let going = false;
 function goTo(name, instant, opts) {
   if (going) return;

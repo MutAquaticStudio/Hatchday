@@ -1,14 +1,14 @@
-:root{--ink:#4a2140;--soft:#7a5a78;--edge:#f3c4d9;--accent:#ff5fa2}
+@import url('/fonts/fonts.css');
+:root{--ink:#eef2f8;--soft:#a9b3c6;--edge:#2e3748;--accent:#38e0c8;color-scheme:dark}
 *{box-sizing:border-box}
-body{margin:0;font-family:"Nunito",system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--ink);line-height:1.6;
-  background-color:#ffd7e6;background-image:radial-gradient(rgba(255,255,255,.55) 18%,transparent 19%),linear-gradient(#bfe6ff,#ffe1ee);background-size:30px 30px,100% 100%;background-attachment:fixed}
-.legal{max-width:760px;margin:24px auto;padding:24px 22px 32px;background:#fff7fb;border:3px solid var(--edge);border-radius:24px;box-shadow:0 7px 0 var(--edge)}
+body{margin:0;font-family:"Be Vietnam Pro",system-ui,-apple-system,"Segoe UI",sans-serif;font-weight:500;color:var(--ink);line-height:1.6;background:#0e1118}
+.legal{max-width:760px;margin:24px auto;padding:24px 22px 32px;background:#161b26;border:1.5px solid var(--edge);border-radius:14px;box-shadow:0 2px 0 rgba(0,0,0,.6),0 8px 24px rgba(0,0,0,.5)}
 @media (max-width:600px){.legal{margin:12px 12px;padding:18px 16px 24px}}
-h1{font-size:28px;line-height:1.2;margin:8px 0 2px}
+h1{font-family:"Barlow Condensed","Be Vietnam Pro",system-ui,sans-serif;font-weight:700;text-transform:uppercase;letter-spacing:.03em;font-size:32px;line-height:1.1;margin:8px 0 2px}
 h2{font-size:18px;margin:24px 0 6px}
-.meta{margin:0 0 12px;color:var(--soft);font-weight:700;font-size:14px}
+.meta{margin:0 0 12px;color:var(--soft);font-weight:600;font-size:14px}
 ul{padding-left:20px}li{margin:6px 0}
-a{color:#c0337a;font-weight:800}
+a{color:var(--accent);font-weight:700}
 .back{display:inline-block;text-decoration:none;font-size:14px}
-.todo{background:#fff1b8;border-radius:6px;padding:0 4px}
+.todo{background:rgba(255,204,77,.18);color:#ffcc4d;border-radius:6px;padding:0 4px}
 .foot{margin-top:28px;font-size:14px;color:var(--soft)}

@@ -9,13 +9,13 @@ export function composePhoto(src, { name, place, date }) {
   const W = src.width, H = src.height, pad = Math.round(W * 0.035), foot = Math.round(W * 0.15);
   const cv = document.createElement('canvas'); cv.width = W + pad * 2; cv.height = H + pad + foot;
   const g = cv.getContext('2d');
-  g.fillStyle = '#fff7fb'; g.fillRect(0, 0, cv.width, cv.height);
+  g.fillStyle = '#161b26'; g.fillRect(0, 0, cv.width, cv.height);
   g.save(); g.beginPath(); g.roundRect(pad, pad, W, H, pad * 0.9); g.clip(); g.drawImage(src, pad, pad, W, H); g.restore();
-  g.lineWidth = Math.max(3, pad * 0.18); g.strokeStyle = '#f4b6d0'; g.beginPath(); g.roundRect(pad, pad, W, H, pad * 0.9); g.stroke();
-  g.fillStyle = '#4a2a52'; g.textBaseline = 'middle';
-  g.font = `800 ${Math.round(foot * 0.34)}px "Baloo 2", system-ui, sans-serif`; g.textAlign = 'left'; g.fillText(name, pad * 1.3, pad + H + foot * 0.36);
-  g.font = `700 ${Math.round(foot * 0.2)}px "Nunito", system-ui, sans-serif`; g.fillStyle = '#8a6a92'; g.fillText(`${place} · ${date}`, pad * 1.3, pad + H + foot * 0.7);
-  g.textAlign = 'right'; g.fillStyle = '#ff6aa0'; g.font = `800 ${Math.round(foot * 0.26)}px "Baloo 2", system-ui, sans-serif`; g.fillText('Hatchday', cv.width - pad * 1.3, pad + H + foot * 0.5);
+  g.lineWidth = Math.max(3, pad * 0.18); g.strokeStyle = '#4a5670'; g.beginPath(); g.roundRect(pad, pad, W, H, pad * 0.9); g.stroke();
+  g.fillStyle = '#eef2f8'; g.textBaseline = 'middle';
+  g.font = `700 ${Math.round(foot * 0.34)}px "Barlow Condensed", system-ui, sans-serif`; g.textAlign = 'left'; g.fillText(name, pad * 1.3, pad + H + foot * 0.36);
+  g.font = `500 ${Math.round(foot * 0.2)}px "Be Vietnam Pro", system-ui, sans-serif`; g.fillStyle = '#a9b3c6'; g.fillText(`${place} · ${date}`, pad * 1.3, pad + H + foot * 0.7);
+  g.textAlign = 'right'; g.fillStyle = '#38e0c8'; g.font = `700 ${Math.round(foot * 0.26)}px "Barlow Condensed", system-ui, sans-serif`; g.fillText('Hatchday', cv.width - pad * 1.3, pad + H + foot * 0.5);
   return cv;
 }
 
