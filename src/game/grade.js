@@ -34,7 +34,9 @@ export function grade(c) {
   if (!ok(c)) return c;
   let r = cache.get(c); if (r) return r;
   let [h, s, l] = hexToHsl(c);
-  const neutral = s < 0.22;
+  const k0 = parseInt(c.length === 4 ? c[1] + c[1] + c[2] + c[2] + c[3] + c[3] : c.slice(1), 16), ch = (Math.max(k0 >> 16 & 255, k0 >> 8 & 255, k0 & 255) - Math.min(k0 >> 16 & 255, k0 >> 8 & 255, k0 & 255)) / 255;
+  s = Math.min(s, ch * 2.6); // màu rất sáng có độ bão hoà HSL cao giả: dùng độ chói màu thực
+  const neutral = s < 0.2;
   if (neutral) h = 208; else h = mapHue(h);
   // đường cong sáng: trắng/kem -> xám đá xanh; màu đậm giảm nhẹ để vẫn nổi
   l = 0.04 + 0.45 * Math.pow(l, 1.7);

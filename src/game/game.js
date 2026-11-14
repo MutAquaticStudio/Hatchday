@@ -167,7 +167,7 @@ for (let i = 0; i < 9; i++) {
 add(room, new THREE.BoxGeometry(0.5, 0.1, 1.6), toon('#ffd9a8'), -4.25, 2.2, -0.6, '#a8778e');
 const egg = add(room, new THREE.SphereGeometry(0.22, 20, 16), toon('#9ad0ff'), -4.22, 2.47, -0.85, '#4b6c96');
 egg.scale.set(0.95, 1.2, 0.6);
-const lcdScreen = new THREE.Mesh(new THREE.PlaneGeometry(0.17, 0.13), new THREE.MeshBasicMaterial({ color: '#cfe3a8' }));
+const lcdScreen = new THREE.Mesh(new THREE.PlaneGeometry(0.17, 0.13), new THREE.MeshBasicMaterial({ color: '#38e0c8' }));
 lcdScreen.position.set(-4.08, 2.5, -0.85); lcdScreen.rotation.y = Math.PI / 2; room.add(lcdScreen);
 add(room, new THREE.BoxGeometry(0.3, 0.4, 0.3), toon('#ff9ec4'), -4.22, 2.45, -0.25, '#a8507a');
 
@@ -206,9 +206,12 @@ function shell(wallColor, wallT, floorColor, floorT, trim) {
   add(g, new THREE.BoxGeometry(9, 0.35, 0.36), toon(trim), 0, 0.17, -3.45, '#8a7a9a');
   return g;
 }
+var winTintNow = '#a9bdd8'; const winMats = []; // ô cửa là ánh sáng (MeshBasic): nhân màu theo giờ để ngày u lạnh-vàng, đêm xanh thẫm
+const WIN_TINT = { sang: '#c8c0b0', trua: '#a9bdd8', chieu: '#e0b080', dem: '#56689c' };
 function windowOn(g, x, y, draw) {
-  const c = canvasTex(256, 192, draw);
-  const w = new THREE.Mesh(new THREE.PlaneGeometry(2.0, 1.5), new THREE.MeshBasicMaterial({ map: c })); w.position.set(x, y, -3.48); g.add(w);
+  const c = canvasTexRaw(256, 192, draw);
+  const wm = new THREE.MeshBasicMaterial({ map: c, color: winTintNow }); winMats.push(wm);
+  const w = new THREE.Mesh(new THREE.PlaneGeometry(2.0, 1.5), wm); w.position.set(x, y, -3.48); g.add(w);
   const fm = toon('#fff7ef');
   [[y + 0.8], [y - 0.8]].forEach(([yy]) => add(g, new THREE.BoxGeometry(2.3, 0.13, 0.16), fm, x, yy, -3.45, '#a8778e'));
   [x - 1.08, x + 1.08, x].forEach((xx, i) => add(g, new THREE.BoxGeometry(i === 2 ? 0.07 : 0.13, 1.6, 0.16), fm, xx, y, -3.45, '#a8778e'));
@@ -251,7 +254,7 @@ const bathTile = canvasTex(128, 128, (g, w, h) => { g.fillStyle = '#eaf7ff'; g.f
 const bathFloorTex = canvasTex(64, 64, g => { g.fillStyle = '#eaf6ff'; g.fillRect(0, 0, 64, 64); g.strokeStyle = '#c4def2'; g.lineWidth = 3; g.strokeRect(0, 0, 64, 64); g.fillStyle = '#f6fbff'; g.fillRect(6, 6, 20, 20); g.fillRect(38, 38, 20, 20); }, [5, 4]);
 const bath = shell('#eaf7ff', bathTile, '#d6f0ff', bathFloorTex, '#9fd3f0'); areas.bath = bath;
 const tub = add(bath, new THREE.CylinderGeometry(1.9, 1.7, 1.0, 40), toon('#ffffff'), 0, 0.5, 0.2, '#6f8fb8', 0.04); tub.scale.set(1.15, 1, 0.8);
-const water = new THREE.Mesh(new THREE.CylinderGeometry(1.8, 1.8, 0.05, 40), new THREE.MeshToonMaterial({ color: '#8fdcff', gradientMap: grad, transparent: true, opacity: 0.93 }));
+const water = new THREE.Mesh(new THREE.CylinderGeometry(1.8, 1.8, 0.05, 40), new THREE.MeshToonMaterial({ color: '#3fb4cf', gradientMap: grad, transparent: true, opacity: 0.93 }));
 water.scale.set(1.15, 1, 0.8); water.position.set(0, 1.01, 0.2); bath.add(water);
 const rim = add(bath, new THREE.TorusGeometry(1.86, 0.12, 12, 48), toon('#ffffff'), 0, 1.02, 0.2, '#6f8fb8', 0.02); rim.rotation.x = -Math.PI / 2; rim.scale.set(1.15, 0.8, 1);
 [[-1.2, 0.5], [1.1, -0.2], [-0.6, -0.5], [0.9, 0.85], [-1.5, -0.1], [1.6, 0.3]].forEach(([x, z], i) => { const f = add(bath, new THREE.SphereGeometry(0.2 + (i % 3) * 0.06, 14, 10), toon('#ffffff'), x, 1.05, z + 0.2, '#9fc8e8', 0.02); f.scale.set(1, 0.6, 1); });
@@ -292,7 +295,7 @@ add(garden, new THREE.CylinderGeometry(0.28, 0.38, 2.2, 14), toon('#a8744e'), -4
   const hillCols = ['#9bdc8a', '#86cf86', '#a8e39a'];
   for (let i = 0; i < 9; i++) { const x = -26 + i * 6.5 + (i % 2) * 1.5, r = 5 + (i * 7 % 4) * 1.2; const h = add(garden, new THREE.SphereGeometry(r, 28, 14), toon(hillCols[i % 3]), x, -r * 0.55, -17 - (i % 3) * 2.2, null); h.scale.set(1.5, 0.75, 1); }
 }
-const cloudM = new THREE.MeshBasicMaterial({ color: '#ffffff' });
+const cloudM = new THREE.MeshBasicMaterial({ color: '#8d9db9' });
 [[-6, 5.2, -9], [3, 6.2, -10], [8, 4.8, -9]].forEach(([x, y, z]) => { [[0, 0, 1], [1.1, 0.2, 1.2], [2.2, 0, 0.9]].forEach(([dx, dy, r]) => { const c = new THREE.Mesh(new THREE.SphereGeometry(r, 16, 12), cloudM); c.position.set(x + dx, y + dy, z); garden.add(c); }); });
 const ballTex = canvasTex(128, 64, g => { g.fillStyle = '#ff9ec4'; g.fillRect(0, 0, 128, 64); g.fillStyle = '#ffffff'; g.fillRect(0, 26, 128, 12); g.fillStyle = '#ffd36e'; g.fillRect(0, 0, 128, 8); g.fillRect(0, 56, 128, 8); });
 const ball = add(garden, new THREE.SphereGeometry(0.3, 24, 18), toon('#ffffff', ballTex), 2.0, 0.3, 1.4, '#a8507a', 0.02);
@@ -382,7 +385,7 @@ const placeOpen = {
 function loadPlace(name) {
   if (placeInst[name]) return Promise.resolve(placeInst[name]);
   return placeLoading[name] || (placeLoading[name] = PLACE_LOADERS[name]().then(init => {
-    const inst = init({ THREE, add, toon, canvasTex, toonRaw, addRaw, canvasTexRaw, shell, windowOn, scene, camera, canvas, ray, ndcFrom, walkPetTo, say, startAction, toast, sfx, spawn, hideHint, playToy: toyPlay, script: runScript, spawnAt, reduce, sfxPlay: sfx, activity: kind => { recordActivity(kind); }, applyShadows, quality: () => quality, isNight: () => period === 'dem', getArea: () => area, state: S, open: placeOpen, goTo, setTemp, play: spinPlay, grad, events, petBuilder, bondLevel: () => bondLevel(S.bondXp), getPetXZ: () => [petBase.x + petOff.x, petBase.z + petOff.z] });
+    const inst = init({ THREE, add, toon, canvasTex, glowMat: m => { winMats.push(m); m.color.set(winTintNow); return m; }, toonRaw, addRaw, canvasTexRaw, shell, windowOn, scene, camera, canvas, ray, ndcFrom, walkPetTo, say, startAction, toast, sfx, spawn, hideHint, playToy: toyPlay, script: runScript, spawnAt, reduce, sfxPlay: sfx, activity: kind => { recordActivity(kind); }, applyShadows, quality: () => quality, isNight: () => period === 'dem', getArea: () => area, state: S, open: placeOpen, goTo, setTemp, play: spinPlay, grad, events, petBuilder, bondLevel: () => bondLevel(S.bondXp), getPetXZ: () => [petBase.x + petOff.x, petBase.z + petOff.z] });
     inst.group.visible = false; areas[name] = inst.group; applyShadows(inst.group); placeInst[name] = inst; return inst;
   }));
 }
@@ -412,8 +415,8 @@ function applyAreaLights() {
   rimColor.value.set(area === 'bedroom' || night ? '#8fa8ff' : period === 'chieu' ? '#ffb877' : '#a9d8ff'); rimStrength.value = area === 'bedroom' ? 0.35 : night ? 0.45 : 0.5;
   if (area === 'bedroom') { lightT.hemi = 0.8; lightT.sun = 0.4; lightT.sunCol.set('#7d92ff'); hemi.color.set('#7482b8'); hemi.groundColor.set('#141830'); lightT.lampPos.set(2.4, 2.2, -0.6); lightT.lamp = 24; if (!lookBooted) snapLights(); return; }
   const outdoor = area === 'garden' || !!(PLACE_BY_ID[area] && PLACE_BY_ID[area].outdoor), moon = night && outdoor;
-  lightT.hemi = moon ? 1.0 : night ? 0.75 : 0.95; lightT.sun = moon ? 0.9 : night ? 0.6 : 1.4; lightT.sunCol.set(night ? '#93a6f0' : (period === 'chieu' ? '#ffa56a' : '#ffe0b0'));
-  hemi.color.set(night ? '#7482b8' : period === 'chieu' ? '#9a9cc8' : '#9fb8e0'); hemi.groundColor.set(night ? '#141830' : '#2a3050');
+  lightT.hemi = moon ? 1.0 : night ? 0.75 : 0.95; lightT.sun = moon ? 0.9 : night ? 0.6 : 1.4; lightT.sunCol.set(night ? '#a4b2e6' : (period === 'chieu' ? '#ffa56a' : '#ffe0b0'));
+  hemi.color.set(night ? '#7d88b0' : period === 'chieu' ? '#9a9cc8' : '#9fb8e0'); hemi.groundColor.set(night ? '#141830' : '#2a3050');
   if (outdoor) { const [kh, ks] = SKY_LIGHT[wx.sky]; lightT.hemi *= kh; lightT.sun *= ks; if (wx.sky !== 'clear') lightT.sunCol.lerp(new THREE.Color('#8ea2c4'), wx.sky === 'rain' ? 0.55 : 0.3); }
   lightT.lampPos.set(-1.5, 3, 2); lightT.lamp = outdoor ? 0 : night ? 22 : 9;
   const wide = !!(PLACE_BY_ID[area] && PLACE_BY_ID[area].follow); fogT.near = wide ? 24 : outdoor ? 34 : 1000; fogT.far = wide ? 62 : outdoor ? 90 : 2000;
@@ -689,6 +692,7 @@ function applyPeriod() {
   if (gray) { g.fillStyle = `rgba(30,40,58,${gray})`; g.fillRect(0, 0, 256, 192); }
   if (wx.sky === 'rain') { g.strokeStyle = 'rgba(160,200,255,.45)'; g.lineWidth = 1.5; for (let i = 0; i < 46; i++) { const x = (i * 53) % 256, y = (i * 97) % 192; g.beginPath(); g.moveTo(x, y); g.lineTo(x - 4, y + 12); g.stroke(); } }
   winTex.needsUpdate = true;
+  winTintNow = WIN_TINT[p]; winMats.forEach(m => m.color.set(winTintNow));
   applyAreaLights();
 }
 

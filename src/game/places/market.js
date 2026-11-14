@@ -6,7 +6,7 @@ import { makeProps, makeWorld } from './world.js';
 export function initMarket(c) {
   const { THREE, add, toon, canvasTex, scene } = c, kit = makeKit(c);
   const g = new THREE.Group(); g.visible = false; scene.add(g);
-  const world = makeWorld(c, g), props = makeProps({ THREE, add, toon, canvasTex, kit, world }), dens = world.density();
+  const world = makeWorld(c, g), props = makeProps({ THREE, add, toon, canvasTex, kit, world, glowMat: c.glowMat }), dens = world.density();
   const cobble = canvasTex(128, 128, d => { d.fillStyle = '#f0e2c8'; d.fillRect(0, 0, 128, 128); d.strokeStyle = '#d8c39c'; d.lineWidth = 3; for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) { d.strokeRect(i * 32 + (j % 2) * 16 - 16, j * 32, 32, 32); } }, [6, 4]);
   // nền lát đá kéo dài ra phía trước (phủ kín đáy khung hình) và đồi xa phía sau thay cho mảng trời trống
   const cob = cobble.clone(); cob.repeat.set(6 * 40 / 14, 4 * 22 / 10); cob.needsUpdate = true;

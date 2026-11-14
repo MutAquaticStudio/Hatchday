@@ -9,7 +9,7 @@ import { makeFireflies, makeProps, makeWorld } from './world.js';
 export function initPlaza(c) {
   const { THREE, add, toon, canvasTex, scene } = c, kit = makeKit(c, { cull: true });
   const g = new THREE.Group(); g.visible = false; scene.add(g);
-  const world = makeWorld(c, g), props = makeProps({ THREE, add, toon, canvasTex, kit, world });
+  const world = makeWorld(c, g), props = makeProps({ THREE, add, toon, canvasTex, kit, world, glowMat: c.glowMat });
   const shared = makeShared(c, { placeId: 'plaza', group: g });
   const grass = canvasTex(128, 128, d => { d.fillStyle = '#bfeaa0'; d.fillRect(0, 0, 128, 128); d.fillStyle = '#a8da86'; for (let i = 0; i < 40; i++) d.fillRect((i * 37) % 128, (i * 53) % 128, 3, 6); }, [14, 10]);
   const paving = canvasTex(128, 128, d => { d.fillStyle = '#f4e8d4'; d.fillRect(0, 0, 128, 128); d.strokeStyle = '#dccaa8'; d.lineWidth = 3; for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) d.strokeRect(i * 32 + (j % 2) * 16 - 16, j * 32, 32, 32); }, [8, 8]);

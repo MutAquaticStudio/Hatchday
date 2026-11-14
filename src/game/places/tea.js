@@ -28,7 +28,7 @@ export function initTea(c) {
 
   // cửa sổ lớn có rèm (tường sau, bên trái)
   const win = canvasTex(256, 192, d => { const gr = d.createLinearGradient(0, 0, 0, 192); gr.addColorStop(0, '#cdeaff'); gr.addColorStop(1, '#eaf7ff'); d.fillStyle = gr; d.fillRect(0, 0, 256, 192); d.fillStyle = '#7edb72'; d.beginPath(); d.arc(60, 175, 46, 0, 7); d.fill(); d.beginPath(); d.arc(190, 180, 54, 0, 7); d.fill(); d.fillStyle = '#fff'; d.beginPath(); d.arc(120, 50, 18, 0, 7); d.arc(145, 54, 22, 0, 7); d.fill(); });
-  const wnd = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 2.4), new THREE.MeshBasicMaterial({ map: win })); wnd.position.set(-2.8, 2.9, -D / 2 + 0.02); g.add(wnd);
+  const wnd = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 2.4), c.glowMat(new THREE.MeshBasicMaterial({ map: win }))); wnd.position.set(-2.8, 2.9, -D / 2 + 0.02); g.add(wnd);
   [[-1.8, 1.0, 3.7], [0.2, 1.0, 3.7]].forEach(() => { });
   add(g, new THREE.BoxGeometry(3.8, 0.14, 0.18), toon('#fff7ef'), -2.8, 4.15, -D / 2 + 0.1, '#a8778e', 0.015); add(g, new THREE.BoxGeometry(3.8, 0.14, 0.18), toon('#fff7ef'), -2.8, 1.65, -D / 2 + 0.1, '#a8778e', 0.015);
   [-4.5, -1.1].forEach(x => add(g, new THREE.BoxGeometry(0.7, 2.7, 0.14), toon('#ff9ec4'), x, 2.9, -D / 2 + 0.14, '#a8507a', 0.015)); // rèm hai bên
