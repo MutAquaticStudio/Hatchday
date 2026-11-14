@@ -269,11 +269,11 @@ export function makeForms(THREE, scene, H, fx, P) {
     return wait(act);
   };
   F.wave = c => {
-    const { a, d, R, act } = c, tidal = R.k === 'tidal', lanes = tidal ? 1 : R.n || 3, dir = dirTo(a, d), L = dir.length(); dir.normalize(); const perp = V(-dir.z, 0, dir.x), start = a.pos.clone().addScaledVector(dir, a.r + 0.2), sp = [], life = act + 0.25, big = (tidal ? 1.9 : 0.85) * R.s * (0.8 + c.cls * 0.2), foam = sparkle(R.c, R.c2, 70);
+    const { a, d, R, act } = c, tidal = R.k === 'tidal', lanes = tidal ? 1 : R.n || 3, dir = dirTo(a, d), L = dir.length(); dir.normalize(); const perp = V(-dir.z, 0, dir.x), curl = dir.clone().multiplyScalar(-1).add(V(0, 1.1, 0)), start = a.pos.clone().addScaledVector(dir, a.r + 0.2), sp = [], life = act + 0.25, big = (tidal ? 1.35 : 0.85) * R.s * (0.8 + c.cls * 0.2), foam = sparkle(R.c, R.c2, 70);
     H.sfx(c.snd, { pitch: c.pitch }); H.sfx('whoosh', { pitch: c.pitch * 0.7 });
     for (let r = 0; r < (tidal ? 3 : 2); r++) for (let l = 0; l < lanes; l++) { const s = spr(R.motif, r ? R.c2 : colOf(R, l), r ? R.c : R.c2); s.s = 0; sp.push({ s, off: lanes > 1 ? (l / (lanes - 1) - 0.5) * 2.2 : 0, r, ph: rand(0, 6) }); }
     tween(life, (u, dt) => { const t = u * life / act, w = Math.pow(t, 1.7), grow = E.out(Math.min(1, t * 2.5)), out = t > 1 ? Math.max(0, 1 - (t - 1) / (0.25 / act)) : 1;
-      sp.forEach(({ s, off, r, ph }) => { const k = big * (1 - r * 0.28) * grow * out; s.p.copy(start).addScaledVector(dir, (L + 0.4) * w - r * 0.45).addScaledVector(perp, off * (0.6 + 0.4 * grow)); s.p.y = H.ground + k * 0.52 + Math.abs(Math.sin(t * 14 + ph)) * 0.12; s.s = k; s.roll = tidal || R.motif === 'crest' ? Math.sin(t * 9 + ph) * 0.12 : R.motif === 'fang' ? Math.PI : Math.sin(t * 12 + ph) * 0.3; });
+      sp.forEach(({ s, off, r, ph }) => { const k = big * (1 - r * 0.28) * grow * out; s.p.copy(start).addScaledVector(dir, (L + 0.4) * w - r * 0.45).addScaledVector(perp, off * (0.6 + 0.4 * grow)); s.p.y = H.ground + k * 0.52 + Math.abs(Math.sin(t * 14 + ph)) * 0.12; s.s = k; if (R.motif === 'crest') { aim(s, curl); s.roll += Math.sin(t * 9 + ph) * 0.1; } else s.roll = R.motif === 'fang' ? Math.PI : Math.sin(t * 12 + ph) * 0.3; });
       foam(tv.copy(start).addScaledVector(dir, (L + 0.4) * w).setY(H.ground + 0.15), u, dt); }, () => sp.forEach(x => x.s.kill()));
     return wait(act);
   };
@@ -303,8 +303,8 @@ export function makeForms(THREE, scene, H, fx, P) {
     const { a, R, act } = c, rise = act * 0.4, at = a.pos.clone().addScaledVector(a.dir, -0.7).add(V(0, a.h + 1.3 * R.s, 0)), size = 1.0 * R.s * (0.75 + c.cls * 0.25), life = act + 0.35, tails = R.motif === 'tail', list = [];
     H.sfx('summon', { pitch: c.pitch }); H.sfx(c.snd, { pitch: c.pitch * 0.8 });
     const n = tails ? 9 : 1; for (let i = 0; i < n; i++) { const s = spr(R.motif, colOf(R, i), R.c2); s.s = 0; list.push(s); }
-    const halo = spr('sun', R.c2, R.c2, R.c); halo.s = 0; const base = tails ? a.center().addScaledVector(a.dir, -0.35) : at;
-    tween(life, (u, dt) => { const t = u * life, out = t > life - 0.3 ? (life - t) / 0.3 : 1; halo.p.copy(base).addScaledVector(a.dir, -0.15); halo.roll += dt * 0.6; halo.s = (tails ? 1.1 : size * 1.1) * E.out3(Math.min(1, t / rise)) * out; halo.a = 0.85;
+    const halo = spr('sun', R.c, R.c2); halo.s = 0; const base = tails ? a.center().addScaledVector(a.dir, -0.35) : at;
+    tween(life, (u, dt) => { const t = u * life, out = t > life - 0.3 ? (life - t) / 0.3 : 1; halo.p.copy(base).addScaledVector(a.dir, -0.15); halo.roll += dt * 0.6; halo.s = (tails ? 1.0 : size * 0.85) * E.out3(Math.min(1, t / rise)) * out; halo.a = 0.85;
       list.forEach((s, i) => { const g = E.back(Math.min(1, Math.max(0, (t - i * rise * 0.07) / (rise * 0.6)))) * out; if (tails) { const an = (i - 4) * 0.3 + Math.sin(t * 3 + i) * 0.05; tR.set(1, 0, 0).applyQuaternion(H.camQuat()); s.p.copy(base).addScaledVector(tR, -Math.sin(an) * 0.95 * g).add(tv.set(0, Math.cos(an) * 0.95 * g, 0)); s.roll = an; s.s = 0.75 * g; } else { s.p.copy(at); s.p.y += Math.sin(t * 3) * 0.06; s.s = size * g; s.roll = R.motif === 'sun' || R.motif === 'ring' || R.motif === 'flower' ? t * 0.8 : Math.sin(t * 2) * 0.05; } }); }, () => { list.forEach(s => s.kill()); halo.kill(); });
     gring(a.pos, R.c, 0.4, 2.2, rise + 0.2);
     await wait(rise);
@@ -367,11 +367,11 @@ export function makeForms(THREE, scene, H, fx, P) {
   };
   F.lash = c => {
     const { a, R, act } = c, n = R.n || 1, kd = R.k || '', dragon = kd === 'dragon', bow = kd === 'rainbow', from = dragon ? a.pos.clone().addScaledVector(a.dir, -1.5).add(V(0, 5, 0)) : c.from, to = c.to, ax = to.clone().sub(from), side = H.side(), hold = bow ? 0.5 : 0.2; H.sfx(c.snd, { pitch: c.pitch }); H.sfx('whoosh', { pitch: c.pitch * (dragon ? 0.6 : 1.2) });
-    for (let i = 0; i < n; i++) { const col = bow ? RAINBOW[(i * 3) % 7] : colOf(R, i), head = spr(dragon ? 'fang' : R.motif, col, R.c2), w = (dragon ? 0.7 : bow ? 0.3 : 0.12) * R.s * (dragon ? 1 : c.big), tr = trail(col, w, true), tr2 = dragon || bow ? trail(bow ? RAINBOW[(i * 3 + 2) % 7] : R.c2, w * 0.45, true) : null, ph = i * 2.1 + rand(0, 1), amp = kd === 'snake' ? 0.9 : dragon ? 1.7 : 0.45, waves = kd === 'snake' ? 3 : dragon ? 2.6 : 2, prev = from.clone(), spread = n > 1 ? (i / (n - 1) - 0.5) * 2 : 0;
+    for (let i = 0; i < n; i++) { const col = bow ? RAINBOW[(i * 3) % 7] : colOf(R, i), head = spr(dragon ? 'flame' : R.motif, col, R.c2), w = (dragon ? 0.7 : bow ? 0.3 : 0.12) * R.s * (dragon ? 1 : c.big), tr = trail(col, w, true), tr2 = dragon || bow ? trail(bow ? RAINBOW[(i * 3 + 2) % 7] : R.c2, w * 0.45, true) : null, ph = i * 2.1 + rand(0, 1), amp = kd === 'snake' ? 0.9 : dragon ? 1.7 : 0.45, waves = kd === 'snake' ? 3 : dragon ? 2.6 : 2, prev = from.clone(), spread = n > 1 ? (i / (n - 1) - 0.5) * 2 : 0;
       head.s = 0; head.p.copy(from); tween(act, u => { const e = E.acc(u), fall = 1 - e; prev.copy(head.p); head.p.copy(from).addScaledVector(ax, e);
         if (dragon) { const an = e * TAU * waves + ph; head.p.addScaledVector(side, Math.cos(an) * amp * fall).add(tv.set(0, Math.sin(an) * amp * 0.7 * fall, 0)); }
         else { head.p.addScaledVector(side, (Math.sin(e * Math.PI * waves + ph) * amp + spread * 1.5 * Math.sin(e * Math.PI)) * (bow ? 0.3 : 1) * Math.min(1, fall * 3)); head.p.y += Math.sin(e * Math.PI) * (bow ? 2.4 + i * 0.5 : 0.35 + Math.abs(spread) * 0.6) + Math.cos(e * Math.PI * waves + ph) * amp * 0.35 * fall * (bow ? 0 : 1); }
-        head.s = (dragon ? 0.75 : 0.26) * R.s * Math.min(1, u * 8) * (dragon ? 1 : c.big); if (u > 0) aim(head, tv.copy(head.p).sub(prev)); tr.push(head.p); tr2?.push(tv2.copy(head.p).setY(head.p.y - w * 0.7)); },
+        head.s = (dragon ? 0.42 : 0.26) * R.s * Math.min(1, u * 8) * (dragon ? 1 : c.big); if (u > 0) aim(head, tv.copy(head.p).sub(prev)); tr.push(head.p); tr2?.push(tv2.copy(head.p).setY(head.p.y - w * 0.7)); },
       () => { head.kill(); after(hold, () => { tr.fade(0.3); tr2?.fade(0.3); }); }); }
     return wait(act);
   };
