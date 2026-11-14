@@ -7,3 +7,4 @@ dist
 dist-admin
 .wrangler
 .dev.vars*
+.claude/worktrees/

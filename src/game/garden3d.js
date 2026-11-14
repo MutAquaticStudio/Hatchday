@@ -1,6 +1,7 @@
 // Vườn rau 3D trong cảnh Vườn: 4 luống đất, cây lớn dần theo giờ thật, chạm vào luống để gieo hạt, tưới nước, hái rau.
 // Mỗi thao tác có hoạt ảnh: hạt bay vào đất và nảy mầm, bình tưới nghiêng rót nước, rau bay vào giỏ.
 // Dữ liệu thật (cây nào, chín lúc nào, số lần tưới) nằm ở server (get_garden, plant_crop, water_crop, harvest_crop); file này chỉ vẽ và gọi.
+import { _t, LOCALE } from '../i18n';
 import { BY_ID, CROPS, FOOD_BY_ID, GARDEN_LAND, ITEMS, PARCEL, plotIndex, WATER } from './catalog';
 import { FOOD_SVG } from './food.js';
 import { viError } from '../lib/errors';
@@ -59,7 +60,7 @@ export function groundTextures(canvasTex) {
 }
 
 /** Hiện chữ "còn 2 giờ 10 phút". */
-export function leftText(ms) { const m = Math.max(1, Math.ceil(ms / 60000)), h = Math.floor(m / 60); return h ? `còn ${h} giờ${m % 60 ? ' ' + (m % 60) + ' phút' : ''}` : `còn ${m} phút`; }
+export function leftText(ms) { const m = Math.max(1, Math.ceil(ms / 60000)), h = Math.floor(m / 60); return h ? _t`còn ${h} giờ${m % 60 ? ' ' + (m % 60) + _t(' phút') : ''}` : _t`còn ${m} phút`; }
 
 /**
  * `c`: { THREE, garden, toon, add, canvasTex, camera, canvas, ray, ndcFrom, spawnAt, popText, say, startAction, toast, sfx, buzz,
@@ -237,7 +238,7 @@ export function initGarden3d(c) {
 
   /** Mở rộng đất: ô mới nảy lên từng cái một, bụi bay, đồng xu vàng biến mất. */
   function animExpand(from, to) {
-    sfx('buy'); buzz(14); startAction('dance'); say('Đất mới rộng thênh thang!', 2400);
+    sfx('buy'); buzz(14); startAction('dance'); say(_t('Đất mới rộng thênh thang!'), 2400);
     for (let i = from; i < to; i++) {
       const b = beds[i]; b.busy = true; b.root.visible = true; b.root.scale.setScalar(0.01);
       wait((i - from) * 0.2, () => { puff(worldOf(b), 4); tween(0.7, p => b.root.scale.setScalar(Math.max(0.01, easeOutBack(p))), () => { b.root.scale.setScalar(1); b.busy = false; sync(); }); });
@@ -278,13 +279,13 @@ export function initGarden3d(c) {
   function closeMenu() { menu.hidden = true; menuPlot = -1; }
   function menuHtml(i) {
     const p = plotOf(i), now = store.serverNow(), lvl = parcelsNow()[parcel]?.level || 0;
-    if (beds[i].locked) { const next = GARDEN_LAND[lvl + 1]; return next ? `<h3>Đất chưa mở</h3><p class="pm-note">Nâng cấp mảnh đất này (+${next.plots - GARDEN_LAND[lvl].plots} ô, lên ${next.plots} ô)</p><button type="button" class="btn-sm" data-expand ${S.coins >= next.price ? '' : 'disabled'}>Nâng cấp · ${next.price} xu</button>` : '<h3>Mảnh đất đã đủ 9 ô</h3>'; }
-    if (!p) return `<h3>Ô đất ${i + 1}</h3><p class="pm-note">Chọn cây để gieo hạt</p><div class="pm-crops">${CROPS.map(cr => `<button type="button" class="pm-crop" data-plant="${cr.id}" ${S.coins >= cr.seed ? '' : 'disabled'}>${FOOD_SVG[cr.id]}<b>${esc(FOOD_BY_ID[cr.id].name)}</b><small>${cr.seed} xu · ${cr.hours} giờ</small></button>`).join('')}</div>`;
+    if (beds[i].locked) { const next = GARDEN_LAND[lvl + 1]; return next ? _t`<h3>Đất chưa mở</h3><p class="pm-note">Nâng cấp mảnh đất này (+${next.plots - GARDEN_LAND[lvl].plots} ô, lên ${next.plots} ô)</p><button type="button" class="btn-sm" data-expand ${S.coins >= next.price ? '' : 'disabled'}>Nâng cấp · ${next.price} xu</button>` : _t('<h3>Mảnh đất đã đủ 9 ô</h3>'); }
+    if (!p) return _t`<h3>Ô đất ${i + 1}</h3><p class="pm-note">Chọn cây để gieo hạt</p><div class="pm-crops">${CROPS.map(cr => _t`<button type="button" class="pm-crop" data-plant="${cr.id}" ${S.coins >= cr.seed ? '' : 'disabled'}>${FOOD_SVG[cr.id]}<b>${esc(FOOD_BY_ID[cr.id].name)}</b><small>${cr.seed} xu · ${cr.hours} giờ</small></button>`).join('')}</div>`;
     const cr = CROPS.find(x => x.id === p.crop), ready = Date.parse(p.ready_at), name = FOOD_BY_ID[p.crop].name;
-    if (now >= ready) return `<h3>${esc(name)} chín rồi!</h3><p class="pm-note">Hái được ${cr.yield} phần</p><button type="button" class="btn-sm" data-harvest>Hái rau +${cr.yield}</button>`;
+    if (now >= ready) return _t`<h3>${esc(name)} chín rồi!</h3><p class="pm-note">Hái được ${cr.yield} phần</p><button type="button" class="btn-sm" data-harvest>Hái rau +${cr.yield}</button>`;
     const planted = Date.parse(p.planted_at), pct = clamp01((now - planted) / Math.max(1, ready - planted)) * 100;
-    const why = p.waters >= WATER.max ? 'Đã tưới đủ 3 lần' : !p.can_water ? 'Vừa tưới xong, đợi một lát' : `Mỗi lần tưới rút ngắn ${Math.round(WATER.cut * 100)}% thời gian`;
-    return `<h3>${esc(name)}</h3><div class="bar-track"><i style="width:${Math.max(4, pct)}%"></i></div><p class="pm-note">${leftText(ready - now)}</p>
+    const why = p.waters >= WATER.max ? _t('Đã tưới đủ 3 lần') : !p.can_water ? _t('Vừa tưới xong, đợi một lát') : _t`Mỗi lần tưới rút ngắn ${Math.round(WATER.cut * 100)}% thời gian`;
+    return _t`<h3>${esc(name)}</h3><div class="bar-track"><i style="width:${Math.max(4, pct)}%"></i></div><p class="pm-note">${leftText(ready - now)}</p>
       <button type="button" class="btn-sm" data-water ${p.can_water ? '' : 'disabled'}>Tưới nước (${p.waters}/${WATER.max})</button><p class="pm-note">${why}</p>`;
   }
   function openMenu(i) {
@@ -309,11 +310,11 @@ export function initGarden3d(c) {
     if (pl) {
       const err = await store.plantCrop(gidx(i), pl.dataset.plant);
       if (err) { b.busy = false; toast(viError(err)); return; }
-      await toBed(); b.busy = false; animPlant(b, pl.dataset.plant); toast(`Đã gieo ${FOOD_BY_ID[pl.dataset.plant].name}.`);
+      await toBed(); b.busy = false; animPlant(b, pl.dataset.plant); toast(_t`Đã gieo ${FOOD_BY_ID[pl.dataset.plant].name}.`);
     } else if (wt) {
       const err = await store.waterCrop(gidx(i));
       if (err) { b.busy = false; toast(viError(err)); return; }
-      await toBed(); b.busy = false; animWater(b); say('Mát quá, cây lớn nhanh nhé!', 2200);
+      await toBed(); b.busy = false; animWater(b); say(_t('Mát quá, cây lớn nhanh nhé!'), 2200);
     } else {
       const res = await store.harvestCrop(gidx(i));
       if ('error' in res) { b.busy = false; toast(viError(res.error)); return; }
@@ -369,12 +370,12 @@ export function initGarden3d(c) {
   function renderPanel() {
     const counts = {}; edit.items.forEach(it => { counts[it.id] = (counts[it.id] || 0) + 1; });
     const list = FARM_ITEMS.filter(i => (S.owned[i.id] || 0) > 0), selIt = edit.sel >= 0 ? BY_ID[edit.items[edit.sel].id] : null;
-    panel.innerHTML = `<div class="edit-top"><div class="edit-title"><b>Trang trí nông trại</b><span>${edit.items.length} món · chạm món bên dưới để đặt, kéo để di chuyển</span></div>
+    panel.innerHTML = _t`<div class="edit-top"><div class="edit-title"><b>Trang trí nông trại</b><span>${edit.items.length} món · chạm món bên dưới để đặt, kéo để di chuyển</span></div>
         <div class="edit-actions"><button type="button" class="pill save" data-fe="save">Lưu</button><button type="button" class="pill" data-fe="cancel">Hủy</button></div></div>
       <div class="item-bar" ${selIt ? '' : 'hidden'}><b>${selIt ? esc(selIt.name) : ''}</b><button type="button" class="btn-sm ghost" data-fe="rotate">Xoay</button><button type="button" class="btn-sm ghost" data-fe="store">Cất</button><button type="button" class="btn-sm ghost" data-fe="desel">Xong</button></div>
       <div class="inventory"><div class="inv-row">${list.length ? list.map(i => { const left = (S.owned[i.id] || 0) - (counts[i.id] || 0);
         return `<button type="button" class="inv-item" data-fe-add="${i.id}" ${left <= 0 ? 'disabled' : ''} title="${esc(i.name)}"><img data-fe-thumb="${i.id}" alt="" width="56" height="56"><span>${esc(i.name)}</span><em>${left}</em></button>`; }).join('')
-        : '<p class="hs-note" style="margin:6px 8px">Bạn chưa có đồ trang trí nông trại. Mua ở Cửa hàng, mục Nông trại nhé.</p>'}</div></div>`;
+        : _t('<p class="hs-note" style="margin:6px 8px">Bạn chưa có đồ trang trí nông trại. Mua ở Cửa hàng, mục Nông trại nhé.</p>')}</div></div>`;
     panel.querySelectorAll('[data-fe-thumb]').forEach(im => { const u = c.thumb?.(im.dataset.feThumb); if (u) im.src = u; });
   }
   function startEdit() {
@@ -382,7 +383,7 @@ export function initGarden3d(c) {
     closeMenu(); edit = { items: structuredClone(S.farm), sel: -1, drag: null }; farmSig = '';
     c.setCam?.(new THREE.Vector3(0, 8.4, 14.5), new THREE.Vector3(0, 0, 0.4)); // lùi ra để thấy cả sân
     $('app').classList.add('farm-editing'); panel.hidden = false; buildFarm(edit.items); renderPanel(); updateRing();
-    say('Chạm đồ ở dưới để đặt vào sân nhé!', 2600);
+    say(_t('Chạm đồ ở dưới để đặt vào sân nhé!'), 2600);
   }
   function stopEdit() { c.setCam?.(null, null); edit = null; panel.hidden = true; ring.visible = false; $('app').classList.remove('farm-editing'); farmSig = ''; syncFarm(); }
   function addItem(id) {
@@ -393,7 +394,7 @@ export function initGarden3d(c) {
       const d = Math.max(0, Math.abs(x) - 4.0) * 3 + Math.max(0, z - 3.8) * 3 + Math.abs(z - 1.6) * 0.25 + (Math.hypot(x, z - 0.6) < 2.1 ? 1.5 : 0) + Math.abs(Math.abs(x) - 3.0) * 0.1;
       if (!best || d < best.d) best = { d, cand };
     }
-    if (!best) { toast('Sân hết chỗ trống rồi.'); return; }
+    if (!best) { toast(_t('Sân hết chỗ trống rồi.')); return; }
     edit.items.push(best.cand); edit.sel = edit.items.length - 1;
     const g = c.buildDecor(id); placeMesh(g, best.cand); farmRoot.add(g); farmMeshes.push(g);
     sfx('place'); buzz(10); renderPanel(); updateRing();
@@ -410,10 +411,10 @@ export function initGarden3d(c) {
     else if (k === 'cancel') { stopEdit(); }
     else if (k === 'save') {
       const bad = edit.items.findIndex((_, i) => !farmValid(edit.items, i));
-      if (bad >= 0) { edit.sel = bad; renderPanel(); updateRing(); toast('Có món đang đặt sai chỗ (vòng đỏ). Hãy dời đi nhé.'); return; }
+      if (bad >= 0) { edit.sel = bad; renderPanel(); updateRing(); toast(_t('Có món đang đặt sai chỗ (vòng đỏ). Hãy dời đi nhé.')); return; }
       act.disabled = true; const err = await store.saveFarm(edit.items);
       if (err) { act.disabled = false; toast(viError(err)); return; }
-      stopEdit(); sfx('coin'); toast('Đã lưu nông trại!'); startAction('dance');
+      stopEdit(); sfx('coin'); toast(_t('Đã lưu nông trại!')); startAction('dance');
     }
   });
   /** Con trỏ khi đang trang trí nông trại: chọn món, kéo đi, thả (thả sai chỗ thì quay về chỗ cũ). */
@@ -433,7 +434,7 @@ export function initGarden3d(c) {
       it.x = Math.max(-6.5, Math.min(6.5, snap(g.x))); it.z = Math.max(-4.2, Math.min(5.2, snap(g.z))); placeMesh(farmMeshes[d.i], it); updateRing();
     } else if (type === 'up' && edit.drag) {
       const d = edit.drag; edit.drag = null; const it = edit.items[d.i];
-      if (d.moved && !farmValid(edit.items, d.i)) { it.x = d.orig.x; it.z = d.orig.z; placeMesh(farmMeshes[d.i], it); toast('Chỗ này không đặt được, món về chỗ cũ.'); buzz(20); }
+      if (d.moved && !farmValid(edit.items, d.i)) { it.x = d.orig.x; it.z = d.orig.z; placeMesh(farmMeshes[d.i], it); toast(_t('Chỗ này không đặt được, món về chỗ cũ.')); buzz(20); }
       else if (d.moved) sfx('place');
       updateRing();
     }
@@ -444,8 +445,8 @@ export function initGarden3d(c) {
   const dirtTints = ['#ffffff', '#ffdcae', '#cfe3ff'];
   function renderBar() {
     const ps = parcelsNow(), last = ps[ps.length - 1], canBuy = ps.length < PARCEL.max, full = last.level >= GARDEN_LAND.length - 1;
-    bar.innerHTML = ps.map(p => `<button type="button" class="chip" data-parcel="${p.parcel}" aria-pressed="${p.parcel === parcel}">Mảnh ${p.parcel + 1} · ${p.size} ô</button>`).join('') +
-      (canBuy ? `<button type="button" class="chip buy" data-buy-parcel ${full && S.coins >= PARCEL.prices[ps.length] ? '' : 'disabled'} title="${full ? '' : 'Cần nâng cấp mảnh cuối lên đủ 9 ô'}">＋ Mua đất · ${PARCEL.prices[ps.length].toLocaleString('vi-VN')} xu</button>` : '');
+    bar.innerHTML = ps.map(p => _t`<button type="button" class="chip" data-parcel="${p.parcel}" aria-pressed="${p.parcel === parcel}">Mảnh ${p.parcel + 1} · ${p.size} ô</button>`).join('') +
+      (canBuy ? _t`<button type="button" class="chip buy" data-buy-parcel ${full && S.coins >= PARCEL.prices[ps.length] ? '' : 'disabled'} title="${full ? '' : _t('Cần nâng cấp mảnh cuối lên đủ 9 ô')}">＋ Mua đất · ${PARCEL.prices[ps.length].toLocaleString(LOCALE)} xu</button>` : '');
   }
   function setParcel(k) {
     if (k === parcel || beds.some(b => b.busy)) return;
@@ -458,7 +459,7 @@ export function initGarden3d(c) {
     if (!by) return;
     by.disabled = true; const res = await store.buyParcel();
     if ('error' in res) { toast(viError(res.error)); renderBar(); return; }
-    sfx('buy'); buzz(14); toast(`Đã mua mảnh đất ${res.parcel + 1}!`); setParcel(res.parcel); startAction('dance');
+    sfx('buy'); buzz(14); toast(_t`Đã mua mảnh đất ${res.parcel + 1}!`); setParcel(res.parcel); startAction('dance');
   });
 
   /* ---------------- vòng lặp ---------------- */

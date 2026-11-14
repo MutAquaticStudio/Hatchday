@@ -1,12 +1,19 @@
 import { supabase, isConfigured } from '../lib/supabase';
 import * as demo from './demo-api';
 import * as demoSocial from './demo-social';
+import * as demoF2P from './demo-f2p';
+import * as demoSupport from './demo-support';
+import * as demoArena from './demo-arena';
+import type { ArenaFinish, ArenaMode, ArenaResult, ArenaStart, ArenaState } from '../game/arena';
+import type { Upgrades } from '../game/battle';
 import type { ActiveEvent, EventGoal } from '../game/events';
 import type { AdState, AdTicket } from '../game/ads';
 import type { ActivityResult, MiniResult, WorldProgress } from '../game/world-activity';
 import type { ChatReply, DmMsg, DmThread, MailRow, NewsRow, PublicProfile, SocialState, SocialSummary, VisitData } from '../game/social';
 import type { ToyResult, ToysState, ActionResult, CureResult, DayLogRow, Economy, FarmItem, Garden, MemoryRow, Outfit, PetAction, PetRow, QuestBoard, SeenRow, Tastes } from './types';
 import type { Layout } from '../game/catalog';
+import type { SupportTicket, TicketKind } from '../game/support';
+import type { ContestState, FestivalState, GuestNote, JobState, Playdate, SeasonState, StickerState, Visitor } from '../game/f2p';
 
 /** Chưa cấu hình Supabase thì chạy chế độ Chơi thử (dữ liệu trong trình duyệt). */
 export const isDemo = !isConfigured;
@@ -210,3 +217,40 @@ export const setPushPrefs = (p: PushPrefs) => (isDemo ? Promise.resolve() : rpc<
 
 /* ---------- Bản đồ: số người đang ở các nơi chung (bản Chơi thử: vài bạn ảo) ---------- */
 export const getPlacesSummary = (): Promise<Record<string, number>> => (isDemo ? Promise.resolve({ plaza: 4, tea: 2, park: 3 }) : rpc<Record<string, number>>('places_summary'));
+
+/* ---------- Chơi miễn phí: việc làm thêm, thi biểu diễn, lễ hội, sticker, Sổ mùa, hẹn chơi, lời nhắn, bé ghé chơi ---------- */
+export const getJobState = (): Promise<JobState> => (isDemo ? demoF2P.getJobState() : rpc<JobState>('get_job_state'));
+export const startJob = (job: string, hours: number): Promise<JobState> => (isDemo ? demoF2P.startJob(job, hours) : rpc<JobState>('start_job', { p_job: job, p_hours: hours }));
+export const finishJob = () => (isDemo ? demoF2P.finishJob() : rpc<{ pay: number; coins: number; skill: string; skill_xp: number; job: string; hours: number }>('finish_job'));
+export const cancelJob = (): Promise<JobState> => (isDemo ? demoF2P.cancelJob() : rpc<JobState>('cancel_job'));
+export const getContest = (): Promise<ContestState> => (isDemo ? demoF2P.getContest() : rpc<ContestState>('get_contest'));
+export const enterContest = (): Promise<ContestState> => (isDemo ? demoF2P.enterContest() : rpc<ContestState>('enter_contest'));
+export const claimContest = () => (isDemo ? demoF2P.claimContest() : rpc<{ rank: number; reward: number; coins: number }>('claim_contest'));
+export const getFestival = (): Promise<FestivalState> => (isDemo ? demoF2P.getFestival() : rpc<FestivalState>('get_festival'));
+export const claimFestival = () => (isDemo ? demoF2P.claimFestival() : rpc<{ reward: number; festival: string; coins: number }>('claim_festival'));
+export const getStickers = (): Promise<StickerState[]> => (isDemo ? demoF2P.getStickers() : rpc<StickerState[]>('get_stickers'));
+export const claimSticker = (id: string) => (isDemo ? demoF2P.claimSticker(id) : rpc<{ reward: number; coins: number }>('claim_sticker', { p_id: id }));
+export const getSeason = (): Promise<SeasonState> => (isDemo ? demoF2P.getSeason() : rpc<SeasonState>('get_season'));
+export const claimSeason = (tier: number) => (isDemo ? demoF2P.claimSeason(tier) : rpc<{ reward: number; coins: number }>('claim_season', { p_tier: tier }));
+export const invitePlaydate = (who: string) => (isDemo ? demoSocial.invitePlaydate(who) : rpc<{ ok: boolean }>('invite_playdate', { p_who: who }));
+export const respondPlaydate = (id: number, accept: boolean) => (isDemo ? demoSocial.respondPlaydate(id, accept) : rpc<{ ok: boolean; accepted: boolean; reward?: number; coins?: number }>('respond_playdate', { p_id: id, p_accept: accept }));
+export const listPlaydates = (): Promise<Playdate[]> => (isDemo ? demoSocial.listPlaydates() as Promise<Playdate[]> : rpc<Playdate[]>('list_playdates'));
+export const writeGuestNote = (who: string, body: string) => (isDemo ? demoSocial.writeGuestNote(who, body) : rpc<{ ok: boolean; reason: string | null }>('write_guest_note', { p_who: who, p_body: body }));
+export const getGuestNotes = (): Promise<GuestNote[]> => (isDemo ? demoSocial.getGuestNotes() : rpc<GuestNote[]>('get_guest_notes'));
+export const deleteGuestNote = (id: number) => (isDemo ? demoSocial.deleteGuestNote(id) : rpc<void>('delete_guest_note', { p_id: id }));
+export const getVisitors = (place: string): Promise<Visitor[]> => (isDemo ? demoSocial.getVisitors(place) as Promise<Visitor[]> : rpc<Visitor[]>('get_visitors', { p_place: place }));
+
+/* ---------- Đấu trường (máy chủ chọn đối thủ, sân, hạt giống; trận đánh tính ở máy) ---------- */
+export const getArenaState = (): Promise<ArenaState> => (isDemo ? demoArena.getArenaState() : rpc<ArenaState>('get_arena_state'));
+export const buyUpgrade = (stat: keyof Upgrades) => (isDemo ? demoArena.buyUpgrade(stat) : rpc<{ upgrades: Upgrades; coins: number; cost: number }>('buy_upgrade', { p_stat: stat }));
+export const arenaStart = (mode: ArenaMode, who?: string): Promise<ArenaStart> => (isDemo ? demoArena.arenaStart(mode, who) : rpc<ArenaStart>('arena_start', { p_mode: mode, p_who: who ?? null }));
+export const arenaFinish = (id: number, result: ArenaResult, turns: number | null): Promise<ArenaFinish> => (isDemo ? demoArena.arenaFinish(id, result, turns) : rpc<ArenaFinish>('arena_finish', { p_id: id, p_result: result, p_turns: turns }));
+
+/* ---------- Góp ý & Hỗ trợ; thông tin trang (ủng hộ, email liên hệ) ---------- */
+export const submitTicket = (kind: TicketKind, subject: string, body: string, meta: Record<string, unknown>) =>
+  (isDemo ? demoSupport.submitTicket(kind, subject, body) : rpc<number>('submit_ticket', { p_kind: kind, p_subject: subject, p_body: body, p_meta: meta }));
+export const replyTicket = (id: number, body: string) => (isDemo ? demoSupport.replyTicket(id, body) : rpc<void>('reply_ticket', { p_id: id, p_body: body }));
+export const closeMyTicket = (id: number) => (isDemo ? demoSupport.closeMyTicket(id) : rpc<void>('close_my_ticket', { p_id: id }));
+export const getMyTickets = (): Promise<SupportTicket[]> => (isDemo ? demoSupport.getMyTickets() : rpc<SupportTicket[]>('get_my_tickets'));
+export const supportUnread = (): Promise<number> => (isDemo ? demoSupport.supportUnread() : rpc<number>('support_unread'));
+export const markTicketRead = (id: number) => (isDemo ? demoSupport.markTicketRead(id) : rpc<void>('mark_ticket_read', { p_id: id }));

@@ -2,6 +2,7 @@
  * Sự kiện đang chạy (do quản trị tạo, xem admin). Cấu hình: banner (chữ), plaza_decor (trang trí Quảng trường theo mùa), coin_boost (nhân xu nhiệm vụ).
  * Luật nhân xu song song với private.event_boost trong supabase/migrations/20261210000000_event_hooks.sql.
  */
+import { _t } from '../i18n';
 export type PlazaDecor = 'tet' | 'trung-thu' | 'giang-sinh' | 'he';
 export interface ActiveEvent { id: number; title: string; body: string; kind: string; starts_at: string; ends_at: string; config: { banner?: string; plaza_decor?: PlazaDecor; coin_boost?: number } }
 
@@ -24,5 +25,5 @@ export const discountPct = (events: ActiveEvent[], kind: DiscountScope): number 
   events.reduce((m, e) => { const d = (e.config as Cfg)?.shop_discount; return d && (d.scope === 'all' || d.scope === kind) ? Math.max(m, d.pct) : m; }, 0);
 export const isEpidemic = (events: ActiveEvent[]): boolean => events.some(e => (e.config as Cfg)?.epidemic === true);
 export const goalEvents = (events: ActiveEvent[]) => events.filter(e => (e.config as Cfg)?.goal);
-export const GOAL_METRIC_TEXT: Record<GoalMetric, string> = { feed: 'bữa ăn', play: 'lượt chơi', pet: 'lần vuốt ve', bath: 'lần tắm', talk: 'lần trò chuyện' };
+export const GOAL_METRIC_TEXT: Record<GoalMetric, string> = { feed: _t('bữa ăn'), play: _t('lượt chơi'), pet: _t('lần vuốt ve'), bath: _t('lần tắm'), talk: _t('lần trò chuyện') };
 export interface EventGoal { event_id: number; title: string; metric: GoalMetric; target: number; reward_coins: number; count: number; mine: number; reached: boolean; claimed: boolean; active: boolean; min_mine: number }

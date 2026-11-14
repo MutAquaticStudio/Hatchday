@@ -1,4 +1,5 @@
 // Đồng hành giờ làm việc (nhắc giải lao, uống nước, chào sáng/tối) và màn chào mừng quay lại sau khi vắng. Luật ở companion-rules.ts.
+import { _t } from '../i18n';
 import { S } from './store';
 import { $ } from './dom.js';
 import { awayText, COMPANION, DEFAULT_PREFS, drops, greetingFor, pickLine, stepReminders, wasAway } from './companion-rules';
@@ -29,15 +30,15 @@ export function initCompanion(c) {
   function closeWelcome() { card?.remove(); card = null; }
   function showWelcome(prev) {
     const mins = Math.round((Date.now() - prev.t) / 60000), lost = drops(prev, S), il = S.illness ? ILLNESS_BY_ID[S.illness] : null, risk = minutesToSick(healthNow(), Date.now());
-    card = document.createElement('div'); card.className = 'welcome'; card.setAttribute('role', 'dialog'); card.setAttribute('aria-label', 'Chào mừng quay lại');
+    card = document.createElement('div'); card.className = 'welcome'; card.setAttribute('role', 'dialog'); card.setAttribute('aria-label', _t('Chào mừng quay lại'));
     const acts = [];
-    if (il) acts.push(['clinic', 'Mở sổ sức khoẻ']);
-    if (S.no < 40 && !S.asleep) acts.push(['eat', 'Cho ăn']);
-    if (S.sach < 40 && !S.asleep) acts.push(['bath', 'Tắm cho bé']);
-    card.innerHTML = `<div class="welcome-card"><h2>Chào mừng trở lại!</h2><p>Bạn vắng ${awayText(mins)}. ${esc(S.name)} đã đợi bạn.</p>
-      ${S.asleep ? `<p class="w-note">${esc(S.name)} đang ngủ.</p>` : ''}
-      ${lost.length ? `<ul class="w-drops">${lost.map(d => `<li>${esc(capFirst(STAT_NOUN[d.key]))} tụt từ ${d.from} xuống ${d.to}</li>`).join('')}</ul>` : `<p class="w-note">Các chỉ số vẫn ổn, bé ở nhà ngoan lắm.</p>`}
-      ${il ? `<p class="w-warn">Bé đang bị ${esc(il.name.toLowerCase())}.</p>` : risk ? `<p class="w-warn">${esc(capFirst(STAT_NOUN[risk.stat]))} của bé gần 0, chăm bé ngay kẻo ốm.</p>` : ''}
+    if (il) acts.push(['clinic', _t('Mở sổ sức khoẻ')]);
+    if (S.no < 40 && !S.asleep) acts.push(['eat', _t('Cho ăn')]);
+    if (S.sach < 40 && !S.asleep) acts.push(['bath', _t('Tắm cho bé')]);
+    card.innerHTML = _t`<div class="welcome-card"><h2>Chào mừng trở lại!</h2><p>Bạn vắng ${awayText(mins)}. ${esc(S.name)} đã đợi bạn.</p>
+      ${S.asleep ? _t`<p class="w-note">${esc(S.name)} đang ngủ.</p>` : ''}
+      ${lost.length ? `<ul class="w-drops">${lost.map(d => _t`<li>${esc(capFirst(STAT_NOUN[d.key]))} tụt từ ${d.from} xuống ${d.to}</li>`).join('')}</ul>` : _t`<p class="w-note">Các chỉ số vẫn ổn, bé ở nhà ngoan lắm.</p>`}
+      ${il ? _t`<p class="w-warn">Bé đang bị ${esc(il.name.toLowerCase())}.</p>` : risk ? _t`<p class="w-warn">${esc(capFirst(STAT_NOUN[risk.stat]))} của bé gần 0, chăm bé ngay kẻo ốm.</p>` : ''}
       <div class="welcome-act">${acts.map(([k, l]) => `<button type="button" class="btn-sm ghost" data-w="${k}">${l}</button>`).join('')}<button type="button" class="btn-sm" data-w="close">Chào ${esc(S.name)}</button></div></div>`;
     $('app').appendChild(card);
     card.addEventListener('click', e => {

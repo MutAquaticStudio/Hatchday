@@ -23,10 +23,10 @@ const out = []; const ok = (n, c, x = '') => out.push((c ? 'OK  ' : 'FAIL') + ' 
 
   ok('analyst chỉ thấy Tổng quan', JSON.stringify(await tabs(await open('analyst'))) === '["dash"]');
   ok('moderator thấy Người chơi và Kiểm duyệt, không thấy Tặng quà', JSON.stringify(await tabs(await open('moderator'))) === '["users","mod","chat"]');
-  ok('support thấy Tổng quan và Người chơi', JSON.stringify(await tabs(await open('support'))) === '["dash","users"]');
+  ok('support thấy Tổng quan, Người chơi và Hỗ trợ', JSON.stringify(await tabs(await open('support'))) === '["dash","users","support"]');
 
   const p = await open('owner');
-  ok('owner thấy đủ 10 tab', (await tabs(p)).length === 10, (await tabs(p)).join());
+  ok('owner thấy đủ 11 tab', (await tabs(p)).length === 11, (await tabs(p)).join());
   await p.waitForSelector('.kpi'); await p.waitForFunction(() => document.querySelectorAll('.chart').length >= 15, null, { timeout: 8000 }).catch(() => {});
   const mainText = await p.textContent('main');
   ok('Dashboard có 10 thẻ KPI, nhiều biểu đồ và phễu', (await p.$$('.kpi')).length >= 10 && (await p.$$('.chart')).length >= 15 && mainText.includes('Phễu hành trình đầu'), `${(await p.$$('.kpi')).length} kpi ${(await p.$$('.chart')).length} chart`);

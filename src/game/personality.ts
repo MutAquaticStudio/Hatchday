@@ -8,6 +8,7 @@
  *
  * Phần còn lại (hành vi rảnh, lời chào, câu nói) chỉ là hiển thị phía client, không ảnh hưởng chỉ số.
  */
+import { _t } from '../i18n';
 import type { PetAction } from '../data/types';
 
 export const AXES = ['energy', 'social', 'curious', 'playful', 'affection'] as const;
@@ -18,11 +19,11 @@ export const BIRTH_RANGE = 50;
 export const LIMIT = 100;
 
 export const TRAITS: Record<Axis, { hi: string; lo: string; hiHint: string; loHint: string }> = {
-  energy: { hi: 'Hiếu động', lo: 'Điềm tĩnh', hiHint: 'chạy nhảy suốt ngày', loHint: 'thích ngồi yên một chỗ' },
-  social: { hi: 'Thích làm quen', lo: 'Nhút nhát', hiHint: 'hay bắt chuyện', loHint: 'hơi ngại người lạ' },
-  curious: { hi: 'Tò mò', lo: 'Thận trọng', hiHint: 'đi xem mọi góc nhà', loHint: 'quen chỗ nào ở chỗ đó' },
-  playful: { hi: 'Ham chơi', lo: 'Trầm tính', hiHint: 'lúc nào cũng muốn chơi', loHint: 'thích yên tĩnh' },
-  affection: { hi: 'Quấn người', lo: 'Độc lập', hiHint: 'mê được vuốt ve', loHint: 'tự chơi một mình cũng vui' },
+  energy: { hi: _t('Hiếu động'), lo: _t('Điềm tĩnh'), hiHint: _t('chạy nhảy suốt ngày'), loHint: _t('thích ngồi yên một chỗ') },
+  social: { hi: _t('Thích làm quen'), lo: _t('Nhút nhát'), hiHint: _t('hay bắt chuyện'), loHint: _t('hơi ngại người lạ') },
+  curious: { hi: _t('Tò mò'), lo: _t('Thận trọng'), hiHint: _t('đi xem mọi góc nhà'), loHint: _t('quen chỗ nào ở chỗ đó') },
+  playful: { hi: _t('Ham chơi'), lo: _t('Trầm tính'), hiHint: _t('lúc nào cũng muốn chơi'), loHint: _t('thích yên tĩnh') },
+  affection: { hi: _t('Quấn người'), lo: _t('Độc lập'), hiHint: _t('mê được vuốt ve'), loHint: _t('tự chơi một mình cũng vui') },
 };
 
 /**
@@ -86,8 +87,8 @@ export function topTraits(p: Personality, n = 2): { axis: Axis; hi: boolean; nam
 /** Một câu tả cá tính, ví dụ "Bé Ham chơi và Quấn người: lúc nào cũng muốn chơi, mê được vuốt ve." */
 export function describe(p: Personality): string {
   const t = topTraits(p);
-  if (!t.length) return 'Bé hiền hoà, chưa nghiêng hẳn về nét nào. Cách bạn chăm sẽ dần tạo nên cá tính của bé.';
-  return `Bé ${t.map(x => x.name).join(' và ')}: ${t.map(x => x.hint).join(', ')}.`;
+  if (!t.length) return _t('Bé hiền hoà, chưa nghiêng hẳn về nét nào. Cách bạn chăm sẽ dần tạo nên cá tính của bé.');
+  return _t`Bé ${t.map(x => x.name).join(_t(' và '))}: ${t.map(x => x.hint).join(', ')}.`;
 }
 
 export type IdleKind = 'visit' | 'wander' | 'yawn' | 'look' | 'dance' | 'hop' | 'wave';
@@ -119,35 +120,35 @@ const pickLine = (a: string[], r: number) => a[Math.floor(r * a.length) % a.leng
 
 /** Lời chào lúc mở game. */
 export function greeting(p: Personality, name: string, r = Math.random()): string {
-  if (p.social <= -30) return pickLine([`À… chào bạn. Mình là ${name}.`, `Ừm… bạn tới rồi hả. Mình là ${name}.`], r);
-  if (p.affection >= 30) return pickLine([`Bạn về rồi! ${name} nhớ bạn lắm luôn!`, `A, bạn đây rồi! Ôm ${name} một cái đi!`], r);
-  if (p.energy >= 30 || p.playful >= 30) return pickLine([`Chào bạn! ${name} đây! Hôm nay chơi gì nè?`, `Yay, bạn tới rồi! Đi chơi không?`], r);
-  if (p.curious >= 30) return pickLine([`Chào bạn! ${name} vừa phát hiện một góc nhà hay lắm.`, `Chào bạn! Hôm nay có gì mới không?`], r);
-  return `Chào bạn! Mình là ${name}.`;
+  if (p.social <= -30) return pickLine([_t`À… chào bạn. Mình là ${name}.`, _t`Ừm… bạn tới rồi hả. Mình là ${name}.`], r);
+  if (p.affection >= 30) return pickLine([_t`Bạn về rồi! ${name} nhớ bạn lắm luôn!`, _t`A, bạn đây rồi! Ôm ${name} một cái đi!`], r);
+  if (p.energy >= 30 || p.playful >= 30) return pickLine([_t`Chào bạn! ${name} đây! Hôm nay chơi gì nè?`, _t`Yay, bạn tới rồi! Đi chơi không?`], r);
+  if (p.curious >= 30) return pickLine([_t`Chào bạn! ${name} vừa phát hiện một góc nhà hay lắm.`, _t`Chào bạn! Hôm nay có gì mới không?`], r);
+  return _t`Chào bạn! Mình là ${name}.`;
 }
 
 /** Câu đáp khi không bắt được từ khoá nào trong lúc trò chuyện. */
 export function smallTalk(p: Personality, r = Math.random()): string {
   const t = topTraits(p, 1)[0];
   const POOL: Record<string, string[]> = {
-    'social+': ['Kể thêm đi, mình thích nghe bạn nói lắm!', 'Rồi sao nữa? Rồi sao nữa?', 'Bạn nói chuyện vui ghê, mình muốn nghe hoài.'],
-    'social-': ['Ừm… mình nghe nè.', 'Vậy hả… (gật gù)', 'Mình hơi ngại, nhưng mình thích nghe bạn kể.'],
-    'curious+': ['Thật hả? Vì sao vậy?', 'Ồ, cái đó là gì vậy, kể mình nghe với!', 'Hay quá, mình chưa biết chuyện này luôn.'],
-    'curious-': ['Ừm, mình hiểu rồi.', 'Vậy là ổn rồi ha.', 'Mình thích mọi thứ cứ như cũ.'],
-    'playful+': ['Kể xong rồi mình đi chơi bóng nha!', 'Hihi, nghe vui ghê! Chơi trò gì đó đi!', 'Ừm ừm, mà bạn có muốn chơi với mình không?'],
-    'playful-': ['Ừm, mình ngồi đây nghe bạn kể nè.', 'Nghe bình yên ghê.', 'Mình thích những lúc yên tĩnh như vầy.'],
-    'affection+': ['Bạn nói gì mình cũng thích nghe hết.', 'Mình ở đây với bạn nè.', 'Hihi, được nói chuyện với bạn là vui rồi.'],
-    'affection-': ['Ừ, mình nghe rồi.', 'Bạn cứ làm việc của bạn, mình tự chơi được.', 'Ừm, hay đó.'],
-    'energy+': ['Ồ ồ! Rồi sao nữa!', 'Nghe phấn khích quá đi!', 'Hay quá, mình muốn chạy một vòng!'],
-    'energy-': ['Ừm… nghe hay đó…', 'Mình nghe nè, từ từ kể.', 'Hôm nay thong thả ha.'],
+    'social+': [_t('Kể thêm đi, mình thích nghe bạn nói lắm!'), _t('Rồi sao nữa? Rồi sao nữa?'), _t('Bạn nói chuyện vui ghê, mình muốn nghe hoài.')],
+    'social-': [_t('Ừm… mình nghe nè.'), _t('Vậy hả… (gật gù)'), _t('Mình hơi ngại, nhưng mình thích nghe bạn kể.')],
+    'curious+': [_t('Thật hả? Vì sao vậy?'), _t('Ồ, cái đó là gì vậy, kể mình nghe với!'), _t('Hay quá, mình chưa biết chuyện này luôn.')],
+    'curious-': [_t('Ừm, mình hiểu rồi.'), _t('Vậy là ổn rồi ha.'), _t('Mình thích mọi thứ cứ như cũ.')],
+    'playful+': [_t('Kể xong rồi mình đi chơi bóng nha!'), _t('Hihi, nghe vui ghê! Chơi trò gì đó đi!'), _t('Ừm ừm, mà bạn có muốn chơi với mình không?')],
+    'playful-': [_t('Ừm, mình ngồi đây nghe bạn kể nè.'), _t('Nghe bình yên ghê.'), _t('Mình thích những lúc yên tĩnh như vầy.')],
+    'affection+': [_t('Bạn nói gì mình cũng thích nghe hết.'), _t('Mình ở đây với bạn nè.'), _t('Hihi, được nói chuyện với bạn là vui rồi.')],
+    'affection-': [_t('Ừ, mình nghe rồi.'), _t('Bạn cứ làm việc của bạn, mình tự chơi được.'), _t('Ừm, hay đó.')],
+    'energy+': [_t('Ồ ồ! Rồi sao nữa!'), _t('Nghe phấn khích quá đi!'), _t('Hay quá, mình muốn chạy một vòng!')],
+    'energy-': [_t('Ừm… nghe hay đó…'), _t('Mình nghe nè, từ từ kể.'), _t('Hôm nay thong thả ha.')],
   };
   const key = t ? `${t.axis}${t.hi ? '+' : '-'}` : '';
-  return pickLine(POOL[key] || ['Ừm ừm, kể tiếp đi!', 'Thật hả? Hay quá!', 'Mình nhớ chuyện này rồi nha.', 'Hihi, bạn nói chuyện vui ghê.'], r);
+  return pickLine(POOL[key] || [_t('Ừm ừm, kể tiếp đi!'), _t('Thật hả? Hay quá!'), _t('Mình nhớ chuyện này rồi nha.'), _t('Hihi, bạn nói chuyện vui ghê.')], r);
 }
 
 /** Câu bé nói thỉnh thoảng khi được vuốt ve. */
 export function petLine(p: Personality, r = Math.random()): string {
-  if (p.affection <= -30) return pickLine(['Thôi được rồi mà~', 'Ừm, đủ rồi đó nha.', 'Mình tự chơi cũng được mà.'], r);
-  if (p.affection >= 30) return pickLine(['Thêm nữa đi, thêm nữa!', 'Mình thích được bạn vuốt nhất!', 'Ấm áp ghê~'], r);
-  return pickLine(['Hihi, nhột quá!', 'Thêm chút nữa đi mà~', 'Dễ chịu ghê!'], r);
+  if (p.affection <= -30) return pickLine([_t('Thôi được rồi mà~'), _t('Ừm, đủ rồi đó nha.'), _t('Mình tự chơi cũng được mà.')], r);
+  if (p.affection >= 30) return pickLine([_t('Thêm nữa đi, thêm nữa!'), _t('Mình thích được bạn vuốt nhất!'), _t('Ấm áp ghê~')], r);
+  return pickLine([_t('Hihi, nhột quá!'), _t('Thêm chút nữa đi mà~'), _t('Dễ chịu ghê!')], r);
 }

@@ -1,6 +1,7 @@
 // Dựng 3D cho đồ trang trí và trang phục (toon + viền, cùng phong cách với thú).
 // Quy ước: đồ sàn/thảm có gốc ở tâm diện tích chiếm chỗ, đáy y = 0, mặt trước hướng +z.
 // Đồ treo tường có gốc ở tâm khối, mặt sau sát tường (z = 0), hướng +z.
+import { _t } from '../i18n';
 
 import { grade } from './grade.js';
 
@@ -143,10 +144,10 @@ export function makeDecor(K) {
       add(g, Cy(0.025, 0.025, 1.0, 8), toon('#a8744e'), 0, 0.5, 0, null); st.userData.keep = true;
     },
     /* ---------- thảm ---------- */
-    'tham-tron': g => { add(g, Cy(1.9, 1.9, 0.05, 56), toon('#bfe3ff'), 0, 0.025, 0, '#6f8fb8', 0.02); add(g, Cy(1.4, 1.4, 0.055, 56), toon('#dff1ff'), 0, 0.03, 0, null); },
-    'tham-cat': g => { const t = tex(128, 96, c => { c.fillStyle = '#ffe6b0'; c.fillRect(0, 0, 128, 96); c.fillStyle = '#f5cf8a'; for (let i = 0; i < 40; i++) c.fillRect((i * 37) % 128, (i * 23) % 96, 3, 3); }); add(g, Bx(2.8, 0.05, 1.8), toon('#ffffff', t), 0, 0.025, 0, '#c99a5a', 0.02); },
-    'tham-reu': g => { const t = tex(128, 128, c => { c.fillStyle = '#7ccf6a'; c.fillRect(0, 0, 128, 128); c.fillStyle = '#9be38a'; for (let i = 0; i < 26; i++) { c.beginPath(); c.arc((i * 47) % 128, (i * 29) % 128, 6, 0, 7); c.fill(); } }); const m = add(g, Cy(1.4, 1.4, 0.05, 40), toon('#ffffff', t), 0, 0.025, 0, '#3f8a55', 0.02); m.scale.z = 0.95; },
-    'tham-ca-ro': g => { const t = tex(128, 128, c => { c.fillStyle = '#fff'; c.fillRect(0, 0, 128, 128); c.fillStyle = '#ffc6dc'; for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) if ((x + y) % 2) c.fillRect(x * 32, y * 32, 32, 32); }); add(g, Bx(2.8, 0.05, 2.8), toon('#ffffff', t), 0, 0.025, 0, '#a8507a', 0.02); },
+    'tham-tron': g => { add(g, Cy(1.9, 1.9, 0.05, 56), toon('#bfe3ff', null, 'fabric'), 0, 0.025, 0, '#6f8fb8', 0.02); add(g, Cy(1.4, 1.4, 0.055, 56), toon('#dff1ff', null, 'fabric'), 0, 0.03, 0, null); },
+    'tham-cat': g => { const t = tex(128, 96, c => { c.fillStyle = '#ffe6b0'; c.fillRect(0, 0, 128, 96); c.fillStyle = '#f5cf8a'; for (let i = 0; i < 40; i++) c.fillRect((i * 37) % 128, (i * 23) % 96, 3, 3); }); add(g, Bx(2.8, 0.05, 1.8), toon('#ffffff', t, 'fabric'), 0, 0.025, 0, '#c99a5a', 0.02); },
+    'tham-reu': g => { const t = tex(128, 128, c => { c.fillStyle = '#7ccf6a'; c.fillRect(0, 0, 128, 128); c.fillStyle = '#9be38a'; for (let i = 0; i < 26; i++) { c.beginPath(); c.arc((i * 47) % 128, (i * 29) % 128, 6, 0, 7); c.fill(); } }); const m = add(g, Cy(1.4, 1.4, 0.05, 40), toon('#ffffff', t, 'fabric'), 0, 0.025, 0, '#3f8a55', 0.02); m.scale.z = 0.95; },
+    'tham-ca-ro': g => { const t = tex(128, 128, c => { c.fillStyle = '#fff'; c.fillRect(0, 0, 128, 128); c.fillStyle = '#ffc6dc'; for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) if ((x + y) % 2) c.fillRect(x * 32, y * 32, 32, 32); }); add(g, Bx(2.8, 0.05, 2.8), toon('#ffffff', t, 'fabric'), 0, 0.025, 0, '#a8507a', 0.02); },
     /* ---------- treo tường ---------- */
     poster: g => {
       const t = tex(96, 128, c => { c.fillStyle = '#fff3c4'; c.fillRect(0, 0, 96, 128); c.fillStyle = '#ff7ab0'; c.beginPath(); c.arc(48, 56, 26, 0, 7); c.fill(); c.fillStyle = '#4a2140'; c.beginPath(); c.arc(38, 52, 4, 0, 7); c.arc(58, 52, 4, 0, 7); c.fill();
@@ -188,7 +189,7 @@ export function makeDecor(K) {
     },
     'bien-nong-trai': g => {
       [-0.5, 0.5].forEach(x => add(g, Cy(0.05, 0.06, 0.9, 8), toon(WOOD_D), x, 0.45, 0, WOOD_INK, 0.015));
-      const t = tex(256, 96, c => { c.fillStyle = '#e8b47a'; c.fillRect(0, 0, 256, 96); c.strokeStyle = '#a8742e'; c.lineWidth = 6; c.strokeRect(5, 5, 246, 86); c.fillStyle = '#7a4a2e'; c.font = '800 34px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('NÔNG TRẠI', 128, 50); });
+      const t = tex(256, 96, c => { c.fillStyle = '#e8b47a'; c.fillRect(0, 0, 256, 96); c.strokeStyle = '#a8742e'; c.lineWidth = 6; c.strokeRect(5, 5, 246, 86); c.fillStyle = '#7a4a2e'; c.font = '800 34px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(_t('NÔNG TRẠI'), 128, 50); });
       const b = add(g, Bx(1.3, 0.45, 0.07), toon('#ffffff', t), 0, 0.78, 0.03, WOOD_INK, 0.015);
       add(g, S(0.07, 8, 6), toon('#ff7a7a'), -0.55, 1.03, 0.04, null); add(g, S(0.07, 8, 6), toon('#ffd36e'), 0.55, 1.03, 0.04, null);
     },

@@ -1,0 +1,22 @@
+/* Màn tiêu đề bản Steam. Dùng chung biến màu, .btn và .device của auth.css. */
+.title-screen{position:fixed;inset:0;overflow:hidden;display:flex;flex-direction:column}
+.ts-sky i{position:absolute;display:block;width:180px;height:56px;border-radius:var(--r-pill);background:rgba(255,255,255,.035);animation:ts-drift 38s linear infinite}
+.ts-sky i::before,.ts-sky i::after{content:'';position:absolute;border-radius:50%;background:rgba(255,255,255,.035)}
+.ts-sky i::before{width:80px;height:80px;left:26px;top:-40px}.ts-sky i::after{width:60px;height:60px;left:92px;top:-26px}
+.ts-sky .c1{top:12%;left:-200px}.ts-sky .c2{top:26%;left:-200px;transform:scale(.7);animation-duration:52s;animation-delay:-20s}.ts-sky .c3{top:6%;left:-200px;transform:scale(.55);animation-duration:64s;animation-delay:-41s}
+@keyframes ts-drift{to{translate:calc(100vw + 400px) 0}}
+.ts-main{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:24px;position:relative;z-index:1}
+.ts-art{position:relative;margin-bottom:6px}
+.ts-art .device{transform:scale(1.15)}
+.ts-spark{position:absolute;font-size:28px;color:var(--accent);animation:ts-float 3s ease-in-out infinite}
+.ts-spark.s1{left:-46px;top:10px}.ts-spark.s2{right:-50px;top:40px;color:var(--el-night);animation-delay:.8s}.ts-spark.s3{left:-30px;bottom:6px;color:var(--gold);animation-delay:1.6s}
+@keyframes ts-float{50%{transform:translateY(-10px) rotate(12deg)}}
+.ts-logo{margin:14px 0 0;font-family:var(--f-display);font-weight:700;font-size:clamp(56px,9vw,104px);line-height:1;color:var(--ink);letter-spacing:.04em;text-transform:uppercase;
+  text-shadow:0 4px 0 #05070b,0 0 36px rgba(56,224,200,.35)}
+.ts-tag{margin:2px 0 8px;font-size:18px;font-weight:700;color:var(--ink-soft)}
+.ts-actions{width:min(360px,100%);display:flex;flex-direction:column;gap:10px}
+.ts-actions .stack{display:flex;flex-direction:column;gap:10px}
+.ts-actions .btn{min-height:52px;font-size:18px}
+.ts-foot{display:flex;justify-content:space-between;padding:10px 18px;font-size:13px;font-weight:700;color:var(--ink-soft);position:relative;z-index:1}
+@media (prefers-reduced-motion:reduce){.ts-sky i,.ts-spark{animation:none}}
+.ts-lang button{border:0;background:none;font:inherit;color:var(--ink-soft);padding:6px 4px;min-height:32px;cursor:pointer}.ts-lang button[aria-pressed="true"]{color:var(--ink);text-decoration:underline;text-underline-offset:3px}

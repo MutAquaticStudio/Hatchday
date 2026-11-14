@@ -1,5 +1,6 @@
 // Bộ dùng chung cho nơi chung (Quảng trường, Tiệm trà, Công viên): vào/rời kênh, thú của người khác, nhãn tên, emote, thẻ hồ sơ.
 // Truyền tin ở src/net (SimTransport khi Chơi thử). Chat gõ chữ không ở đây (đợt chat riêng).
+import { _t } from '../../i18n';
 import { createTransport } from '../../net/transport';
 import { EMOTES, actChar, emoteChar } from '../../net/protocol';
 import { CHAT_REASON_TEXT, filterChat } from '../../net/moderation';
@@ -28,14 +29,14 @@ export function makeShared(c, { placeId, group }) {
     const app = document.getElementById('app');
     labels = document.createElement('div'); labels.className = 'actor-layer'; labels.hidden = true; app.appendChild(labels);
     bar = document.createElement('div'); bar.className = 'emote-bar'; bar.hidden = true;
-    bar.innerHTML = `<div class="chat-log" id="chat-log" aria-live="polite"></div><form class="chat-box" id="chat-box" autocomplete="off"><input id="chat-in" maxlength="100" placeholder="Nói gì đó với mọi người…" aria-label="Tin nhắn"><button type="submit" class="btn-sm">Gửi</button></form><div class="eb-line"><span class="eb-count" id="eb-count" role="status"></span><button type="button" class="eb-toggle" data-eb-toggle aria-expanded="false">😀 Biểu cảm</button></div><div class="eb-row" role="group" aria-label="Biểu cảm">${EMOTES.map(e => `<button type="button" class="eb" data-emote="${e.id}" title="${e.label}" aria-label="${e.label}">${e.e}</button>`).join('')}</div>`;
+    bar.innerHTML = _t`<div class="chat-log" id="chat-log" aria-live="polite"></div><form class="chat-box" id="chat-box" autocomplete="off"><button type="button" class="eb-mini" data-eb-toggle aria-expanded="false" aria-label="Biểu cảm">😀</button><input id="chat-in" maxlength="100" placeholder="Nói gì đó với mọi người…" aria-label="Tin nhắn"><button type="submit" class="btn-sm">Gửi</button></form><div class="eb-line"><span class="eb-count" id="eb-count" role="status"></span><button type="button" class="eb-toggle" data-eb-toggle aria-expanded="false">😀 Biểu cảm</button></div><div class="eb-row" role="group" aria-label="Biểu cảm">${EMOTES.map(e => `<button type="button" class="eb" data-emote="${e.id}" title="${e.label}" aria-label="${e.label}">${e.e}</button>`).join('')}</div>`;
     const bottom = document.querySelector('.bottom'); bottom.insertBefore(bar, document.getElementById('ctx'));
     countEl = bar.querySelector('#eb-count'); chatForm = bar.querySelector('#chat-box'); chatLog = bar.querySelector('#chat-log');
     chatForm.addEventListener('submit', e => { e.preventDefault(); if (cur) cur.sendChat(chatForm.querySelector('input').value); });
     chatLog.addEventListener('click', e => { const l = e.target.closest('[data-msg]'); if (l && cur) cur.reportLine(l); });
     bar.addEventListener('click', e => {
-      const t = e.target.closest('[data-eb-toggle]'); if (t) { const on = bar.classList.toggle('open'); t.setAttribute('aria-expanded', String(on)); return; }
-      const b = e.target.closest('[data-emote]'); if (b && cur) { cur.emote(b.dataset.emote); bar.classList.remove('open'); bar.querySelector('[data-eb-toggle]')?.setAttribute('aria-expanded', 'false'); }
+      const t = e.target.closest('[data-eb-toggle]'); if (t) { const on = bar.classList.toggle('open'); bar.querySelectorAll('[data-eb-toggle]').forEach(x => x.setAttribute('aria-expanded', String(on))); return; }
+      const b = e.target.closest('[data-emote]'); if (b && cur) { cur.emote(b.dataset.emote); bar.classList.remove('open'); bar.querySelectorAll('[data-eb-toggle]').forEach(x => x.setAttribute('aria-expanded', 'false')); }
     });
     card = document.createElement('div'); card.className = 'peer-card'; card.hidden = true; app.appendChild(card);
     card.addEventListener('click', e => { if (cur) cur.onCard(e); });
@@ -47,8 +48,8 @@ export function makeShared(c, { placeId, group }) {
     if (id === 'wave' || id === 'cheer') c.startAction('hop');
     c.sfx('coin');
   }
-  const setCount = t => { if (countEl) countEl.textContent = t; };
-  const updateCount = () => { if (room) setCount(`${actors.size + 1}/${room.cap} người ở đây`); };
+  const setCount = t => { if (countEl) countEl.textContent = t; const tag = document.getElementById('scene-tag'), m = /^(\d+\/\d+)/.exec(t); if (tag) { if (m) tag.dataset.count = '👥 ' + m[1]; else delete tag.dataset.count; } };
+  const updateCount = () => { if (room) setCount(_t`${[...actors.values()].filter(a => !a.peer.ghost).length + 1}/${room.cap} người ở đây`); };
 
   function look() {
     const S = c.state, [x, z] = c.getPetXZ();
@@ -56,7 +57,7 @@ export function makeShared(c, { placeId, group }) {
   }
   function addActor(p) {
     if (actors.has(p.pid)) return;
-    const el = document.createElement('div'); el.className = 'actor'; el.innerHTML = `<span class="actor-emote"></span><b>${esc(p.name)}</b>`; labels.appendChild(el);
+    const el = document.createElement('div'); el.className = 'actor' + (p.ghost ? ' ghost' : ''); el.innerHTML = `<span class="actor-emote"></span><b>${esc(p.name)}</b>${p.ghost ? _t('<small>ghé chơi</small>') : ''}`; labels.appendChild(el);
     const root = new THREE.Group(); root.position.set(p.x, 0, p.z); root.userData.pid = p.pid; group.add(root);
     const a = { peer: p, root, body: null, parts: null, x: p.x, z: p.z, tx: p.x, tz: p.z, yaw: 0, ph: Math.random() * 6, el, emoteUntil: 0, k: STAGE_SCALE[p.stage] || 1, moving: false };
     actors.set(p.pid, a); queue.push(a); updateCount();
@@ -65,7 +66,7 @@ export function makeShared(c, { placeId, group }) {
     const a = queue.shift(); if (!a || !actors.has(a.peer.pid)) return;
     const g = new THREE.Group(), p = a.peer;
     if ([...actors.values()].filter(x => x.parts).length < MAX_FULL) {
-      try { a.parts = c.petBuilder.build(g, { species: p.species, stage: p.stage, form: p.form || null, genes: p.genes || {}, face: true }); } catch (e) { a.parts = null; }
+      try { a.parts = c.petBuilder.build(g, { species: p.species, stage: p.stage, form: p.form || null, genes: p.genes || {}, face: true, lod: true }); if (c.addFur && a.parts.body) c.addFur(g, a.parts.body); } catch (e) { a.parts = a.parts || null; }
     }
     if (!a.parts) { const m = new THREE.Mesh(new THREE.SphereGeometry(0.5, 14, 10), c.toon('#ffc9a8')); m.position.y = 0.5; g.add(m); }
     g.scale.setScalar(a.k); a.body = g; a.root.add(g);
@@ -88,7 +89,7 @@ export function makeShared(c, { placeId, group }) {
 
   /* ---------- Chat công khai (máy chủ lọc và đóng dấu người gửi; ở đây chỉ hiển thị) ---------- */
   let armed = null;
-  const setChat = on => { if (!chatForm) return; chatForm.hidden = !on; if (on) chatLog?.querySelector('.chat-off')?.remove(); else if (chatLog) chatLog.innerHTML = '<span class="chat-off">Chat đang tạm tắt.</span>'; };
+  const setChat = on => { if (!chatForm) return; chatForm.hidden = !on; if (on) chatLog?.querySelector('.chat-off')?.remove(); else if (chatLog) chatLog.innerHTML = _t('<span class="chat-off">Chat đang tạm tắt.</span>'); };
   function onChat(m) {
     if (!chatLog || blocked.has(m.pid)) return;
     chatLog.querySelector('.chat-off')?.remove();
@@ -102,43 +103,72 @@ export function makeShared(c, { placeId, group }) {
   }
   async function sendChat(text) {
     if (!room || !text.trim()) return;
-    const f = filterChat(text); if (!f.ok) { c.toast(CHAT_REASON_TEXT[f.reason] || 'Chưa gửi được.'); return; }
+    const f = filterChat(text); if (!f.ok) { c.toast(CHAT_REASON_TEXT[f.reason] || _t('Chưa gửi được.')); return; }
     const input = chatForm.querySelector('input'); input.disabled = true;
-    try { const r = await api.postChat(room.topic, text); if (r.ok) input.value = ''; else c.toast(CHAT_REASON_TEXT[r.reason] || 'Chưa gửi được.'); }
+    try { const r = await api.postChat(room.topic, text); if (r.ok) input.value = ''; else c.toast(CHAT_REASON_TEXT[r.reason] || _t('Chưa gửi được.')); }
     catch (e) { c.toast(viError(e)); }
     input.disabled = false; input.focus({ preventScroll: true });
   }
   async function reportLine(line) {
     if (line.classList.contains('mine') || !line.dataset.msg) return;
-    if (armed !== line.dataset.msg) { armed = line.dataset.msg; c.toast('Chạm lần nữa vào tin này để báo cáo.'); setTimeout(() => { if (armed === line.dataset.msg) armed = null; }, 4000); return; }
+    if (armed !== line.dataset.msg) { armed = line.dataset.msg; c.toast(_t('Chạm lần nữa vào tin này để báo cáo.')); setTimeout(() => { if (armed === line.dataset.msg) armed = null; }, 4000); return; }
     armed = null;
-    try { await api.reportChat(+line.dataset.msg, 'other'); c.toast('Đã gửi báo cáo. Cảm ơn bạn đã giúp Hatchday an toàn.'); line.remove(); } catch (e) { c.toast(viError(e)); }
+    try { await api.reportChat(+line.dataset.msg, 'other'); c.toast(_t('Đã gửi báo cáo. Cảm ơn bạn đã giúp Hatchday an toàn.')); line.remove(); } catch (e) { c.toast(viError(e)); }
   }
 
   /* ---------- Thẻ hồ sơ khi chạm thú của người khác ---------- */
   let cardPid = null;
   function openCard(a) {
     const p = a.peer; cardPid = p.pid;
-    card.innerHTML = `<div class="pc-top"><div><b>${esc(p.name)}</b><small>${esc(SPECIES_BY_ID[p.species]?.name || p.species)} · Gắn bó ${p.bond_level}${p.family ? ' · ' + esc(p.family) : ''}</small></div><button type="button" class="hs-close" data-pc="close" aria-label="Đóng">✕</button></div>
+    if (p.ghost) {
+      card.innerHTML = _t`<div class="pc-top"><div><b>${esc(p.name)}</b><small>Bé nhà ${esc(p.family || _t('bạn'))} ghé chơi lúc chủ vắng · Gắn bó ${p.bond_level}</small></div><button type="button" class="hs-close" data-pc="close" aria-label="Đóng">✕</button></div>
+        <div class="pc-act"><button type="button" class="btn-sm" data-pc="playdate">Hẹn chơi</button><button type="button" class="btn-sm ghost" data-pc="note">Để lại lời nhắn</button></div>
+        <form class="chat-box pc-note" data-pc-form hidden autocomplete="off"><input maxlength="100" placeholder="Lời nhắn cho ${esc(p.name)}…" aria-label="Lời nhắn"><button class="btn-sm" type="submit">Gửi</button></form>`;
+      card.hidden = false; return;
+    }
+    card.innerHTML = _t`<div class="pc-top"><div><b>${esc(p.name)}</b><small>${esc(SPECIES_BY_ID[p.species]?.name || p.species)} · Gắn bó ${p.bond_level}${p.family ? ' · ' + esc(p.family) : ''}</small></div><button type="button" class="hs-close" data-pc="close" aria-label="Đóng">✕</button></div>
       <div class="pc-act"><button type="button" class="btn-sm" data-pc="friend">Kết bạn</button><button type="button" class="btn-sm ghost" data-pc="block">Chặn</button><button type="button" class="btn-sm ghost" data-pc="report">Báo cáo</button></div>`;
     card.hidden = false;
   }
   async function onCard(e) {
     const b = e.target.closest('[data-pc]'); if (!b) return;
     const k = b.dataset.pc, pid = cardPid; if (k === 'close') { card.hidden = true; return; }
+    const ghost = actors.get(pid)?.peer;
+    if (ghost?.ghost && k === 'note') { const f = card.querySelector('[data-pc-form]'); f.hidden = false; f.querySelector('input').focus({ preventScroll: true }); return; }
+    if (ghost?.ghost && k === 'playdate') { b.disabled = true; try { await api.invitePlaydate(ghost.friendPid); c.toast(_t('Đã rủ bạn đi chơi! Khi bạn ấy đồng ý, cả hai bé cùng nhận quà.')); c.sfx('badge'); } catch (err) { c.toast(viError(err)); } b.disabled = false; return; }
     b.disabled = true;
     try {
-      if (k === 'friend') { const r = await api.sendFriendRequest(pid); c.toast(r.status === 'accepted' ? 'Hai bạn đã là bạn bè!' : 'Đã gửi lời mời kết bạn.'); }
-      else if (k === 'block') { await api.blockUser(pid); blocked.add(pid); c.toast('Đã chặn người này.'); removeActor(pid); card.hidden = true; }
-      else if (k === 'report') { await api.reportUser(pid, 'other'); c.toast('Đã gửi báo cáo. Cảm ơn bạn đã giúp Hatchday an toàn.'); card.hidden = true; }
+      if (k === 'friend') { const r = await api.sendFriendRequest(pid); c.toast(r.status === 'accepted' ? _t('Hai bạn đã là bạn bè!') : _t('Đã gửi lời mời kết bạn.')); }
+      else if (k === 'block') { await api.blockUser(pid); blocked.add(pid); c.toast(_t('Đã chặn người này.')); removeActor(pid); card.hidden = true; }
+      else if (k === 'report') { await api.reportUser(pid, 'other'); c.toast(_t('Đã gửi báo cáo. Cảm ơn bạn đã giúp Hatchday an toàn.')); card.hidden = true; }
     } catch (err) { c.toast(viError(err)); }
     b.disabled = false;
   }
 
+  /* ---------- Bé của bạn bè ghé chơi khi chủ vắng (get_visitors): đi dạo quanh đây, chạm để rủ chơi hoặc để lại lời nhắn ---------- */
+  async function loadVisitors(mine) {
+    try {
+      const vs = await api.getVisitors(placeId); if (mine !== token || !active) return;
+      const [px, pz] = c.getPetXZ();
+      vs.forEach((p, i) => {
+        if ([...actors.values()].some(a => a.peer.pid === p.pid)) return; // đang online ở đây thì đã có rồi
+        const ang = i * 2.1 + 0.7, x = px + Math.cos(ang) * 2.6, z = pz + Math.sin(ang) * 1.6;
+        addActor({ ...p, pid: 'v:' + p.pid, friendPid: p.pid, ghost: true, x, z, home: [x, z] });
+      });
+    } catch { /* chưa đăng nhập hoặc mạng chập chờn: bỏ qua */ }
+  }
+  document.addEventListener('submit', async e => {
+    const f = e.target.closest?.('[data-pc-form]'); if (!f) return; e.preventDefault();
+    const a = actors.get(cardPid), inp = f.querySelector('input'), text = inp.value.trim(); if (!a?.peer.ghost || !text) return;
+    inp.disabled = true;
+    try { const r = await api.writeGuestNote(a.peer.friendPid, text); if (r.ok) { c.toast(_t`Đã để lại lời nhắn cho ${a.peer.name}.`); c.sfx('coin'); card.hidden = true; } else c.toast(CHAT_REASON_TEXT[r.reason] || _t('Chưa gửi được.')); }
+    catch (err) { c.toast(viError(err)); }
+    inp.disabled = false;
+  });
   const inst = {
     emote, onCard, sendChat, sendAct: id => { if (room) room.sendAct(id); }, reportLine, pagehide: () => { if (room) room.leave(); },
     async enter() {
-      ui(); cur = inst; active = true; const mine = ++token; bar.hidden = false; labels.hidden = false; setCount('Đang vào kênh…'); chatLog.innerHTML = ''; setChat(false);
+      ui(); cur = inst; active = true; const mine = ++token; bar.hidden = false; labels.hidden = false; setCount(_t('Đang vào kênh…')); chatLog.innerHTML = ''; setChat(false);
       api.getPublicConfig().then(cfg => { if (mine === token) { setChat(cfg.chat_public === true); } }).catch(() => {});
       try {
         const tr = await createTransport(), r = await tr.join(placeId, look());
@@ -148,11 +178,13 @@ export function makeShared(c, { placeId, group }) {
         r.on('intent', (pid, x, z) => { const a = actors.get(pid); if (a) { a.tx = x; a.tz = z; } });
         r.on('emote', showEmote); r.on('act', showAct); r.on('chat', onChat);
         r.peers().forEach(addActor); updateCount();
-      } catch (e) { setCount('Chưa vào được kênh chung'); c.toast(viError(e)); }
+      } catch (e) { setCount(_t('Chưa vào được kênh chung')); c.toast(viError(e)); }
+      loadVisitors(mine);
     },
     leave() {
       active = false; token++; if (cur === inst) cur = null;
       if (bar) { bar.hidden = true; labels.hidden = true; card.hidden = true; }
+      delete document.getElementById('scene-tag')?.dataset.count;
       if (room) { room.leave(); room = null; }
       [...actors.keys()].forEach(removeActor); queue.length = 0;
     },
@@ -164,6 +196,7 @@ export function makeShared(c, { placeId, group }) {
       camera.updateMatrixWorld(true);
       const cw = c.canvas.clientWidth, ch = c.canvas.clientHeight;
       for (const a of actors.values()) {
+        if (a.peer.ghost && !a.moving && now > (a.nextWalk || 0)) { a.nextWalk = now + 3500 + Math.random() * 4000; const [hx, hz] = a.peer.home; a.tx = hx + (Math.random() - 0.5) * 4; a.tz = hz + (Math.random() - 0.5) * 2.4; }
         const dx = a.tx - a.x, dz = a.tz - a.z, d = Math.hypot(dx, dz);
         a.moving = d > 0.06;
         if (a.moving) { const s = Math.min(d, SPEED * dt); a.x += dx / d * s; a.z += dz / d * s; const want = Math.atan2(dx, dz); let dy = want - a.yaw; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); a.yaw += dy * Math.min(1, dt * 8); }

@@ -90,13 +90,13 @@ await p.click('#a-house');await p.click('.tile[data-go="shop"]');await p.waitFor
 await p.click('.hsheet:not([hidden]) [data-close]');await p.waitForTimeout(300);
 // âm thanh: nhạc theo buổi, nút tắt nhạc lưu lại
 ok('nhạc ban ngày/đêm',['day','night'].includes((await au()).mood),JSON.stringify(await au()));
-await p.click('#btn-stats');await p.click('#snd-music');await p.waitForTimeout(200);
+await p.click('#btn-stats');await p.click('#btn-settings');await p.click('#snd-music');await p.waitForTimeout(200);
 // cá tính: hiện trong bảng Chỉ số, đã dịch theo các lần chăm ở trên
 const pd=await demo();ok('cá tính hiện trong bảng Chỉ số',(await p.textContent('#persona-desc')).startsWith('Bé')&&(await p.$$('#persona-axes .axis')).length===5,JSON.stringify(pd.pet.personality));
 ok('cá tính dịch theo cách chăm',Object.values(pd.pet.personality).some(v=>!Number.isInteger(v)));
 ok('tắt nhạc',(await au()).mood===''&&(await p.getAttribute('#snd-music','aria-pressed'))==='false'&&JSON.parse(await p.evaluate(()=>localStorage.getItem('hatchday-audio'))).music===false);
 await p.click('#snd-music');
-// hướng dẫn lần đầu chơi: xem lại từ bảng Chỉ số, làm đủ 5 bước thật
+// hướng dẫn lần đầu chơi: xem lại từ bảng Cài đặt, làm đủ 5 bước thật
 await p.click('#btn-tour');await p.waitForTimeout(600);
 const tourStep=async()=>(await p.textContent('.tour .tour-step').catch(()=>''))||'';
 ok('hướng dẫn bước 1/5',(await tourStep()).includes('1/5'),await tourStep());
@@ -216,10 +216,10 @@ await reload();
 await setDemo("d.coins=1000;d.pet.bond_xp=300;d.bond=[];");
 await reload();
 await p.click('#btn-stats');await p.waitForTimeout(500);
-ok('Chỉ số: gắn bó cấp 5 "Tin cậy", 4 phần quà chưa nhận',(await p.textContent('#bond')).includes('Cấp 5 · Tin cậy')&&(await p.$$('#bond [data-bond]')).length===4,(await p.textContent('#bond')).slice(0,60));
-await p.click('#bond [data-bond="3"]');await p.waitForTimeout(500);
+ok('Chỉ số: gắn bó cấp 5 "Tin cậy", 4 phần quà gộp một nút Nhận tất cả',(await p.textContent('#bond')).includes('Cấp 5 · Tin cậy')&&(await p.$$('#bond [data-bond="all"]')).length===1&&/4 phần quà/.test(await p.textContent('#bond')),(await p.textContent('#bond')).slice(0,80));
+await p.click('#bond [data-bond="all"]');await p.waitForTimeout(800);
 dm=await demo();
-ok('nhận quà cấp 3: +80 xu, còn 3 phần quà',dm.coins===1080&&dm.bond.includes(3)&&(await p.$$('#bond [data-bond]')).length===3,JSON.stringify({c:dm.coins,b:dm.bond}));
+ok('nhận tất cả: cấp 2–5 = 50+80+120+160 = +410 xu, hết nút nhận quà',dm.coins===1410&&[2,3,4,5].every(l=>dm.bond.includes(l))&&(await p.$$('#bond [data-bond]')).length===0,JSON.stringify({c:dm.coins,b:dm.bond}));
 await p.click('#btn-stats');await p.waitForTimeout(300);
 // chào mừng quay lại và đồng hành giờ làm việc
 await p.evaluate(()=>localStorage.setItem('hatchday-tour','1'));
@@ -236,11 +236,11 @@ await p.evaluate(()=>window.__remind('break'));await p.waitForTimeout(400);
 ok('nhắc giải lao: bé nói lời nhắc',/vươn vai|Nghỉ tay|Mắt bạn/.test(await p.textContent('#bubble')),await p.textContent('#bubble'));
 await p.evaluate(()=>window.__remind('water'));await p.waitForTimeout(400);
 ok('nhắc uống nước: bé nói lời nhắc',/nước/.test(await p.textContent('#bubble')),await p.textContent('#bubble'));
-await p.click('#btn-stats');await p.waitForTimeout(400);
-ok('Chỉ số có 3 nút Đồng hành (Giải lao, Uống nước, Chào sáng/tối) đang bật',(await p.$$('[data-cp][aria-pressed="true"]')).length===3);
+await p.click('#btn-settings');await p.waitForTimeout(400);
+ok('Cài đặt có 3 nút Đồng hành (Giải lao, Uống nước, Chào sáng/tối) đang bật',(await p.$$('[data-cp][aria-pressed="true"]')).length===3);
 await p.click('[data-cp="water"]');
 ok('tắt nhắc uống nước: lưu vào máy',JSON.parse(await p.evaluate(()=>localStorage.getItem('hatchday-companion'))).water===false);
-await p.click('[data-cp="water"]');await p.click('#btn-stats');await p.waitForTimeout(300);
+await p.click('[data-cp="water"]');await p.click('#btn-settings');await p.waitForTimeout(300);
 // bản đồ và địa điểm: khoá theo Gắn bó, Bệnh viện, Chợ (bán rau), Tiệm may, Thư viện
 await setDemo("d.pet.bond_xp=0;d.pet.illness=null;d.pet.sick_since=null;d.pet.recover_at=null;d.pet.critical_since=null;d.coins=500;d.owned.carot=6;d.sold={};d.pet.no=70;d.pet.sach=70;d.pet.vui=70;d.pet.nl=90;d.pet.stats_at=new Date().toISOString();");
 await reload();
@@ -262,7 +262,7 @@ await p.click('#map [data-close]');
 await setDemo("d.pet.bond_xp=100;");
 await reload();
 await goPlace('market');
-ok('đi tới Chợ (Gắn bó cấp 3): hiện 8 điểm chạm (có Video thưởng, Đồ chơi)',await until(async()=>(await p.textContent('#scene-tag')).includes('Chợ')&&(await p.$$('.hot')).length===8,12000));
+ok('đi tới Chợ (Gắn bó cấp 3): hiện 9 điểm chạm (có Video thưởng, Đồ chơi, Giao hàng)',await until(async()=>(await p.textContent('#scene-tag')).includes('Chợ')&&(await p.$$('.hot')).length===9,12000));
 await p.waitForTimeout(1800); // đợi hết chuyển cảnh để điểm chạm đứng yên
 const carB=(await demo()).owned.carot,coB=(await demo()).coins;
 await p.click('.hot[data-hot="sell"]');
@@ -289,12 +289,12 @@ await reload();
 await goPlace('plaza');
 ok('đi tới Quảng trường: chip đổi tên, thanh emote và nhãn Bảng tin hiện',await until(async()=>(await p.textContent('#scene-tag')).includes('Quảng trường')&&await p.isVisible('.emote-bar')&&await p.isVisible('.hot[data-hot="news"]'),15000));
 ok('bạn ảo vào kênh: thấy ít nhất 2 thú khác và đếm người',await until(()=>p.evaluate(()=>document.querySelectorAll('.actor').length>=2),15000)&&/\d+\/12 người/.test(await p.textContent('#eb-count')),await p.textContent('#eb-count'));
-await p.click('[data-eb-toggle]'); // biểu cảm gập sau nút "Biểu cảm"
+await p.click('[data-eb-toggle]:visible'); // biểu cảm gập sau nút "Biểu cảm"
 await p.click('.eb[data-emote="heart"]');
 ok('bấm emote: bé nói biểu tượng',await until(async()=>(await p.textContent('#bubble')).includes('❤️'),4000));
-await p.fill('#chat-in','Xin chào mọi người');await p.click('#chat-box button');
+await p.fill('#chat-in','Xin chào mọi người');await p.click('#chat-box button[type=submit]');
 ok('chat: tin của mình hiện trong nhật ký chat',await until(()=>p.evaluate(()=>!!document.querySelector('.chat-line.mine')),6000));
-await p.fill('#chat-in','gọi 0912345678 nhé');await p.click('#chat-box button');
+await p.fill('#chat-in','gọi 0912345678 nhé');await p.click('#chat-box button[type=submit]');
 ok('chat: số điện thoại bị chặn kèm lý do',await until(async()=>(await p.textContent('#toast')).includes('số điện thoại'),4000),await p.textContent('#toast'));
 await p.fill('#chat-in','');
 await p.click('.hot[data-hot="news"]');

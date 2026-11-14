@@ -2,7 +2,9 @@
 //
 // - Trình duyệt chặn tự phát: AudioContext chỉ được tạo ở lần chạm/bấm phím đầu tiên.
 // - Cài đặt (bật/tắt tiếng, bật/tắt nhạc, âm lượng) lưu ở localStorage 'hatchday-audio', chỉnh trong bảng Chỉ số.
-// - Người bật prefers-reduced-motion thì nhạc nền mặc định tắt (tiếng hiệu ứng vẫn bật).
+// - Trộn tiếng: bus hiệu ứng và bus nhạc → nén nhẹ → giới hạn đỉnh (không vỡ tiếng khi nhiều đòn nổ cùng lúc);
+//   nhạc tự hạ khi có tiếng lớn (đòn mạnh, chí mạng, thắng/thua) và chuyển tâm trạng bằng crossfade.
+// - Có trần số giọng: khi quá nhiều tiếng chồng nhau thì bỏ các tiếng phụ (ui, đuôi nguyên tố).
 // - Ẩn tab thì tạm dừng hẳn để không tốn pin.
 //
 // Các sự kiện (xem chỗ gọi: grep "sfx("):
@@ -16,16 +18,16 @@
 // nhịp, cao độ và độ sáng khác nhau. Nhạc tự sinh từ thang ngũ cung nên không lặp đúng một đoạn.
 // Muốn thay bằng file thật sau này: giữ nguyên sfx()/music(), chỉ đổi phần "giọng" bên dưới.
 
-/** @typedef {'pet'|'feed'|'talk'|'bath'|'play'|'sleep'|'wake'|'evolve'|'coin'|'buy'|'place'|'ui'|'boing'|'creak'|'whee'|'thud'|'quack'|'kick'|'splash'|'sit'|'cheer'|'flap'|'sip'|'purr'|'kettle'|'badge'|'catch'|'miss'|'rain'} SfxName */
+/** @typedef {'burnTick'|'superEff'|'weak'|'turn'|'enter'|'hitLeaf'|'hitWater'|'hitWind'|'hitShadow'|'hitFire'|'charge'|'boom'|'shatter'|'stRoot'|'stSoak'|'stDaze'|'stBlind'|'stBurn'|'launch'|'antic'|'anticBig'|'cutin'|'release'|'tick'|'swish'|'chomp'|'beamUp'|'beam'|'rumble'|'thump'|'geyser'|'gust'|'fall'|'leap'|'roar'|'snap'|'summon'|'eclipse'|'burstOut'|'pluck'|'chime'|'buzz'|'drum'|'ice'|'bubble'|'firstDash'|'heartbeat'|'crack'|'pierce'|'drain'|'recoil'|'cleanse'|'shieldUp'|'veil'|'buffHit'|'healUp'|'regenTick'|'pet'|'feed'|'talk'|'bath'|'play'|'sleep'|'wake'|'evolve'|'coin'|'buy'|'place'|'ui'|'boing'|'creak'|'whee'|'thud'|'quack'|'kick'|'splash'|'sit'|'cheer'|'flap'|'sip'|'purr'|'kettle'|'badge'|'catch'|'miss'|'rain'|'hit'|'hitBig'|'crit'|'whoosh'|'fire'|'water'|'leaf'|'wind'|'shadow'|'zap'|'shield'|'heal'|'power'|'faint'|'win'|'lose'} SfxName */
 
 const KEY = 'hatchday-audio';
-const reduce = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
-const prefs = { sfx: true, music: !reduce, vol: 70 };
+const prefs = { sfx: true, music: true, vol: 70 };
 try { Object.assign(prefs, JSON.parse(localStorage.getItem(KEY) || '{}')); } catch (e) { /* bỏ qua */ }
 function savePrefs() { try { localStorage.setItem(KEY, JSON.stringify(prefs)); } catch (e) { /* bỏ qua */ } }
 
 /** @type {AudioContext | null} */ let ctx = null;
-let master, sfxBus, musicBus, noiseBuf;
+let master, sfxBus, musicBus, musicLp, duck, noiseBuf;
+let live = 0, rate = 1, gainMul = 1; // số giọng đang kêu; hệ số cao độ/âm lượng cho lần gọi sfx hiện tại
 let scene = 'home';
 
 function ensureCtx() {
@@ -33,11 +35,15 @@ function ensureCtx() {
   const AC = window.AudioContext || /** @type {any} */ (window).webkitAudioContext;
   if (!AC) return null;
   try { ctx = new AC(); } catch (e) { return null; }
-  const comp = ctx.createDynamicsCompressor();
-  comp.threshold.value = -14; comp.ratio.value = 4;
-  master = ctx.createGain(); master.connect(comp); comp.connect(ctx.destination);
-  sfxBus = ctx.createGain(); sfxBus.gain.value = 0.9; sfxBus.connect(master);
-  musicBus = ctx.createGain(); musicBus.gain.value = 0; musicBus.connect(master);
+  try { const n = /** @type {any} */ (navigator); if (n.audioSession) n.audioSession.type = 'playback'; } catch (e) { /* iOS: không bị nút im lặng tắt tiếng */ }
+  const comp = ctx.createDynamicsCompressor(), lim = ctx.createDynamicsCompressor();
+  comp.threshold.value = -18; comp.ratio.value = 2; comp.knee.value = 6;
+  lim.threshold.value = -1; lim.knee.value = 0; lim.ratio.value = 20; lim.attack.value = 0.001; lim.release.value = 0.08;
+  master = ctx.createGain(); master.connect(comp); comp.connect(lim); lim.connect(ctx.destination);
+  sfxBus = ctx.createGain(); sfxBus.gain.value = 0.7; sfxBus.connect(master);
+  duck = ctx.createGain(); duck.connect(master);
+  musicLp = ctx.createBiquadFilter(); musicLp.type = 'lowpass'; musicLp.frequency.value = 18000; musicLp.connect(duck);
+  musicBus = ctx.createGain(); musicBus.gain.value = 0; musicBus.connect(musicLp);
   noiseBuf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
   const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
   applyVolume();
@@ -46,7 +52,7 @@ function ensureCtx() {
 function applyVolume() {
   if (!ctx) return;
   const v = prefs.vol / 100;
-  master.gain.setTargetAtTime(v * v * 2.2, ctx.currentTime, 0.03); // bình phương cho thanh trượt nghe đều tai
+  master.gain.setTargetAtTime(v * v * 1.4, ctx.currentTime, 0.03); // bình phương cho thanh trượt nghe đều tai
 }
 const ready = () => !!ctx && ctx.state === 'running';
 
@@ -54,28 +60,33 @@ const ready = () => !!ctx && ctx.state === 'running';
 const hz = m => 440 * Math.pow(2, (m - 69) / 12);
 
 /** Một nốt có bao âm: tấn công nhanh, tắt dần. */
-function tone(f, t, dur, { type = 'sine', vol = 0.3, to = 0, attack = 0.008, bus = sfxBus, cutoff = 0 } = {}) {
-  const o = ctx.createOscillator(), g = ctx.createGain();
-  o.type = type; o.frequency.setValueAtTime(f, t);
-  if (to) o.frequency.exponentialRampToValueAtTime(to, t + dur);
-  g.gain.setValueAtTime(0.0001, t);
-  g.gain.exponentialRampToValueAtTime(vol, t + attack);
-  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-  let out = g;
-  if (cutoff) { const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = cutoff; g.connect(lp); out = lp; }
+function tone(f, t, dur, { type = 'sine', vol = 0.3, to = 0, attack = 0.008, bus = sfxBus, cutoff = 0, env = '', detune = 0 } = {}) {
+  const o = ctx.createOscillator(), g = ctx.createGain(), k = bus === sfxBus ? rate : 1;
+  o.type = type; o.frequency.setValueAtTime(f * k, t); if (detune) o.detune.value = detune;
+  if (to) o.frequency.exponentialRampToValueAtTime(to * k, t + dur);
+  envelope(g.gain, t, dur, bus === sfxBus ? vol * gainMul : vol, attack, env);
+  let out = g, lp = null;
+  if (cutoff) { lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = cutoff; g.connect(lp); out = lp; }
   o.connect(g); out.connect(bus);
+  live++; o.onended = () => { live--; o.disconnect(); g.disconnect(); lp?.disconnect(); };
   o.start(t); o.stop(t + dur + 0.05);
 }
+/** Bao âm: mặc định đánh nhanh rồi tắt dần; 'swell' thì dâng dần tới đỉnh ở 85% rồi nhả nhanh (tiếng tụ lực). */
+function envelope(gp, t, dur, vol, attack, env) {
+  gp.setValueAtTime(0.0001, t);
+  if (env === 'swell') { gp.exponentialRampToValueAtTime(vol, t + dur * 0.85); gp.exponentialRampToValueAtTime(0.0001, t + dur); return; }
+  gp.exponentialRampToValueAtTime(vol, t + attack);
+  gp.exponentialRampToValueAtTime(0.0001, t + dur);
+}
 /** Tiếng ồn lọc: nước, xào xạc, cú chạm. */
-function noise(t, dur, { freq = 1200, q = 1, type = 'bandpass', vol = 0.2, to = 0 } = {}) {
-  const s = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
-  s.buffer = noiseBuf; s.playbackRate.value = 0.8 + Math.random() * 0.4;
-  f.type = type; f.Q.value = q; f.frequency.setValueAtTime(freq, t);
-  if (to) f.frequency.exponentialRampToValueAtTime(to, t + dur);
-  g.gain.setValueAtTime(0.0001, t);
-  g.gain.exponentialRampToValueAtTime(vol, t + 0.01);
-  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-  s.connect(f); f.connect(g); g.connect(sfxBus);
+function noise(t, dur, { freq = 1200, q = 1, type = 'bandpass', vol = 0.2, to = 0, bus = sfxBus, env = '' } = {}) {
+  const s = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain(), k = bus === sfxBus ? rate : 1;
+  s.buffer = noiseBuf; s.loop = true; s.playbackRate.value = 0.8 + Math.random() * 0.4;
+  f.type = type; f.Q.value = q; f.frequency.setValueAtTime(freq * k, t);
+  if (to) f.frequency.exponentialRampToValueAtTime(to * k, t + dur);
+  envelope(g.gain, t, dur, bus === sfxBus ? vol * gainMul : vol, 0.01, env);
+  s.connect(f); f.connect(g); g.connect(bus);
+  live++; s.onended = () => { live--; s.disconnect(); f.disconnect(); g.disconnect(); };
   s.start(t, Math.random() * 0.5); s.stop(t + dur + 0.05);
 }
 /** Nốt kiểu hộp nhạc: tam giác + bồi âm quãng tám. */
@@ -124,18 +135,110 @@ const VOICES = {
   catch: t => { const f = hz(84 + pick(PENTA)); tone(f, t, 0.12, { type: 'triangle', vol: 0.12, to: f * 1.5 }); },
   miss: t => { tone(240, t, 0.18, { type: 'triangle', vol: 0.08, to: 150 }); },
   rain: t => { noise(t, 1.0, { freq: 4200, q: 0.5, type: 'bandpass', vol: 0.02 }); },
+  /* Đấu trường: đòn trúng, nguyên tố, lá chắn, hồi phục, tụ lực, gục ngã, kết quả */
+  hit: t => { tone(170, t, 0.12, { vol: 0.32, to: 70 }); noise(t, 0.08, { freq: 1600, vol: 0.14 }); },
+  hitBig: t => { tone(120, t, 0.32, { vol: 0.42, to: 40 }); noise(t, 0.28, { freq: 900, to: 260, vol: 0.2 }); noise(t, 0.06, { freq: 4200, type: 'highpass', vol: 0.1 }); },
+  crit: t => { VOICES.hitBig(t); bell(91, t + 0.02, 0.45, 0.1); bell(96, t + 0.07, 0.35, 0.07); },
+  whoosh: t => { noise(t, 0.26, { freq: 600, to: 3200, q: 1.2, vol: 0.1 }); },
+  fire: t => { noise(t, 0.55, { freq: 500, to: 1600, q: 0.7, vol: 0.15 }); tone(90, t, 0.45, { type: 'sawtooth', vol: 0.06, to: 55, cutoff: 600 }); },
+  water: t => { noise(t, 0.42, { freq: 1900, to: 650, q: 1, vol: 0.13 }); for (let i = 0; i < 3; i++) { const f = jitter(620 + Math.random() * 500); tone(f, t + 0.05 + i * 0.06, 0.08, { vol: 0.05, to: f * 1.8 }); } },
+  leaf: t => { for (let i = 0; i < 6; i++) noise(t + i * 0.035, 0.06, { freq: 2400 + i * 280, q: 4, vol: 0.05 }); },
+  wind: t => { noise(t, 0.65, { freq: 380, to: 2400, q: 2.5, vol: 0.11 }); },
+  shadow: t => { tone(230, t, 0.42, { type: 'sawtooth', vol: 0.05, to: 85, cutoff: 900 }); noise(t, 0.32, { freq: 320, to: 120, q: 3, vol: 0.09 }); },
+  zap: t => { for (let i = 0; i < 4; i++) noise(t + i * 0.03, 0.05, { freq: 5200, type: 'highpass', vol: 0.09 }); tone(1600, t, 0.2, { type: 'square', vol: 0.03, to: 300, cutoff: 3000 }); },
+  shield: t => { bell(84, t, 0.5, 0.08); tone(660, t, 0.3, { type: 'triangle', vol: 0.06, to: 990 }); },
+  heal: t => { [79, 84, 88, 91].forEach((m, i) => bell(m, t + i * 0.06, 0.5, 0.07)); },
+  power: t => { tone(110, t, 0.9, { type: 'sawtooth', vol: 0.08, to: 440, cutoff: 1800, env: 'swell' }); noise(t, 0.9, { freq: 300, to: 2600, q: 1, vol: 0.08, env: 'swell' }); tone(hz(64), t + 0.8, 0.4, { type: 'triangle', vol: 0.08 }); },
+  faint: t => { tone(330, t, 0.9, { type: 'sawtooth', vol: 0.06, to: 70, cutoff: 900 }); tone(440, t, 0.75, { type: 'triangle', vol: 0.08, to: 110 }); tone(80, t + 0.55, 0.5, { vol: 0.35, to: 35 }); noise(t + 0.55, 0.35, { freq: 400, to: 120, vol: 0.12 }); },
+  win: t => { [72, 76, 79, 84, 88, 91].forEach((m, i) => bell(m, t + i * 0.09, 0.9, 0.12)); },
+  lose: t => { [72, 69, 65, 60].forEach((m, i) => bell(m - 12, t + i * 0.16, 0.8, 0.1)); },
+  /* lớp đuôi khi trúng đòn theo hệ */
+  hitLeaf: t => { noise(t, 0.18, { freq: 3000, q: 3, vol: 0.08 }); for (let i = 0; i < 4; i++) noise(t + 0.03 + i * 0.03, 0.05, { freq: 2200 + i * 500, q: 5, vol: 0.05 }); tone(240, t, 0.12, { type: 'triangle', vol: 0.1, to: 120 }); },
+  hitWater: t => { noise(t, 0.35, { freq: 1500, to: 500, q: 0.9, vol: 0.16 }); for (let i = 0; i < 4; i++) { const f = jitter(500 + Math.random() * 700); tone(f, t + 0.04 + i * 0.05, 0.07, { vol: 0.05, to: f * 2 }); } },
+  hitWind: t => { noise(t, 0.3, { freq: 2600, to: 600, q: 2, vol: 0.12 }); noise(t, 0.06, { freq: 5000, type: 'highpass', vol: 0.08 }); },
+  hitShadow: t => { tone(150, t, 0.35, { type: 'sawtooth', vol: 0.08, to: 50, cutoff: 700 }); noise(t, 0.25, { freq: 260, q: 4, vol: 0.12 }); },
+  hitFire: t => { noise(t, 0.5, { freq: 700, to: 200, q: 0.6, vol: 0.2 }); tone(90, t, 0.35, { vol: 0.25, to: 40 }); noise(t + 0.05, 0.35, { freq: 3500, type: 'highpass', vol: 0.04 }); },
+  /* tụ lực chiêu tối thượng (dâng lên) và tiếng nổ lớn khi trúng */
+  charge: t => { tone(80, t, 1.2, { type: 'sawtooth', vol: 0.09, to: 640, cutoff: 2200, env: 'swell' }); tone(120, t, 1.2, { type: 'square', vol: 0.04, to: 960, cutoff: 1800, env: 'swell' }); noise(t, 1.2, { freq: 200, to: 4000, q: 1.5, vol: 0.09, env: 'swell' }); [0.4, 0.7, 0.95, 1.1].forEach((d, i) => bell(79 + i * 5, t + d, 0.3, 0.05)); },
+  boom: t => { tone(70, t, 0.9, { vol: 0.5, to: 28 }); tone(140, t, 0.3, { type: 'triangle', vol: 0.2, to: 60 }); noise(t, 1.1, { freq: 900, to: 120, q: 0.5, vol: 0.28 }); noise(t, 0.08, { freq: 6000, type: 'highpass', vol: 0.15 }); },
+  shatter: t => { for (let i = 0; i < 7; i++) { const f = jitter(2400 + Math.random() * 2400); tone(f, t + i * 0.025, 0.12, { type: 'triangle', vol: 0.05, to: f * 0.7 }); } noise(t, 0.2, { freq: 6000, type: 'highpass', vol: 0.12 }); },
+  /* gây trạng thái */
+  stRoot: t => { VOICES.creak(t); tone(110, t + 0.08, 0.2, { vol: 0.2, to: 60 }); },
+  stSoak: t => { for (let i = 0; i < 6; i++) { const f = jitter(300 + Math.random() * 500); tone(f, t + i * 0.05, 0.09, { vol: 0.06, to: f * 2.2 }); } },
+  stDaze: t => { [88, 91, 88, 93].forEach((m, i) => tone(hz(m), t + i * 0.08, 0.1, { type: 'triangle', vol: 0.05, to: hz(m + 2) })); },
+  stBlind: t => { noise(t, 0.6, { freq: 400, to: 140, q: 2, vol: 0.12 }); tone(330, t, 0.5, { type: 'sawtooth', vol: 0.03, to: 110, cutoff: 800 }); },
+  stBurn: t => { noise(t, 0.7, { freq: 4500, type: 'highpass', vol: 0.06 }); noise(t, 0.4, { freq: 900, q: 1, vol: 0.08 }); },
+  launch: t => { noise(t, 0.2, { freq: 900, to: 2800, q: 1.4, vol: 0.09 }); tone(300, t, 0.12, { type: 'triangle', vol: 0.06, to: 520 }); },
+  /* nhịp trận: bỏng tích, khắc hệ, bị kháng, tới lượt, quái thú ra sân */
+  burnTick: t => { noise(t, 0.35, { freq: 1100, to: 300, q: 0.8, vol: 0.14 }); tone(140, t, 0.2, { vol: 0.16, to: 60 }); noise(t + 0.05, 0.25, { freq: 5000, type: 'highpass', vol: 0.04 }); },
+  superEff: t => { tone(hz(69), t, 0.14, { type: 'sawtooth', vol: 0.06, cutoff: 2600 }); tone(hz(76), t + 0.08, 0.3, { type: 'sawtooth', vol: 0.07, cutoff: 3200 }); noise(t, 0.07, { freq: 6000, type: 'highpass', vol: 0.12 }); },
+  weak: t => { tone(160, t, 0.22, { type: 'triangle', vol: 0.12, to: 110, cutoff: 600 }); noise(t, 0.12, { freq: 300, q: 2, vol: 0.08 }); },
+  turn: t => { tone(hz(81), t, 0.08, { type: 'triangle', vol: 0.05 }); tone(hz(88), t + 0.07, 0.16, { type: 'triangle', vol: 0.05 }); },
+  enter: t => { tone(55, t, 0.7, { type: 'sawtooth', vol: 0.08, to: 110, cutoff: 900, env: 'swell' }); noise(t, 0.6, { freq: 200, to: 1600, q: 1, vol: 0.06, env: 'swell' }); tone(90, t + 0.6, 0.45, { vol: 0.4, to: 38 }); noise(t + 0.6, 0.4, { freq: 800, to: 150, q: 0.6, vol: 0.18 }); },
+  /* Đấu trường, theo nhịp hiệu ứng (docs/VFX-STYLE-GUIDE.md §6): lấy đà → phóng → đường bay → trúng.
+     Mỗi dạng chiêu có tiếng phóng riêng; hoạ tiết có tiếng riêng (pluck, chime, buzz…); tầng càng cao gọi với pitch càng trầm. */
+  antic: t => { noise(t, 0.16, { freq: 500, to: 2200, q: 1.4, vol: 0.06, env: 'swell' }); tone(220, t, 0.16, { type: 'triangle', vol: 0.04, to: 330, env: 'swell' }); },
+  anticBig: t => { noise(t, 0.3, { freq: 300, to: 3000, q: 1.2, vol: 0.08, env: 'swell' }); tone(110, t, 0.3, { type: 'sawtooth', vol: 0.05, to: 330, cutoff: 1400, env: 'swell' }); },
+  cutin: t => { noise(t, 0.22, { freq: 1200, to: 6000, q: 0.8, vol: 0.09 }); tone(hz(64), t + 0.02, 0.5, { type: 'sawtooth', vol: 0.05, cutoff: 2400 }); tone(hz(71), t + 0.02, 0.5, { type: 'sawtooth', vol: 0.04, cutoff: 2400 }); },
+  release: t => { tone(160, t, 0.35, { vol: 0.3, to: 50 }); noise(t, 0.3, { freq: 2600, to: 400, q: 0.7, vol: 0.14 }); },
+  tick: t => { const f = jitter(1400, 60); tone(f, t, 0.05, { type: 'triangle', vol: 0.05, to: f * 0.7 }); noise(t, 0.03, { freq: 3000, vol: 0.04 }); },
+  swish: t => { noise(t, 0.16, { freq: 1200, to: 5200, q: 1.6, vol: 0.1 }); },
+  chomp: t => { tone(240, t, 0.08, { type: 'square', vol: 0.06, to: 90, cutoff: 1200 }); noise(t + 0.02, 0.06, { freq: 900, vol: 0.12 }); },
+  beamUp: t => { tone(200, t, 0.3, { type: 'sawtooth', vol: 0.05, to: 900, cutoff: 2600, env: 'swell' }); noise(t, 0.3, { freq: 600, to: 4000, q: 2, vol: 0.05, env: 'swell' }); },
+  beam: t => { tone(320, t, 0.45, { type: 'sawtooth', vol: 0.06, to: 260, cutoff: 2000 }); tone(640, t, 0.45, { type: 'square', vol: 0.025, to: 520, cutoff: 3000 }); noise(t, 0.4, { freq: 3000, q: 0.7, vol: 0.05 }); },
+  rumble: t => { tone(48, t, 0.5, { type: 'sawtooth', vol: 0.12, to: 60, cutoff: 220, env: 'swell' }); noise(t, 0.5, { freq: 180, q: 0.8, vol: 0.12, env: 'swell' }); },
+  thump: t => { tone(95, t, 0.25, { vol: 0.35, to: 40 }); noise(t, 0.12, { freq: 700, to: 200, vol: 0.12 }); },
+  geyser: t => { VOICES.thump(t); noise(t, 0.6, { freq: 600, to: 2600, q: 0.6, vol: 0.14 }); },
+  gust: t => { noise(t, 0.6, { freq: 300, to: 1800, q: 3, vol: 0.1, env: 'swell' }); noise(t + 0.2, 0.5, { freq: 1800, to: 500, q: 2, vol: 0.07 }); },
+  fall: t => { tone(1400, t, 0.4, { type: 'triangle', vol: 0.05, to: 260 }); noise(t, 0.4, { freq: 3000, to: 700, q: 1, vol: 0.07 }); },
+  leap: t => { tone(180, t, 0.2, { type: 'triangle', vol: 0.1, to: 520 }); noise(t, 0.18, { freq: 800, to: 3000, q: 1, vol: 0.07 }); },
+  roar: t => { tone(90, t, 0.45, { type: 'sawtooth', vol: 0.12, to: 70, cutoff: 900 }); tone(135, t, 0.45, { type: 'sawtooth', vol: 0.07, to: 100, cutoff: 1200 }); noise(t, 0.4, { freq: 500, q: 1, vol: 0.1 }); },
+  snap: t => { noise(t, 0.05, { freq: 5000, type: 'highpass', vol: 0.2 }); tone(2200, t, 0.06, { type: 'square', vol: 0.05, to: 600, cutoff: 5000 }); tone(120, t + 0.01, 0.15, { vol: 0.25, to: 50 }); },
+  summon: t => { [67, 71, 74, 79].forEach((m, i) => bell(m, t + i * 0.07, 0.6, 0.07)); tone(55, t, 0.6, { type: 'sawtooth', vol: 0.06, to: 82, cutoff: 600, env: 'swell' }); },
+  eclipse: t => { tone(330, t, 0.9, { type: 'sawtooth', vol: 0.05, to: 82, cutoff: 900 }); tone(41, t, 0.9, { vol: 0.2, to: 33, env: 'swell' }); noise(t, 0.8, { freq: 260, to: 90, q: 3, vol: 0.1 }); },
+  burstOut: t => { tone(130, t, 0.3, { vol: 0.3, to: 45 }); noise(t, 0.35, { freq: 1600, to: 300, q: 0.6, vol: 0.16 }); },
+  pluck: t => { const f = jitter(hz(76 + pick(PENTA)), 20); tone(f, t, 0.14, { type: 'triangle', vol: 0.1, to: f * 0.98 }); noise(t, 0.03, { freq: 2600, vol: 0.05 }); },
+  chime: t => { const m = 84 + pick(PENTA); bell(m, t, 0.5, 0.07); bell(m + 7, t + 0.05, 0.4, 0.05); },
+  buzz: t => { tone(170, t, 0.5, { type: 'sawtooth', vol: 0.05, to: 190, cutoff: 1400 }); tone(176, t, 0.5, { type: 'sawtooth', vol: 0.04, to: 200, cutoff: 1400 }); },
+  drum: t => { tone(110, t, 0.3, { vol: 0.35, to: 60 }); tone(hz(57), t, 0.5, { type: 'triangle', vol: 0.06 }); noise(t, 0.05, { freq: 1600, vol: 0.08 }); },
+  ice: t => { for (let i = 0; i < 4; i++) { const f = jitter(2800 + i * 400); tone(f, t + i * 0.03, 0.12, { type: 'triangle', vol: 0.04, to: f * 1.1 }); } noise(t, 0.12, { freq: 6000, type: 'highpass', vol: 0.06 }); },
+  bubble: t => { for (let i = 0; i < 3; i++) { const f = jitter(400 + i * 180, 80); tone(f, t + i * 0.05, 0.08, { vol: 0.07, to: f * 2.4 }); } },
+  firstDash: t => { noise(t, 0.14, { freq: 2000, to: 7000, q: 1, vol: 0.12 }); tone(hz(88), t + 0.04, 0.12, { type: 'triangle', vol: 0.05 }); },
+  heartbeat: t => { tone(55, t, 0.14, { vol: 0.3, to: 40 }); tone(55, t + 0.2, 0.16, { vol: 0.25, to: 38 }); },
+  crack: t => { for (let i = 0; i < 5; i++) noise(t + i * 0.02, 0.04, { freq: 4500 - i * 500, type: 'highpass', vol: 0.12 }); tone(900, t, 0.1, { type: 'square', vol: 0.04, to: 200, cutoff: 3000 }); },
+  pierce: t => { tone(2400, t, 0.18, { type: 'sawtooth', vol: 0.04, to: 500, cutoff: 6000 }); noise(t, 0.12, { freq: 5000, type: 'highpass', vol: 0.1 }); },
+  drain: t => { tone(330, t, 0.5, { type: 'triangle', vol: 0.06, to: 880 }); [79, 83, 86].forEach((m, i) => bell(m, t + 0.25 + i * 0.06, 0.4, 0.05)); },
+  recoil: t => { tone(140, t, 0.2, { type: 'square', vol: 0.06, to: 60, cutoff: 900 }); noise(t, 0.15, { freq: 900, vol: 0.12 }); },
+  cleanse: t => { noise(t, 0.45, { freq: 2000, to: 8000, type: 'highpass', vol: 0.05 }); [84, 88, 91, 96].forEach((m, i) => bell(m, t + i * 0.05, 0.4, 0.05)); },
+  shieldUp: t => { tone(330, t, 0.38, { type: 'triangle', vol: 0.06, to: 660, env: 'swell' }); noise(t, 0.38, { freq: 800, to: 3000, q: 2, vol: 0.04, env: 'swell' }); },
+  veil: t => { noise(t, 0.45, { freq: 1500, to: 600, q: 3, vol: 0.06 }); tone(hz(76), t, 0.4, { type: 'triangle', vol: 0.04, to: hz(74) }); },
+  buffHit: t => { tone(hz(69), t, 0.25, { type: 'sawtooth', vol: 0.06, cutoff: 2600 }); tone(hz(76), t + 0.05, 0.3, { type: 'sawtooth', vol: 0.06, cutoff: 3000 }); tone(100, t, 0.18, { vol: 0.2, to: 50 }); },
+  healUp: t => { tone(hz(72), t, 0.4, { type: 'triangle', vol: 0.05, env: 'swell' }); tone(hz(79), t, 0.4, { type: 'triangle', vol: 0.04, env: 'swell' }); },
+  regenTick: t => { [84, 88].forEach((m, i) => bell(m, t + i * 0.05, 0.3, 0.05)); },
 };
 // Một số tiếng bị gọi liên tục (vuốt ve, kỳ cọ): giãn khoảng cách tối thiểu cho đỡ rối.
-const GAP = { pet: 0.11, bath: 0.12, talk: 0.08, ui: 0.04, creak: 0.4, boing: 0.25, splash: 0.2, quack: 0.3, flap: 0.3, catch: 0.06, rain: 0.8, purr: 0.5 };
+const GAP = { tick: 0.03, heartbeat: 0.5, pet: 0.11, bath: 0.12, talk: 0.08, ui: 0.04, creak: 0.4, boing: 0.25, splash: 0.2, quack: 0.3, flap: 0.3, catch: 0.06, rain: 0.8, purr: 0.5 };
 const lastAt = {};
 
-/** Phát một hiệu ứng âm thanh ngắn. @param {SfxName} name */
-export function sfx(name) {
+// Tiếng phụ bị bỏ trước khi quá nhiều giọng (máy cảm ứng yếu hơn nên trần thấp hơn).
+const LOW = new Set(['ui', 'whoosh', 'launch', 'tick', 'swish', 'pluck', 'chime', 'hitLeaf', 'hitWater', 'hitWind', 'hitShadow', 'hitFire', 'turn', 'catch', 'flap', 'rain']);
+const CAP = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches ? 32 : 48;
+// Mức hạ nhạc khi có tiếng lớn (1 = không hạ).
+const DUCK = { hitBig: 0.5, crit: 0.4, boom: 0.35, charge: 0.6, win: 0.3, lose: 0.3, evolve: 0.5, faint: 0.5, enter: 0.6, cutin: 0.7, release: 0.5, eclipse: 0.6 };
+
+/** Phát một hiệu ứng âm thanh ngắn. pitch nhân cao độ (đòn liên hoàn lên dần), gain nhân âm lượng.
+ * @param {SfxName} name @param {{ pitch?: number, gain?: number }} [o] */
+export function sfx(name, { pitch = 1, gain = 1 } = {}) {
   if (!prefs.sfx || !ready() || !VOICES[name]) return;
   const t = ctx.currentTime;
   if (t - (lastAt[name] ?? -1) < (GAP[name] ?? 0)) return;
+  if (live > (LOW.has(name) ? CAP * 0.6 : CAP)) return;
   lastAt[name] = t;
+  if (DUCK[name]) { duck.gain.cancelScheduledValues(t); duck.gain.setTargetAtTime(DUCK[name], t, 0.01); duck.gain.setTargetAtTime(1, t + 0.25, 0.3); }
+  if (name === 'charge') { musicLp.frequency.cancelScheduledValues(t); musicLp.frequency.setTargetAtTime(450, t, 0.15); musicLp.frequency.setTargetAtTime(18000, t + 1.3, 0.25); }
+  rate = jitter(pitch, 35); gainMul = gain;
   try { VOICES[name](t + 0.005); } catch (e) { console.error('sfx', name, e); } // lỗi âm thanh không được làm hỏng game
+  finally { rate = 1; gainMul = 1; }
 }
 
 /* ---------------- nhạc nền tự sinh ---------------- */
@@ -145,55 +248,101 @@ const MOODS = {
   day: { bpm: 84, root: 60, density: 0.5, bright: 2600, vol: 0.3 },
   night: { bpm: 66, root: 57, density: 0.32, bright: 1500, vol: 0.24 },
   sleep: { bpm: 52, root: 55, density: 0.16, bright: 900, vol: 0.16 },
+  battle: { bpm: 138, root: 57, density: 0.62, bright: 3400, vol: 0.3 },
 };
-const moodOf = s => (s === 'sleep' ? 'sleep' : s === 'night' ? 'night' : 'day');
+/** Vòng hợp âm chiến đấu i–VI–VII–v và thang ngũ cung thứ. */
+const BPROG = [[0, 3, 7], [-4, 0, 3], [-2, 2, 5], [-5, -2, 2]], MPENTA = [0, 3, 5, 7, 10];
+let battleOn = false;
+const moodOf = s => (battleOn ? 'battle' : s === 'sleep' ? 'sleep' : s === 'night' ? 'night' : 'day');
 
-let timer = 0, nextT = 0, step = 0, mel = 2, playingMood = '';
+let timer = 0, nextT = 0, step = 0, mel = 2, playingMood = '', mBus = null, intensity = 0, quietUntil = 0, quietTimer = 0;
 function musicVoice(m, t, dur, vol, cutoff) {
-  tone(hz(m), t, dur, { type: 'triangle', vol, bus: musicBus, cutoff });
-  tone(hz(m + 12), t, dur * 0.5, { vol: vol * 0.25, bus: musicBus, cutoff });
+  tone(hz(m), t, dur, { type: 'triangle', vol, bus: mBus, cutoff });
+  tone(hz(m + 12), t, dur * 0.5, { vol: vol * 0.25, bus: mBus, cutoff });
+}
+/** Lead của nhạc trận: hai sóng răng cưa lệch ±7 cent qua bộ lọc mở rồi khép (gắt, có lực). */
+function battleLead(m, t, dur, vol) {
+  const f = ctx.createBiquadFilter(), g = ctx.createGain();
+  f.type = 'lowpass'; f.Q.value = 3; f.frequency.setValueAtTime(400, t); f.frequency.exponentialRampToValueAtTime(2400, t + 0.04); f.frequency.exponentialRampToValueAtTime(900, t + dur);
+  envelope(g.gain, t, dur, vol, 0.01, ''); f.connect(g); g.connect(mBus);
+  const os = [-7, 7].map(c => { const o = ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.value = hz(m); o.detune.value = c; o.connect(f); o.start(t); o.stop(t + dur + 0.05); return o; });
+  live += 2; os[0].onended = () => { live -= 2; os.forEach(o => o.disconnect()); f.disconnect(); g.disconnect(); };
 }
 function pad(chord, root, t, dur, cutoff) {
-  chord.forEach(n => tone(hz(root - 12 + n), t, dur, { vol: 0.05, attack: 0.6, bus: musicBus, cutoff: cutoff * 0.6 }));
-  tone(hz(root - 24 + chord[0]), t, dur * 0.8, { vol: 0.07, attack: 0.05, bus: musicBus, cutoff: 400 });
+  chord.forEach(n => tone(hz(root - 12 + n), t, dur, { vol: 0.05, attack: 0.6, bus: mBus, cutoff: cutoff * 0.6 }));
+  tone(hz(root - 24 + chord[0]), t, dur * 0.8, { vol: 0.07, attack: 0.05, bus: mBus, cutoff: 400 });
 }
 function tick() {
   if (!ready()) return;
   const M = MOODS[playingMood], eighth = 30 / M.bpm;
   while (nextT < ctx.currentTime + 0.25) {
-    const bar = Math.floor(step / 8), chord = PROG[Math.floor(bar / 2) % PROG.length];
-    if (step % 16 === 0) pad(chord, M.root, nextT, eighth * 16, M.bright);
+    const fight = playingMood === 'battle', bar = Math.floor(step / 8), chord = (fight ? BPROG : PROG)[Math.floor(bar / (fight ? 1 : 2)) % PROG.length];
+    if (fight) {
+      // trống: kick ở phách 1 và 3, snare ở 2 và 4, hi-hat mỗi móc đơn; bass răng cưa + sub chạy theo nốt gốc;
+      // hợp âm quãng 5 (root + fifth) mỗi ô nhịp; trận càng căng (máu thấp) thì thêm trống tom và rải hợp âm.
+      if (step % 4 === 0) tone(110, nextT, 0.16, { vol: 0.32, to: 45, bus: mBus });
+      if (step % 4 === 2) { noise(nextT, 0.14, { freq: 1800, q: 0.7, vol: 0.13, bus: mBus }); tone(190, nextT, 0.08, { type: 'triangle', vol: 0.06, to: 120, bus: mBus }); }
+      noise(nextT, 0.04, { freq: 7000, type: 'highpass', vol: step % 2 ? 0.025 : 0.04, bus: mBus });
+      const bn = M.root - 24 + chord[0] + (step % 4 === 3 ? 7 : 0);
+      tone(hz(bn), nextT, eighth * 0.9, { type: 'sawtooth', vol: 0.055, bus: mBus, cutoff: 700 });
+      if (step % 2 === 0) tone(hz(bn - 12), nextT, eighth * 1.8, { vol: 0.09, bus: mBus });
+      if (step % 8 === 0) [0, 7, 12].forEach(n => tone(hz(M.root - 12 + chord[0] + n), nextT, eighth * 3, { type: 'sawtooth', vol: 0.02, attack: 0.01, bus: mBus, cutoff: 1400 }));
+      if (intensity > 0.6) {
+        if (step % 8 >= 6) tone(step % 8 === 6 ? 160 : 120, nextT, 0.18, { vol: 0.18, to: 70, bus: mBus });
+        tone(hz(M.root + chord[step % 3] + 12), nextT, eighth * 0.6, { type: 'square', vol: 0.012, bus: mBus, cutoff: 2600 });
+      }
+    } else if (step % 16 === 0) pad(chord, M.root, nextT, eighth * 16, M.bright);
     // Giai điệu đi từng bậc trên thang ngũ cung, nghiêng về nốt trong hợp âm ở phách mạnh.
     const strong = step % 4 === 0;
     if (Math.random() < (strong ? M.density + 0.25 : M.density * 0.6)) {
       mel = Math.max(0, Math.min(9, mel + pick([-2, -1, -1, 0, 1, 1, 2])));
-      let m = M.root + 12 * Math.floor(mel / 5) + PENTA[mel % 5];
+      let m = M.root + 12 * Math.floor(mel / 5) + (fight ? MPENTA : PENTA)[mel % 5];
       if (strong) { const c = chord.map(n => M.root + ((n + 12) % 12)); m = c.reduce((a, b) => (Math.abs(b - m) < Math.abs(a - m) ? b : a), c[0]) + 12 * Math.floor(mel / 5); }
-      musicVoice(m, nextT, eighth * (strong ? 3 : 1.6), 0.09, M.bright);
+      if (fight) battleLead(m, nextT, eighth * (strong ? 2.4 : 1.2), 0.035); else musicVoice(m, nextT, eighth * (strong ? 3 : 1.6), 0.09, M.bright);
     }
     nextT += eighth; step++;
   }
 }
 function syncMusic() {
   if (!ctx) return;
-  const want = prefs.music && !document.hidden ? moodOf(scene) : '';
   const t = ctx.currentTime;
+  const want = prefs.music && prefs.vol > 0 && !document.hidden && t >= quietUntil ? moodOf(scene) : '';
   if (!want) {
-    musicBus.gain.setTargetAtTime(0, t, 0.25);
+    fadeOut(0.5);
     if (timer) { clearInterval(timer); timer = 0; }
     playingMood = '';
     return;
   }
+  musicBus.gain.setTargetAtTime(1, t, 0.05);
   if (want !== playingMood) {
-    // Chuyển tâm trạng: hạ nhỏ rồi vào đoạn mới từ đầu vòng hợp âm.
+    // Chuyển tâm trạng: đoạn cũ mờ dần trong 0.8 giây (kể cả nốt đã hẹn), đoạn mới vào từ đầu vòng hợp âm.
+    fadeOut(0.8);
     playingMood = want; step = 0; mel = 2;
-    musicBus.gain.cancelScheduledValues(t);
-    musicBus.gain.setTargetAtTime(0, t, 0.15);
-    nextT = t + 0.6;
-    musicBus.gain.setTargetAtTime(MOODS[want].vol, nextT, 0.8);
+    mBus = ctx.createGain(); mBus.connect(musicBus);
+    nextT = t + 0.3;
+    mBus.gain.setValueAtTime(0.0001, t); mBus.gain.exponentialRampToValueAtTime(MOODS[want].vol, nextT + 1.2);
   }
   if (!timer) timer = setInterval(tick, 100);
 }
+
+/** Cho đoạn nhạc đang phát mờ dần rồi tháo khỏi bus (không để đuôi nốt cũ chồng lên đoạn mới). */
+function fadeOut(sec) {
+  const g = mBus; if (!g) return; mBus = null;
+  const t = ctx.currentTime; g.gain.cancelScheduledValues(t); g.gain.setValueAtTime(Math.max(g.gain.value, 0.0001), t); g.gain.linearRampToValueAtTime(0, t + sec);
+  setTimeout(() => g.disconnect(), (sec + 0.3) * 1000 + 9000); // nốt đã hẹn còn kêu tối đa ~9 giây (pad đêm ngủ)
+}
+
+/** Nhạc chiến đấu khi đang trong trận ở Đấu trường (tắt thì về lại nhạc theo khu vực).
+ * hold: số giây im nhạc trước khi về nhạc khu vực (để tiếng thắng/thua vang trọn). */
+export function battleMusic(on, { hold = 0 } = {}) {
+  battleOn = !!on; intensity = 0;
+  clearTimeout(quietTimer);
+  quietUntil = !on && hold && ctx ? ctx.currentTime + hold : 0;
+  if (quietUntil) quietTimer = setTimeout(syncMusic, hold * 1000 + 50);
+  syncMusic();
+}
+/** Độ căng của trận 0..1 (theo thể lực thấp nhất): trên 0.6 thì nhạc thêm trống tom và rải hợp âm. */
+export function setBattleIntensity(x) { intensity = Math.max(0, Math.min(1, x)); }
 
 /** Nhạc nền theo khu vực/thời điểm. @param {string} next ví dụ 'home', 'kitchen', 'night', 'sleep' */
 export function music(next) {
@@ -228,7 +377,7 @@ export function initAudio() {
   if (/[?&]dev\b/.test(location.search)) /** @type {any} */ (window).__audio = audioState, /** @type {any} */ (window).__sfx = sfx;
   bSfx?.addEventListener('click', () => { prefs.sfx = !prefs.sfx; savePrefs(); render(); unlock(); sfx('ui'); });
   bMusic?.addEventListener('click', () => { prefs.music = !prefs.music; savePrefs(); render(); unlock(); syncMusic(); });
-  vol?.addEventListener('input', () => { prefs.vol = Number(vol.value); render(); applyVolume(); });
+  vol?.addEventListener('input', () => { prefs.vol = Number(vol.value); render(); applyVolume(); syncMusic(); });
   vol?.addEventListener('change', () => { savePrefs(); sfx('ui'); });
   document.addEventListener('click', e => {
     const el = e.target instanceof Element && e.target.closest('.pill, .tab, .qbtn, .act');

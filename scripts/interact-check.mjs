@@ -13,7 +13,9 @@ const out = []; const ok = (n, c, x = '') => out.push((c ? 'OK  ' : 'FAIL') + ' 
 const until = async (p, fn, ms = 10000, arg) => { const t = Date.now(); while (Date.now() - t < ms) { if (await p.evaluate(fn, arg).catch(() => false)) return true; await p.waitForTimeout(100); } return false; };
 (async () => {
   const b = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
-  const p = await (await b.newContext({ viewport: { width: 390, height: 780 }, hasTouch: true, isMobile: true })).newPage();
+  const p = await (await b.newContext({ viewport: { width: 390, height: 780 }, hasTouch: true, isMobile: true, timezoneId: 'Asia/Ho_Chi_Minh' })).newPage();
+  // cố định 10 giờ sáng giờ VN: chơi đồ chơi ban đêm (22:00–05:00) dễ bị cảm lạnh và bị chặn chơi, làm test phụ thuộc giờ chạy
+  { const vn = new Date(Date.now() + 7 * 3600e3); vn.setUTCHours(3, 0, 0, 0); await p.clock.install({ time: vn }); await p.clock.resume(); }
   const errs = []; p.on('pageerror', e => errs.push('PAGE ' + e.message)); p.on('console', m => { if (m.type() === 'error') errs.push('CON ' + m.text()); });
   const URL0 = `http://localhost:${PORT}/?dev&weather=clear`; // thời tiết cố định để kịch bản không phụ thuộc giờ chạy (mưa làm bé tự chạy đi trú)
   const start = async () => { await p.waitForSelector('#demo'); await p.click('#demo'); await until(p, () => !!document.querySelector('#a-house'), 30000); await p.waitForTimeout(1200); };
@@ -62,14 +64,14 @@ const until = async (p, fn, ms = 10000, arg) => { const t = Date.now(); while (D
   const tab = async k => { await p.evaluate(k => document.querySelector(`#quests [data-quest-tab="${k}"]`).click(), k); await p.waitForTimeout(150); };
   const probe = () => p.evaluate(() => { const e = document.querySelector('#quests'), b = [...document.querySelectorAll('#quests .btn-sm:not(:disabled)')].map(x => x.getBoundingClientRect().height); return { over: e.scrollWidth - e.clientWidth, explore: !!e.querySelector('.explore'), badges: e.querySelectorAll('.badge').length, minBtn: Math.min(...b, 99) }; });
   await tab('explore'); let q = await probe(); ok('sheet Nhiệm vụ > Khám phá: hiện đủ, không tràn ngang', q.explore && q.over <= 0, JSON.stringify(q));
-  await tab('badges'); q = await probe(); ok('sheet Nhiệm vụ > Huy hiệu: 12 huy hiệu, không tràn ngang, nút đủ cao', q.badges === 12 && q.over <= 0 && q.minBtn >= 28, JSON.stringify(q));
+  await tab('badges'); q = await probe(); ok('sheet Nhiệm vụ > Huy hiệu: 17 huy hiệu, không tràn ngang, nút đủ cao', q.badges === 17 && q.over <= 0 && q.minBtn >= 28, JSON.stringify(q));
   // Bóng ở vườn: bé đi tới chạm thì bóng bị đá đi (không đi xuyên); nấu ăn phải vào Bếp và đi tới bếp lò
   await p.goto(URL0); await start();
   await p.evaluate(() => document.querySelector('#a-play').click()); await p.waitForTimeout(2200);
   const b0 = await p.evaluate(() => window.__ball());
   await p.evaluate(b => window.__walk(b[0], b[2]), b0);
   ok('bóng ở vườn: bé đi tới chạm bóng thì bóng bị đá nảy đi', await until(p, b => { const n = window.__ball(); return n[3] === true && Math.hypot(n[0] - b[0], n[2] - b[2]) > 0.6; }, 9000, b0), JSON.stringify({ b0, b1: await p.evaluate(() => window.__ball()) }));
-  ok('bóng ở vườn: bóng dừng lại sau khi lăn', await until(p, () => window.__ball()[3] === false, 8000));
+  ok('bóng ở vườn: bóng dừng lại sau khi lăn', await until(p, () => window.__ball()[3] === false, 16000)); // máy thử chậm: thời gian mô phỏng trôi chậm hơn đồng hồ thật
   await p.evaluate(() => document.querySelector('.ctx-btn[data-k="home"]').click()); await p.waitForTimeout(1800);
   await p.evaluate(() => document.querySelector('#a-house').click()); await p.waitForSelector('.tile[data-go="cooking"]'); await p.evaluate(() => document.querySelector('.tile[data-go="cooking"]').click());
   ok('Nấu ăn: chuyển cảnh sang Bếp và mở bảng nấu sau khi bé đi tới bếp lò', await until(p, () => document.querySelector('#scene-tag').textContent.includes('Bếp') && !document.querySelector('#cooking').hidden, 12000));

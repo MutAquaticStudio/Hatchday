@@ -1,7 +1,15 @@
+import { _t } from '../i18n';
 import { supabase, isConfigured } from '../lib/supabase';
 import { viError } from '../lib/errors';
 import { mountCaptcha } from '../lib/captcha';
 import './auth.css';
+import { hydrateLanding, landingHtml } from './landing';
+import { isSteam } from '../lib/platform';
+import { bindTitle, titleHtml } from './title';
+import { canSteamLogin, steamSignIn } from '../lib/steam';
+
+/** Phiên bản Điều khoản/Chính sách đang dùng (ghi vào hồ sơ người dùng lúc đăng ký). Đổi khi sửa public/dieu-khoan.html. */
+export const TOS_VERSION = '2026-11';
 
 export type AuthView = 'gate' | 'login' | 'register' | 'forgot' | 'reset' | 'check-email';
 
@@ -20,51 +28,60 @@ const GOOGLE_ICON = '<svg width="18" height="18" viewBox="0 0 48 48" aria-hidden
 
 const field = (id: string, label: string, type: string, auto: string, extra = '') =>
   type === 'password'
-    ? `<label class="field" for="${id}">${label}<span class="pw"><input id="${id}" type="password" autocomplete="${auto}" aria-describedby="${id}-err" ${extra}><button type="button" data-toggle="${id}" aria-label="Hiện mật khẩu">Hiện</button></span><span class="err" id="${id}-err"></span></label>`
+    ? _t`<label class="field" for="${id}">${label}<span class="pw"><input id="${id}" type="password" autocomplete="${auto}" aria-describedby="${id}-err" ${extra}><button type="button" data-toggle="${id}" aria-label="Hiện mật khẩu">Hiện</button></span><span class="err" id="${id}-err"></span></label>`
     : `<label class="field" for="${id}">${label}<input id="${id}" type="${type}" autocomplete="${auto}" aria-describedby="${id}-err" ${extra}><span class="err" id="${id}-err"></span></label>`;
 
 export function mountAuth(root: HTMLElement, view: AuthView, onSignedIn: () => void, info = ''): void {
   const go = (v: AuthView, msg = '') => mountAuth(root, v, onSignedIn, msg);
   const device = '<div class="device" aria-hidden="true"><div class="lcd"><div class="egg"></div></div><div class="btns"><i></i><i></i><i></i></div></div>';
-  const cfg = isConfigured ? '' : '<p class="notice">Bản chơi thử: chưa nối máy chủ, dữ liệu chỉ lưu trên trình duyệt này.</p>';
-  const back = '<button type="button" class="link back" data-go="gate">← Quay lại</button>';
+  const cfg = isConfigured ? '' : _t('<p class="notice">Bản chơi thử: chưa nối máy chủ, dữ liệu chỉ lưu trên trình duyệt này.</p>');
+  const back = _t('<button type="button" class="link back" data-go="gate">← Quay lại</button>');
   const views: Record<AuthView, string> = {
-    gate: `${device}<h1>Hatchday</h1><p class="sub">Một người bạn nhỏ đang chờ bạn.</p>${cfg}
-      ${isConfigured ? `<div class="stack"><button class="btn" data-go="login">Đăng nhập</button><button class="btn ghost" data-go="register">Tạo tài khoản</button>
+    gate: `${canSteamLogin() ? _t('<div class="stack"><button class="btn" id="steam-play">Chơi</button><p class="err" id="form-err" role="alert"></p><button class="link" data-go="login">Dùng tài khoản email</button></div>')
+      : isConfigured ? _t`<div class="stack"><button class="btn" data-go="login">Đăng nhập</button><button class="btn ghost" data-go="register">Tạo tài khoản</button>
       <div class="or">hoặc</div><p class="err" id="form-err" role="alert"></p><button class="btn ghost google" id="google">${GOOGLE_ICON}Đăng nhập bằng Google</button></div>`
-      : '<div class="stack"><button class="btn" id="demo">Chơi thử ngay</button></div>'}`,
-    login: `${back}<h1>Đăng nhập</h1>${info ? `<p class="notice">${esc(info)}</p>` : ''}<form novalidate>
+      : _t('<div class="stack"><button class="btn" id="demo">Chơi thử ngay</button></div>')}`, // nằm trong trang chủ giới thiệu (landing.ts)
+    login: _t`${back}<h1>Đăng nhập</h1>${info ? `<p class="notice">${esc(info)}</p>` : ''}<form novalidate>
       ${field('email', 'Email', 'email', 'email', 'inputmode="email" required')}
-      ${field('password', 'Mật khẩu', 'password', 'current-password', 'required')}
+      ${field('password', _t('Mật khẩu'), 'password', 'current-password', 'required')}
       <div class="row-between"><label class="check"><input type="checkbox" id="remember" checked> Ghi nhớ tôi</label><button type="button" class="link" data-go="forgot">Quên mật khẩu?</button></div>
       <div id="captcha"></div><p class="err" id="form-err" role="alert"></p><button class="btn" type="submit">Đăng nhập</button></form>
       <p class="sub">Chưa có tài khoản? <button type="button" class="link" data-go="register">Tạo tài khoản</button></p>`,
-    register: `${back}<h1>Tạo tài khoản</h1><form novalidate>
+    register: _t`${back}<h1>Tạo tài khoản</h1><form novalidate>
       ${field('email', 'Email', 'email', 'email', 'inputmode="email" required')}
-      ${field('password', 'Mật khẩu (ít nhất 8 ký tự)', 'password', 'new-password', 'required minlength="8"')}
-      ${field('password2', 'Nhập lại mật khẩu', 'password', 'new-password', 'required')}
-      <label class="check"><input type="checkbox" id="terms"> <span>Tôi đồng ý với Điều khoản sử dụng và Chính sách riêng tư</span></label><span class="err" id="terms-err"></span>
+      ${field('password', _t('Mật khẩu (ít nhất 8 ký tự)'), 'password', 'new-password', 'required minlength="8"')}
+      ${field('password2', _t('Nhập lại mật khẩu'), 'password', 'new-password', 'required')}
+      <label class="check"><input type="checkbox" id="terms"> <span>Tôi đã đọc và đồng ý với <a href="./dieu-khoan.html" target="_blank" rel="noopener">Điều khoản sử dụng</a> và <a href="./quyen-rieng-tu.html" target="_blank" rel="noopener">Chính sách quyền riêng tư</a>. Nếu dưới 16 tuổi, mình đã có sự đồng ý của cha mẹ.</span></label><span class="err" id="terms-err"></span>
       <div id="captcha"></div><p class="err" id="form-err" role="alert"></p><button class="btn" type="submit">Tạo tài khoản</button></form>
       <p class="sub">Đã có tài khoản? <button type="button" class="link" data-go="login">Đăng nhập</button></p>`,
-    forgot: `<button type="button" class="link back" data-go="login">← Quay lại</button><h1>Quên mật khẩu</h1>
+    forgot: _t`<button type="button" class="link back" data-go="login">← Quay lại</button><h1>Quên mật khẩu</h1>
       <p class="sub">Nhập email bạn đã đăng ký. Chúng mình sẽ gửi link đặt lại mật khẩu, link có hiệu lực trong 1 giờ.</p>
       ${info ? `<p class="notice" role="status">${esc(info)}</p>` : ''}<form novalidate>${field('email', 'Email', 'email', 'email', 'inputmode="email" required')}
       <div id="captcha"></div><p class="err" id="form-err" role="alert"></p><button class="btn" type="submit">Gửi link đặt lại</button></form>`,
-    reset: `<h1>Đặt mật khẩu mới</h1><form novalidate>
-      ${field('password', 'Mật khẩu mới (ít nhất 8 ký tự)', 'password', 'new-password', 'required minlength="8"')}
-      ${field('password2', 'Nhập lại mật khẩu mới', 'password', 'new-password', 'required')}
+    reset: _t`<h1>Đặt mật khẩu mới</h1><form novalidate>
+      ${field('password', _t('Mật khẩu mới (ít nhất 8 ký tự)'), 'password', 'new-password', 'required minlength="8"')}
+      ${field('password2', _t('Nhập lại mật khẩu mới'), 'password', 'new-password', 'required')}
       <p class="err" id="form-err" role="alert"></p><button class="btn" type="submit">Lưu mật khẩu</button></form>`,
-    'check-email': `${device}<h1>Kiểm tra email nhé</h1><p class="notice" role="status">${esc(info || 'Chúng mình đã gửi thư xác minh. Mở thư và bấm vào link để bắt đầu.')}</p>
+    'check-email': _t`${device}<h1>Kiểm tra email nhé</h1><p class="notice" role="status">${esc(info || _t('Chúng mình đã gửi thư xác minh. Mở thư và bấm vào link để bắt đầu.'))}</p>
       <button class="btn ghost" data-go="login">Về trang đăng nhập</button>`,
   };
-  root.innerHTML = `<main class="screen"><section class="card" aria-live="polite">${views[view]}</section></main>`;
+  // bản Steam: không có trang giới thiệu (đã có trang cửa hàng Steam) và không có liên kết ủng hộ bên ngoài
+  root.innerHTML = view === 'gate' && isSteam ? titleHtml(views.gate, cfg) : view === 'gate' ? landingHtml(views.gate, cfg) : `<main class="screen"><section class="card" aria-live="polite">${views[view]}</section></main>`;
+  if (view === 'gate' && !isSteam) void hydrateLanding(root);
+  if (view === 'gate' && isSteam) bindTitle(root);
   const $ = <T extends HTMLElement = HTMLInputElement>(id: string) => root.querySelector<T>('#' + id);
 
   $<HTMLButtonElement>('demo')?.addEventListener('click', () => onSignedIn());
+  // bản Steam: một chạm là vào game bằng tài khoản Steam (lần đầu tự tạo tài khoản gắn SteamID)
+  $<HTMLButtonElement>('steam-play')?.addEventListener('click', async ev => {
+    const b = ev.currentTarget as HTMLButtonElement, err = $('form-err');
+    b.disabled = true; b.textContent = _t('Đang đăng nhập…');
+    try { await steamSignIn(); onSignedIn(); } catch { if (err) err.textContent = _t('Chưa đăng nhập được bằng Steam. Kiểm tra mạng rồi thử lại, hoặc dùng tài khoản email.'); b.disabled = false; b.textContent = _t('Chơi'); }
+  });
   root.querySelectorAll<HTMLElement>('[data-go]').forEach(b => b.addEventListener('click', () => go(b.dataset.go as AuthView)));
   root.querySelectorAll<HTMLButtonElement>('[data-toggle]').forEach(b => b.addEventListener('click', () => {
     const inp = $(b.dataset.toggle!)!; const show = inp.type === 'password';
-    inp.type = show ? 'text' : 'password'; b.textContent = show ? 'Ẩn' : 'Hiện'; b.setAttribute('aria-label', show ? 'Ẩn mật khẩu' : 'Hiện mật khẩu');
+    inp.type = show ? 'text' : 'password'; b.textContent = show ? _t('Ẩn') : _t('Hiện'); b.setAttribute('aria-label', show ? _t('Ẩn mật khẩu') : _t('Hiện mật khẩu'));
   }));
   $<HTMLButtonElement>('google')?.addEventListener('click', async () => {
     const { error } = await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: location.origin + location.pathname } });
@@ -84,37 +101,37 @@ export function mountAuth(root: HTMLElement, view: AuthView, onSignedIn: () => v
     const email = $('email')?.value.trim() ?? '';
     const pw = $('password')?.value ?? '', pw2 = $('password2')?.value ?? '';
     let bad = false;
-    if ($('email')) { const m = !email ? 'Bạn chưa nhập email.' : !emailOk(email) ? 'Email chưa đúng định dạng, ví dụ ten@gmail.com.' : ''; setErr('email', m); bad ||= !!m; }
-    if (view === 'login') { const m = pw ? '' : 'Bạn chưa nhập mật khẩu.'; setErr('password', m); bad ||= !!m; }
+    if ($('email')) { const m = !email ? _t('Bạn chưa nhập email.') : !emailOk(email) ? _t('Email chưa đúng định dạng, ví dụ ten@gmail.com.') : ''; setErr('email', m); bad ||= !!m; }
+    if (view === 'login') { const m = pw ? '' : _t('Bạn chưa nhập mật khẩu.'); setErr('password', m); bad ||= !!m; }
     if (view === 'register' || view === 'reset') {
-      const m1 = pw.length < 8 ? 'Mật khẩu cần ít nhất 8 ký tự.' : ''; setErr('password', m1);
-      const m2 = pw2 !== pw ? 'Hai mật khẩu chưa giống nhau.' : ''; setErr('password2', m2); bad ||= !!(m1 || m2);
+      const m1 = pw.length < 8 ? _t('Mật khẩu cần ít nhất 8 ký tự.') : ''; setErr('password', m1);
+      const m2 = pw2 !== pw ? _t('Hai mật khẩu chưa giống nhau.') : ''; setErr('password2', m2); bad ||= !!(m1 || m2);
     }
-    if (view === 'register') { const ok = $('terms')!.checked; const e = $('terms-err'); if (e) e.textContent = ok ? '' : 'Bạn cần đồng ý điều khoản để tạo tài khoản.'; bad ||= !ok; }
+    if (view === 'register') { const ok = $('terms')!.checked; const e = $('terms-err'); if (e) e.textContent = ok ? '' : _t('Bạn cần đồng ý điều khoản để tạo tài khoản.'); bad ||= !ok; }
     if (bad) { root.querySelector<HTMLInputElement>('[aria-invalid="true"]')?.focus(); return; }
 
     try {
       if (view === 'login') {
         const lock = lockedMinutes();
-        if (lock) { alertInline(`Bạn nhập sai nhiều lần. Thử lại sau ${lock} phút nhé.`); return; }
-        busy(true, 'Đang đăng nhập…');
+        if (lock) { alertInline(_t`Bạn nhập sai nhiều lần. Thử lại sau ${lock} phút nhé.`); return; }
+        busy(true, _t('Đang đăng nhập…'));
         const { error } = await supabase.auth.signInWithPassword({ email, password: pw, options: { captchaToken: await captcha.token() } });
         if (error) { if (error.code === 'invalid_credentials') addFail(); throw error; }
         clearFails();
         try { localStorage.setItem('hatchday-remember', $('remember')!.checked ? '1' : '0'); sessionStorage.setItem('hatchday-alive', '1'); } catch { /* bỏ qua */ }
         onSignedIn();
       } else if (view === 'register') {
-        busy(true, 'Đang tạo…');
-        const { data, error } = await supabase.auth.signUp({ email, password: pw, options: { emailRedirectTo: location.origin + location.pathname, captchaToken: await captcha.token() } });
+        busy(true, _t('Đang tạo…'));
+        const { data, error } = await supabase.auth.signUp({ email, password: pw, options: { emailRedirectTo: location.origin + location.pathname, captchaToken: await captcha.token(), data: { tos_version: TOS_VERSION, tos_accepted_at: new Date().toISOString() } } });
         if (error) throw error;
         if (data.session) onSignedIn();
-        else go('check-email', `Chúng mình đã gửi thư xác minh tới ${email}. Mở thư và bấm vào link để bắt đầu.`);
+        else go('check-email', _t`Chúng mình đã gửi thư xác minh tới ${email}. Mở thư và bấm vào link để bắt đầu.`);
       } else if (view === 'forgot') {
-        busy(true, 'Đang gửi…');
+        busy(true, _t('Đang gửi…'));
         await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${location.origin}${location.pathname}?reset=1`, captchaToken: await captcha.token() });
-        go('forgot', 'Nếu email này có tài khoản, bạn sẽ nhận được thư trong vài phút. Nhớ xem cả mục Spam nhé.');
+        go('forgot', _t('Nếu email này có tài khoản, bạn sẽ nhận được thư trong vài phút. Nhớ xem cả mục Spam nhé.'));
       } else if (view === 'reset') {
-        busy(true, 'Đang lưu…');
+        busy(true, _t('Đang lưu…'));
         const { error } = await supabase.auth.updateUser({ password: pw });
         if (error) throw error;
         await supabase.auth.signOut({ scope: 'others' });
@@ -124,7 +141,7 @@ export function mountAuth(root: HTMLElement, view: AuthView, onSignedIn: () => v
     } catch (e) {
       captcha.reset();
       alertInline(viError(e));
-      busy(false, { login: 'Đăng nhập', register: 'Tạo tài khoản', forgot: 'Gửi link đặt lại', reset: 'Lưu mật khẩu' }[view as 'login'] ?? 'Thử lại');
+      busy(false, { login: _t('Đăng nhập'), register: _t('Tạo tài khoản'), forgot: _t('Gửi link đặt lại'), reset: _t('Lưu mật khẩu') }[view as 'login'] ?? _t('Thử lại'));
     }
   });
   root.querySelector<HTMLInputElement>('input')?.focus();

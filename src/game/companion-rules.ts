@@ -4,6 +4,7 @@
  * - Nhắc giải lao mỗi 50 phút, uống nước mỗi 90 phút (tính theo thời gian trang đang mở và nhìn thấy), chỉ trong giờ làm việc 08:00–19:00.
  * - Chào sáng (05:00–11:00) và chào tối (từ 18:00), mỗi buổi một lần mỗi ngày.
  */
+import { _t } from '../i18n';
 export const COMPANION = {
   awayMinutes: 180,
   breakEvery: 50,
@@ -47,19 +48,19 @@ export function greetingFor(hour: number, done: Greeting[], prefs: CompanionPref
 }
 
 export const LINES = {
-  break: ['Bạn ngồi lâu rồi nè. Đứng dậy vươn vai một chút nhé!', 'Mắt bạn mỏi chưa? Nhìn ra xa 20 giây giúp mình nha.', 'Nghỉ tay một chút đi bạn, mình đợi được mà.'],
-  water: ['Uống nước nào bạn ơi! Mình cũng khát theo rồi nè.', 'Nhớ uống một ly nước nha, giữ sức làm việc.', 'Ly nước của bạn đâu rồi? Uống một ngụm đi!'],
-  morning: ['Chào buổi sáng! Hôm nay mình cùng cố gắng nhé.', 'Sáng rồi! Chúc bạn một ngày làm việc thật suôn sẻ.'],
-  evening: ['Tối rồi, hôm nay bạn vất vả nhiều. Nghỉ ngơi thôi nha!', 'Hết giờ làm rồi đó. Về ăn tối và nghỉ ngơi nhé, mình ở đây với bạn.'],
+  break: [_t('Bạn ngồi lâu rồi nè. Đứng dậy vươn vai một chút nhé!'), _t('Mắt bạn mỏi chưa? Nhìn ra xa 20 giây giúp mình nha.'), _t('Nghỉ tay một chút đi bạn, mình đợi được mà.')],
+  water: [_t('Uống nước nào bạn ơi! Mình cũng khát theo rồi nè.'), _t('Nhớ uống một ly nước nha, giữ sức làm việc.'), _t('Ly nước của bạn đâu rồi? Uống một ngụm đi!')],
+  morning: [_t('Chào buổi sáng! Hôm nay mình cùng cố gắng nhé.'), _t('Sáng rồi! Chúc bạn một ngày làm việc thật suôn sẻ.')],
+  evening: [_t('Tối rồi, hôm nay bạn vất vả nhiều. Nghỉ ngơi thôi nha!'), _t('Hết giờ làm rồi đó. Về ăn tối và nghỉ ngơi nhé, mình ở đây với bạn.')],
 } as const;
 export const pickLine = (k: keyof typeof LINES, r = Math.random()) => LINES[k][Math.floor(r * LINES[k].length)];
 
 /** Phút vắng → chữ. */
 export function awayText(mins: number): string {
-  if (mins >= 2 * 1440) return `${Math.floor(mins / 1440)} ngày`;
-  if (mins >= 1440) return 'hơn một ngày';
+  if (mins >= 2 * 1440) return _t`${Math.floor(mins / 1440)} ngày`;
+  if (mins >= 1440) return _t('hơn một ngày');
   const h = Math.floor(mins / 60), m = mins % 60;
-  return m >= 10 ? `${h} giờ ${m} phút` : `${h} giờ`;
+  return m >= 10 ? _t`${h} giờ ${m} phút` : _t`${h} giờ`;
 }
 
 /** Các chỉ số tụt đáng kể trong lúc vắng (từ 15 điểm trở lên), kèm giá trị trước và sau. */

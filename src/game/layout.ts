@@ -1,4 +1,5 @@
 /** Luật trang trí, kinh tế, nhiệm vụ — thuần, có test. Server (SQL) làm theo cùng công thức. */
+import { _t } from '../i18n';
 import { BY_ID, GRID, ITEMS, PET_ZONE, WINDOW_CELLS, type Item, type Layout, type Placed, type Theme } from './catalog';
 
 /** Kích thước chiếm chỗ sau khi xoay (xoay lẻ thì đổi rộng/sâu). */
@@ -88,18 +89,18 @@ export function isWeekend(day: string): boolean { const w = new Date(day + 'T00:
  */
 export interface QuestDef { key: string; label: string; target: number; reward: number }
 export const QUEST_POOL: readonly QuestDef[] = [
-  { key: 'fed', label: 'Cho bé ăn 2 lần', target: 2, reward: 20 },
-  { key: 'bath', label: 'Tắm cho bé 1 lần', target: 1, reward: 20 },
-  { key: 'ball', label: 'Chơi ném bóng 3 lần', target: 3, reward: 25 },
-  { key: 'pet', label: 'Vuốt ve bé 20 lần', target: 20, reward: 20 },
-  { key: 'talk', label: 'Trò chuyện với bé 2 lần', target: 2, reward: 20 },
-  { key: 'sleep', label: 'Chúc bé ngủ ngon', target: 1, reward: 20 },
-  { key: 'fed', label: 'Cho bé ăn 4 bữa', target: 4, reward: 35 },
-  { key: 'ball', label: 'Chơi ném bóng 6 lần', target: 6, reward: 40 },
-  { key: 'pet', label: 'Vuốt ve bé 60 lần', target: 60, reward: 40 },
-  { key: 'talk', label: 'Trò chuyện với bé 5 lần', target: 5, reward: 40 },
-  { key: 'foods_distinct', label: 'Cho bé ăn 3 món khác nhau', target: 3, reward: 40 },
-  { key: 'groups_distinct', label: 'Cho bé ăn đủ 3 nhóm dinh dưỡng', target: 3, reward: 45 },
+  { key: 'fed', label: _t('Cho bé ăn 2 lần'), target: 2, reward: 20 },
+  { key: 'bath', label: _t('Tắm cho bé 1 lần'), target: 1, reward: 20 },
+  { key: 'ball', label: _t('Chơi ném bóng 3 lần'), target: 3, reward: 25 },
+  { key: 'pet', label: _t('Vuốt ve bé 20 lần'), target: 20, reward: 20 },
+  { key: 'talk', label: _t('Trò chuyện với bé 2 lần'), target: 2, reward: 20 },
+  { key: 'sleep', label: _t('Chúc bé ngủ ngon'), target: 1, reward: 20 },
+  { key: 'fed', label: _t('Cho bé ăn 4 bữa'), target: 4, reward: 35 },
+  { key: 'ball', label: _t('Chơi ném bóng 6 lần'), target: 6, reward: 40 },
+  { key: 'pet', label: _t('Vuốt ve bé 60 lần'), target: 60, reward: 40 },
+  { key: 'talk', label: _t('Trò chuyện với bé 5 lần'), target: 5, reward: 40 },
+  { key: 'foods_distinct', label: _t('Cho bé ăn 3 món khác nhau'), target: 3, reward: 40 },
+  { key: 'groups_distinct', label: _t('Cho bé ăn đủ 3 nhóm dinh dưỡng'), target: 3, reward: 45 },
 ] as const;
 export const QUESTS_PER_DAY = 5;
 export const QUEST_BONUS = 50;
@@ -111,12 +112,12 @@ export function questsForDay(day: string): number[] { const n = dayNumber(day); 
  * Tiến độ tính từ day_logs của mọi ngày trong tuần.
  */
 export const WEEKLY_POOL: readonly QuestDef[] = [
-  { key: 'fed', label: 'Cho bé ăn 20 bữa trong tuần', target: 20, reward: 100 },
-  { key: 'ball', label: 'Chơi ném bóng 20 lần trong tuần', target: 20, reward: 100 },
-  { key: 'talk', label: 'Trò chuyện với bé 15 lần trong tuần', target: 15, reward: 100 },
-  { key: 'pet', label: 'Vuốt ve bé 150 lần trong tuần', target: 150, reward: 110 },
-  { key: 'bath', label: 'Tắm cho bé 5 lần trong tuần', target: 5, reward: 100 },
-  { key: 'sleep', label: 'Chúc bé ngủ ngon 5 tối trong tuần', target: 5, reward: 100 },
+  { key: 'fed', label: _t('Cho bé ăn 20 bữa trong tuần'), target: 20, reward: 100 },
+  { key: 'ball', label: _t('Chơi ném bóng 20 lần trong tuần'), target: 20, reward: 100 },
+  { key: 'talk', label: _t('Trò chuyện với bé 15 lần trong tuần'), target: 15, reward: 100 },
+  { key: 'pet', label: _t('Vuốt ve bé 150 lần trong tuần'), target: 150, reward: 110 },
+  { key: 'bath', label: _t('Tắm cho bé 5 lần trong tuần'), target: 5, reward: 100 },
+  { key: 'sleep', label: _t('Chúc bé ngủ ngon 5 tối trong tuần'), target: 5, reward: 100 },
 ] as const;
 export const WEEKLY_PER_WEEK = 3;
 /** Ngày thứ Hai đầu tuần chứa `day` (YYYY-MM-DD). Ngày 0 của epoch là thứ Năm nên thứ Hai rơi vào n ≡ 4 (mod 7). */

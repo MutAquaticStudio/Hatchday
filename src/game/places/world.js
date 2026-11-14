@@ -4,8 +4,43 @@
 //  - scatter: vật lặp (cây, hoa, cỏ, hàng rào, đèn) dựng bằng InstancedMesh (một lần vẽ cho cả loạt) kèm viền;
 //  - cache hình/vật liệu dùng chung; chất lượng Thấp giảm bớt số vật trang trí (density).
 // Mỗi nơi gọi makeWorld(c), khai báo zones rồi gọi world.update(dt, petX, petZ) mỗi khung hình.
+import { _t } from '../../i18n';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { inkFor } from '../hd.js';
 import { gradeInk, gradeTex } from '../grade.js';
 const BUDGET_MS = 4;
+
+/**
+ * Gộp các mesh tĩnh cùng vật liệu trong `root` thành một mesh mỗi loại (giảm số lệnh vẽ rất nhiều: mỗi món trang trí nhỏ
+ * vốn tốn 2 lệnh vẽ, thân và viền). Bỏ qua: điểm chạm (userData.hotspot), vật động (userData.keep), bóng đèn (userData.lamp),
+ * InstancedMesh, vật trong suốt và vật bị lật gương. Bóng đổ giữ như trước nhờ userData.cast.
+ */
+export function bakeStatic(THREE, root, { inHotspot = null } = {}) {
+  root.updateMatrixWorld(true);
+  const inv = new THREE.Matrix4().copy(root.matrixWorld).invert(), m = new THREE.Matrix4(), buckets = new Map();
+  const kept = o => { for (let p = o; p && p !== root; p = p.parent) if (p.userData.keep || (p.userData.hotspot && !inHotspot) || p.userData.lamp) return true; return false; };
+  root.traverse(o => {
+    if (!o.isMesh || o.isInstancedMesh || kept(o)) return;
+    const mat = o.material, geo = o.geometry;
+    if (Array.isArray(mat) || mat.transparent || mat.blending !== THREE.NormalBlending || !geo.attributes.position || !geo.attributes.normal || geo.morphAttributes.position) return;
+    m.multiplyMatrices(inv, o.matrixWorld); if (m.determinant() <= 0) return;
+    const key = [mat.type, mat.userData.k || '', mat.color ? mat.color.getHexString() : '', mat.map ? mat.map.uuid : '', mat.side, mat.gradientMap ? mat.gradientMap.uuid : '', geo.index ? 'i' : 'n', Object.keys(geo.attributes).sort().join(','), o.userData.outline ? 'o' : ''].join('|');
+    let b = buckets.get(key); if (!b) buckets.set(key, b = { mat, outline: !!o.userData.outline, geos: [], objs: [], cast: false });
+    b.geos.push(geo.clone().applyMatrix4(m)); b.objs.push(o);
+    if (!o.userData.outline) { geo.computeBoundingSphere(); if (geo.boundingSphere.radius * Math.max(o.scale.x, o.scale.y, o.scale.z) < 2) b.cast = true; }
+  });
+  const removed = new Set(), added = [];
+  for (const b of buckets.values()) {
+    if (b.objs.length < 2) { b.geos.forEach(g => g.dispose()); continue; }
+    const merged = mergeGeometries(b.geos, false); b.geos.forEach(g => g.dispose()); if (!merged) continue;
+    const mesh = new THREE.Mesh(merged, b.mat); mesh.userData.baked = true; mesh.userData.cast = b.cast; if (inHotspot) mesh.userData.hotspot = inHotspot;
+    if (b.outline) mesh.userData.outline = true;
+    mesh.matrixAutoUpdate = false; added.push(mesh); b.objs.forEach(o => removed.add(o));
+  }
+  for (const o of removed) { for (const ch of [...o.children]) if (!removed.has(ch)) root.attach(ch); o.parent && o.parent.remove(o); }
+  added.forEach(x => { root.add(x); x.updateMatrix(); });
+  return { before: removed.size, after: added.length };
+}
 
 export function makeWorld(c, group) {
   const { THREE, toon } = c;
@@ -13,7 +48,6 @@ export function makeWorld(c, group) {
   const geo = (k, f) => { let g = gCache.get(k); if (!g) { g = f(); gCache.set(k, g); } return g; };
   const mat = (k, f) => { let m = mCache.get(k); if (!m) { m = f(); mCache.set(k, m); } return m; };
   const toonC = (col, map) => mat('t:' + col + (map ? map.uuid : ''), () => toon(col, map));
-  const outMat = col => mat('o:' + col, () => new THREE.MeshBasicMaterial({ color: gradeInk(col), side: THREE.BackSide }));
   /** 0.5 ở chất lượng Thấp, 1 còn lại: nhân số lượng vật trang trí phụ. */
   const density = () => (c.quality && c.quality() === 'thap' ? 0.5 : 1);
   const dummy = new THREE.Object3D(), color = new THREE.Color();
@@ -21,12 +55,12 @@ export function makeWorld(c, group) {
   /** Vật lặp bằng InstancedMesh. items: [{ x, y, z, s | sx, sy, sz, ry, color }]. outline: màu viền (null = không viền). Trả về mesh. */
   function scatter(parent, geometry, material, items, outline = '#6a4a5a', thick = 0.04) {
     if (!items.length) return null;
-    const n = items.length, m = new THREE.InstancedMesh(geometry, material, n), o = outline ? new THREE.InstancedMesh(geometry, outMat(outline), n) : null;
-    geometry.computeBoundingSphere(); const r = Math.max(geometry.boundingSphere.radius, 0.05);
+    if (c.noOutline) outline = null; // chế độ Điện ảnh không dùng nét viền
+    const n = items.length, m = new THREE.InstancedMesh(geometry, material, n), o = outline ? new THREE.InstancedMesh(geometry, inkFor(THREE, geometry, gradeInk(outline), thick / 0.03), n) : null;   // viền chung (hd.js): dày đều theo màn hình, không phình theo tỉ lệ vật
     items.forEach((it, i) => {
       const sx = it.sx ?? it.s ?? 1, sy = it.sy ?? it.s ?? 1, sz = it.sz ?? it.s ?? 1;
       dummy.position.set(it.x, it.y ?? 0, it.z); dummy.rotation.set(it.rx ?? 0, it.ry ?? 0, it.rz ?? 0); dummy.scale.set(sx, sy, sz); dummy.updateMatrix(); m.setMatrixAt(i, dummy.matrix);
-      if (o) { const k = 1 + thick / (r * Math.max(sx, sy, sz)); dummy.scale.set(sx * k, sy * k, sz * k); dummy.updateMatrix(); o.setMatrixAt(i, dummy.matrix); }
+      if (o) o.setMatrixAt(i, dummy.matrix);
       if (it.color) m.setColorAt(i, color.set(gradeTex(it.color)));
     });
     m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true;
@@ -35,11 +69,18 @@ export function makeWorld(c, group) {
     return m;
   }
 
+  /** Gộp vật tĩnh của khu, rồi gộp riêng bên trong từng vật có điểm chạm (giữ cờ điểm chạm để chạm vẫn trúng). */
+  const hotspotRoots = new Set();
+  function bakeZone(g) {
+    bakeStatic(THREE, g);
+    g.traverse(o => { if (o.userData.hotRoot && !o.isMesh && !o.userData.keep) hotspotRoots.add(o); });
+    for (const r of hotspotRoots) { let inside = false; for (let p = r; p; p = p.parent) if (p === g) inside = true; if (inside) { bakeStatic(THREE, r, { inHotspot: r.userData.hotRoot }); hotspotRoots.delete(r); } }
+  }
   /** Khai báo một khu. build(g): dựng ngay (khu lõi) hoặc trả về mảng việc nhỏ (hàm) để dựng dần. */
   function zone(def) {
     const z = { id: def.id, cx: def.cx, cz: def.cz, show: def.show ?? 16, g: new THREE.Group(), state: def.core ? 'building' : 'idle', def, tasks: null };
     z.g.visible = !!def.core; group.add(z.g); zones.push(z);
-    if (def.core) { const t = def.build(z.g); if (Array.isArray(t)) t.forEach(f => f()); z.state = 'ready'; c.applyShadows?.(z.g); }
+    if (def.core) { const t = def.build(z.g); if (Array.isArray(t)) t.forEach(f => f()); z.state = 'ready'; bakeZone(z.g); c.applyShadows?.(z.g); }
     return z;
   }
   const near = (z, x, zz) => Math.hypot(z.cx - x, z.cz - zz) < z.show;
@@ -53,11 +94,11 @@ export function makeWorld(c, group) {
     const t0 = performance.now();
     while (queue.length && performance.now() - t0 < BUDGET_MS) {
       const z = queue[0], f = z.tasks.shift();
-      if (f) f(); else { queue.shift(); z.state = 'ready'; c.applyShadows?.(z.g); }
+      if (f) f(); else { queue.shift(); z.state = 'ready'; bakeZone(z.g); c.applyShadows?.(z.g); }
     }
   }
   /** Dựng xong mọi khu ngay (kiểm thử). */
-  function finishAll() { for (const z of zones) { if (z.state === 'idle') { const t = z.def.build(z.g); z.tasks = Array.isArray(t) ? t : []; z.state = 'building'; if (!queue.includes(z)) queue.push(z); } } while (queue.length) { const z = queue[0], f = z.tasks.shift(); if (f) f(); else { queue.shift(); z.state = 'ready'; c.applyShadows?.(z.g); } } zones.forEach(z => { z.g.visible = true; }); }
+  function finishAll() { for (const z of zones) { if (z.state === 'idle') { const t = z.def.build(z.g); z.tasks = Array.isArray(t) ? t : []; z.state = 'building'; if (!queue.includes(z)) queue.push(z); } } while (queue.length) { const z = queue[0], f = z.tasks.shift(); if (f) f(); else { queue.shift(); z.state = 'ready'; bakeZone(z.g); c.applyShadows?.(z.g); } } zones.forEach(z => { z.g.visible = true; }); }
   const status = () => zones.map(z => ({ id: z.id, state: z.state, visible: z.g.visible }));
   /** Giải phóng mọi hình, vật liệu và InstancedMesh của nơi này (gọi khi rời nếu máy yếu). */
   function dispose() { gCache.forEach(g => g.dispose()); mCache.forEach(m => m.dispose()); gCache.clear(); mCache.clear(); }
@@ -163,7 +204,7 @@ export function makeProps({ THREE, add, toon, canvasTex, kit, world, glowMat }) 
     for (let i = 0; i <= n; i++) { const t = i / n; items.push({ x: x0 + (x1 - x0) * t, y: y - Math.sin(t * Math.PI) * 0.35 - 0.12, z: z0 + (z1 - z0) * t, rx: Math.PI, ry: Math.atan2(x1 - x0, z1 - z0), s: 1, color: cols[i % cols.length] }); }
     return world.scatter(g, tri, world.toonC('#ffffff'), items, null);
   };
-  const cloud = (g, x, y, z, s = 1) => { const c = new THREE.Group(); c.position.set(x, y, z); c.scale.setScalar(s); g.add(c); const m = (glowMat || (x => x))(new THREE.MeshBasicMaterial({ color: '#c9d6ec', transparent: true, opacity: 0.85 })); [[0, 0, 0, 1.2], [1.1, -0.1, 0, 0.9], [-1.1, -0.15, 0, 0.8], [0.4, 0.5, 0, 0.8]].forEach(([dx, dy, dz, r]) => { const b = new THREE.Mesh(world.geo('cloud', () => new THREE.SphereGeometry(1, 12, 8)), m); b.position.set(dx, dy, dz); b.scale.set(r, r * 0.7, r * 0.8); c.add(b); }); return c; };
+  const cloud = (g, x, y, z, s = 1) => { const c = new THREE.Group(); c.userData.keep = true; c.position.set(x, y, z); c.scale.setScalar(s); g.add(c); const m = (glowMat || (x => x))(new THREE.MeshBasicMaterial({ color: '#c9d6ec', transparent: true, opacity: 0.85 })); [[0, 0, 0, 1.2], [1.1, -0.1, 0, 0.9], [-1.1, -0.15, 0, 0.8], [0.4, 0.5, 0, 0.8]].forEach(([dx, dy, dz, r]) => { const b = new THREE.Mesh(world.geo('cloud', () => new THREE.SphereGeometry(1, 12, 8)), m); b.position.set(dx, dy, dz); b.scale.set(r, r * 0.7, r * 0.8); c.add(b); }); return c; };
   /** Đồi xa làm nền: các nửa quả cầu xanh nhạt xếp theo hàng. */
   const hills = (g, z, xs, cols = ['#bfe8a8', '#aee09a', '#c9eeb5']) => xs.forEach((x, i) => { const h = new THREE.Mesh(world.geo('hill', () => new THREE.SphereGeometry(1, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2)), world.toonC(cols[i % cols.length])); h.position.set(x, -0.2, z); h.scale.set(7 + (i % 3) * 2, 2.2 + (i % 2) * 1.4, 4); g.add(h); });
   const stripeTex = (a, b, n = 4) => canvasTex(64, 32, d => { d.fillStyle = b; d.fillRect(0, 0, 64, 32); d.fillStyle = a; for (let i = 0; i < n; i++) d.fillRect(i * 64 / n, 0, 32 / n, 32); }, [1, 1]);
@@ -176,7 +217,7 @@ export function makeProps({ THREE, add, toon, canvasTex, kit, world, glowMat }) 
     return w;
   };
   /** Xe đẩy bán hàng: thùng gỗ ô kính, bánh xe, càng đẩy, mái sọc, biển tên, hàng bày (goods: 'bread' | 'icecream' | 'fruit'). */
-  const cart = (g, x, z, { ry = 0, label = 'Bánh mì', body = '#ffcf8a', stripe = '#ff8f6a', goods = 'bread' } = {}) => {
+  const cart = (g, x, z, { ry = 0, label = _t('Bánh mì'), body = '#ffcf8a', stripe = '#ff8f6a', goods = 'bread' } = {}) => {
     const b = new THREE.Group(); b.position.set(x, 0, z); b.rotation.y = ry; g.add(b);
     add(b, new THREE.BoxGeometry(1.9, 0.75, 0.95), toon(body), 0, 0.72, 0, '#8a5a3a', 0.03);
     add(b, new THREE.BoxGeometry(1.98, 0.08, 1.03), toon('#fff8ef'), 0, 1.12, 0, '#8a7a6a', 0.012);
@@ -191,8 +232,8 @@ export function makeProps({ THREE, add, toon, canvasTex, kit, world, glowMat }) 
     }
     wheel(b, -0.98, 0.33, 0.25); wheel(b, -0.98, 0.33, -0.25);
     add(b, new THREE.CylinderGeometry(0.05, 0.05, 0.36, 8), toon('#7a6a8a'), 0.78, 0.18, 0, '#443', 0.01);
-    [-0.3, 0.3].forEach(dz => { const h = add(b, new THREE.CylinderGeometry(0.03, 0.03, 0.7, 6), toon('#a8744a'), 1.2, 1.0, dz, null); h.rotation.z = -0.9; });
-    add(b, new THREE.CylinderGeometry(0.035, 0.035, 0.66, 6), toon('#a8744a'), 1.48, 1.2, 0, null).rotation.x = Math.PI / 2;
+    [-0.3, 0.3].forEach(dz => { const h = add(b, new THREE.CylinderGeometry(0.03, 0.03, 0.42, 6), toon('#a8744a'), 1.12, 1.02, dz, '#5a3a22', 0.008); h.rotation.z = Math.PI / 2 - 0.25; }); // tay đẩy ngắn, hơi chếch lên
+    add(b, new THREE.CylinderGeometry(0.04, 0.04, 0.7, 8), toon('#ffd36e'), 1.32, 1.08, 0, '#a8742e', 0.008).rotation.x = Math.PI / 2;
     [-0.82, 0.82].forEach(px => add(b, new THREE.CylinderGeometry(0.03, 0.03, 1.2, 6), toon('#c29a62'), px, 2.25, -0.32, '#8a5f3a', 0.01));
     const roofM = add(b, new THREE.BoxGeometry(2.2, 0.06, 1.3), toon('#ffffff', stripeTex(stripe, '#ffffff', 6)), 0, 2.86, 0.05, '#7a3a2a', 0.015); roofM.rotation.x = 0.12;
     const val = []; for (let i = 0; i < 9; i++) val.push(i); val.forEach(i => add(b, new THREE.ConeGeometry(0.12, 0.2, 3), toon(i % 2 ? stripe : '#ffffff'), -0.98 + i * 0.245, 2.68, 0.7, null).rotation.x = Math.PI);
@@ -200,7 +241,7 @@ export function makeProps({ THREE, add, toon, canvasTex, kit, world, glowMat }) 
     return b;
   };
   /** Sạp hoa: kệ bậc thang gỗ với chậu hoa nhiều màu, mái vải, xô hoa phía trước. */
-  const kiosk = (g, x, z, { ry = 0, roof = '#ff9ec4', label = 'Hoa tươi' } = {}) => {
+  const kiosk = (g, x, z, { ry = 0, roof = '#ff9ec4', label = _t('Hoa tươi') } = {}) => {
     const b = new THREE.Group(); b.position.set(x, 0, z); b.rotation.y = ry; g.add(b);
     [0, 1, 2].forEach(i => add(b, new THREE.BoxGeometry(1.9, 0.12, 0.42), toon('#d9b27a'), 0, 0.35 + i * 0.36, 0.3 - i * 0.36, '#8a5f3a', 0.015));
     [-0.92, 0.92].forEach(px => add(b, new THREE.BoxGeometry(0.08, 1.2, 1.2), toon('#c29a62'), px, 0.6, -0.06, '#8a5f3a', 0.015));

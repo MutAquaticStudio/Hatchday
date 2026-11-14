@@ -1,11 +1,11 @@
-/** Ma trận quyền của trang quản trị. PHẢI khớp private.admin_can trong supabase/migrations/20261206000000_admin.sql (test: supabase/tests/admin.test.ts). */
+/** Ma trận quyền của trang quản trị. PHẢI khớp private.admin_can (bản mới nhất ở supabase/migrations/20261222000000_support_site.sql) (test: supabase/tests/admin.test.ts). */
 export type Role = 'owner' | 'ops' | 'support' | 'moderator' | 'analyst';
-export type Action = 'dashboard' | 'search' | 'get_user' | 'grant' | 'campaign' | 'announce' | 'event' | 'flag' | 'audit' | 'report' | 'sanction' | 'word' | 'role';
+export type Action = 'dashboard' | 'search' | 'get_user' | 'grant' | 'campaign' | 'announce' | 'event' | 'flag' | 'audit' | 'report' | 'sanction' | 'word' | 'role' | 'ticket';
 export const ROLES: Role[] = ['owner', 'ops', 'support', 'moderator', 'analyst'];
-export const ACTIONS: Action[] = ['dashboard', 'search', 'get_user', 'grant', 'campaign', 'announce', 'event', 'flag', 'audit', 'report', 'sanction', 'word', 'role'];
+export const ACTIONS: Action[] = ['dashboard', 'search', 'get_user', 'grant', 'campaign', 'announce', 'event', 'flag', 'audit', 'report', 'sanction', 'word', 'role', 'ticket'];
 const ALLOW: Record<Exclude<Role, 'owner'>, Action[]> = {
-  ops: ['dashboard', 'search', 'get_user', 'campaign', 'announce', 'event', 'flag', 'audit'],
-  support: ['dashboard', 'search', 'get_user', 'grant'],
+  ops: ['dashboard', 'search', 'get_user', 'campaign', 'announce', 'event', 'flag', 'audit', 'ticket'],
+  support: ['dashboard', 'search', 'get_user', 'grant', 'ticket'],
   moderator: ['search', 'report', 'sanction', 'word'],
   analyst: ['dashboard'],
 };

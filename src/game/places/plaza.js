@@ -1,6 +1,7 @@
 // Quảng trường "Mầm" (~40×30, rộng, camera bám thú): khu gặp gỡ realtime (shared.js). Khu lõi: đài phun nước nhiều tầng, đường lát, ghế đá, đèn, bảng tin,
 // bưu điện, tháp đồng hồ, sân khấu nhỏ. Khu tây/đông dựng dần khi bé tới gần: mặt tiền Chợ, Bệnh viện, Thư viện, Tiệm trà, Tiệm may (chạm cửa để tới đó),
 // cổng sang Công viên, cây, hoa, hàng rào, cờ hiệu. Chi tiết dựng/ẩn theo khu: xem world.js.
+import { _t } from '../../i18n';
 import { makeKit } from './kit.js';
 import { makeShared } from './shared.js';
 import { festival } from './festival.js';
@@ -29,7 +30,7 @@ export function initPlaza(c) {
       const jump = Math.abs(Math.sin(k * Math.PI * 3)) * 0.55 * (k < 0.85 ? 1 : 0);
       if (t > nextDrop && k < 0.85) { nextDrop = t + 0.09; const a = Math.random() * Math.PI * 2; c.spawnAt('drop', px + Math.cos(a) * 0.5, 0.6 + jump, pz + Math.sin(a) * 0.3, { vx: Math.cos(a) * 1.3, vy: 2.2 + Math.random(), g: 7, scale: 0.2, max: 0.7 }); }
       return { pos: [edge[0], jump, edge[2]], stretch: jump > 0.05 ? 0.1 : -0.06, roll: Math.sin(k * Math.PI * 6) * 0.12, face: 0 };
-    }, done: ok => { if (!ok) return; c.say('Mát rượi! Nước bắn tùm lum luôn!', 2200); c.setTemp('excited', 1600); if (ok) c.activity('fountain'); } });
+    }, done: ok => { if (!ok) return; c.say(_t('Mát rượi! Nước bắn tùm lum luôn!'), 2200); c.setTemp('excited', 1600); if (ok) c.activity('fountain'); } });
   }
   function sitOn(x, z, ry, label) { // nhảy lên ghế đá, ngồi đung đưa, rồi nhảy xuống
     const [fx, fz] = c.getPetXZ(), front = [x + Math.sin(ry) * 1.15, 0, z + Math.cos(ry) * 1.15];
@@ -52,7 +53,7 @@ export function initPlaza(c) {
       const k = (u - 0.12) / 0.78; if (Math.random() < 0.08) c.spawnAt(Math.random() < 0.5 ? 'note' : 'sparkle', (Math.random() - 0.5) * 3, 1.2 + Math.random(), -7.5, { vy: 0.8, scale: 0.34, max: 1 });
       if (k > 0.86) return { pos: [0, 0.5, -7.5], stretch: -0.16 * Math.sin((k - 0.86) / 0.14 * Math.PI), face: 0 };
       return { pos: [0, 0.5 + Math.abs(Math.sin(t * 7)) * 0.18, -7.5], spin: k < 0.4 ? k / 0.4 * Math.PI * 4 : 0, roll: Math.sin(t * 7) * 0.14, face: k < 0.4 ? undefined : 0 };
-    }, done: ok => { if (!ok) return; c.say('Cảm ơn mọi người đã xem mình biểu diễn!', 2400); c.spawn('heart', 4); c.sfx('cheer'); if (ok) c.activity('stage'); } });
+    }, done: ok => { if (!ok) return; c.say(_t('Cảm ơn mọi người đã xem mình biểu diễn!'), 2400); c.spawn('heart', 4); c.sfx('cheer'); if (ok) c.activity('stage'); } });
   }
   const fireflies = makeFireflies(THREE, g, { x0: -16, x1: 16, z0: -6, z1: 8 }, Math.round(18 * dens));
 
@@ -70,18 +71,19 @@ export function initPlaza(c) {
     for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2; add(f, new THREE.BoxGeometry(0.1, 0.28, 0.06), toon('#cfd6e4'), Math.cos(a) * 2.5, 0.26, Math.sin(a) * 2.5, null).rotation.y = -a + Math.PI / 2; } // gờ trang trí
     for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2 + 0.26; add(f, new THREE.SphereGeometry(0.12, 10, 8), toon('#ffffff'), Math.cos(a) * 1.15, 1.42, Math.sin(a) * 1.15, '#8896b0', 0.01); } // hạt ngọc tầng giữa
     for (let i = 0; i < 4; i++) { const a = i / 4 * Math.PI * 2 + Math.PI / 4, lp = add(f, new THREE.CircleGeometry(0.22, 12), toon('#7edb72'), Math.cos(a) * 1.55, 0.59, Math.sin(a) * 1.55, null); lp.rotation.x = -Math.PI / 2; add(f, new THREE.SphereGeometry(0.06, 8, 6), toon('#ff9ec4'), Math.cos(a) * 1.55 + 0.05, 0.63, Math.sin(a) * 1.55, null); } // lá súng
-    waterMesh = add(f, new THREE.CylinderGeometry(2.15, 2.15, 0.08, 40), toon('#ffffff', water), 0, 0.54, 0, null);
+    waterMesh = add(f, new THREE.CylinderGeometry(2.15, 2.15, 0.08, 40), toon('#ffffff', water, 'water'), 0, 0.54, 0, null);
     add(f, new THREE.CylinderGeometry(0.3, 0.4, 1.3, 14), toon('#e9eef7'), 0, 1.0, 0, '#8896b0', 0.03);
     add(f, new THREE.CylinderGeometry(1.15, 0.7, 0.2, 28), toon('#e9eef7'), 0, 1.5, 0, '#8896b0', 0.03);
-    add(f, new THREE.CylinderGeometry(0.95, 0.95, 0.06, 28), toon('#ffffff', water), 0, 1.62, 0, null);
+    add(f, new THREE.CylinderGeometry(0.95, 0.95, 0.06, 28), toon('#ffffff', water, 'water'), 0, 1.62, 0, null);
     add(f, new THREE.CylinderGeometry(0.16, 0.22, 0.9, 12), toon('#e9eef7'), 0, 2.0, 0, '#8896b0', 0.03);
     add(f, new THREE.SphereGeometry(0.3, 14, 10), toon('#e9eef7'), 0, 2.55, 0, '#8896b0', 0.03);
-    jets = [0, 1, 2, 3, 4, 5, 6, 7].map(i => { const m = add(f, new THREE.SphereGeometry(0.07, 8, 6), toon('#bfe8ff'), 0, 2.2, 0, null); m.userData.i = i; return m; });
-    kit.hotspot({ id: 'fountain', label: 'Đài phun nước', at: [0, 3.9, -0.6], stand: [0, 2.9], act: () => splashFountain() }, f);
+    jets = [0, 1, 2, 3, 4, 5, 6, 7].map(i => { const m = add(f, new THREE.SphereGeometry(0.07, 8, 6), toon('#bfe8ff'), 0, 2.2, 0, null); m.userData.i = i; m.userData.keep = true; return m; });
+    kit.hotspot({ id: 'fountain', label: _t('Đài phun nước'), at: [0, 2.3, -0.6], stand: [0, 2.9], act: () => splashFountain() }, f);
     // ghế đá và đèn quanh đài (hai ghế gần có thể ngồi)
     for (let i = 0; i < 6; i++) {
-      const a = (i / 6) * Math.PI * 2 + 0.5, r = 4.6, bx = Math.cos(a) * r, bz = -0.6 + Math.sin(a) * r * 0.8, ry = -a + Math.PI / 2, bench = kit.bench(z, bx, bz, ry);
-      if (i === 0 || i === 3 || i === 4) kit.hotspot({ id: 'bench' + i, label: 'Ngồi nghỉ', at: [bx, 1.5, bz], stand: [bx + Math.sin(ry) * 1.15, bz + Math.cos(ry) * 1.15], act: () => sitOn(bx, bz, ry, ['Ngồi đây ngắm đài phun thích ghê~', 'Ghế mát quá, mình ngồi thêm xíu nha.', 'Nhìn mọi người đi dạo vui thật.'][i % 3]) }, bench);
+      // không đặt ghế ngay trước (lối bé đi vào) và ngay sau đài phun (che sân khấu)
+      const a = (i / 6) * Math.PI * 2, r = 4.6, bx = Math.cos(a) * r, bz = -0.6 + Math.sin(a) * r * 0.8, ry = -a + Math.PI / 2, bench = kit.bench(z, bx, bz, ry);
+      if (i === 0 || i === 3 || i === 4) kit.hotspot({ id: 'bench' + i, label: _t('Ngồi nghỉ'), at: [bx, 1.5, bz], stand: [bx + Math.sin(ry) * 1.15, bz + Math.cos(ry) * 1.15], act: () => sitOn(bx, bz, ry, [_t('Ngồi đây ngắm đài phun thích ghê~'), _t('Ghế mát quá, mình ngồi thêm xíu nha.'), _t('Nhìn mọi người đi dạo vui thật.')][i % 3]) }, bench);
     }
     for (let i = 0; i < 4; i++) { const a = (i / 4) * Math.PI * 2 + Math.PI / 4; props.lamp(z, Math.cos(a) * 6.3, -0.6 + Math.sin(a) * 5.2); }
     [-7.4, -5.6, -3.6, 3.6, 5.6, 7.4].forEach((x, i) => props.topiary(z, x, -5.2 - (i % 2) * 0.1, { shape: i % 2 ? 'cone' : 'ball', s: 0.8 }));
@@ -91,8 +93,8 @@ export function initPlaza(c) {
     // bảng tin (mở mục Thông báo)
     const board = new THREE.Group(); board.position.set(-5.8, 0, 2.6); board.rotation.y = 0.5; z.add(board);
     [-0.55, 0.55].forEach(x => add(board, new THREE.BoxGeometry(0.1, 1.9, 0.1), toon('#c29a62'), x, 0.95, 0, '#8a5f3a', 0.02));
-    const bs = kit.sign('Bảng tin', 1.4, 0.9, '#fff3c4', '#7a5a1a', 40); bs.position.set(0, 1.45, 0.08); board.add(bs);
-    kit.hotspot({ id: 'news', label: 'Bảng tin', at: [-5.8, 2.4, 2.7], stand: [-4.6, 3.6], act: () => c.open.news() }, board);
+    const bs = kit.sign(_t('Bảng tin'), 1.4, 0.9, '#fff3c4', '#7a5a1a', 40); bs.position.set(0, 1.45, 0.08); board.add(bs);
+    kit.hotspot({ id: 'news', label: _t('Bảng tin'), at: [-5.8, 2.4, 2.7], stand: [-4.6, 3.6], act: () => c.open.news() }, board);
     // bưu điện (mở hộp thư)
     const post = new THREE.Group(); post.position.set(5.8, 0, 2.6); post.rotation.y = -0.5; z.add(post);
     add(post, new THREE.BoxGeometry(0.62, 0.12, 0.54), toon('#6a5a7a'), 0, 0.06, 0, '#3a3044', 0.015); // đế
@@ -111,7 +113,7 @@ export function initPlaza(c) {
     const env = canvasTex(32, 24, d => { d.fillStyle = '#fffaf0'; d.fillRect(0, 0, 32, 24); d.strokeStyle = '#c96a7a'; d.lineWidth = 2; d.strokeRect(1, 1, 30, 22); d.beginPath(); d.moveTo(1, 1); d.lineTo(16, 13); d.lineTo(31, 1); d.stroke(); });
     const em = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.22), new THREE.MeshBasicMaterial({ map: env })); em.position.set(0, 1.62, 0.36); post.add(em);
     [[0.55, 0.12, 0.2, '#d9b27a'], [0.6, 0.32, 0.05, '#c9e4ff']].forEach(([px, py, pz, col], i) => add(post, new THREE.BoxGeometry(0.34 - i * 0.08, 0.24 - i * 0.06, 0.3 - i * 0.06), toon(col), px, py, pz, '#7a5a3a', 0.01)); // bưu kiện
-    kit.hotspot({ id: 'mail', label: 'Bưu điện', at: [5.8, 2.1, 2.7], stand: [4.6, 3.6], act: () => c.open.mail() }, post);
+    kit.hotspot({ id: 'mail', label: _t('Bưu điện'), at: [5.8, 2.1, 2.7], stand: [4.6, 3.6], act: () => c.open.mail() }, post);
     // tháp đồng hồ + sân khấu nhỏ ở giữa dãy nhà phía sau
     const tower = new THREE.Group(); tower.position.set(0, 0, -10); z.add(tower);
     add(tower, new THREE.BoxGeometry(2.0, 6.0, 2.0), toon('#ffe0c9'), 0, 3.0, 0, '#8a6a7a', 0.04);
@@ -131,11 +133,11 @@ export function initPlaza(c) {
     add(tower, new THREE.BoxGeometry(0.02, 0.24, 0.4), toon('#ff9ec4'), 0, 8.55, 0.2, null); // cờ
     const face = canvasTex(128, 128, d => { d.fillStyle = '#fffdf5'; d.beginPath(); d.arc(64, 64, 58, 0, 7); d.fill(); d.strokeStyle = '#7a5a4a'; d.lineWidth = 6; d.stroke(); d.fillStyle = '#7a5a4a'; for (let i = 0; i < 12; i++) { const a = i * Math.PI / 6; d.fillRect(64 + Math.sin(a) * 46 - 3, 64 - Math.cos(a) * 46 - 3, 6, 6); } });
     const faceM = new THREE.Mesh(new THREE.CircleGeometry(0.8, 28), new THREE.MeshBasicMaterial({ map: face })); faceM.position.set(0, 4.7, 1.01); tower.add(faceM);
-    const hand = (len, w, col) => { const p = new THREE.Group(); p.position.set(0, 4.7, 1.04); tower.add(p); const m = new THREE.Mesh(new THREE.BoxGeometry(w, len, 0.03), new THREE.MeshBasicMaterial({ color: col })); m.position.y = len / 2; p.add(m); return p; };
+    const hand = (len, w, col) => { const p = new THREE.Group(); p.userData.keep = true; p.position.set(0, 4.7, 1.04); tower.add(p); const m = new THREE.Mesh(new THREE.BoxGeometry(w, len, 0.03), new THREE.MeshBasicMaterial({ color: col })); m.position.y = len / 2; p.add(m); return p; };
     clockHands = { h: hand(0.45, 0.07, '#5a3a2a'), m: hand(0.68, 0.05, '#5a3a2a') };
     const stage = new THREE.Group(); stage.position.set(0, 0, -7.6); z.add(stage);
     spot = new THREE.Mesh(new THREE.ConeGeometry(1.9, 4.4, 24, 1, true), new THREE.MeshBasicMaterial({ color: '#ffe9a8', transparent: true, opacity: 0.26, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })); spot.position.set(0, 2.4, 0.3); spot.visible = false; stage.add(spot);
-    kit.hotspot({ id: 'stage', label: 'Sân khấu', at: [0, 3.9, -7.6], stand: [0, -5.3], act: () => performOnStage() }, stage);
+    kit.hotspot({ id: 'stage', label: _t('Sân khấu'), at: [0, 3.9, -7.6], stand: [0, -5.3], act: () => performOnStage() }, stage);
     add(stage, new THREE.BoxGeometry(5.4, 0.5, 2.4), toon('#d9b27a'), 0, 0.25, 0, '#8a5f3a', 0.03);
     [-2.5, 2.5].forEach(x => add(stage, new THREE.BoxGeometry(0.14, 2.8, 0.14), toon('#c29a62'), x, 1.9, -0.9, '#8a5f3a', 0.02));
     add(stage, new THREE.BoxGeometry(5.6, 0.25, 0.4), toon('#ff9ec4'), 0, 3.3, -0.9, '#a8507a', 0.02);
@@ -149,9 +151,17 @@ export function initPlaza(c) {
     for (let i = 0; i < 5; i++) { add(stage, new THREE.CylinderGeometry(0.1, 0.12, 0.1, 10), toon('#d9b27a'), -2.0 + i * 1.0, 0.6, 1.05, '#8a5f3a', 0.006); add(stage, new THREE.SphereGeometry(0.07, 8, 6), toon('#ffe9a8'), -2.0 + i * 1.0, 0.7, 1.1, null); } // đèn sân khấu
     [-1.4, 1.4].forEach(x => add(stage, new THREE.OctahedronGeometry(0.22), toon('#ffd36e'), x, 2.6, -1.04, '#a8742e', 0.01)); // sao trang trí
     props.bunting(z, -6.5, -6.3, 6.5, -6.3, 3.4);
+    // loa cạnh sân khấu: mini-game Nhảy theo nhịp
+    const spk = new THREE.Group(); spk.position.set(3.55, 0, -7.4); spk.rotation.y = -0.3; z.add(spk);
+    add(spk, new THREE.BoxGeometry(0.8, 1.3, 0.6), toon('#4a3a5a'), 0, 0.65, 0, '#2a2030', 0.02);
+    [0.95, 0.4].forEach((y, i) => { add(spk, new THREE.CylinderGeometry(i ? 0.24 : 0.15, i ? 0.24 : 0.15, 0.04, 18), toon('#2a2030'), 0, y, 0.31, null).rotation.x = Math.PI / 2; add(spk, new THREE.CylinderGeometry(i ? 0.1 : 0.06, i ? 0.1 : 0.06, 0.05, 12), toon('#ffd36e'), 0, y, 0.33, null).rotation.x = Math.PI / 2; });
+    const rs = kit.sign(_t('Nhảy theo nhịp'), 1.7, 0.42, '#fff3c4', '#7a3a5a', 36); rs.position.set(0, 1.62, 0.05); spk.add(rs);
+    [-0.5, 0.5].forEach(x => add(spk, new THREE.BoxGeometry(0.05, 0.42, 0.05), toon('#7a6a8a'), x, 1.42, -0.02, null));
+    for (let i = 0; i < 3; i++) add(spk, new THREE.TorusGeometry(0.16 + i * 0.12, 0.018, 6, 16, Math.PI / 2), toon('#ffd36e'), 0.55, 1.1, 0.1, null).rotation.z = -Math.PI / 4; // sóng nhạc
+    kit.hotspot({ id: 'rhythm', label: _t('Nhảy theo nhịp'), at: [3.55, 2.3, -7.4], stand: [4.4, -6.0], act: () => c.open.mini('rhythm') }, spk);
     // chim bồ câu mổ thóc quanh đài, bay đi khi bé lại gần rồi đáp xuống chỗ khác
     for (let i = 0; i < Math.max(3, Math.round(6 * dens)); i++) {
-      const p = new THREE.Group(), hx = Math.cos(i * 1.9) * (3.8 + (i % 3)), hz = 3.2 + Math.sin(i * 2.3) * 1.6; p.position.set(hx, 0, hz); z.add(p);
+      const p = new THREE.Group(), hx = Math.cos(i * 1.9) * (3.8 + (i % 3)), hz = 3.2 + Math.sin(i * 2.3) * 1.6; p.userData.keep = true; p.position.set(hx, 0, hz); z.add(p);
       const body = add(p, new THREE.SphereGeometry(0.15, 10, 8), toon(i % 2 ? '#cfd8e3' : '#e4d6c8'), 0, 0.17, 0, '#667', 0.015), head = add(p, new THREE.SphereGeometry(0.09, 8, 8), toon('#e4eaf2'), 0.12, 0.3, 0, '#667', 0.015);
       add(p, new THREE.ConeGeometry(0.03, 0.07, 4), toon('#ffb347'), 0.2, 0.29, 0, null).rotation.z = -Math.PI / 2;
       const wing = add(p, new THREE.SphereGeometry(0.11, 8, 6), toon('#b9c4d4'), -0.02, 0.2, 0.1, null); wing.scale.set(1.3, 0.35, 0.8);
@@ -166,14 +176,14 @@ export function initPlaza(c) {
   const treeSpots = (xs, zs) => xs.flatMap(x => zs.map((zz, j) => ({ x: x + (j % 2) * 0.7, z: zz, s: 0.9 + ((x * 7 + zz * 3) % 5) / 10 })));
   world.zone({ id: 'west', cx: -13, cz: -1, show: 20, build(z) {
     return [
-      () => { props.facade(z, { x: -15, z: -10, w: 4.6, h: 3.4, wall: '#ffe9c4', roof: '#d9644a', label: 'Chợ Xanh', to: 'market' }); props.facade(z, { x: -8.5, z: -10, w: 4.2, h: 3.2, wall: '#eafaf4', roof: '#6fcfa8', label: 'Bệnh viện', to: 'hospital', sign: '#e4f8f0', fg: '#2f6a58' }); },
+      () => { props.facade(z, { x: -15, z: -10, w: 4.6, h: 3.4, wall: '#ffe9c4', roof: '#d9644a', label: _t('Chợ Xanh'), to: 'market' }); props.facade(z, { x: -8.5, z: -10, w: 4.2, h: 3.2, wall: '#eafaf4', roof: '#6fcfa8', label: _t('Bệnh viện'), to: 'hospital', sign: '#e4f8f0', fg: '#2f6a58' }); },
       () => props.trees(z, treeSpots([-19, -12.5], [-5, 1.5, 7.5]).slice(0, Math.round(6 * dens) || 3)),
       () => { const pts = []; for (let i = 0, n = Math.round(30 * dens); i < n; i++) pts.push({ x: -19 + (i % 10) * 0.7, z: -5.3 + Math.floor(i / 10) * 0.6 }); props.flowers(z, pts); },
       () => { props.fence(z, -20.5, -12, -20.5, 8, 0.8); props.fence(z, -20.5, 8.5, -9, 8.5, 0.8, true); },
       () => { props.lamp(z, -11, -6.2); props.lamp(z, -17.5, -6.2); props.lamp(z, -12, 5.5); props.bunting(z, -17.5, -6.2, -11, -6.2, 3.0); kit.bench(z, -15, 5.8, Math.PI); kit.bench(z, -17.4, 1.2, Math.PI / 2); },
       () => { const tufts = []; for (let i = 0, n = Math.round(60 * dens); i < n; i++) tufts.push({ x: -20 + ((i * 37) % 120) / 10, z: -6 + ((i * 53) % 130) / 10 }); props.tufts(z, tufts); },
-      () => { props.cart(z, -10.2, -4.3, { ry: 0.25, label: 'Bánh mì' }); props.picnic(z, -15.6, -1.6, { ry: 0.2 }); },
-      () => { props.kiosk(z, -9.6, 4.6, { ry: 0.55, label: 'Hoa tươi' }); props.picnic(z, -14.6, 2.9, { ry: -0.15, cloth: '#7ec8ff', umbrella: '#ffd36e' }); },
+      () => { props.cart(z, -10.2, -4.3, { ry: 0.25, label: _t('Bánh mì') }); props.picnic(z, -15.6, -1.6, { ry: 0.2 }); },
+      () => { props.kiosk(z, -9.6, 4.6, { ry: 0.55, label: _t('Hoa tươi') }); props.picnic(z, -14.6, 2.9, { ry: -0.15, cloth: '#7ec8ff', umbrella: '#ffd36e' }); },
       () => { [-16.6, -13.4, -12.2, -9.2].forEach((x, i) => props.topiary(z, x, -5.2 - (i % 2) * 0.1, { shape: i % 2 ? 'cone' : 'ball', s: 0.8 })); props.planter(z, -17.8, -2.8, { w: 1.8, ry: Math.PI / 2 }); props.planter(z, -10.6, 7.6, { w: 2.2 }); },
     ];
   } });
@@ -181,21 +191,21 @@ export function initPlaza(c) {
   /* ---------- khu đông: Thư viện, Tiệm trà, Tiệm may, cổng Công viên ---------- */
   world.zone({ id: 'east', cx: 13, cz: -1, show: 20, build(z) {
     return [
-      () => { props.facade(z, { x: 8.5, z: -10, w: 4.2, h: 3.4, wall: '#e8f2ff', roof: '#6a8ad8', label: 'Thư viện', to: 'library', sign: '#eef4ff', fg: '#2f4a7a' }); props.facade(z, { x: 15, z: -10, w: 4.6, h: 3.2, wall: '#fff0d4', roof: '#b8744a', label: 'Tiệm trà', to: 'tea' }); },
-      () => props.facade(z, { x: 19.5, z: -2.5, ry: -Math.PI / 2, w: 4.0, h: 3.0, wall: '#f1e9ff', roof: '#8a6ac8', label: 'Tiệm may', to: 'tailor', sign: '#f6f0ff', fg: '#4a2f7a' }),
+      () => { props.facade(z, { x: 8.5, z: -10, w: 4.2, h: 3.4, wall: '#e8f2ff', roof: '#6a8ad8', label: _t('Thư viện'), to: 'library', sign: '#eef4ff', fg: '#2f4a7a' }); props.facade(z, { x: 15, z: -10, w: 4.6, h: 3.2, wall: '#fff0d4', roof: '#b8744a', label: _t('Tiệm trà'), to: 'tea' }); },
+      () => props.facade(z, { x: 19.5, z: -2.5, ry: -Math.PI / 2, w: 4.0, h: 3.0, wall: '#f1e9ff', roof: '#8a6ac8', label: _t('Tiệm may'), to: 'tailor', sign: '#f6f0ff', fg: '#4a2f7a' }),
       () => { // cổng sang Công viên (mép nam, bên phải)
         const gate = new THREE.Group(); gate.position.set(14, 0, 9.6); z.add(gate);
         [-1.6, 1.6].forEach(x => add(gate, new THREE.BoxGeometry(0.4, 2.8, 0.4), toon('#d9b27a'), x, 1.4, 0, '#8a5f3a', 0.03));
         add(gate, new THREE.BoxGeometry(4.0, 0.5, 0.5), toon('#7edb72'), 0, 3.0, 0, '#3f8a55', 0.03);
-        const sg = kit.sign('Công viên →', 2.2, 0.5, '#e8fbe0', '#2f6a3a', 34); sg.position.set(0, 3.0, 0.28); gate.add(sg);
-        kit.hotspot({ id: 'go-park', label: 'Công viên', at: [14, 3.9, 9.6], stand: [14, 7.2], act: () => c.goTo('park') }, gate);
+        const sg = kit.sign(_t('Công viên →'), 2.2, 0.5, '#e8fbe0', '#2f6a3a', 34); sg.position.set(0, 3.0, 0.28); gate.add(sg);
+        kit.hotspot({ id: 'go-park', label: _t('Công viên'), at: [14, 3.9, 9.6], stand: [14, 7.2], act: () => c.goTo('park') }, gate);
       },
       () => props.trees(z, treeSpots([19, 12], [-5, 1.5, 7.5]).slice(0, Math.round(6 * dens) || 3)),
       () => { const pts = []; for (let i = 0, n = Math.round(30 * dens); i < n; i++) pts.push({ x: 9 + (i % 10) * 0.7, z: 6 + Math.floor(i / 10) * 0.6 }); props.flowers(z, pts); },
       () => { props.fence(z, 20.5, 2, 20.5, 8, 0.8); props.fence(z, 9, 9, 12, 9, 0.8, true); props.fence(z, 16, 9, 20.5, 9, 0.8, true); },
       () => { props.lamp(z, 11, -6.2); props.lamp(z, 18, -6.2); props.lamp(z, 11.5, 5.5); props.bunting(z, 11, -6.2, 18, -6.2, 3.0); kit.bench(z, 17, 4.2, -Math.PI / 2); kit.bench(z, 9.5, 2.2, Math.PI); },
       () => { const tufts = []; for (let i = 0, n = Math.round(60 * dens); i < n; i++) tufts.push({ x: 8 + ((i * 41) % 130) / 10, z: -6 + ((i * 59) % 150) / 10 }); props.tufts(z, tufts); },
-      () => { props.cart(z, 9.9, -3.9, { ry: -0.3, label: 'Kem mát', body: '#bfe8ff', stripe: '#ff9ec4', goods: 'icecream' }); props.picnic(z, 17.4, -1.4, { ry: -0.25, cloth: '#7edb72', umbrella: '#ff9ec4' }); },
+      () => { props.cart(z, 9.9, -3.9, { ry: -0.3, label: _t('Kem mát'), body: '#bfe8ff', stripe: '#ff9ec4', goods: 'icecream' }); props.picnic(z, 17.4, -1.4, { ry: -0.25, cloth: '#7edb72', umbrella: '#ff9ec4' }); },
       () => { [10.4, 12.2, 16.2, 17.8].forEach((x, i) => props.topiary(z, x, -5.2 - (i % 2) * 0.1, { shape: i % 2 ? 'ball' : 'cone', s: 0.8 })); [12.1, 15.9].forEach(x => props.topiary(z, x, 10.3, { shape: 'ball', s: 0.9 })); props.planter(z, 17.8, 2.6, { w: 1.8, ry: Math.PI / 2 }); },
     ];
   } });
@@ -204,7 +214,7 @@ export function initPlaza(c) {
 
   let decor = { theme: null, group: null };
   function applyDecor() {
-    const th = (c.events && c.events.decor()) || null;
+    const th = (c.events && c.events.decor()) || (c.festivalTheme && c.festivalTheme()) || null;
     if (th === decor.theme) return;
     if (decor.group) { g.remove(decor.group); decor.group = null; }
     decor.theme = th; if (th) { decor.group = festival(c, th); g.add(decor.group); }
@@ -212,7 +222,7 @@ export function initPlaza(c) {
   const core = g.children.find(o => o.userData.clouds);
   return {
     group: g,
-    enter() { applyDecor(); kit.show(true); shared.enter(); setTimeout(() => { if (c.getArea() === 'plaza') c.say('Quảng trường rộng ghê! Đi dạo và chào mọi người nhé.', 3200); }, 900); },
+    enter() { applyDecor(); kit.show(true); shared.enter(); setTimeout(() => { if (c.getArea() === 'plaza') c.say(_t('Quảng trường rộng ghê! Đi dạo và chào mọi người nhé.'), 3200); }, 900); },
     leave() { kit.show(false); shared.leave(); },
     update(dt, now) {
       kit.tick(now); const t = now / 1000, [px, pz] = c.getPetXZ();

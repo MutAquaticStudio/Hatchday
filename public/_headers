@@ -1,7 +1,7 @@
 # Cloudflare Workers Static Assets / Pages: tiêu đề bảo mật cho trò chơi.
 # Đổi project ref Supabase ở connect-src nếu dùng dự án khác.
 /*
-  Content-Security-Policy: default-src 'self'; script-src 'self' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob:; media-src 'self' data: blob:; connect-src 'self' https://ngumfhweushmoeiplyte.supabase.co wss://ngumfhweushmoeiplyte.supabase.co; frame-src https://challenges.cloudflare.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
+  Content-Security-Policy: default-src 'self'; script-src 'self' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob: https://img.vietqr.io; media-src 'self' data: blob:; connect-src 'self' https://ngumfhweushmoeiplyte.supabase.co wss://ngumfhweushmoeiplyte.supabase.co; frame-src https://challenges.cloudflare.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()

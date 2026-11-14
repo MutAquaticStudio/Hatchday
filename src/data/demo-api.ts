@@ -10,11 +10,12 @@ import type { ToyResult, ToysState, ActionResult, CureResult, DayLogRow, Economy
 import { applyDrift, applyDriftBy, isBlank, normalize, rollPersonality } from '../game/personality';
 import { TOY_BY_ID, toyGain } from '../game/toys';
 import { blendPersonality, HEIR_FAV_INHERIT, pickHeirSpecies } from '../game/lineage';
-import { BOND, bondLevel } from '../game/bond';
+import { BOND, bondGain, bondLevel } from '../game/bond';
 import { boostedReward, discountedPrice, discountPct, eventBoost, goalEvents, isEpidemic, type ActiveEvent, type DiscountScope, type EventGoal, type GoalMetric } from '../game/events';
 import { AD, type AdState, type AdTicket } from '../game/ads';
-import { ACTIVITY_KINDS, BADGES, BADGE_BY_ID, EXPLORE_TIERS, MINI, MINI_KINDS, miniReward, TOY_KINDS, type ActivityResult, type MiniKind, type MiniResult, type WorldProgress } from '../game/world-activity';
+import { ACTIVITY_KINDS, BADGES, BADGE_BY_ID, EXPLORE_TIERS, MINI, MINI_KINDS, miniReward, miniTotalAdd, TOY_KINDS, type ActivityResult, type MiniKind, type MiniResult, type WorldProgress } from '../game/world-activity';
 import { clinicPrice, healthStep, HEALTH, ILLNESS_BY_ID, isNightHour, isSevere, MEDICINE_BY_ID, type HealthCtx } from '../game/health';
+import { miniSkill, noteActivity } from './demo-f2p';
 import { formFromCare, pickSpecies, SPECIES_BY_ID, stageForAge, REGIONS, GROW_MEMORY } from '../game/species';
 
 const KEY = 'hatchday-demo';
@@ -116,7 +117,7 @@ function tick(db: DB, action?: 'feed' | 'play', lastMealSweet = false) {
   if (r.event === 'recovered') first(db, 'cured', 'milestone', 'Mình khỏi bệnh rồi. Cảm ơn bạn đã chăm mình nhé.');
 }
 function cure(db: DB, bond: number) {
-  const p = db.pet!; p.illness = null; p.sick_since = null; p.recover_at = null; p.critical_since = null; p.bond_xp += bond;
+  const p = db.pet!; p.illness = null; p.sick_since = null; p.recover_at = null; p.critical_since = null; bondGain(p, bond);
   first(db, 'cured', 'milestone', 'Mình khỏi bệnh rồi. Cảm ơn bạn đã chăm mình nhé.');
 }
 function day(db: DB): DayLogRow {
@@ -238,7 +239,7 @@ export async function petAction(action: PetAction, item?: string, count = 1): Pr
     const blk = p.illness ? ILLNESS_BY_ID[p.illness]?.block || [] : [];
     if ((play && blk.includes('play')) || ((action === 'bath_scrub' || action === 'bath_rinse') && blk.includes('bath'))) throw new Error('sick_blocked');
     if (play) db.plays = [...(db.plays || []).filter(t => Date.now() - t < 2 * 3600000), Date.now()];
-    p.bond_xp += 1; // giống pet_action
+    bondGain(p, 1); // giống pet_action (trần ngày như trigger cap_bond_gain)
     if (GOAL_OF[action]) goalAdd(db, GOAL_OF[action]);
     p.personality = applyDrift(normalize(p.personality), action); // giống trigger trên action_log
     tick(db, play ? 'play' : action === 'feed' ? 'feed' : undefined, sweetMeal);
@@ -560,7 +561,7 @@ export async function playToy(id: string): Promise<ToyResult> {
     mult = used >= 2 ? 0.5 : 1; const g = toyGain(t, used);
     ts.used[id] = used + 1; p.vui = clamp(p.vui + g.vui); p.nl = clamp(p.nl + g.nl); p.no = clamp(p.no + g.no);
     db.plays = [...(db.plays || []).filter(x => Date.now() - x < 2 * 3600000), Date.now()];
-    p.bond_xp += 1; p.personality = applyDriftBy(normalize(p.personality), t.drift); tick(db, 'play'); worldToy(db, id);
+    bondGain(p, 1); p.personality = applyDriftBy(normalize(p.personality), t.drift); tick(db, 'play'); worldToy(db, id);
     earned = earn(db, COIN.careReward, true); newMem = first(db, 'toy-' + id, 'play', t.memory); goalAdd(db, 'play');
   }
   store(db);
@@ -572,7 +573,7 @@ const worldOf = (db: DB) => { const d = localDay(); if (!db.world) db.world = { 
 const worldTotal = (w: NonNullable<DB['world']>, k: string) => (k === 'explore' ? w.exploreDays : w.totals[k] || 0);
 const crossed = (w: NonNullable<DB['world']>, k: string, before: number) => BADGES.filter(b => b.kind === k && before < b.target && worldTotal(w, k) >= b.target).map(b => b.id);
 /** Đồ chơi chơi hôm nay cũng tính vào Khám phá và huy hiệu (giống toy_logs ở máy chủ). */
-function worldToy(db: DB, id: string) { const w = worldOf(db); w.kinds[id] = (w.kinds[id] || 0) + 1; if ((TOY_KINDS as readonly string[]).includes(id)) w.totals[id] = (w.totals[id] || 0) + 1; }
+function worldToy(db: DB, id: string) { noteActivity(id); const w = worldOf(db); w.kinds[id] = (w.kinds[id] || 0) + 1; if ((TOY_KINDS as readonly string[]).includes(id)) w.totals[id] = (w.totals[id] || 0) + 1; }
 export async function getWorldProgress(): Promise<WorldProgress> {
   const db = load(), w = worldOf(db), kinds = Object.keys(w.kinds).filter(k => w.kinds[k] > 0).sort(), n = kinds.length, lim = MINI.plays;
   return {
@@ -586,7 +587,7 @@ export async function recordActivity(kind: string): Promise<ActivityResult> {
   if (!(ACTIVITY_KINDS as readonly string[]).includes(kind)) throw new Error('unknown_activity');
   const db = load(); if (!db.pet) throw new Error('no_pet');
   const w = worldOf(db); let counted = false, newly: string[] = [];
-  if ((w.kinds[kind] || 0) < 30) { const b = worldTotal(w, kind); w.kinds[kind] = (w.kinds[kind] || 0) + 1; w.totals[kind] = b + 1; counted = true; newly = crossed(w, kind, b); }
+  if ((w.kinds[kind] || 0) < 30) { const b = worldTotal(w, kind); w.kinds[kind] = (w.kinds[kind] || 0) + 1; w.totals[kind] = b + 1; counted = true; newly = crossed(w, kind, b); noteActivity(kind); }
   store(db); return { kinds: Object.keys(w.kinds).sort(), counted, newly };
 }
 export async function claimExplore(tier: number): Promise<{ coins: number; reward: number; newly: string[] }> {
@@ -610,9 +611,10 @@ export async function submitMinigame(kind: string, score: number): Promise<MiniR
   const rewarded = m.plays < MINI.plays, reward = rewarded ? miniReward(k, score) : 0;
   m.plays++; m.best = Math.max(m.best, score); m.last = Date.now(); w.kinds[k] = (w.kinds[k] || 0) + 1;
   if (reward) earn(db, reward, false);
-  const add = k === 'butterfly' ? score : score === 5 ? 1 : 0, b = worldTotal(w, k); let newly: string[] = [];
+  const add = miniTotalAdd(k, score), b = worldTotal(w, k); let newly: string[] = [];
   if (add) { w.totals[k] = b + add; newly = crossed(w, k, b); }
-  store(db); return { reward, rewarded, coins: db.coins, plays: m.plays, left: Math.max(0, MINI.plays - m.plays), best: m.best, newly };
+  store(db); noteActivity(k); const sk = miniSkill(k, score, rewarded);
+  return { reward, rewarded, coins: db.coins, plays: m.plays, left: Math.max(0, MINI.plays - m.plays), best: m.best, newly, ...sk };
 }
 
 /* ---------- Mục tiêu cộng đồng (mô phỏng): người khác góp sẵn khoảng 40% mục tiêu ---------- */

@@ -1,7 +1,7 @@
 # Trang quản trị: origin riêng, không để công cụ tìm kiếm lập chỉ mục, không lưu bộ nhớ đệm.
 # Nên đặt thêm Cloudflare Access (Zero Trust) trước tên miền này.
 /*
-  Content-Security-Policy: default-src 'self'; script-src 'self' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://ngumfhweushmoeiplyte.supabase.co; frame-src https://challenges.cloudflare.com; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'
+  Content-Security-Policy: default-src 'self'; script-src 'self' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://img.vietqr.io; connect-src 'self' https://ngumfhweushmoeiplyte.supabase.co; frame-src https://challenges.cloudflare.com; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'
   X-Content-Type-Options: nosniff
   X-Robots-Tag: noindex, nofollow, noarchive
   Referrer-Policy: no-referrer

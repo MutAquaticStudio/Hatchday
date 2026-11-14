@@ -1,46 +1,61 @@
 <div id="app">
   <div id="sky"></div>
-  <canvas id="c" aria-label="Căn phòng 3D có thú cưng. Vuốt lên thú để vuốt ve, chạm để chọc."></canvas>
+  <canvas id="c" aria-label="Căn phòng 3D có bé thú cưng. Vuốt lên bé để vuốt ve, chạm để chọc."></canvas>
   <div id="vignette" aria-hidden="true"></div>
   <div id="dim"></div>
   <div id="wipe" aria-hidden="true"><span class="runner"></span><span id="wipe-label"></span></div>
 
   <header class="top">
     <div class="lcd" role="status" aria-live="polite"><span class="egg" aria-hidden="true"></span><span id="clock">--:--</span><span id="lcdmsg">Đang mở cửa…</span></div>
-    <div class="top-btns"><button id="btn-coins" class="pill coins" type="button" title="Xu của bạn · mở cửa hàng"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="#ffd36e" stroke="#a8742e" stroke-width="2"/><path d="M12 7v10M9.5 9.5h4a1.8 1.8 0 0 1 0 3.5h-3a1.8 1.8 0 0 0 0 3.5h4" fill="none" stroke="#a8742e" stroke-width="1.8" stroke-linecap="round"/></svg><span id="coin-n">0</span><span class="sr-only"> xu</span></button><button id="btn-diary" class="pill" type="button" aria-expanded="false" aria-controls="diary">Nhật ký</button><button id="btn-stats" class="pill" type="button" aria-expanded="false" aria-controls="stats">Chỉ số</button></div>
+    <div class="top-btns"><button id="btn-coins" class="pill coins" type="button" title="Xu của bạn · mở cửa hàng"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="#ffd36e" stroke="#a8742e" stroke-width="2"/><path d="M12 7v10M9.5 9.5h4a1.8 1.8 0 0 1 0 3.5h-3a1.8 1.8 0 0 0 0 3.5h4" fill="none" stroke="#a8742e" stroke-width="1.8" stroke-linecap="round"/></svg><span id="coin-n">0</span><span class="sr-only"> xu</span></button><button id="btn-diary" class="pill" type="button" aria-expanded="false" aria-controls="diary">Nhật ký</button><button id="btn-stats" class="pill" type="button" aria-expanded="false" aria-controls="stats">Chỉ số</button><button id="btn-settings" class="pill icon" type="button" aria-expanded="false" aria-controls="settings" aria-label="Cài đặt" title="Cài đặt (Esc)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7zm8.6 4.9-1.9-.4a6.9 6.9 0 0 1-.7 1.7l1.1 1.6-1.6 1.6-1.6-1.1c-.5.3-1.1.6-1.7.7l-.4 1.9h-2.4l-.4-1.9a6.9 6.9 0 0 1-1.7-.7l-1.6 1.1-1.6-1.6 1.1-1.6a6.9 6.9 0 0 1-.7-1.7l-1.9-.4v-2.4l1.9-.4c.1-.6.4-1.2.7-1.7L4.6 7.2l1.6-1.6 1.6 1.1c.5-.3 1.1-.6 1.7-.7l.4-1.9h2.4l.4 1.9c.6.1 1.2.4 1.7.7l1.6-1.1 1.6 1.6-1.1 1.6c.3.5.6 1.1.7 1.7l1.9.4z" fill="#fff3f8" stroke="#4a2140" stroke-width="1.6" stroke-linejoin="round"/></svg></button></div>
   </header>
   <button class="scene-tag" id="scene-tag" type="button" aria-label="Mở bản đồ">Phòng khách</button>
   <button class="sick-chip" id="sick-chip" type="button" hidden aria-label="Sức khoẻ của bé: mở sổ sức khoẻ"></button>
 
-  <div class="hint" id="hint">Vuốt lên thú để vuốt ve · chạm để chọc</div>
+  <div class="hint" id="hint">Vuốt lên bé để vuốt ve · chạm để chọc</div>
   <div id="bubble" hidden></div>
   <div id="pops" aria-hidden="true"></div>
   <div id="toast" role="status" hidden></div>
   <div id="devhud" hidden></div>
 
-  <section id="stats" class="sheet stats" hidden aria-label="Chỉ số của thú">
+  <section id="stats" class="sheet stats" hidden aria-label="Chỉ số của bé">
     <h2>Chỉ số</h2>
     <div id="species-card" class="species-card"></div>
     <div id="bond" class="bond"></div>
-    <label class="name">Tên riêng của thú<input id="pet-name" maxlength="16" autocomplete="off"></label>
+    <label class="name">Tên của bé<input id="pet-name" maxlength="16" autocomplete="off"></label>
     <div id="bars"></div>
     <div class="persona"><h3>Cá tính</h3><p id="persona-desc" class="note"></p><div id="persona-axes"></div><p class="note" id="tastes"></p></div>
-    <div class="row quality" role="group" aria-label="Chất lượng hình ảnh">Hình ảnh <button type="button" class="qbtn" data-q="thap" aria-pressed="false">Thấp</button><button type="button" class="qbtn" data-q="vua" aria-pressed="true">Vừa</button><button type="button" class="qbtn" data-q="cao" aria-pressed="false">Cao</button></div>
-    <div class="row sound" role="group" aria-label="Âm thanh">Âm thanh <button type="button" class="qbtn" id="snd-sfx" aria-pressed="true">Tiếng</button><button type="button" class="qbtn" id="snd-music" aria-pressed="true">Nhạc</button></div>
-    <div class="row companion" role="group" aria-label="Đồng hành giờ làm việc">Đồng hành <button type="button" class="qbtn" data-cp="break" aria-pressed="true">Giải lao</button><button type="button" class="qbtn" data-cp="water" aria-pressed="true">Uống nước</button><button type="button" class="qbtn" data-cp="greet" aria-pressed="true">Chào sáng/tối</button></div>
-    <div class="row notify" role="group" aria-label="Nhắc nhở">Nhắc nhở <button type="button" class="qbtn" id="btn-notify" aria-pressed="false">Tắt</button><span class="note" id="notify-note"></span></div>
-    <div class="row notify-push" id="push-row" role="group" aria-label="Loại thông báo" hidden>Loại thông báo <button type="button" class="qbtn" data-pp="care" aria-pressed="true">Chăm bé</button><button type="button" class="qbtn" data-pp="mail" aria-pressed="true">Thư và quà</button><button type="button" class="qbtn" data-pp="events" aria-pressed="true">Sự kiện</button></div>
-    <p class="note">Khi bạn đang mở game trong giờ làm (08:00–19:00), bé nhắc giải lao mỗi 50 phút và uống nước mỗi 90 phút.</p>
-    <label class="row vol">Âm lượng<input type="range" id="snd-vol" min="0" max="100" step="5" value="70"></label>
-    <label class="row" hidden><input type="checkbox" id="fast"> Tua nhanh thời gian ×60 (chế độ dev)</label>
-    <p class="note">Chỉ số giảm theo giờ thật, kể cả khi bạn đóng trang. Mọi thứ được lưu vào tài khoản của bạn.</p>
+    <div class="moves"><h3>Chiêu thức</h3><p class="note" id="move-matchup"></p><ul id="move-list"></ul></div>
+    <p class="note" id="stats-note">Chỉ số giảm theo giờ thật, kể cả khi bạn đóng trang. Mọi thứ được lưu vào tài khoản của bạn.</p>
     <button id="btn-photo" class="pill" type="button">📷 Chụp ảnh cho bé</button>
-    <button id="btn-tour" class="pill" type="button">Xem lại hướng dẫn</button>
-    <button id="btn-logout" class="pill" type="button">Đăng xuất</button>
     <p hidden></p>
   </section>
 
-  <section id="diary" class="sheet diary" hidden aria-label="Nhật ký của thú">
+  <section id="settings" class="sheet stats settings" hidden aria-label="Cài đặt">
+    <div class="set-head"><h2>Cài đặt</h2><button type="button" class="hs-close" id="settings-close" aria-label="Đóng">✕</button></div>
+    <div class="row" role="group" aria-label="Ngôn ngữ / Language">🌐 <button type="button" class="qbtn" data-lang="vi" aria-pressed="false">Tiếng Việt</button><button type="button" class="qbtn" data-lang="en" aria-pressed="false">English</button></div>
+    <h3 class="set-h">Hình ảnh</h3>
+    <div class="row quality" role="group" aria-label="Chất lượng hình ảnh">Hình ảnh <button type="button" class="qbtn" data-q="thap" aria-pressed="false">Thấp</button><button type="button" class="qbtn" data-q="vua" aria-pressed="true">Vừa</button><button type="button" class="qbtn" data-q="cao" aria-pressed="false">Cao</button><button type="button" class="qbtn" data-q="dienanh" aria-pressed="false">Điện ảnh</button></div>
+    <div class="row desk-only" role="group" aria-label="Màn hình">Màn hình <button type="button" class="qbtn" id="set-full" aria-pressed="false">Toàn màn hình</button></div>
+    <div class="row desk-only" role="group" aria-label="Cỡ giao diện">Cỡ chữ <button type="button" class="qbtn" data-ui="0.85" aria-pressed="false">Nhỏ</button><button type="button" class="qbtn" data-ui="1" aria-pressed="true">Vừa</button><button type="button" class="qbtn" data-ui="1.2" aria-pressed="false">Lớn</button></div>
+    <div class="row" role="group" aria-label="Hiện số khung hình">Số FPS <button type="button" class="qbtn" id="set-fps" aria-pressed="false">Hiện</button></div>
+    <h3 class="set-h">Âm thanh</h3>
+    <div class="row sound" role="group" aria-label="Âm thanh">Âm thanh <button type="button" class="qbtn" id="snd-sfx" aria-pressed="true">Tiếng</button><button type="button" class="qbtn" id="snd-music" aria-pressed="true">Nhạc</button></div>
+    <label class="row vol">Âm lượng<input type="range" id="snd-vol" min="0" max="100" step="5" value="70"></label>
+    <h3 class="set-h">Nhắc nhở</h3>
+    <div class="row companion" role="group" aria-label="Đồng hành giờ làm việc">Đồng hành <button type="button" class="qbtn" data-cp="break" aria-pressed="true">Giải lao</button><button type="button" class="qbtn" data-cp="water" aria-pressed="true">Uống nước</button><button type="button" class="qbtn" data-cp="greet" aria-pressed="true">Chào sáng/tối</button></div>
+    <p class="note">Khi bạn đang mở game trong giờ làm (08:00–19:00), bé nhắc giải lao mỗi 50 phút và uống nước mỗi 90 phút.</p>
+    <div class="row notify" role="group" aria-label="Nhắc nhở">Nhắc nhở <button type="button" class="qbtn" id="btn-notify" aria-pressed="false">Tắt</button><span class="note" id="notify-note"></span></div>
+    <div class="row notify-push" id="push-row" role="group" aria-label="Loại thông báo" hidden>Loại thông báo <button type="button" class="qbtn" data-pp="care" aria-pressed="true">Chăm bé</button><button type="button" class="qbtn" data-pp="mail" aria-pressed="true">Thư và quà</button><button type="button" class="qbtn" data-pp="events" aria-pressed="true">Sự kiện</button></div>
+    <label class="row" hidden><input type="checkbox" id="fast"> Tua nhanh thời gian ×60 (chế độ dev)</label>
+    <h3 class="set-h">Khác</h3>
+    <button id="btn-support" class="pill" type="button">💌 Góp ý &amp; Hỗ trợ</button>
+    <button id="btn-tour" class="pill" type="button">Xem lại hướng dẫn</button>
+    <button id="btn-logout" class="pill" type="button">Đăng xuất</button>
+    <button id="btn-quit" class="pill desk-only" type="button">Thoát game</button>
+  </section>
+
+  <section id="diary" class="sheet diary" hidden aria-label="Nhật ký của bé">
     <div class="tabs" role="tablist"><button class="tab" id="tab-pages" role="tab" type="button" aria-selected="true">Nhật ký</button><button class="tab" id="tab-mem" role="tab" type="button" aria-selected="false">Ký ức</button></div>
     <div class="dpanel" id="dpanel"></div>
   </section>
@@ -49,16 +64,16 @@
     <div id="ctx" class="ctx" hidden></div>
     <div id="tray" class="tray" hidden></div>
     <form id="chat" class="chat" hidden autocomplete="off">
-      <input id="chat-input" maxlength="120" placeholder="Nói gì đó với thú… (AI sẽ được nối sau)">
+      <input id="chat-input" maxlength="120" placeholder="Nói gì đó với bé…">
       <button type="submit">Gửi</button>
     </form>
     <nav class="bar" aria-label="Hành động">
-      <button class="act" id="a-eat" type="button" aria-pressed="false"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M7 15h18a9 9 0 0 1-18 0z" fill="#ffd36e" stroke="#4a2140" stroke-width="2.2" stroke-linejoin="round"/><path d="M12 10c0-2 2-2 2-4M17 10c0-2 2-2 2-4" fill="none" stroke="#ff8fb8" stroke-width="2.2" stroke-linecap="round"/></svg>Ăn</button>
+      <button class="act" id="a-eat" type="button" aria-pressed="false"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M7 15h18a9 9 0 0 1-18 0z" fill="#ffd36e" stroke="#4a2140" stroke-width="2.2" stroke-linejoin="round"/><path d="M12 10c0-2 2-2 2-4M17 10c0-2 2-2 2-4" fill="none" stroke="#ff6a2b" stroke-width="2.2" stroke-linecap="round"/></svg>Ăn</button>
       <button class="act" id="a-bath" type="button" aria-pressed="false"><svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="12" cy="17" r="7" fill="#bfe8ff" stroke="#4a2140" stroke-width="2.2"/><circle cx="22" cy="11" r="4.5" fill="#dff4ff" stroke="#4a2140" stroke-width="2.2"/><circle cx="22" cy="23" r="3" fill="#dff4ff" stroke="#4a2140" stroke-width="2"/><path d="M9 14a3 3 0 0 1 3-2" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round"/></svg>Tắm</button>
-      <button class="act" id="a-play" type="button" aria-pressed="false"><svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="10" fill="#ff9ec4" stroke="#4a2140" stroke-width="2.2"/><path d="M6.5 13c6 3 13 3 19 0M8 21c5-2 11-2 16 0" fill="none" stroke="#fff" stroke-width="2.2"/></svg>Chơi</button>
+      <button class="act" id="a-play" type="button" aria-pressed="false"><svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="10" fill="#ff6a2b" stroke="#4a2140" stroke-width="2.2"/><path d="M6.5 13c6 3 13 3 19 0M8 21c5-2 11-2 16 0" fill="none" stroke="#fff" stroke-width="2.2"/></svg>Chơi</button>
       <button class="act" id="a-talk" type="button" aria-pressed="false"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M5 9a4 4 0 0 1 4-4h14a4 4 0 0 1 4 4v9a4 4 0 0 1-4 4h-8l-6 5v-5H9a4 4 0 0 1-4-4z" fill="#fff3c4" stroke="#4a2140" stroke-width="2.2" stroke-linejoin="round"/><circle cx="11" cy="13.5" r="1.6" fill="#4a2140"/><circle cx="16" cy="13.5" r="1.6" fill="#4a2140"/><circle cx="21" cy="13.5" r="1.6" fill="#4a2140"/></svg>Nói</button>
       <button class="act" id="a-sleep" type="button" aria-pressed="false"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M21 5a11 11 0 1 0 6 17A9 9 0 0 1 21 5z" fill="#c9b8ff" stroke="#4a2140" stroke-width="2.2" stroke-linejoin="round"/></svg><span id="sleep-label">Ngủ</span></button>
-      <button class="act" id="a-house" type="button" aria-pressed="false" title="Nhà: trang trí, cửa hàng, tủ đồ, nhiệm vụ (phím 6)"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M5 15L16 6l11 9v11a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2z" fill="#ffd9a8" stroke="#4a2140" stroke-width="2.2" stroke-linejoin="round"/><path d="M13 28v-7h6v7" fill="#ff9ec4" stroke="#4a2140" stroke-width="2.2" stroke-linejoin="round"/></svg>Nhà</button>
+      <button class="act" id="a-house" type="button" aria-pressed="false" title="Nhà: trang trí, cửa hàng, tủ đồ, nhiệm vụ (phím 6)"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M5 15L16 6l11 9v11a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2z" fill="#ffd9a8" stroke="#4a2140" stroke-width="2.2" stroke-linejoin="round"/><path d="M13 28v-7h6v7" fill="#38e0c8" stroke="#4a2140" stroke-width="2.2" stroke-linejoin="round"/></svg>Nhà</button>
     </nav>
   </div>
 </div>

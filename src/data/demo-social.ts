@@ -4,7 +4,7 @@
  * tài khoản không bị chặn tặng quà vì còn mới (account_too_new), và bạn ảo tự đồng ý lời mời sau vài giây.
  */
 import { BY_ID, FOODS } from '../game/catalog';
-import { bondLevel } from '../game/bond';
+import { bondGain, bondLevel } from '../game/bond';
 import { MEDICINES } from '../game/health';
 import { localDay } from '../game/rules';
 import { friendCap, GIFT_NOTES, GUESTBOOK, isGiftable, SOCIAL, stockCap, type MailRow, type NewsRow, type PublicProfile, type SocialState, type SocialSummary, type VisitData } from '../game/social';
@@ -265,4 +265,64 @@ export async function markDmRead(who: string) { const d = load(), b = friendOrFa
 export async function dmUnread(): Promise<number> {
   const d = load(); settleDm(d); save(d);
   return DEMO_BOTS.filter(b => isFriend(d, b.pid) && !d.blocks.includes(b.pid)).reduce((n, b) => n + (d.dms![b.pid] || []).filter(m => !m.mine && !m.read).length, 0);
+}
+
+/* ---------- Hẹn chơi, lời nhắn bạn bè, bé ghé chơi (mô phỏng 20261221_f2p_features) ---------- */
+interface PlaydateRow { id: number; pid: string; incoming: boolean; status: 'pending' | 'done'; at: number }
+interface F2PSocial { playdates: PlaydateRow[]; nextPd: number; notesSent: { pid: string; at: number }[]; notesIn: { id: number; author: string; body: string; at: string }[] }
+const F2P_KEY = 'hatchday-demo-social-f2p';
+const loadF = (): F2PSocial => {
+  try { const d = JSON.parse(localStorage.getItem(F2P_KEY) || 'null') as F2PSocial | null; if (d) return d; } catch { /* bỏ qua */ }
+  const now = Date.now();
+  return { playdates: [{ id: 1, pid: DEMO_BOTS[0].pid, incoming: true, status: 'pending', at: now - 600000 }], nextPd: 2, notesSent: [],
+    notesIn: [{ id: 1, author: DEMO_BOTS[0].name, body: 'Bé nhà bạn dễ thương ghê! Hôm nào hẹn chơi nha.', at: new Date(now - 3 * 3600000).toISOString() }] };
+};
+const saveF = (d: F2PSocial) => { try { localStorage.setItem(F2P_KEY, JSON.stringify(d)); } catch { /* bỏ qua */ } };
+/** Bạn ảo đồng ý lời hẹn sau 10 giây; lời mời quá 24 giờ thì hết hạn. */
+function settlePd(f: F2PSocial) {
+  const now = Date.now();
+  f.playdates = f.playdates.filter(p => !(p.status === 'pending' && now - p.at > DAY));
+  for (const p of f.playdates) if (!p.incoming && p.status === 'pending' && now - p.at > 10000) { p.status = 'done'; p.at = now; acceptReward(); }
+}
+async function acceptReward() {
+  const { notePlaydate } = await import('./demo-f2p'); notePlaydate();
+  withDB((db, earn) => { earn(15); if (db.pet) bondGain(db.pet, 3); });
+}
+export async function invitePlaydate(who: string) {
+  const d = load(), b = friendOrFail(d, who), f = loadF(); settlePd(f);
+  const pair = f.playdates.filter(p => p.pid === b.pid);
+  if (pair.some(p => p.status === 'pending')) fail('playdate_exists');
+  if (pair.some(p => p.status === 'done' && Date.now() - p.at < 20 * 3600000)) fail('playdate_done_today');
+  if (f.playdates.filter(p => !p.incoming && Date.now() - p.at < DAY).length >= 5) fail('rate_limited');
+  f.playdates.unshift({ id: f.nextPd++, pid: b.pid, incoming: false, status: 'pending', at: Date.now() }); saveF(f); return { ok: true };
+}
+export async function respondPlaydate(id: number, accept: boolean) {
+  const f = loadF(); settlePd(f); const p = f.playdates.find(x => x.id === id && x.incoming);
+  if (!p) fail('not_found'); if (p!.status !== 'pending') fail('already_claimed');
+  if (!accept) { f.playdates = f.playdates.filter(x => x.id !== id); saveF(f); return { ok: true, accepted: false }; }
+  p!.status = 'done'; p!.at = Date.now(); saveF(f); await acceptReward();
+  return { ok: true, accepted: true, reward: 15, coins: withDB(db => db.coins) };
+}
+export async function listPlaydates() {
+  const f = loadF(); settlePd(f); saveF(f);
+  const me = withDB(db => db.pet?.name || 'Bạn'), name = (pid: string) => DEMO_BOTS.find(b => b.pid === pid)?.name || 'Bạn';
+  return f.playdates.filter(p => Date.now() - p.at < 3 * DAY).slice(0, 20).map(p => ({ id: p.id, from: p.incoming ? p.pid : 'me', to: p.incoming ? 'me' : p.pid,
+    from_name: p.incoming ? name(p.pid) : me, to_name: p.incoming ? me : name(p.pid), incoming: p.incoming, status: p.status, at: new Date(p.at).toISOString() }));
+}
+export async function writeGuestNote(who: string, body: string) {
+  const d = load(), b = friendOrFail(d, who), f = loadF();
+  const r = filterChat(body); if (!r.ok) return { ok: false, reason: r.reason };
+  if (f.notesSent.some(n => n.pid === b.pid && Date.now() - n.at < 20 * 3600000)) fail('already_signed_today');
+  if (f.notesSent.filter(n => Date.now() - n.at < DAY).length >= 10) fail('rate_limited');
+  f.notesSent.push({ pid: b.pid, at: Date.now() }); saveF(f);
+  const { noteGuestNote } = await import('./demo-f2p'); noteGuestNote();
+  return { ok: true, reason: null };
+}
+export async function getGuestNotes() { return loadF().notesIn; }
+export async function deleteGuestNote(id: number) { const f = loadF(); const n = f.notesIn.length; f.notesIn = f.notesIn.filter(x => x.id !== id); if (f.notesIn.length === n) fail('not_found'); saveF(f); }
+/** Bé của bạn bè ghé chơi: bạn ảo đã kết bạn, tối đa 3. */
+export async function getVisitors(place: string): Promise<PublicProfile[]> {
+  if (!['plaza', 'park', 'tea'].includes(place)) fail('unknown_place');
+  const d = load(); tickBots(d); save(d);
+  return d.friends.map(f => DEMO_BOTS.find(b => b.pid === f.pid)).filter((b): b is Bot => !!b && !d.blocks.includes(b.pid)).slice(0, 3).map(profile);
 }

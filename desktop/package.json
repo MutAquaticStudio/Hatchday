@@ -1,0 +1,71 @@
+{
+  "name": "hatchday-desktop",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Hatchday cho máy tính (Steam): vỏ Electron chạy bản build web với VITE_PLATFORM=steam",
+  "main": "main.cjs",
+  "author": "Hatchday",
+  "scripts": {
+    "start": "electron .",
+    "pack": "electron-builder --dir",
+    "dist:win": "electron-builder --win --x64",
+    "dist:linux": "electron-builder --linux --x64"
+  },
+  "devDependencies": {
+    "electron": "44.9.2",
+    "electron-builder": "26.17.0"
+  },
+  "build": {
+    "appId": "co.noxelis.hatchday",
+    "productName": "Hatchday",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "main.cjs",
+      "preload.cjs",
+      "csp.cjs",
+      "steam.cjs",
+      "dist/**/*",
+      "!dist/**/*.map"
+    ],
+    "asar": true,
+    "win": {
+      "target": [
+        {
+          "target": "dir",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png"
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "dir",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png",
+      "category": "Game"
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dir"
+        }
+      ],
+      "category": "public.app-category.simulation-games"
+    },
+    "asarUnpack": [
+      "node_modules/steamworks.js/dist/**"
+    ]
+  },
+  "dependencies": {
+    "steamworks.js": "0.4.0"
+  }
+}

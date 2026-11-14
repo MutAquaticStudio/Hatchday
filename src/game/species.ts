@@ -1,12 +1,13 @@
 /**
  * 50 loài thú của Hatchday, chia 5 miền × 4 độ hiếm, cùng luật lớn lên theo tuổi và dáng trưởng thành.
  * Nguyên tắc thiết kế (để không giống game khác):
- * - Mọi loài dùng chung một dáng "bánh dẻo" chibi, khác nhau bằng tai, chỏm đầu, đuôi, hoa văn, phụ kiện, màu.
- * - Cảm hứng từ đồ vật, món ăn, cây cỏ, truyện dân gian Việt Nam. Không có hệ, không đánh nhau, không bắt thú.
+ * - Quái thú cel-shading, mỗi loài một dáng riêng (bốn chân, hai chân, chim, rắn) dựng trong monster.js.
+ * - Cảm hứng từ thiên nhiên, đồ vật, truyện dân gian Việt Nam. 5 hệ theo miền (skills.ts), đấu theo lượt ở Đấu trường; không bắt thú.
  * - Lớn lên theo số ngày sống. Dáng trưởng thành do cách người chơi chăm (ăn / chơi / thương / tắm), không do cấp độ.
  * Danh sách loài cũng nằm trong bảng `public.species` (scripts/gen-seed.ts sinh ra, test so khớp).
  */
 
+import { _t } from '../i18n';
 export type Rarity = 'thuong' | 'hiem' | 'quy' | 'huyen';
 export type Body = 'tron' | 'le' | 'dai' | 'det' | 'giot';
 export type Ears = 'meo' | 'tho' | 'gau' | 'cup' | 'vay' | 'sung' | 'ang' | 'la' | 'long' | 'none';
@@ -27,18 +28,18 @@ export interface Species {
 }
 
 export const REGIONS = [
-  { name: 'Đồng Nội', egg: 'Trứng Đồng Nội', color: '#bfe8a8', dot: '#fff3a8' },
-  { name: 'Sông Nước', egg: 'Trứng Sông Nước', color: '#a8d8ff', dot: '#ffffff' },
-  { name: 'Mây Trời', egg: 'Trứng Mây Trời', color: '#e6e0ff', dot: '#ffffff' },
-  { name: 'Rừng Đêm', egg: 'Trứng Rừng Đêm', color: '#b9b0ee', dot: '#fff27a' },
-  { name: 'Góc Bếp', egg: 'Trứng Góc Bếp', color: '#ffd9b0', dot: '#ff8a8a' },
+  { name: _t('Đồng Nội'), egg: _t('Trứng Đồng Nội'), color: '#bfe8a8', dot: '#fff3a8' },
+  { name: _t('Sông Nước'), egg: _t('Trứng Sông Nước'), color: '#a8d8ff', dot: '#ffffff' },
+  { name: _t('Mây Trời'), egg: _t('Trứng Mây Trời'), color: '#e6e0ff', dot: '#ffffff' },
+  { name: _t('Rừng Đêm'), egg: _t('Trứng Rừng Đêm'), color: '#b9b0ee', dot: '#fff27a' },
+  { name: _t('Góc Bếp'), egg: _t('Trứng Góc Bếp'), color: '#ffd9b0', dot: '#ff8a8a' },
 ] as const;
 
 export const RARITIES: Record<Rarity, { name: string; weight: number; color: string }> = {
-  thuong: { name: 'Thường', weight: 8, color: '#8a7a8a' },
-  hiem: { name: 'Hiếm', weight: 4, color: '#3f8fd8' },
-  quy: { name: 'Quý', weight: 2, color: '#9a4ad8' },
-  huyen: { name: 'Huyền thoại', weight: 1, color: '#e08a00' },
+  thuong: { name: _t('Thường'), weight: 8, color: '#8a7a8a' },
+  hiem: { name: _t('Hiếm'), weight: 4, color: '#3f8fd8' },
+  quy: { name: _t('Quý'), weight: 2, color: '#9a4ad8' },
+  huyen: { name: _t('Huyền thoại'), weight: 1, color: '#e08a00' },
 };
 
 const P = (body: string, deep: string, ink: string, inner = '#ffb3c9', accent = deep): Palette => ({ body, deep, ink, inner, accent });
@@ -56,60 +57,60 @@ const PLAN: Record<string, Plan> = {
 
 export const SPECIES: Species[] = [
   // ---- Đồng Nội ----
-  s('mam-xanh', 'Mầm Xanh', 0, 'thuong', 'tron', 'gau', 'mam', 'tron', 'bung', [], P('#cdeec0', '#a9dc98', '#4d7a3f', '#ffc2cf', '#7edb72'), 'Thích phơi nắng, mầm trên đầu lớn theo từng ngày.'),
-  s('bong-lua', 'Bông Lúa', 0, 'thuong', 'le', 'long', 'none', 'xu', 'soc', [], P('#ffe7a3', '#f5cf6e', '#8a6a2a', '#ffc2a8'), 'Thơm mùi rơm mới, ngủ ngon nhất trên ổ rơm.'),
-  s('ong-mat', 'Ong Mật', 0, 'thuong', 'tron', 'ang', 'none', 'tron', 'soc', ['canh'], P('#ffe28a', '#ffc94a', '#7a5a1a', '#ffb3a0', '#6a4a2a'), 'Bay vo ve quanh chậu hoa, rất mê đồ ngọt.'),
-  s('co-may', 'Cỏ May', 0, 'thuong', 'dai', 'la', 'none', 'la', 'none', [], P('#d8f0b0', '#b8dc84', '#5a7a2e', '#ffc2cf'), 'Hay bám vào gấu quần người ta rồi cười khúc khích.'),
-  s('hoa-mai', 'Hoa Mai', 0, 'hiem', 'tron', 'meo', 'hoa', 'tron', 'bung', ['coan'], P('#fff0c8', '#ffd98a', '#9a6a2a', '#ffb3a0', '#ffd23e'), 'Nở rộ mỗi dịp Tết, mang theo may mắn.'),
-  s('chuon-chuon', 'Chuồn Chuồn', 0, 'hiem', 'giot', 'ang', 'none', 'none', 'ma', ['canh'], P('#c8f0ea', '#8edccc', '#2e7a6a', '#ffc2cf', '#a8e8ff'), 'Bay thấp thì mưa, bay cao thì nắng.'),
-  s('de-co', 'Dế Cỏ', 0, 'hiem', 'le', 'ang', 'none', 'none', 'ma', ['gai'], P('#c9e09a', '#a2c46a', '#4e6a24', '#ffc2a8'), 'Gáy rả rích mỗi tối, ai nghe cũng buồn ngủ.'),
-  s('sen-hong', 'Sen Hồng', 0, 'quy', 'tron', 'none', 'hoa', 'la', 'none', ['coan'], P('#ffe0ea', '#ffc0d4', '#9a4a6a', '#ff9fbe', '#ff8fb6'), 'Mọc lên từ đầm lầy mà vẫn thơm ngát.'),
-  s('nai-co', 'Nai Cỏ', 0, 'quy', 'dai', 'sung', 'hoa', 'tron', 'dom', [], P('#f2d8b8', '#e2b98a', '#7a5232', '#ffc2cf', '#fff6e0'), 'Nhút nhát, chỉ thân với người cho ăn cỏ non.'),
-  s('lan-vang', 'Lân Vàng', 0, 'huyen', 'tron', 'sung', 'chom', 'xu', 'dom', ['hao', 'ria'], P('#ffe9b0', '#ffcf6e', '#9a5a1a', '#ff9f9f', '#ff6a4a'), 'Nhảy múa đêm rằm, tiếng trống đến đâu vui đến đó.'),
+  s('mam-xanh', _t('Diệp Nha'), 0, 'thuong', 'tron', 'gau', 'mam', 'tron', 'bung', [], P('#cdeec0', '#a9dc98', '#4d7a3f', '#ffc2cf', '#7edb72'), _t('Chồi trên đầu hút nắng, đủ sức xé toạc đá tảng.')),
+  s('bong-lua', _t('Kim Túc'), 0, 'thuong', 'le', 'long', 'none', 'xu', 'soc', [], P('#ffe7a3', '#f5cf6e', '#8a6a2a', '#ffc2a8'), _t('Gai lưng như lúa chín, rũ mình là mưa thóc.')),
+  s('ong-mat', _t('Phong Châm'), 0, 'thuong', 'tron', 'ang', 'none', 'tron', 'soc', ['canh'], P('#ffe28a', '#ffc94a', '#7a5a1a', '#ffb3a0', '#6a4a2a'), _t('Vo ve như giông, kim đuôi xuyên vỏ cây.')),
+  s('co-may', _t('Thảo Ảnh'), 0, 'thuong', 'dai', 'la', 'none', 'la', 'none', [], P('#d8f0b0', '#b8dc84', '#5a7a2e', '#ffc2cf'), _t('Nấp trong cỏ may, gai nó bám theo bóng kẻ thù.')),
+  s('hoa-mai', _t('Hoàng Mai'), 0, 'hiem', 'tron', 'meo', 'hoa', 'tron', 'bung', ['coan'], P('#fff0c8', '#ffd98a', '#9a6a2a', '#ffb3a0', '#ffd23e'), _t('Nở giữa rét Tết, cánh sắc như dao.')),
+  s('chuon-chuon', _t('Thanh Dực'), 0, 'hiem', 'giot', 'ang', 'none', 'none', 'ma', ['canh'], P('#c8f0ea', '#8edccc', '#2e7a6a', '#ffc2cf', '#a8e8ff'), _t('Cánh mỏng như ngọc, lướt qua cỏ đứt.')),
+  s('de-co', _t('Lục Khúc'), 0, 'hiem', 'le', 'ang', 'none', 'none', 'ma', ['gai'], P('#c9e09a', '#a2c46a', '#4e6a24', '#ffc2a8'), _t('Đá hậu gãy cọc tre, tiếng gáy ru địch ngủ.')),
+  s('sen-hong', _t('Liên Hoa'), 0, 'quy', 'tron', 'none', 'hoa', 'la', 'none', ['coan'], P('#ffe0ea', '#ffc0d4', '#9a4a6a', '#ff9fbe', '#ff8fb6'), _t('Mọc từ bùn, hương sen làm địch chùn tay.')),
+  s('nai-co', _t('Lộc Diệp'), 0, 'quy', 'dai', 'sung', 'hoa', 'tron', 'dom', [], P('#f2d8b8', '#e2b98a', '#7a5232', '#ffc2cf', '#fff6e0'), _t('Gạc mọc lá non, húc một cú xuyên cả rừng.')),
+  s('lan-vang', _t('Kim Lân'), 0, 'huyen', 'tron', 'sung', 'chom', 'xu', 'dom', ['hao', 'ria'], P('#ffe9b0', '#ffcf6e', '#9a5a1a', '#ff9f9f', '#ff6a4a'), _t('Thức dậy theo trống hội, tiếng hống rung cả làng.')),
   // ---- Sông Nước ----
-  s('ca-bong', 'Cá Bống', 1, 'thuong', 'giot', 'vay', 'none', 'ca', 'bung', [], P('#c8e6ff', '#9fd0ff', '#3a5a8a', '#ffc2cf'), 'Bống bống bang bang, lên ăn cơm vàng.'),
-  s('oc-gao', 'Ốc Gạo', 1, 'thuong', 'det', 'ang', 'none', 'none', 'none', ['oc'], P('#ffe2cc', '#ffc9a6', '#8a5a3a', '#ffb3c9', '#f2a6c0'), 'Đi chậm mà chắc, mang nhà theo khắp nơi.'),
-  s('giot-mua', 'Giọt Mưa', 1, 'thuong', 'giot', 'none', 'giot', 'none', 'ma', [], P('#d6efff', '#a8dcff', '#3a6a9a', '#ffc2cf'), 'Rơi xuống từ mái hiên, thích nghe tiếng ếch.'),
-  s('tom-tit', 'Tôm Tít', 1, 'thuong', 'dai', 'ang', 'none', 'ca', 'soc', [], P('#ffcfc0', '#ffaa94', '#9a4a3a', '#ffe0a8'), 'Búng tanh tách, nhảy cao hơn cả mình.'),
-  s('rua-dam', 'Rùa Đầm', 1, 'hiem', 'det', 'none', 'mam', 'tron', 'none', ['mai'], P('#cfe8c4', '#9ccc8a', '#4a6a3a', '#ffc2cf', '#c49a6c'), 'Sống lâu, nhớ dai, kể chuyện cổ tích rất hay.'),
-  s('sua-bien', 'Sứa Biển', 1, 'hiem', 'giot', 'none', 'none', 'none', 'ma', ['tua'], P('#f0dcff', '#dcbcff', '#6a4a9a', '#ffb3dc', '#ffc6f0'), 'Trôi lơ lửng theo sóng, phát sáng nhè nhẹ.'),
-  s('rai-ca', 'Rái Cá', 1, 'hiem', 'dai', 'gau', 'none', 'xu', 'bung', ['ria'], P('#e8cbb0', '#cfa27e', '#6a4a32', '#ffc2cf'), 'Ôm đá ngủ trên lưng, thích nắm tay bạn.'),
-  s('ca-heo-hong', 'Cá Heo Hồng', 1, 'quy', 'giot', 'vay', 'none', 'ca', 'bung', [], P('#ffd6e8', '#ffb0d0', '#9a4a72', '#ff9fbe'), 'Lặn sâu dưới sông lớn, ít ai được gặp.'),
-  s('ngoc-trai', 'Ngọc Trai', 1, 'quy', 'tron', 'vay', 'giot', 'ca', 'ma', ['coan'], P('#f4f0ff', '#ddd6f8', '#6a6a9a', '#ffc2dc', '#ffffff'), 'Lấp lánh như giọt sương trong vỏ trai.'),
-  s('long-thuy', 'Long Thuỷ', 1, 'huyen', 'dai', 'sung', 'none', 'ca', 'soc', ['vay', 'hao', 'ria'], P('#c4f0f0', '#8ad8dc', '#2a6a7a', '#ffc2cf', '#ffd23e'), 'Gọi mưa về cho đồng lúa, hiền như cục đất.'),
+  s('ca-bong', _t('Lam Ngư'), 1, 'thuong', 'giot', 'vay', 'none', 'ca', 'bung', [], P('#c8e6ff', '#9fd0ff', '#3a5a8a', '#ffc2cf'), _t('Cá thần giếng cổ, quẫy đuôi là nổi sóng.')),
+  s('oc-gao', _t('Thạch Loa'), 1, 'thuong', 'det', 'ang', 'none', 'none', 'none', ['oc'], P('#ffe2cc', '#ffc9a6', '#8a5a3a', '#ffb3c9', '#f2a6c0'), _t('Vỏ cứng như đá sông, búa nện cũng bật ra.')),
+  s('giot-mua', _t('Vũ Châu'), 1, 'thuong', 'giot', 'none', 'giot', 'none', 'ma', [], P('#d6efff', '#a8dcff', '#3a6a9a', '#ffc2cf'), _t('Sinh từ mưa ngâu, giận lên là trút mưa rào.')),
+  s('tom-tit', _t('Xích Giáp'), 1, 'thuong', 'dai', 'ang', 'none', 'ca', 'soc', [], P('#ffcfc0', '#ffaa94', '#9a4a3a', '#ffe0a8'), _t('Búng càng như sấm, lột xác là cứng thêm.')),
+  s('rua-dam', _t('Huyền Quy'), 1, 'hiem', 'det', 'none', 'mam', 'tron', 'none', ['mai'], P('#cfe8c4', '#9ccc8a', '#4a6a3a', '#ffc2cf', '#c49a6c'), _t('Mai phủ rêu nghìn năm, đã cắn là không nhả.')),
+  s('sua-bien', _t('Hải Nguyệt'), 1, 'hiem', 'giot', 'none', 'none', 'none', 'ma', ['tua'], P('#f0dcff', '#dcbcff', '#6a4a9a', '#ffb3dc', '#ffc6f0'), _t('Xúc tu sáng ánh trăng, chạm vào là tê dại.')),
+  s('rai-ca', _t('Thuỷ Lang'), 1, 'hiem', 'dai', 'gau', 'none', 'xu', 'bung', ['ria'], P('#e8cbb0', '#cfa27e', '#6a4a32', '#ffc2cf'), _t('Săn bầy ngược thác, quẫy đuôi thành xoáy.')),
+  s('ca-heo-hong', _t('Hồng Kình'), 1, 'quy', 'giot', 'vay', 'none', 'ca', 'bung', [], P('#ffd6e8', '#ffb0d0', '#9a4a72', '#ff9fbe'), _t('Gầm từ đáy sông, sóng âm vỡ mạn thuyền.')),
+  s('ngoc-trai', _t('Minh Châu'), 1, 'quy', 'tron', 'vay', 'giot', 'ca', 'ma', ['coan'], P('#f4f0ff', '#ddd6f8', '#6a6a9a', '#ffc2dc', '#ffffff'), _t('Ngọc giếng Mỵ Châu, chói loá mắt kẻ thù.')),
+  s('long-thuy', _t('Thuỷ Long'), 1, 'huyen', 'dai', 'sung', 'none', 'ca', 'soc', ['vay', 'hao', 'ria'], P('#c4f0f0', '#8ad8dc', '#2a6a7a', '#ffc2cf', '#ffd23e'), _t('Gọi mưa cứu lúa, nổi giận nhấn chìm cả bến.')),
   // ---- Mây Trời ----
-  s('bong-may', 'Bông Mây', 2, 'thuong', 'tron', 'none', 'may', 'may', 'none', [], P('#f8f8ff', '#e2e2f6', '#6a6a9a', '#ffc2dc'), 'Mềm như gối, ai ôm cũng muốn ngủ trưa.'),
-  s('se-nau', 'Sẻ Nâu', 2, 'thuong', 'tron', 'long', 'none', 'tron', 'bung', ['canh'], P('#e8d0b4', '#c9a27e', '#6a4a32', '#ffc2a8'), 'Ríu rít trên dây điện mỗi sáng sớm.'),
-  s('dieu-giay', 'Diều Giấy', 2, 'thuong', 'giot', 'none', 'none', 'sao', 'soc', [], P('#ffd0d0', '#ff9e9e', '#9a3a3a', '#ffe0a8', '#7ab8ff'), 'Chỉ cần một cơn gió là bay vút lên.'),
-  s('gio-nhe', 'Gió Nhẹ', 2, 'thuong', 'dai', 'la', 'xoay', 'xoan', 'ma', [], P('#dff6f0', '#b6e8dc', '#3a7a6a', '#ffc2cf'), 'Thổi mát cả phòng, hay làm bay giấy tờ.'),
-  s('cau-vong', 'Cầu Vồng', 2, 'hiem', 'tron', 'meo', 'none', 'xu', 'cauvong', [], P('#fff0f6', '#ffd0e6', '#8a4a72', '#ffb3c9'), 'Chỉ xuất hiện sau cơn mưa, mỗi lần một màu.'),
-  s('hai-au', 'Hải Âu', 2, 'hiem', 'giot', 'none', 'none', 'tron', 'bung', ['canh'], P('#ffffff', '#dfe6f0', '#4a5a7a', '#ffc2cf', '#ffc94a'), 'Bay theo thuyền đánh cá, kể chuyện biển xa.'),
-  s('sao-bang', 'Sao Băng', 2, 'hiem', 'tron', 'none', 'sao', 'sao', 'ma', [], P('#fff4c8', '#ffe08a', '#8a6a2a', '#ffc2a8'), 'Ước gì được nấy, nhưng phải ước thật nhanh.'),
-  s('may-ngu-sac', 'Mây Ngũ Sắc', 2, 'quy', 'tron', 'long', 'may', 'may', 'cauvong', ['canh'], P('#f0e6ff', '#d6c4ff', '#5a4a9a', '#ffb3dc'), 'Chỉ hiện ra vào buổi hoàng hôn đẹp nhất năm.'),
-  s('hac-trang', 'Hạc Trắng', 2, 'quy', 'dai', 'long', 'chom', 'tron', 'none', ['canh'], P('#ffffff', '#e6e6ee', '#3a3a5a', '#ffc2cf', '#ff5a5a'), 'Đứng một chân rất lâu, điềm tĩnh lạ thường.'),
-  s('chim-lac', 'Chim Lạc', 2, 'huyen', 'giot', 'long', 'chom', 'xu', 'soc', ['canh', 'hao'], P('#ffe6b8', '#ffcf7a', '#8a4a1a', '#ffb3a0', '#ff7a3a'), 'Bay ra từ hoa văn trống đồng cổ.'),
+  s('bong-may', _t('Vân Miên'), 2, 'thuong', 'tron', 'none', 'may', 'may', 'none', [], P('#f8f8ff', '#e2e2f6', '#6a6a9a', '#ffc2dc'), _t('Thân mây giông, húc phải là choáng váng.')),
+  s('se-nau', _t('Phong Tước'), 2, 'thuong', 'tron', 'long', 'none', 'tron', 'bung', ['canh'], P('#e8d0b4', '#c9a27e', '#6a4a32', '#ffc2a8'), _t('Kéo đàn che trời, mổ nhanh hơn gió.')),
+  s('dieu-giay', _t('Chỉ Diên'), 2, 'thuong', 'giot', 'none', 'none', 'sao', 'soc', [], P('#ffd0d0', '#ff9e9e', '#9a3a3a', '#ffe0a8', '#7ab8ff'), _t('Đứt dây là hoá dữ, cưỡi gió xé mây.')),
+  s('gio-nhe', _t('Thanh Phong'), 2, 'thuong', 'dai', 'la', 'xoay', 'xoan', 'ma', [], P('#dff6f0', '#b6e8dc', '#3a7a6a', '#ffc2cf'), _t('Đi đâu lốc theo đó, cuốn bay mái tranh.')),
+  s('cau-vong', _t('Thất Sắc'), 2, 'hiem', 'tron', 'meo', 'none', 'xu', 'cauvong', [], P('#fff0f6', '#ffd0e6', '#8a4a72', '#ffb3c9'), _t('Hiện sau giông, bảy sắc lông chói hoa mắt.')),
+  s('hai-au', _t('Hải Vũ'), 2, 'hiem', 'giot', 'none', 'none', 'tron', 'bung', ['canh'], P('#ffffff', '#dfe6f0', '#4a5a7a', '#ffc2cf', '#ffc94a'), _t('Lượn trong mắt bão, sà xuống như mũi lao.')),
+  s('sao-bang', _t('Lưu Tinh'), 2, 'hiem', 'tron', 'none', 'sao', 'sao', 'ma', [], P('#fff4c8', '#ffe08a', '#8a6a2a', '#ffc2a8'), _t('Rơi từ trời xuống, đuôi còn vệt sao cháy.')),
+  s('may-ngu-sac', _t('Ngũ Vân'), 2, 'quy', 'tron', 'long', 'may', 'may', 'cauvong', ['canh'], P('#f0e6ff', '#d6c4ff', '#5a4a9a', '#ffb3dc'), _t('Khoác ráng năm sắc, vỗ cánh dựng tường mây.')),
+  s('hac-trang', _t('Bạch Hạc'), 2, 'quy', 'dai', 'long', 'chom', 'tron', 'none', ['canh'], P('#ffffff', '#e6e6ee', '#3a3a5a', '#ffc2cf', '#ff5a5a'), _t('Một chân canh cửa đình, mỏ nhọn như giáo.')),
+  s('chim-lac', _t('Lạc Điểu'), 2, 'huyen', 'giot', 'long', 'chom', 'xu', 'soc', ['canh', 'hao'], P('#ffe6b8', '#ffcf7a', '#8a4a1a', '#ffb3a0', '#ff7a3a'), _t('Thoát từ trống đồng, kêu vang như sấm.')),
   // ---- Rừng Đêm ----
-  s('nam-ngu', 'Nấm Ngủ', 3, 'thuong', 'det', 'none', 'nam', 'none', 'bung', [], P('#f6e6d8', '#e0c6ae', '#6a4a3a', '#ffc2cf', '#ff7a8a'), 'Ngủ suốt ngày, chỉ dậy khi trời mưa.'),
-  s('dom-dom', 'Đom Đóm', 3, 'thuong', 'giot', 'ang', 'none', 'sao', 'none', ['canh'], P('#c8c4f0', '#a6a0e0', '#3a3a7a', '#ffc2dc', '#fff27a'), 'Thắp đèn dẫn đường cho bạn về nhà.'),
-  s('cu-meo', 'Cú Mèo', 3, 'thuong', 'tron', 'long', 'none', 'tron', 'bung', ['canh'], P('#d8c6b0', '#b89e80', '#5a4232', '#ffc2a8'), 'Thức khuya nhất nhà, biết hết mọi chuyện.'),
-  s('doi-nho', 'Dơi Nhỏ', 3, 'thuong', 'tron', 'meo', 'none', 'none', 'bung', ['canh'], P('#d6c8e8', '#b6a2d6', '#4a3a6a', '#ffb3dc'), 'Treo ngược để ngủ, thích ăn trái cây chín.'),
-  s('trang-khuyet', 'Trăng Khuyết', 3, 'hiem', 'tron', 'meo', 'trang', 'xu', 'ma', [], P('#dcd6ff', '#b8aef0', '#4a428a', '#ffb3dc', '#ffe58a'), 'Gầy đi rồi lại tròn lên mỗi tháng.'),
-  s('cao-bac', 'Cáo Bạc', 3, 'hiem', 'le', 'meo', 'none', 'xu', 'bung', [], P('#e6e6f0', '#c4c4d8', '#4a4a6a', '#ffc2cf'), 'Tinh ranh nhưng tốt bụng, giấu đồ ăn khắp nơi.'),
-  s('meo-muop', 'Mèo Mướp', 3, 'hiem', 'tron', 'meo', 'none', 'xoan', 'soc', ['ria'], P('#f0dcc0', '#d6b48a', '#6a4a2a', '#ffb3c9'), 'Nằm ườn trên bậu cửa, ai gọi cũng giả điếc.'),
-  s('ma-troi', 'Ma Trơi', 3, 'quy', 'giot', 'none', 'lua', 'xoan', 'ma', [], P('#d6f0ff', '#a8dcff', '#3a5a9a', '#ffc2dc', '#7ad6ff'), 'Đốm lửa xanh lập loè, sợ người hơn người sợ nó.'),
-  s('huou-sao', 'Hươu Sao', 3, 'quy', 'dai', 'sung', 'none', 'tron', 'dom', [], P('#ccc4f0', '#a8a0e0', '#4a3a8a', '#ffb3dc', '#fff2a8'), 'Đốm trên lưng sáng lên như sao trời.'),
-  s('tho-ngoc', 'Thỏ Ngọc', 3, 'huyen', 'tron', 'tho', 'trang', 'tron', 'ma', ['hao'], P('#f4f8ff', '#dfe6ff', '#5a62a0', '#ffb3c9', '#ffe58a'), 'Giã thuốc trên cung trăng, xuống chơi mỗi Trung thu.'),
+  s('nam-ngu', _t('Mộng Khuẩn'), 3, 'thuong', 'det', 'none', 'nam', 'none', 'bung', [], P('#f6e6d8', '#e0c6ae', '#6a4a3a', '#ffc2cf', '#ff7a8a'), _t('Bào tử của nó làm địch lạc trong mơ.')),
+  s('dom-dom', _t('Huỳnh Quang'), 3, 'thuong', 'giot', 'ang', 'none', 'sao', 'none', ['canh'], P('#c8c4f0', '#a6a0e0', '#3a3a7a', '#ffc2dc', '#fff27a'), _t('Một chớp đèn đuôi, địch loá cả mắt.')),
+  s('cu-meo', _t('Dạ Kiêu'), 3, 'thuong', 'tron', 'long', 'none', 'tron', 'bung', ['canh'], P('#d8c6b0', '#b89e80', '#5a4232', '#ffc2a8'), _t('Mắt xuyên đêm, vồ mồi không một tiếng động.')),
+  s('doi-nho', _t('Dạ Dực'), 3, 'thuong', 'tron', 'meo', 'none', 'none', 'bung', ['canh'], P('#d6c8e8', '#b6a2d6', '#4a3a6a', '#ffb3dc'), _t('Treo ngược trong hang, tiếng rít làm mù lối.')),
+  s('trang-khuyet', _t('Khuyết Nguyệt'), 3, 'hiem', 'tron', 'meo', 'trang', 'xu', 'ma', [], P('#dcd6ff', '#b8aef0', '#4a428a', '#ffb3dc', '#ffe58a'), _t('Sừng trăng khuyết, chém đâu tối sầm đó.')),
+  s('cao-bac', _t('Ngân Hồ'), 3, 'hiem', 'le', 'meo', 'none', 'xu', 'bung', [], P('#e6e6f0', '#c4c4d8', '#4a4a6a', '#ffc2cf'), _t('Ba đuôi lửa bạc, đủ chín đuôi thành hồ tinh.')),
+  s('meo-muop', _t('Hổ Miêu'), 3, 'hiem', 'tron', 'meo', 'none', 'xoan', 'soc', ['ria'], P('#f0dcc0', '#d6b48a', '#6a4a2a', '#ffb3c9'), _t('Lim dim như mèo, vồ lên thì vuốt hổ xé đá.')),
+  s('ma-troi', _t('Lân Hoả'), 3, 'quy', 'giot', 'none', 'lua', 'xoan', 'ma', [], P('#d6f0ff', '#a8dcff', '#3a5a9a', '#ffc2dc', '#7ad6ff'), _t('Lửa lạnh lập loè trên gò mả, dụ người lạc lối.')),
+  s('huou-sao', _t('Tinh Lộc'), 3, 'quy', 'dai', 'sung', 'none', 'tron', 'dom', [], P('#ccc4f0', '#a8a0e0', '#4a3a8a', '#ffb3dc', '#fff2a8'), _t('Gạc chở sao trời, giẫm xuống sao rơi.')),
+  s('tho-ngoc', _t('Ngọc Thố'), 3, 'huyen', 'tron', 'tho', 'trang', 'tron', 'ma', ['hao'], P('#f4f8ff', '#dfe6ff', '#5a62a0', '#ffb3c9', '#ffe58a'), _t('Canh lò thuốc cung trăng, chày ngọc giã nát cả đá.')),
   // ---- Góc Bếp ----
-  s('banh-bo', 'Bánh Bò', 4, 'thuong', 'det', 'gau', 'none', 'none', 'ma', [], P('#fff4e0', '#f6d8a8', '#8a6a3a', '#ffc2cf'), 'Xốp mềm, nở ra mỗi khi được khen.'),
-  s('xoi-gac', 'Xôi Gấc', 4, 'thuong', 'tron', 'gau', 'mam', 'none', 'dom', [], P('#ffb4a0', '#ff8a70', '#9a3a2a', '#ffe0a8', '#fff6e0'), 'Đỏ au như ngày vui, có mặt trong mọi đám cưới.'),
-  s('che-ba-mau', 'Chè Ba Màu', 4, 'thuong', 'dai', 'none', 'xoay', 'none', 'cauvong', [], P('#fff0c8', '#ffd98a', '#8a5a3a', '#ffc2cf'), 'Mát lạnh mùa hè, ba tầng ba vị.'),
-  s('banh-troi', 'Bánh Trôi', 4, 'thuong', 'tron', 'none', 'none', 'none', 'none', ['bom'], P('#fffaf0', '#f0e6d6', '#8a7a5a', '#ffc2cf'), 'Tròn xoe, bên trong có viên đường ngọt lịm.'),
-  s('banh-flan', 'Bánh Flan', 4, 'hiem', 'det', 'none', 'none', 'none', 'ma', [], P('#ffe8a0', '#ffd06a', '#8a5a1a', '#ffb3a0', '#b8662e'), 'Rung rinh khi đi, rưới thêm cà phê là tỉnh.'),
-  s('tra-sua', 'Trà Sữa', 4, 'hiem', 'dai', 'meo', 'none', 'none', 'dom', [], P('#e8d0b8', '#ceaa86', '#6a4a32', '#ffc2cf', '#4a3020'), 'Đến giờ tan làm là đòi đi mua thêm.'),
-  s('banh-bao', 'Bánh Bao', 4, 'hiem', 'tron', 'gau', 'xoay', 'none', 'none', ['bom'], P('#fffaf2', '#efe2cc', '#8a7a5a', '#ffc2cf', '#ff9a7a'), 'Hấp nóng hổi, lúc nào cũng thơm phức.'),
-  s('banh-trung-thu', 'Bánh Trung Thu', 4, 'quy', 'det', 'none', 'hoa', 'none', 'dom', ['coan'], P('#f2c48a', '#d9a060', '#7a4a1a', '#ffc2a8', '#fff0c8'), 'Có hình hoa in nổi, chỉ ra mắt mùa trăng.'),
-  s('keo-bong-gon', 'Kẹo Bông Gòn', 4, 'quy', 'tron', 'long', 'may', 'may', 'none', [], P('#ffd6ec', '#ffb0d8', '#9a4a7a', '#ff9fbe', '#b8e4ff'), 'Tan ngay trên đầu lưỡi, bám dính khắp nơi.'),
-  s('lua-bep', 'Lửa Bếp', 4, 'huyen', 'tron', 'sung', 'lua', 'xoan', 'bung', ['hao'], P('#ffd0a8', '#ffaa7a', '#9a4a2a', '#ffb3a0', '#ffd23e'), 'Giữ ấm cả căn nhà, nấu cơm không bao giờ khê.'),
+  s('banh-bo', _t('Phù Bính'), 4, 'thuong', 'det', 'gau', 'none', 'none', 'ma', [], P('#fff4e0', '#f6d8a8', '#8a6a3a', '#ffc2cf'), _t('Bụng ủ lửa, phồng to rồi nổ bùng.')),
+  s('xoi-gac', _t('Xích Nhu'), 4, 'thuong', 'tron', 'gau', 'mam', 'none', 'dom', [], P('#ffb4a0', '#ff8a70', '#9a3a2a', '#ffe0a8', '#fff6e0'), _t('Đỏ như gấc chín, nóng máu là tung quyền lửa.')),
+  s('che-ba-mau', _t('Tam Sắc'), 4, 'thuong', 'dai', 'none', 'xoay', 'none', 'cauvong', [], P('#fff0c8', '#ffd98a', '#8a5a3a', '#ffc2cf'), _t('Vỏ băng lõi lửa, ba tầng đều bỏng.')),
+  s('banh-troi', _t('Bạch Hoàn'), 4, 'thuong', 'tron', 'none', 'none', 'none', 'none', ['bom'], P('#fffaf0', '#f0e6d6', '#8a7a5a', '#ffc2cf'), _t('Lõi đường nóng chảy, lăn như thiên thạch.')),
+  s('banh-flan', _t('Hổ Phách'), 4, 'hiem', 'det', 'none', 'none', 'none', 'ma', [], P('#ffe8a0', '#ffd06a', '#8a5a1a', '#ffb3a0', '#b8662e'), _t('Hổ phách sóng sánh, giận là hoá dung nham.')),
+  s('tra-sua', _t('Trân Châu'), 4, 'hiem', 'dai', 'meo', 'none', 'none', 'dom', [], P('#e8d0b8', '#ceaa86', '#6a4a32', '#ffc2cf', '#4a3020'), _t('Nhả trân châu bỏng rát như đạn ghém.')),
+  s('banh-bao', _t('Vân Bao'), 4, 'hiem', 'tron', 'gau', 'xoay', 'none', 'none', ['bom'], P('#fffaf2', '#efe2cc', '#8a7a5a', '#ffc2cf', '#ff9a7a'), _t('Phì hơi như xửng hấp, lại gần là bỏng.')),
+  s('banh-trung-thu', _t('Nguyệt Bính'), 4, 'quy', 'det', 'none', 'hoa', 'none', 'dom', ['coan'], P('#f2c48a', '#d9a060', '#7a4a1a', '#ffc2a8', '#fff0c8'), _t('Vỏ nướng như khiên, rực sáng đêm rằm.')),
+  s('keo-bong-gon', _t('Đường Vân'), 4, 'quy', 'tron', 'long', 'may', 'may', 'none', [], P('#ffd6ec', '#ffb0d8', '#9a4a7a', '#ff9fbe', '#b8e4ff'), _t('Quấn tơ đường nóng, càng giãy càng dính.')),
+  s('lua-bep', _t('Táo Hoả'), 4, 'huyen', 'tron', 'sung', 'lua', 'xoan', 'bung', ['hao'], P('#ffd0a8', '#ffaa7a', '#9a4a2a', '#ffb3a0', '#ffd23e'), _t('Lửa bếp thời Ông Táo, giận lên thiêu cả trời.')),
 ];
 
 export const SPECIES_BY_ID: Record<string, Species> = Object.fromEntries(SPECIES.map(x => [x.id, x]));
@@ -125,11 +126,11 @@ export function pickSpecies(region: number, r: number): Species {
 
 /* ---------------- Lớn lên ---------------- */
 export const STAGES: Record<Stage, { name: string; from: number; scale: number }> = {
-  baby: { name: 'Sơ sinh', from: 0, scale: 0.72 },
-  child: { name: 'Nhí', from: 2, scale: 0.84 },
-  teen: { name: 'Thiếu niên', from: 7, scale: 0.93 },
-  adult: { name: 'Trưởng thành', from: 14, scale: 1 },
-  elder: { name: 'Xế chiều', from: -5, scale: 0.97 },
+  baby: { name: _t('Sơ sinh'), from: 0, scale: 0.72 },
+  child: { name: _t('Nhí'), from: 2, scale: 0.84 },
+  teen: { name: _t('Thiếu niên'), from: 7, scale: 0.93 },
+  adult: { name: _t('Trưởng thành'), from: 14, scale: 1 },
+  elder: { name: _t('Xế chiều'), from: -5, scale: 0.97 },
 };
 export const STAGE_ORDER: Stage[] = ['baby', 'child', 'teen', 'adult', 'elder'];
 /** Giai đoạn theo số ngày tuổi. Xế chiều là 5 ngày cuối của tuổi thọ (tuổi thọ chỉ server biết). */
@@ -142,10 +143,10 @@ export function stageForAge(days: number, lifespan: number): Stage {
 }
 
 export const FORMS: Record<Form, { name: string; hint: string }> = {
-  tron: { name: 'Phúng Phính', hint: 'được ăn ngon' },
-  nhanh: { name: 'Lanh Lợi', hint: 'được chơi nhiều' },
-  thuong: { name: 'Tình Cảm', hint: 'được vuốt ve, trò chuyện' },
-  sang: { name: 'Lấp Lánh', hint: 'được tắm rửa sạch sẽ' },
+  tron: { name: _t('Phúng Phính'), hint: _t('được ăn ngon') },
+  nhanh: { name: _t('Lanh Lợi'), hint: _t('được chơi nhiều') },
+  thuong: { name: _t('Tình Cảm'), hint: _t('được vuốt ve, trò chuyện') },
+  sang: { name: _t('Lấp Lánh'), hint: _t('được tắm rửa sạch sẽ') },
 };
 export interface CareSums { fed: number; ball: number; pet: number; talk: number; bath: number }
 /**
@@ -166,9 +167,9 @@ export function formFromCare(c: CareSums): Form {
 
 /** Câu ghi vào Ký ức khi thú lớn sang giai đoạn mới (giống câu trong SQL). */
 export function GROW_MEMORY(stage: Stage, form: Form | null): string {
-  if (stage === 'child') return 'Mình lớn thành bé Nhí rồi, vỏ trứng trên đầu rơi mất tiêu!';
-  if (stage === 'teen') return 'Mình đã là Thiếu niên, ra dáng lắm rồi nha.';
-  if (stage === 'adult') return `Mình trưởng thành rồi, thành dáng ${FORMS[form || 'thuong'].name} vì ${FORMS[form || 'thuong'].hint}.`;
-  if (stage === 'elder') return 'Mình bước vào tuổi xế chiều. Mình muốn ở bên bạn thật nhiều.';
-  return 'Mình vừa chào đời.';
+  if (stage === 'child') return _t('Mình lớn thành bé Nhí rồi, vỏ trứng trên đầu rơi mất tiêu!');
+  if (stage === 'teen') return _t('Mình đã là Thiếu niên, ra dáng lắm rồi nha.');
+  if (stage === 'adult') return _t`Mình trưởng thành rồi, thành dáng ${FORMS[form || 'thuong'].name} vì ${FORMS[form || 'thuong'].hint}.`;
+  if (stage === 'elder') return _t('Mình bước vào tuổi xế chiều. Mình muốn ở bên bạn thật nhiều.');
+  return _t('Mình vừa chào đời.');
 }

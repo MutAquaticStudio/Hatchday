@@ -2,6 +2,7 @@
  * Luật chơi thuần (không phụ thuộc DOM/three.js) — client dùng để dự đoán,
  * server (supabase/migrations/*_init.sql) là nguồn sự thật. Hằng số phải khớp hai bên.
  */
+import { _t } from '../i18n';
 import { decayFactor } from './health';
 
 export const DECAY_PER_MIN = { no: 0.9, vui: 0.5, sach: 0.35, nlAwake: 0.45, nlAsleep: 3 } as const;
@@ -71,7 +72,7 @@ export function deriveExpression(s: Stats, c: ExprContext = {}): ExprKey {
   return 'vui';
 }
 
-export const levelLabel = (v: number) => (v >= 75 ? 'Đầy' : v >= 45 ? 'Ổn' : v >= 25 ? 'Hơi thấp' : 'Thấp');
+export const levelLabel = (v: number) => (v >= 75 ? _t('Đầy') : v >= 45 ? _t('Ổn') : v >= 25 ? _t('Hơi thấp') : _t('Thấp'));
 
 export interface DayLog { d: string; fed: number; foods: string[]; groups: string[]; bath: number; ball: number; pet: number; talk: number; sleep: number }
 
@@ -81,15 +82,15 @@ export const emptyDay = (d: string): DayLog => ({ d, fed: 0, foods: [], groups: 
 export function writeDiary(d: DayLog): string {
   const L: string[] = [];
   const foods = [...new Set(d.foods)];
-  if (foods.length) L.push(`Hôm nay mình được ăn ${foods.slice(0, 3).join(', ')}.${foods.includes('Kem que') ? ' Kem que là số một!' : ''}`);
-  if (d.bath) L.push(d.bath > 1 ? `Được tắm tận ${d.bath} lần, thơm phức luôn.` : 'Được tắm một trận đã đời, bọt nhiều ghê.');
-  if (d.ball) L.push(`Ra vườn chơi ném bóng ${d.ball} lần. Lần nào mình cũng bắt được nha!`);
-  if (d.pet > 25) L.push('Bạn vuốt ve mình nhiều lắm, mình vui muốn xỉu.');
-  else if (d.pet) L.push('Bạn có xoa đầu mình, nhột mà thích.');
-  if (d.talk) L.push(d.talk > 3 ? 'Tụi mình nói chuyện nhiều ghê. Mình nhớ hết đó.' : 'Bạn có ghé nói chuyện với mình một chút.');
-  if (d.sleep) L.push('Tối được chúc ngủ ngon, mình mơ thấy một cánh đồng kem.');
-  if (!L.length) L.push('Hôm nay yên ắng quá. Mình ngồi đợi bạn bên cửa sổ.');
-  const end = ['Mai gặp lại nha!', 'Ngủ ngon nha bạn.', 'Mong mai bạn cũng vui.'];
+  if (foods.length) L.push(_t`Hôm nay mình được ăn ${foods.slice(0, 3).join(', ')}.${foods.includes('Kem que') ? _t(' Kem que là số một!') : ''}`);
+  if (d.bath) L.push(d.bath > 1 ? _t`Được tắm tận ${d.bath} lần, thơm phức luôn.` : _t('Được tắm một trận đã đời, bọt nhiều ghê.'));
+  if (d.ball) L.push(_t`Ra vườn chơi ném bóng ${d.ball} lần. Lần nào mình cũng bắt được nha!`);
+  if (d.pet > 25) L.push(_t('Bạn vuốt ve mình nhiều lắm, mình vui muốn xỉu.'));
+  else if (d.pet) L.push(_t('Bạn có xoa đầu mình, nhột mà thích.'));
+  if (d.talk) L.push(d.talk > 3 ? _t('Tụi mình nói chuyện nhiều ghê. Mình nhớ hết đó.') : _t('Bạn có ghé nói chuyện với mình một chút.'));
+  if (d.sleep) L.push(_t('Tối được chúc ngủ ngon, mình mơ thấy một cánh đồng kem.'));
+  if (!L.length) L.push(_t('Hôm nay yên ắng quá. Mình ngồi đợi bạn bên cửa sổ.'));
+  const end = [_t('Mai gặp lại nha!'), _t('Ngủ ngon nha bạn.'), _t('Mong mai bạn cũng vui.')];
   L.push(end[[...d.d].reduce((a, c) => a + c.charCodeAt(0), 0) % end.length]);
   return L.join(' ');
 }
@@ -102,7 +103,7 @@ export function localDay(date = new Date()): string {
 
 /** Bảng màu theo quả trứng đã chọn (gen "palette"). */
 export const PALETTES = [
-  { name: 'Hồng đào', body: '#ffd0dc', deep: '#ffb3c9', ink: '#8a4462', inner: '#ff9fbe' },
-  { name: 'Bạc hà', body: '#c9f2e0', deep: '#a6e6cb', ink: '#3f7a66', inner: '#ffb3c9' },
-  { name: 'Oải hương', body: '#ddd3ff', deep: '#c6b8ff', ink: '#5a4a9a', inner: '#ffb3dc' },
+  { name: _t('Hồng đào'), body: '#ffd0dc', deep: '#ffb3c9', ink: '#8a4462', inner: '#ff9fbe' },
+  { name: _t('Bạc hà'), body: '#c9f2e0', deep: '#a6e6cb', ink: '#3f7a66', inner: '#ffb3c9' },
+  { name: _t('Oải hương'), body: '#ddd3ff', deep: '#c6b8ff', ink: '#5a4a9a', inner: '#ffb3dc' },
 ] as const;

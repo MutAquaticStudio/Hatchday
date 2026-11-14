@@ -1,3 +1,4 @@
+import { _t, translateDom } from './i18n';
 import './styles/base.css';
 import { supabase, isConfigured } from './lib/supabase';
 import { mountAuth } from './auth/auth-ui';
@@ -6,6 +7,7 @@ import { getMyPet, listFamily, setTimezone } from './data/api';
 import { viError } from './lib/errors';
 import { captureReferral, startTelemetry } from './lib/telemetry';
 import { installErrorReporting } from './lib/report-errors';
+import { isSteam } from './lib/platform';
 
 const root = document.getElementById('root')!;
 let started = false;
@@ -21,16 +23,17 @@ async function enforceRemember(): Promise<void> {
 async function startGame(): Promise<void> {
   if (started) return;
   started = true;
-  root.innerHTML = '<main class="screen"><section class="card"><div class="device" aria-hidden="true"><div class="lcd"><div class="egg"></div></div><div class="btns"><i></i><i></i><i></i></div></div><p class="sub" role="status">Đang mở cửa nhà…</p></section></main>';
+  root.innerHTML = _t('<main class="screen"><section class="card"><div class="device" aria-hidden="true"><div class="lcd"><div class="egg"></div></div><div class="btns"><i></i><i></i><i></i></div></div><p class="sub" role="status">Đang mở cửa nhà…</p></section></main>');
   const [{ hydrate }, markup] = await Promise.all([import('./game/store'), import('./game/markup.html?raw')]);
   await import('./game/game.css');
   await hydrate();
   root.innerHTML = markup.default;
+  translateDom(root);
   const logout = document.getElementById('btn-logout');
   if (logout && !isConfigured) {
-    logout.textContent = 'Thoát bản chơi thử';
-    const note = document.querySelector('#stats .note');
-    if (note) note.textContent = 'Chỉ số giảm theo giờ thật, kể cả khi bạn đóng trang. Bản chơi thử lưu dữ liệu trên trình duyệt này.';
+    logout.textContent = _t('Thoát bản chơi thử');
+    const note = document.getElementById('stats-note');
+    if (note) note.textContent = _t('Chỉ số giảm theo giờ thật, kể cả khi bạn đóng trang. Bản chơi thử lưu dữ liệu trên trình duyệt này.');
   }
   logout?.addEventListener('click', async () => { if (isConfigured) await supabase.auth.signOut(); location.replace(location.pathname); });
   await import('./game/game.js');
@@ -55,7 +58,7 @@ async function onSignedIn(): Promise<void> {
 
 /** Service worker: chỉ ở bản chạy thật (mở nhanh, mở được khi mất mạng, nhận thông báo đẩy sau này). */
 function registerSW(): void {
-  if (!import.meta.env.PROD || !('serviceWorker' in navigator)) return;
+  if (!import.meta.env.PROD || isSteam || !('serviceWorker' in navigator)) return;
   window.addEventListener('load', () => { navigator.serviceWorker.register('./sw.js').catch(() => { /* bỏ qua */ }); });
 }
 

@@ -5,6 +5,7 @@ import { mountCaptcha } from '../../src/lib/captcha';
 import { bindCharts, resetCharts } from './charts';
 import { renderDashboard } from './screens/dashboard';
 import { renderBalance, renderFlags } from './screens/system';
+import { renderTicket, renderTickets, SITE_KEYS, siteInfoCard } from './screens/support';
 import { CHAT, CHAT_REASON_TEXT, filterChat, type WordRule } from '../../src/net/moderation';
 
 const root = document.getElementById('root')!;
@@ -15,7 +16,7 @@ const val = (id: string) => ($(id) as HTMLInputElement).value;
 
 interface Tab { id: string; label: string; need: Action; render: () => Promise<string>; bind?: () => void }
 const REASON_VI: Record<string, string> = { link: 'liên kết', phone: 'số điện thoại', filtered: 'từ khoá', emoji: 'quá nhiều biểu tượng', too_long: 'quá dài', invalid_chars: 'ký tự lạ', empty: 'trống' };
-let dashDays = 30, dashTimer = 0;
+let dashDays = 30, dashTimer = 0, tkStatus = 'open';
 let role: Role = 'analyst', tab = '', idle = 0, chatWords: WordRule[] = [];
 const flash = (html: string, bad = false) => { const m = $('msg'); if (m) { m.className = 'msg' + (bad ? ' err' : ''); m.innerHTML = html; } };
 const guard = async (fn: () => Promise<unknown>, ok: string) => { try { await fn(); flash(ok); } catch (e) { flash(esc(viMsg(e)), true); } };
@@ -146,10 +147,29 @@ const TABS: Tab[] = [
         $('llog').innerHTML = `<table><tr><th>Lúc</th><th>Người</th><th>Nơi</th><th>Nội dung</th><th></th></tr>${rows.map((m: any) => `<tr><td>${fmt(m.at)}</td><td>${esc(m.name || '—')}${m.sanctioned ? ' <span class="pill warn">đang bị phạt</span>' : ''}</td><td>${esc(m.topic)}</td><td>${esc(m.body)}</td><td><button class="g" data-mute="${esc(m.user_id)}">Cấm chat 24h</button></td></tr>`).join('') || '<tr><td colspan="5">Không có tin nào.</td></tr>'}</table>`; }, '');
       document.querySelector('main')!.onclick = async e => { const t = (e.target as HTMLElement).closest('[data-dw],[data-mute]') as HTMLElement | null; if (!t) return;
         const reason = prompt('Lý do?') || ''; await guard(async () => { if (t.dataset.mute) { await rpc('admin_sanction', { p_user: t.dataset.mute, p_kind: 'mute', p_hours: 24, p_reason: reason }); $('lgo').click(); } else { await rpc('admin_delete_word', { p_term: t.dataset.dw, p_reason: reason }); await show('chat'); } }, 'Đã xử lý.'); }; } },
+  { id: 'support', label: 'Hỗ trợ', need: 'ticket', render: () => renderTickets(tkStatus),
+    bind: () => {
+      const main = document.querySelector('main') as HTMLElement;
+      const openTk = async (id: number) => { try { $('tk').innerHTML = await renderTicket(id); $('tk').scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (e) { flash(esc(viMsg(e)), true); } };
+      main.onclick = async e => {
+        const t = e.target as HTMLElement;
+        const st = t.closest('[data-tk-status]') as HTMLElement | null; if (st) { tkStatus = st.dataset.tkStatus!; return show('support'); }
+        const op = t.closest('[data-tk-open]') as HTMLElement | null; if (op) return openTk(+op.dataset.tkOpen!);
+        const rp = t.closest('[data-tk-reply],[data-tk-reply-close]') as HTMLElement | null;
+        if (rp) { const id = +(rp.dataset.tkReply || rp.dataset.tkReplyClose)!; const close = rp.hasAttribute('data-tk-reply-close');
+          return guard(async () => { await rpc('admin_reply_ticket', { p_id: id, p_body: val('tkr'), p_close: close }); await show('support'); await openTk(id); }, close ? 'Đã trả lời và đóng thư. Người chơi nhận thư báo trong Hộp thư.' : 'Đã gửi trả lời. Người chơi nhận thư báo trong Hộp thư.'); }
+        const se = t.closest('[data-tk-set]') as HTMLElement | null;
+        if (se) { const id = +se.dataset.tkSet!; return guard(async () => { await rpc('admin_set_ticket_status', { p_id: id, p_status: se.dataset.st }); await show('support'); await openTk(id); }, ''); }
+      };
+    } },
   { id: 'sys', label: 'Hệ thống', need: 'flag', render: async () => {
     const roles = can(role, 'role') ? await rpc('admin_list_roles') : [];
-    return await renderFlags(reasonField) + (roles.length ? `<h3>Vai trò quản trị</h3><div class="card"><table><tr><th>Email</th><th>Vai trò</th><th>Từ</th></tr>${roles.map((r: any) => `<tr><td>${esc(r.email)}</td><td>${esc(r.role)}</td><td>${fmt(r.since)}</td></tr>`).join('')}</table></div>` : ''); },
-    bind: () => { (document.querySelector('main') as HTMLElement).onclick = async e => { const b = (e.target as HTMLElement).closest('[data-flag]') as HTMLElement | null; if (!b) return;
+    const [flags, meta] = await Promise.all([rpc('admin_list_flags'), rpc('admin_flag_meta')]);
+    return await renderFlags(reasonField) + siteInfoCard((flags['site.info'] || {}) as Record<string, string>, meta['site.info']) + (roles.length ? `<h3>Vai trò quản trị</h3><div class="card"><table><tr><th>Email</th><th>Vai trò</th><th>Từ</th></tr>${roles.map((r: any) => `<tr><td>${esc(r.email)}</td><td>${esc(r.role)}</td><td>${fmt(r.since)}</td></tr>`).join('')}</table></div>` : ''); },
+    bind: () => {
+      $('si-save').onclick = () => guard(async () => { const info: Record<string, string> = {}; SITE_KEYS.forEach(k => { info[k] = val('si-' + k).trim(); });
+        await rpc('admin_set_site_info', { p_info: info, p_reason: val('si-why') }); await show('sys'); }, 'Đã lưu thông tin trang. Trang chủ cập nhật ngay.');
+      (document.querySelector('main') as HTMLElement).onclick = async e => { const b = (e.target as HTMLElement).closest('[data-flag]') as HTMLElement | null; if (!b) return;
       await guard(async () => { await rpc('admin_set_flag', { p_key: b.dataset.flag, p_value: b.dataset.on === '1', p_reason: val('why') }); await show('sys'); }, ''); }; } },
   { id: 'balance', label: 'Cân bằng', need: 'flag', render: () => renderBalance(),
     bind: () => { (document.querySelector('main') as HTMLElement).onclick = async e => { const t = e.target as HTMLElement, sv = t.closest('[data-bal]') as HTMLElement | null, rs = t.closest('[data-bal-reset]') as HTMLElement | null; if (!sv && !rs) return;

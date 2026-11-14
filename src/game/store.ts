@@ -4,9 +4,11 @@
  * - act() gửi hành động, client đã áp dụng lạc quan trước đó, kết quả server ghi đè chỉ số.
  * - Vuốt ve và kỳ cọ được gộp theo lô 2 giây để không gửi quá nhiều yêu cầu.
  */
+import { _t } from '../i18n';
 import * as api from '../data/api';
 import type { EventGoal } from './events';
 import type { MiniResult, WorldProgress } from './world-activity';
+import type { ContestState, FestivalState, JobState, SeasonState, StickerState } from './f2p';
 import type { ToyResult, ToysState, ActionResult, FarmItem, Garden, Outfit, PetAction, PetRow, QuestBoard, QuestRow, SeenRow, Tastes } from '../data/types';
 import type { CareSums, Form, Stage } from './species';
 import { emptyDay, localDay, writeDiary, type DayLog } from './rules';
@@ -45,10 +47,12 @@ export interface PetState {
   lastCare: number; plays: number[];
   /** Đồ chơi đã mua và số lượt đã dùng hôm nay; mục tiêu cộng đồng; bé đang cách ly (Mùa cúm). */
   toys: ToysState; goals: EventGoal[]; isolating: boolean; world: WorldProgress | null;
+  /** Chơi miễn phí: ca làm thêm và kỹ năng, thi biểu diễn, lễ hội hôm nay, sticker, Sổ mùa. */
+  job: JobState | null; contest: ContestState | null; festival: FestivalState | null; stickers: StickerState[]; season: SeasonState | null;
 }
 
 export const S: PetState = {
-  id: '', name: 'Bé', family: '', palette: 0, species: 'mam-xanh', stage: 'baby', form: null, genes: null, bornAt: Date.now(), generation: 1, seen: [], care: { fed: 0, ball: 0, pet: 0, talk: 0, bath: 0 }, no: 70, vui: 70, nl: 80, sach: 80, asleep: false, t: Date.now(),
+  id: '', name: _t('Bé'), family: '', palette: 0, species: 'mam-xanh', stage: 'baby', form: null, genes: null, bornAt: Date.now(), generation: 1, seen: [], care: { fed: 0, ball: 0, pet: 0, talk: 0, bath: 0 }, no: 70, vui: 70, nl: 80, sach: 80, asleep: false, t: Date.now(),
   favFound: false, mem: [], day: null, diary: {}, firsts: {},
   coins: 0, earnedToday: 0, careCap: 50, rotation: [], weekend: false, owned: {}, layouts: [null, null, null], activeLayout: 0, comfort: 1,
   outfit: {}, presets: [{}, {}, {}], likes: [], dislike: '', quests: [], collections: [],
@@ -58,6 +62,7 @@ export const S: PetState = {
   illness: null, sickSince: null, criticalSince: null, recoverAt: null,
   bondXp: 0, bondClaims: [], soldToday: 0, lastCare: Date.now(), plays: [],
   toys: { owned: [], used: {} }, goals: [], isolating: false, world: null,
+  job: null, contest: null, festival: null, stickers: [], season: null,
 };
 /** Bố cục đang dùng (luôn có giá trị). */
 export const activeLayout = (): Layout => S.layouts[S.activeLayout] || S.layouts[0] || DEFAULT_LAYOUT;
@@ -143,7 +148,7 @@ export async function hydrate(): Promise<void> {
   if (!p) throw new Error('no_pet');
   applyRow(p);
   if (p.stage !== 'departed') { const h = await api.getHealth(); if (h) applyRow(h); }
-  await Promise.all([refreshToys().catch(() => {}), refreshWorld().catch(() => {}), refreshGoals().catch(() => {}), refreshIsolation().catch(() => {}), refreshMemories(), refreshDays(), refreshEconomy(), refreshOwned(), refreshLayouts(), refreshQuests(), refreshSeen(), refreshFamily(), refreshTastes(), refreshGarden(), refreshFarm(), refreshBond()]);
+  await Promise.all([refreshToys().catch(() => {}), refreshWorld().catch(() => {}), refreshF2P().catch(() => {}), refreshGoals().catch(() => {}), refreshIsolation().catch(() => {}), refreshMemories(), refreshDays(), refreshEconomy(), refreshOwned(), refreshLayouts(), refreshQuests(), refreshSeen(), refreshFamily(), refreshTastes(), refreshGarden(), refreshFarm(), refreshBond()]);
   hydrated = true;
 }
 
@@ -415,3 +420,22 @@ export function startPeriodicSync(ms = 60_000): () => void {
 /** Trạng thái sức khoẻ hiện tại cho các hàm trong health.ts. */
 export const healthNow = (): import('./health').HealthState => ({ no: S.no, sach: S.sach, vui: S.vui, nl: S.nl, asleep: S.asleep,
   illness: S.illness, sick_since: S.sickSince, critical_since: S.criticalSince, recover_at: S.recoverAt });
+
+/* ---------- Chơi miễn phí: việc làm thêm, thi biểu diễn, lễ hội, sticker, Sổ mùa ---------- */
+type Res<T> = T | { error: unknown };
+const wrap = async <T>(f: () => Promise<T>): Promise<Res<T>> => { try { return await f(); } catch (error) { return { error }; } };
+export async function refreshJob(): Promise<void> { S.job = await api.getJobState(); emit(); }
+export async function refreshF2P(): Promise<void> {
+  const [job, festival] = await Promise.all([api.getJobState(), api.getFestival()]); S.job = job; S.festival = festival; emit();
+}
+export async function refreshProgress(): Promise<void> { const [st, se, co] = await Promise.all([api.getStickers(), api.getSeason(), api.getContest()]); S.stickers = st; S.season = se; S.contest = co; emit(); }
+/** Bé đang đi làm (ca chưa nhận lương). */
+export const jobActive = () => !!S.job?.job;
+export const startJob = (job: string, hours: number) => wrap(async () => { S.job = await api.startJob(job, hours); emit(); return S.job; });
+export const finishJob = () => wrap(async () => { const r = await api.finishJob(); S.coins = r.coins; await refreshJob(); refreshProgress().catch(() => {}); return r; });
+export const cancelJob = () => wrap(async () => { S.job = await api.cancelJob(); emit(); return S.job; });
+export const enterContest = () => wrap(async () => { S.contest = await api.enterContest(); emit(); return S.contest; });
+export const claimContest = () => wrap(async () => { const r = await api.claimContest(); S.coins = r.coins; S.contest = await api.getContest(); emit(); return r; });
+export const claimFestival = () => wrap(async () => { const r = await api.claimFestival(); S.coins = r.coins; S.festival = await api.getFestival(); emit(); return r; });
+export const claimSticker = (id: string) => wrap(async () => { const r = await api.claimSticker(id); S.coins = r.coins; S.stickers = await api.getStickers(); emit(); return r; });
+export const claimSeason = (tier: number) => wrap(async () => { const r = await api.claimSeason(tier); S.coins = r.coins; S.season = await api.getSeason(); emit(); return r; });
