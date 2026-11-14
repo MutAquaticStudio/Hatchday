@@ -55,6 +55,7 @@ Quy tắc bổ sung:
 - **Đường cong chuyển động**: vật bay dùng gia tốc dần (`0,3u + 0,7u²`); vật rơi dùng `u²`; vật mọc lên và bật ra dùng "back" (vượt 10% rồi về); thu về dùng `1 − (1 − u)³`. Cấm nội suy tuyến tính cho vị trí.
 - **Chồng nhịp (overlapping action)**: các phần của một hiệu ứng lệch nhau 2–5 kh (nhiều viên đạn, nhiều vòng, nhiều gai), không bao giờ bật cùng một khung.
 - **Co giãn**: lấy đà ép người 14–20%, lao tới vươn dài 20–30%, trúng đòn ép 12%; chỉ đổi tỉ lệ và độ lệch của quái thú, không đụng mô hình.
+- **Nối pha không trễ**: mỗi pha là một tween trên đồng hồ trận; pha sau nhận lại phần thời gian pha trước chạy lố trong khung cuối (carry), nên chuỗi 4–6 pha không bị cộng dồn trễ một khung mỗi bước. Trình xem đo thời lượng thật bằng `__battle.demoMove()`.
 - Sau dư âm, sân phải **sạch** trước khi câu dẫn tiếp theo hiện ra (trừ vết trên sân và trạng thái kéo dài).
 
 ## 4. Ngôn ngữ máy quay
@@ -105,6 +106,7 @@ Mỗi chiêu có bốn lớp tiếng, rơi đúng nhịp hình:
 | `vua` | ×0,8 | 1800 / 1000 | 64 | 16 | ≤ 40 | 4 |
 | `cao` | ×1 | 3000 / 1600 | 96 | 20 | ≤ 60 | 6 |
 
+- Kích thước hoạ tiết khai báo trong các dạng được nhân `MOTIF_SCALE = 1,45` khi vẽ (máy quay rộng làm hình nhỏ); vòng giữ đúng bán kính. Trong cảnh cận (lấy đà tối thượng) hoạ tiết bay quanh người đánh ≤ 0,3 đơn vị để không lấp màn hình.
 - Hoạ tiết vẽ theo mẻ (`InstancedMesh`): mỗi cặp hình + màu là **một lệnh vẽ** bất kể số lượng. Mẻ không dùng 30 giây thì giải phóng.
 - Vệt đuôi, ống tia, vòng xoáy lấy từ **bể dùng lại**; không tạo vật liệu hay hình học trong vòng lặp từng khung. Cấm cấp phát `Vector3` trong hàm chạy mỗi khung.
 - Số lượng ≥ 10 co theo tầng; số nhỏ mang nghĩa (3 đuôi, 7 sắc, 9 đuôi) giữ nguyên.

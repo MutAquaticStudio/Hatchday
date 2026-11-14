@@ -187,7 +187,7 @@ export function makeForms(THREE, scene, H, fx, P) {
   F.volley = c => {
     const { R, act } = c, n = cnt(c, 5), line = R.k === 'line', fly = act * (line ? 0.5 : 0.6), gap = (act - fly) / Math.max(1, n - 1);
     for (let i = 0; i < n; i++) after(i * gap, () => { const s = spr(R.motif, colOf(R, i), R.c2), f = n > 1 ? i / (n - 1) - 0.5 : 0, last = i === n - 1; H.sfx(i ? 'tick' : c.snd, { pitch: c.pitch * (1 + i * 0.06), gain: i ? 0.6 : 1 });
-      toss(s, c.from, last ? c.to : c.to.clone().add(jit(0.28)), fly, { s0: 0.14 * R.s * c.big, s1: 0.27 * R.s * c.big, arc: R.arc || (line ? 0.08 : 0.35 + Math.abs(f) * 1.1), side: line ? f * 0.3 : f * 2.6, spin: R.motif === 'ball' || R.motif === 'shard' ? 12 : 0, trail: colOf(R, i), tw: 0.13 * c.big, end: p => { if (!last) { pow(p, colOf(R, i), 0.34 * c.big, 0.16); c.d.shake = 0.03; } } }); });
+      toss(s, c.from, last ? c.to : c.to.clone().add(jit(0.28)), fly, { s0: 0.18 * R.s * c.big, s1: 0.4 * R.s * c.big, arc: R.arc || (line ? 0.08 : 0.35 + Math.abs(f) * 1.1), side: line ? f * 0.3 : f * 2.6, spin: R.motif === 'ball' || R.motif === 'shard' ? 12 : 0, trail: colOf(R, i), tw: 0.13 * c.big, end: p => { if (!last) { pow(p, colOf(R, i), 0.34 * c.big, 0.16); c.d.shake = 0.03; } } }); });
     return wait(act);
   };
   /** Vết chém: lưỡi liềm đặc quét một cung rồi mảnh dần. motif khác 'crest' thì là hình đó vung theo cung (tát, quất). */
@@ -300,11 +300,11 @@ export function makeForms(THREE, scene, H, fx, P) {
     return wait(act);
   };
   F.summon = async c => {
-    const { a, R, act } = c, rise = act * 0.4, at = a.pos.clone().addScaledVector(a.dir, -0.7).add(V(0, a.h + 1.3 * R.s, 0)), size = 1.5 * R.s * (0.75 + c.cls * 0.25), life = act + 0.35, tails = R.motif === 'tail', list = [];
+    const { a, R, act } = c, rise = act * 0.4, at = a.pos.clone().addScaledVector(a.dir, -0.7).add(V(0, a.h + 1.3 * R.s, 0)), size = 1.0 * R.s * (0.75 + c.cls * 0.25), life = act + 0.35, tails = R.motif === 'tail', list = [];
     H.sfx('summon', { pitch: c.pitch }); H.sfx(c.snd, { pitch: c.pitch * 0.8 });
     const n = tails ? 9 : 1; for (let i = 0; i < n; i++) { const s = spr(R.motif, colOf(R, i), R.c2); s.s = 0; list.push(s); }
     const halo = spr('sun', R.c2, R.c2, R.c); halo.s = 0; const base = tails ? a.center().addScaledVector(a.dir, -0.35) : at;
-    tween(life, (u, dt) => { const t = u * life, out = t > life - 0.3 ? (life - t) / 0.3 : 1; halo.p.copy(base).addScaledVector(a.dir, -0.15); halo.roll += dt * 0.6; halo.s = (tails ? 1.2 : size * 1.25) * E.out3(Math.min(1, t / rise)) * out; halo.a = 0.55;
+    tween(life, (u, dt) => { const t = u * life, out = t > life - 0.3 ? (life - t) / 0.3 : 1; halo.p.copy(base).addScaledVector(a.dir, -0.15); halo.roll += dt * 0.6; halo.s = (tails ? 1.1 : size * 1.1) * E.out3(Math.min(1, t / rise)) * out; halo.a = 0.85;
       list.forEach((s, i) => { const g = E.back(Math.min(1, Math.max(0, (t - i * rise * 0.07) / (rise * 0.6)))) * out; if (tails) { const an = (i - 4) * 0.3 + Math.sin(t * 3 + i) * 0.05; tR.set(1, 0, 0).applyQuaternion(H.camQuat()); s.p.copy(base).addScaledVector(tR, -Math.sin(an) * 0.95 * g).add(tv.set(0, Math.cos(an) * 0.95 * g, 0)); s.roll = an; s.s = 0.75 * g; } else { s.p.copy(at); s.p.y += Math.sin(t * 3) * 0.06; s.s = size * g; s.roll = R.motif === 'sun' || R.motif === 'ring' || R.motif === 'flower' ? t * 0.8 : Math.sin(t * 2) * 0.05; } }); }, () => { list.forEach(s => s.kill()); halo.kill(); });
     gring(a.pos, R.c, 0.4, 2.2, rise + 0.2);
     await wait(rise);
@@ -440,7 +440,7 @@ export function makeForms(THREE, scene, H, fx, P) {
       for (let i = 0; i < 3; i++) { const tr = trail(i === 1 ? '#eaffea' : '#5fd068', 0.16, true), s = spr('plus', '#8dff9e', '#eaffea'), ph = i * 2.1; s.s = 0; s.p.copy(from); tween(0.5, u => { const e = E.io(Math.max(0, Math.min(1, u * 1.15 - i * 0.06))); s.p.copy(from).lerp(to, e).addScaledVector(side, Math.sin(e * Math.PI * 2 + ph) * 0.5 * (1 - e)); s.p.y += Math.sin(e * Math.PI) * (0.5 + i * 0.3); s.s = 0.2 * E.bell(e); tr.push(s.p); }, () => { s.kill(); tr.fade(0.3); }); }
       after(0.45, () => { gring(a.pos, '#8dff9e', 0.3, 1.5, 0.35); a.sq = 0.12; }); return wait(OTHER_BEATS.twist); },
     /** Phản lực: luồng dội ngược đỏ cam đập vào chính người đánh. */
-    recoil(a) { H.sfx('recoil'); const ce = a.center(); pow(ce, '#ff7a2a', 0.8, 0.24, '#ffe0a0'); gring(ce, '#ff5a2a', 0.3, 1.5, 0.3, { flat: false }); const back = a.dir.clone().multiplyScalar(-0.3); return tween(0.3, u => { const k = u < 0.25 ? u / 0.25 : 1 - (u - 0.25) / 0.75; a.off.copy(back).multiplyScalar(k); a.sq = -0.14 * k; a.shake = 0.06 * (1 - u); }, () => { a.off.set(0, 0, 0); a.shake = 0; }); },
+    recoil(a) { H.sfx('recoil'); const ce = a.center(); pow(ce, '#ff7a2a', 0.5, 0.24, '#ffe0a0'); gring(ce, '#ff5a2a', 0.3, 1.5, 0.3, { flat: false }); const back = a.dir.clone().multiplyScalar(-0.3); return tween(0.3, u => { const k = u < 0.25 ? u / 0.25 : 1 - (u - 0.25) / 0.75; a.off.copy(back).multiplyScalar(k); a.sq = -0.14 * k; a.shake = 0.06 * (1 - u); }, () => { a.off.set(0, 0, 0); a.shake = 0; }); },
     /** Giáp gai phản đòn: gai đỏ bắn ngược về người đánh. */
     thorns(a, d) { H.sfx('pluck', { pitch: 1.4 }); for (let i = 0; i < 4; i++) { const s = spr('thorn', '#ff5a5a', '#ffd0d0'); toss(s, d.center().add(jit(0.3)), a.center().add(jit(0.2)), 0.2 + i * 0.02, { s0: 0.3, trail: '#ff5a5a', tw: 0.08 }); } after(0.2, () => { pow(a.center(), '#ff5a5a', 0.6, 0.2); a.shake = 0.06; after(0.2, () => { a.shake = 0; }); }); },
     /** Giũ sạch: vòng trắng xanh quét từ chân lên đầu, bụi bẩn tối màu bắn ra. */
@@ -522,7 +522,7 @@ export function makeForms(THREE, scene, H, fx, P) {
     const rel = T * 0.86; windup(a, rel, 1.4);
     await tween(rel, u => { const sq = E.in2(u); sp.forEach((s, i) => { const an = u * 9 + i / n * TAU, r = 2.3 - 2.0 * sq; s.p.set(a.pos.x + Math.cos(an) * r, a.pos.y + 0.2 + (i / n) * (a.h + 0.6) * (0.4 + 0.6 * u), a.pos.z + Math.sin(an) * r); s.s = 0.2 * Math.min(1, u * 5) * (1 - sq * 0.4); s.roll = an; }); a.shake = 0.035 * u; });
     sp.forEach(s => s.kill()); a.shake = 0; H.sfx('release'); pow(ce, R.c, 0.75, 0.26, R.c2); gring(ce, R.c, 0.4, 1.7, 0.32, { flat: false, a: 0.8 }); gring(a.pos, R.c, 0.4, 3.0, 0.45); H.ui.flash(R.c, 0.3, 0.18); H.cam.shake(0.35);
-    H.cam.shot(SKY_FORMS[R.form] ? 'sky' : 'wide'); H.ui.darken(0.3);
+    H.cam.shot(SKY_FORMS[R.form] ? 'sky' : 'wide'); H.cam.slow?.(5.5); H.ui.darken(0.3);
     await wait(T - rel);
   }
   /**

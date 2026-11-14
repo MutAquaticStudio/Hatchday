@@ -120,7 +120,7 @@ const T: Record<string, [string, string, string, string]> = {
   'banh-bo': ['shot cloud c=#ffe8d8 k=puff', 'rest flame', 'erupt cloud k=pillar c=#fff0e4', 'burst flame n=16'],
   'xoi-gac': ['melee fist k=punch c=#ff3a2a', 'aura flame c=#ff3a2a', 'flurry fist n=4 c=#ff3a2a c2=#ffd23e', 'ram flame c=#ff3a2a k=comet'],
   'che-ba-mau': ['volley shard n=4', 'aura ring k=tri', 'erupt shard k=spikes n=3', 'summon ring k=tri then=beam'],
-  'banh-troi': ['ram ball k=roll', 'bloom drop c=#c87a3a c2=#ffd8a0', 'volley ball n=3 arc=1.5 s=1.3', 'meteor ball s=1.5'],
+  'banh-troi': ['ram ball k=roll c=#f6e6cc c2=#c87a3a', 'bloom drop c=#c87a3a c2=#ffd8a0', 'volley ball n=3 arc=1.5 s=1.3 c=#f6e6cc c2=#c87a3a', 'meteor ball s=1.5 c=#f6e6cc c2=#c87a3a'],
   'banh-flan': ['melee drop k=slap c=#e8902a c2=#ffe08a', 'ward bubble c=#ffc85a c2=#fff3c8', 'shot fist s=1.8 c=#e8902a c2=#ffe08a k=palm', 'erupt flame k=lava c=#e8902a'],
   'tra-sua': ['shot pearl c=#5a3420 c2=#e8c8a0', 'aura spark c=#e8c8a0', 'volley pearl n=8 c=#5a3420 c2=#e8c8a0 k=line', 'vortex pearl c=#5a3420 c2=#e8c8a0'],
   'banh-bao': ['burst cloud s=0.6 n=6', 'ward cloud c=#fff4e0', 'orbit cloud n=6 c=#fff4e0', 'vortex cloud k=steam'],
