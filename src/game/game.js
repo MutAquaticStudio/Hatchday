@@ -68,7 +68,7 @@ const look = new THREE.Vector3(0, 1.15, 0);
 const grad = new THREE.DataTexture(new Uint8Array([120, 186, 255]), 3, 1, THREE.RedFormat);
 grad.minFilter = grad.magFilter = THREE.NearestFilter; grad.needsUpdate = true;
 /** Bóng toon có màu: phần tối ngả tím lạnh và giữ độ bão hoà thay vì xám đục (kiểu tranh anime). Một bản vá dùng chung cho mọi vật liệu toon. */
-const shadowTint = { value: new THREE.Color('#6f86ee') }, shadowTintK = { value: 0.5 };
+const shadowTint = { value: new THREE.Color('#6f86ee') }, shadowTintK = { value: 0.4 };
 const TINT_GLSL = `
   { vec3 base = max(diffuseColor.rgb, vec3(0.001));
     float shade = clamp(dot(outgoingLight, vec3(0.299, 0.587, 0.114)) / max(dot(base, vec3(0.299, 0.587, 0.114)), 0.001), 0.0, 1.5);
@@ -415,8 +415,8 @@ function applyAreaLights() {
   rimColor.value.set(area === 'bedroom' || night ? '#8fa8ff' : period === 'chieu' ? '#ffb877' : '#a9d8ff'); rimStrength.value = area === 'bedroom' ? 0.35 : night ? 0.45 : 0.5;
   if (area === 'bedroom') { lightT.hemi = 0.8; lightT.sun = 0.4; lightT.sunCol.set('#7d92ff'); hemi.color.set('#7482b8'); hemi.groundColor.set('#141830'); lightT.lampPos.set(2.4, 2.2, -0.6); lightT.lamp = 24; if (!lookBooted) snapLights(); return; }
   const outdoor = area === 'garden' || !!(PLACE_BY_ID[area] && PLACE_BY_ID[area].outdoor), moon = night && outdoor;
-  lightT.hemi = moon ? 1.0 : night ? 0.75 : 0.95; lightT.sun = moon ? 0.9 : night ? 0.6 : 1.4; lightT.sunCol.set(night ? '#a4b2e6' : (period === 'chieu' ? '#ffa56a' : '#ffe0b0'));
-  hemi.color.set(night ? '#7d88b0' : period === 'chieu' ? '#9a9cc8' : '#9fb8e0'); hemi.groundColor.set(night ? '#141830' : '#2a3050');
+  lightT.hemi = moon ? 1.0 : night ? 0.75 : 0.95; lightT.sun = moon ? 0.9 : night ? 0.6 : 1.4; lightT.sunCol.set(night ? '#b8c2e8' : (period === 'chieu' ? '#ffa56a' : '#ffe0b0'));
+  hemi.color.set(night ? '#8590b0' : period === 'chieu' ? '#9a9cc8' : '#9fb8e0'); hemi.groundColor.set(night ? '#141830' : '#2a3050');
   if (outdoor) { const [kh, ks] = SKY_LIGHT[wx.sky]; lightT.hemi *= kh; lightT.sun *= ks; if (wx.sky !== 'clear') lightT.sunCol.lerp(new THREE.Color('#8ea2c4'), wx.sky === 'rain' ? 0.55 : 0.3); }
   lightT.lampPos.set(-1.5, 3, 2); lightT.lamp = outdoor ? 0 : night ? 22 : 9;
   const wide = !!(PLACE_BY_ID[area] && PLACE_BY_ID[area].follow); fogT.near = wide ? 24 : outdoor ? 34 : 1000; fogT.far = wide ? 62 : outdoor ? 90 : 2000;
