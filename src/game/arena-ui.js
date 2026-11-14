@@ -11,7 +11,8 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { _t } from '../i18n';
 import { SPECIES, SPECIES_BY_ID } from './species';
-import { ELEMENT_NAMES, KIND_NAMES, STATUS_INFO, elementMult, moveDesc } from './skills';
+import { ELEMENT_NAMES, KIND_NAMES, STATUS_INFO, elementMult, moveDesc, movesOf } from './skills';
+import { recipeOf, moveDuration } from './move-fx';
 import { endTurn, fighterOf, pickMove, rngOf, useMove, UPGRADES, UPGRADE_MAX, HEAL, HEAL_DECAY } from './battle';
 import { rankName } from './arena';
 import { arenaFinish, arenaStart, buyUpgrade, getArenaState, listFriends } from '../data/api';
@@ -26,7 +27,6 @@ const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': 
 const store = { get: (k, d) => { try { return localStorage.getItem(k) ?? d; } catch { return d; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch { /* bỏ qua */ } } };
 const MULT_TXT = m => (m >= 1.2 ? _t('Rất hiệu quả') : m > 1 ? _t('Hiệu quả') : m === 1 ? _t('Bình thường') : m >= 0.9 ? _t('Kém') : _t('Rất kém'));
 const MULT_MSG = m => (m >= 1.2 ? _t('Rất hiệu quả!') : m > 1 ? _t('Khá hiệu quả.') : m >= 0.9 ? _t('Không hiệu quả lắm…') : _t('Bị khắc chế!'));
-const tierOf = m => Math.max(0, Math.min(3, (+String(m.id).split('-').pop() || 1) - 1));
 
 export function initArena({ ctx, closeAll, getS }) {
   const { THREE } = ctx, V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
@@ -42,6 +42,12 @@ export function initArena({ ctx, closeAll, getS }) {
       if (name === 'wide') { if (portrait()) { c.tPos.set(-3.6, 5.6, 13.5); c.tLook.set(-0.3, 0.95, -0.4); c.tFov = 50; } else { c.tPos.set(-5.4, 3.2, 9.2); c.tLook.set(0.55, 1.05, -1.0); c.tFov = 32; }
         // quái thú to (đuôi dài, cánh rộng) thì lùi máy quay cho cả hai lọt khung
         if (B?.mine && B?.theirs) { const big = Math.min(1.6, Math.max(1, Math.max(B.mine.h, B.theirs.h, B.mine.r * 2.4, B.theirs.r * 2.4) / 1.7)); c.tPos.sub(c.tLook).multiplyScalar(big).add(c.tLook); } }
+      // biến thể của cảnh rộng (docs/VFX-STYLE-GUIDE.md §4): duel đẩy vào khi lấy đà tuyệt chiêu, sky lùi và ngước lên cho chiêu từ trời,
+      // target nghiêng về phía người trúng đòn ở dư âm của chiêu tối thượng
+      if (name === 'duel' || name === 'sky' || name === 'target') { c.shot('wide'); c.k = name === 'duel' ? 2.2 : 2.6;
+        if (name === 'duel') { c.tPos.lerp(c.tLook, 0.12); c.tPos.y -= 0.3; }
+        if (name === 'sky') { c.tPos.sub(c.tLook).multiplyScalar(1.1).add(c.tLook); c.tLook.y += 0.9; c.tFov += 4; }
+        if (name === 'target' && s) { c.tLook.lerp(s.center(), 0.35); c.tPos.lerp(s.pos, 0.12); c.tPos.y += 0.2; } }
       if (name === 'intro') { c.pos.set(7.5, 6.2, 10); c.look.set(0, 1, 0); c.tPos.copy(c.pos); c.tLook.copy(c.look); c.fov = c.tFov = 44; }
       if (name === 'attacker' || name === 'win') { const right = V().crossVectors(s.dir, V(0, 1, 0)).normalize(), d = name === 'win' ? Math.max(3.4, s.r * 2.6 + s.h * 0.9) : Math.max(2.7, s.r * 2 + s.h * 0.6); c.tPos.copy(s.pos).addScaledVector(s.dir, d).addScaledVector(right, 1.1).add(V(0, s.h * 0.75, 0)); c.tLook.copy(s.center()); c.tFov = portrait() ? 50 : 38; c.k = name === 'win' ? 1.6 : 5; }
     };
@@ -63,7 +69,7 @@ export function initArena({ ctx, closeAll, getS }) {
   function ensure() {
     if (R) return R;
     const root = document.createElement('div'); root.id = 'battle'; root.className = 'bt'; root.hidden = true; root.setAttribute('role', 'dialog'); root.setAttribute('aria-label', _t('Đấu trường'));
-    root.innerHTML = `<canvas class="bt-cv" aria-hidden="true"></canvas><div class="bt-dark"></div><div class="bt-lines"></div><div class="bt-flash"></div><div class="bt-pops" aria-hidden="true"></div>
+    root.innerHTML = `<canvas class="bt-cv" aria-hidden="true"></canvas><div class="bt-dark"></div><div class="bt-lines"></div><div class="bt-bars" aria-hidden="true"><i></i><i></i></div><div class="bt-cutin" aria-hidden="true"><b></b></div><div class="bt-flash"></div><div class="bt-pops" aria-hidden="true"></div>
       <div class="bt-plate foe" data-p="1"></div><div class="bt-plate mine" data-p="0"></div><div class="bt-field"></div>
       <div class="bt-panel"><div class="bt-msg" aria-live="polite"><p class="bt-text"></p><span class="bt-more" aria-hidden="true">▾</span></div>
         <div class="bt-cmds" hidden><div class="bt-moves"></div><div class="bt-side"><button type="button" class="bt-btn" data-bt="chart">📖 ${_t('Sổ khắc hệ')}</button><button type="button" class="bt-btn" data-bt="speed"></button><button type="button" class="bt-btn" data-bt="run">${_t('Rời trận')}</button></div></div></div>
@@ -80,14 +86,18 @@ export function initArena({ ctx, closeAll, getS }) {
     R = { root, q, renderer, scene, camera, composer, bloom, kit, stages: new Map(), w: 1, h: 1, low, high, open: false, t: 0, last: 0, speed: +store.get(SPEEDK, '1') || 1, msg: null, journal: new Set(JSON.parse(store.get(JOURNAL, '[]'))) };
     R.cam = makeCam(camera);
     const ui = {
-      flash(color, a, dur) { const el = q('.bt-flash'); el.style.transition = 'none'; el.style.background = color; el.style.opacity = String(fx().reduce ? a * 0.3 : a); void el.offsetWidth; el.style.transition = `opacity ${dur / fx().timeScale}s ease-out`; el.style.opacity = '0'; },
+      /** Chớp toàn màn hình, có trần an toàn nhạy sáng: độ đậm ≤ 0,35 (giảm chuyển động ≤ 0,1), dài ≤ 0,2 s, cách nhau ≥ 0,34 s (≤ 3 lần/giây). */
+      flash(color, a, dur) { const now = performance.now(); if (now - (R.flashAt || -1e9) < 340) return; R.flashAt = now; const el = q('.bt-flash'); el.style.transition = 'none'; el.style.background = color; el.style.opacity = String(Math.min(fx().reduce ? 0.1 : 0.35, a)); void el.offsetWidth; el.style.transition = `opacity ${Math.min(0.2, dur) / fx().timeScale}s ease-out`; el.style.opacity = '0'; },
       darken(k) { q('.bt-dark').style.opacity = String(k); },
       /** Khung hình va chạm kiểu anime: đảo màu thật ngắn (chiêu tối thượng, chí mạng). */
-      impactFrame(sec) { root.classList.add('impact'); setTimeout(() => root.classList.remove('impact'), sec * 1000); },
+      impactFrame(sec) { const now = performance.now(); if (fx().reduce || now - (R.ifAt || -1e9) < 600) return; R.ifAt = R.flashAt = now; root.classList.add('impact'); setTimeout(() => root.classList.remove('impact'), Math.min(0.1, sec) * 1000); },
+      /** Cắt cảnh chiêu tối thượng: hai thanh điện ảnh trượt vào và tên chiêu lướt ngang trong `sec` giây (đồng hồ trận). */
+      cutin(name, color, sec) { const el = q('.bt-cutin'); el.querySelector('b').textContent = name; root.style.setProperty('--cc', color); root.style.setProperty('--cd', (sec / fx().timeScale).toFixed(2) + 's'); root.classList.remove('cutin'); void el.offsetWidth; root.classList.add('cutin', 'bars'); clearTimeout(R.cutT); R.cutT = setTimeout(() => root.classList.remove('cutin'), sec / fx().timeScale * 1000); },
+      cutout() { root.classList.remove('bars', 'cutin'); },
       /** Đường tốc độ toả ra từ tâm màn hình, màu theo hệ. */
       lines(color, sec) { const el = q('.bt-lines'); el.style.setProperty('--lc', color); el.style.transition = 'none'; el.style.opacity = '0.9'; void el.offsetWidth; el.style.transition = `opacity ${sec / fx().timeScale}s ease-in`; el.style.opacity = '0'; },
     };
-    R.fx = makeFx(THREE, scene, { kit, cam: R.cam, ui, sfx, get ground() { return B?.stage.ground ?? 0.35; }, stage: { setGlow: k => B?.stage.setGlow(k) }, camPos: () => camera.position, side: () => V().setFromMatrixColumn(camera.matrixWorld, 0) });
+    R.fx = makeFx(THREE, scene, { kit, cam: R.cam, ui, sfx, quality: tier, camQuat: () => camera.quaternion, get ground() { return B?.stage.ground ?? 0.35; }, stage: { setGlow: k => B?.stage.setGlow(k) }, camPos: () => camera.position, side: () => V().setFromMatrixColumn(camera.matrixWorld, 0) });
     R.fx.reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
     const resize = () => { const w = root.clientWidth || innerWidth, h = root.clientHeight || innerHeight; R.w = w; R.h = h; const pr = Math.min(devicePixelRatio || 1, low ? 1 : high ? 1.5 : 1.25); renderer.setPixelRatio(pr); renderer.setSize(w, h, false); composer.setPixelRatio(pr); composer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix(); if (B && !B.intro) R.cam.shot('wide'); };
     R.resize = resize; addEventListener('resize', () => { if (R.open) resize(); });
@@ -117,7 +127,7 @@ export function initArena({ ctx, closeAll, getS }) {
   /* ---------- quái thú trên sân ---------- */
   function makeSlot(pos, other) {
     const s = { pos, off: V(), sq: 0, k: 0, tilt: 0, shake: 0, h: 1.4, r: 0.6, wrap: new THREE.Group(), body: new THREE.Group(), parts: null, phase: Math.random() * 6 };
-    s.dir = other.clone().sub(pos).setY(0).normalize(); s.wrap.add(s.body);
+    s.dir = other.clone().sub(pos).setY(0).normalize(); s.wrap.add(s.body); s.wrap.rotation.order = 'YXZ'; s.lean = 0; s.spin = 0;
     s.center = () => s.pos.clone().add(s.off).add(V(0, s.h * 0.5 * Math.max(0.2, s.k), 0));
     s.head = () => s.pos.clone().add(s.off).add(V(0, s.h * 0.92 * Math.max(0.2, s.k), 0));
     s.mouth = () => s.pos.clone().add(s.off).addScaledVector(s.dir, s.r * 0.9).add(V(0, s.h * 0.7, 0));
@@ -131,7 +141,7 @@ export function initArena({ ctx, closeAll, getS }) {
   }
   function stepSlot(s, t) {
     const j = s.shake ? V((Math.random() - 0.5) * s.shake, 0, (Math.random() - 0.5) * s.shake) : V();
-    s.wrap.position.copy(s.pos).add(s.off).add(j); s.wrap.rotation.set(0, Math.atan2(s.dir.x, s.dir.z), s.tilt);
+    s.wrap.position.copy(s.pos).add(s.off).add(j); s.wrap.rotation.set(s.lean || 0, Math.atan2(s.dir.x, s.dir.z) + (s.spin || 0), s.tilt); // ngả người (lấy đà, lao tới) và xoay (bị lốc cuốn)
     s.wrap.scale.set(s.k * (1 - s.sq * 0.5), s.k * (1 + s.sq), s.k * (1 - s.sq * 0.5)); s.sq *= 0.9;
     s.body.position.y = Math.sin(t * 2.2 + s.phase) * 0.025; s.body.scale.y = s.base * (1 + Math.sin(t * 2.2 + s.phase) * 0.012);
     if (s.parts) ctx.petBuilder.animate(s.parts, t, false);
@@ -260,11 +270,11 @@ export function initArena({ ctx, closeAll, getS }) {
     R.q('.bt-text').textContent = '';
     await R.fx.wait(0.6);
     R.cam.tPos.copy(B.theirs.pos).addScaledVector(B.theirs.dir, 4.2).add(V(1.4, 1.6, 0)); R.cam.tLook.copy(B.theirs.pos).add(V(0, 0.9, 0)); R.cam.slow(2.2);
-    await R.fx.enter(B.theirs, B.foe.element); R.q('.bt-plate.foe').classList.add('in');
+    await R.fx.enter(B.theirs, B.foe.element, recipeOf(foe.moves[0]).motif); R.q('.bt-plate.foe').classList.add('in');
     await say(o.kind === 'player' ? _t`${oName} (${osp?.name || ''}) của ${o.family || _t('một người chơi')} bước ra ${ARENAS[field].name}!` : _t`${oName} hệ ${ELEMENT_NAMES[B.foe.element]} bước ra ${ARENAS[field].name}!`);
     R.cam.shot('wide'); R.cam.slow(2);
     await say(_t`Sân ${ARENAS[field].name}: chiêu hệ ${ELEMENT_NAMES[field]} mạnh thêm 10%.`, 0.6);
-    await R.fx.enter(B.mine, B.me.element); R.q('.bt-plate.mine').classList.add('in');
+    await R.fx.enter(B.mine, B.me.element, recipeOf(me.moves[0]).motif); R.q('.bt-plate.mine').classList.add('in');
     await say(_t`Tiến lên, ${B.mine.name}!`, 0.4);
     B.intro = false; R.cam.shot('wide'); prompt();
   }
@@ -290,56 +300,58 @@ export function initArena({ ctx, closeAll, getS }) {
     }
     for (const w of [0, 1]) {
       const f = F[w], s = SL[w]; if (f.hp <= 0) continue; const r = endTurn(f);
-      if (r.burn) { sfx('burnTick'); R.fx.emit({ at: s.center(), n: 24, radial: true, up: 0.6, color: '#ffd23e', color2: '#ff3a0a', speed: [1, 2.5], life: [0.4, 0.7], size: [0.3, 0.05], hdr: 2 }); pop(s, '−' + r.burn, 'burn'); hpTo(w, f.hp); await say(_t`${s.name} bị bỏng thiêu đốt!`, 0.5); }
-      if (r.regen) { pop(s, '+' + r.regen, 'heal'); hpTo(w, f.hp); await say(_t`${s.name} hồi phục dần.`, 0.4); }
+      if (r.burn) { await R.fx.tick(s, 'burn'); pop(s, '−' + r.burn, 'burn'); hpTo(w, f.hp); await say(_t`${s.name} bị bỏng thiêu đốt!`, 0.5); }
+      if (r.regen) { await R.fx.tick(s, 'regen'); pop(s, '+' + r.regen, 'heal'); hpTo(w, f.hp); await say(_t`${s.name} hồi phục dần.`, 0.4); }
       if (f.hp <= 0) { await down(w); return; }
     }
     B.turn++;
     if (B.turn > 30) { const k = me.hp / me.maxHp - foe.hp / foe.maxHp; await say(_t('Hết giờ! Phân định theo thể lực còn lại.')); finish(k > 0 ? 0 : k < 0 ? 1 : -1); }
   }
+  /**
+   * Diễn một chiêu theo công thức hiệu ứng (move-fx.ts) và nhịp của docs/VFX-STYLE-GUIDE.md:
+   * lời dẫn → lấy đà → hành động → TRÚNG (số sát thương hiện đúng khung khựng hình) → dư âm → nét riêng → trạng thái → lời bình.
+   * Trạng thái mới, lá chắn và hào quang được "tắt tiếng" (mute) tới đúng nhịp hiệu lực nên không hiện ra trước khi chiêu tới.
+   */
   async function act(w, m) {
-    const F = [B.me, B.foe], a = F[w], d = F[1 - w], sa = w ? B.theirs : B.mine, sd = w ? B.mine : B.theirs, tier = tierOf(m), el = m.element;
+    const F = [B.me, B.foe], a = F[w], d = F[1 - w], sa = w ? B.theirs : B.mine, sd = w ? B.mine : B.theirs, el = m.element, Rc = recipeOf(m);
     say(_t`${sa.name} dùng ${m.name}!`, 0);
     await R.fx.wait(0.28);
     const before = { ah: a.hp, dh: d.hp, guard: d.guard > 0 }, line = useMove(a, d, m, B.rnd, B.turn, w, B.field);
-    if (m.kind !== 'attack') {
-      if (line.dmg > 0) { // chiêu kép: đánh một đòn rồi mới hỗ trợ
-        await R.fx.deliverBasic(el, sa, sd); const hit = line.dmg;
-        R.fx.impact(sa, sd, el, { power: 1, crit: line.crit, mult: line.mult, onHit: () => { pop(sd, '−' + hit, line.crit ? 'crit' : line.mult > 1 ? 'super' : line.mult < 1 ? 'weak' : ''); hpTo(1 - w, d.hp); } });
-        await R.fx.wait(0.35); learn(el, d.element); if (line.mult !== 1) await say(MULT_MSG(line.mult), 0.4);
-        if (d.hp <= 0) return;
+    const popHit = (hit, crit) => pop(sd, '−' + hit, crit ? 'crit' : line.mult > 1 ? 'super' : line.mult < 1 ? 'weak' : '');
+    sa.mute = true; sd.muteSt = true;
+    try {
+      if (m.kind !== 'attack') {
+        if (line.dmg > 0 && Rc.strike) { // chiêu kép: đánh một đòn rồi mới hỗ trợ
+          await R.fx.cast(Rc.strike, sa, sd, { hits: 1, name: m.name, info: () => ({ crit: line.crit, mult: line.mult, onHit: () => { popHit(line.dmg, line.crit); hpTo(1 - w, d.hp); } }) });
+          learn(el, d.element);
+          if (d.hp <= 0) return;
+        }
+        await R.fx.support(Rc, sa, { combo: !!Rc.strike, lock: () => { sa.mute = false; if (m.kind === 'heal') { pop(sa, '+' + line.heal, 'heal'); hpTo(w, a.hp); } } });
+        sa.mute = false;
+        if (m.twist === 'cleanse') R.fx.twist.cleanse(sa);
+        if (line.dmg > 0 && line.mult !== 1) await say(MULT_MSG(line.mult), 0.4);
+        if (m.kind === 'heal') await say(_t`${sa.name} hồi ${line.heal} thể lực!`);
+        if (m.kind === 'guard') await say(a.wall ? _t`${sa.name} dựng lá chắn kiên cố!` : a.thorns ? _t`${sa.name} dựng lá chắn gai!` : _t`${sa.name} dựng lá chắn!`);
+        if (m.kind === 'boost') await say(a.haste ? _t`${sa.name} tăng sức tấn công và tốc độ!` : a.focus ? _t`${sa.name} tập trung cao độ: đòn kế tiếp chắc chắn chí mạng!` : _t`${sa.name} tăng sức tấn công!`);
+        if (m.twist === 'cleanse') await say(_t`${sa.name} giũ sạch trạng thái xấu.`, 0.4);
+        return;
       }
-      await R.fx.support(m, sa);
-      if (m.kind === 'heal') { pop(sa, '+' + line.heal, 'heal'); hpTo(w, a.hp); await say(_t`${sa.name} hồi ${line.heal} thể lực!`); }
-      if (m.kind === 'guard') await say(a.wall ? _t`${sa.name} dựng lá chắn kiên cố!` : a.thorns ? _t`${sa.name} dựng lá chắn gai!` : _t`${sa.name} dựng lá chắn!`);
-      if (m.kind === 'boost') await say(a.haste ? _t`${sa.name} tăng sức tấn công và tốc độ!` : a.focus ? _t`${sa.name} tập trung cao độ: đòn kế tiếp chắc chắn chí mạng!` : _t`${sa.name} tăng sức tấn công!`);
-      if (m.twist === 'cleanse') await say(_t`${sa.name} giũ sạch trạng thái xấu.`, 0.4);
-      return;
-    }
-    if (m.twist === 'first') R.fx.dash(sa);
-    if (m.twist === 'lowhp' && before.ah < a.maxHp / 2) { R.fx.self(sa, '#ff4a3a'); await R.fx.wait(0.2); }
-    const n = Math.max(1, line.hits), per = Array.from({ length: n }, (_, k) => Math.floor(line.dmg / n) + (k < line.dmg % n ? 1 : 0)); let dealt = 0;
-    const lift = y => { sd.off.y = y; };
-    for (let k = 0; k < n; k++) {
-      if (k === 0 && tier === 3) await R.fx.deliverUlt(el, sa, sd, lift); else if (k === 0 && tier === 2) await R.fx.deliverSig(el, sa, sd, lift); else await R.fx.deliverBasic(el, sa, sd);
-      if (k === 0 && m.twist === 'pierce' && before.guard) R.fx.shatter(sd);
-      const last = k === n - 1, hit = per[k];
-      R.fx.impact(sa, sd, el, { power: tier === 3 ? 2 : tier === 2 ? 1.4 : 1, crit: line.crit && last, mult: k === 0 ? line.mult : 1, pitch: 1 + k * 0.06, onHit: () => { dealt += hit; pop(sd, '−' + hit, line.crit && last ? 'crit' : line.mult > 1 ? 'super' : line.mult < 1 ? 'weak' : ''); hpTo(1 - w, before.dh - dealt); } });
-      await R.fx.wait(n > 1 ? 0.22 : 0.35);
-    }
-    sd.off.y = 0; hpTo(1 - w, d.hp);
-    if (tier === 3) { R.q('.bt-dark').style.opacity = '0'; B.stage.setGlow(0); }
-    if (!B.best || line.dmg > B.best.dmg) B.best = { dmg: line.dmg, move: m.name, mine: !w };
-    learn(el, d.element);
-    if (n > 1) await say(_t`Trúng ${n} đòn!`, 0.35);
-    if (line.crit) await say(_t('Chí mạng!'), 0.4);
-    if (line.mult !== 1) await say(MULT_MSG(line.mult), 0.5);
-    if (line.back) { R.fx.self(sa, '#ff6a6a'); pop(sa, '−' + line.back); hpTo(w, a.hp); await say(_t`Lá chắn gai phản lại ${line.back} sát thương!`, 0.45); }
-    if (line.heal) { await R.fx.drain(sa, sd); pop(sa, '+' + line.heal, 'heal'); hpTo(w, a.hp); await say(_t`${sa.name} hút lại ${line.heal} thể lực.`, 0.45); }
-    if (line.self) { R.fx.self(sa, '#ffb03a'); pop(sa, '−' + line.self); hpTo(w, a.hp); await say(_t`${sa.name} chịu phản lực ${line.self}.`, 0.4); }
-    if (m.twist === 'cleanse') { R.fx.self(sa, '#ffffff'); await say(_t`${sa.name} giũ sạch trạng thái xấu.`, 0.4); }
-    if (line.status) { R.fx.statusBurst(sd, line.status); await R.fx.wait(0.25); }
-    if (line.status) await say(_t`${sd.name} bị ${STATUS_INFO[line.status].name}: ${STATUS_INFO[line.status].desc}.`, 0.6);
+      sa.mute = false;
+      const n = Math.max(1, line.hits), per = Array.from({ length: n }, (_, k) => Math.floor(line.dmg / n) + (k < line.dmg % n ? 1 : 0)); let dealt = 0;
+      await R.fx.cast(Rc, sa, sd, { hits: n, name: m.name, first: m.twist === 'first', lowhp: m.twist === 'lowhp' && before.ah < a.maxHp / 2, pierce: m.twist === 'pierce', guarded: before.guard,
+        info: (k, last) => ({ crit: line.crit && last, mult: k === 0 ? line.mult : 1, onHit: () => { dealt += per[k]; popHit(per[k], line.crit && last); hpTo(1 - w, before.dh - dealt); } }) });
+      sd.off.y = 0; hpTo(1 - w, d.hp);
+      if (!B.best || line.dmg > B.best.dmg) B.best = { dmg: line.dmg, move: m.name, mine: !w };
+      learn(el, d.element);
+      if (n > 1) await say(_t`Trúng ${n} đòn!`, 0.35);
+      if (line.crit) await say(_t('Chí mạng!'), 0.4);
+      if (line.mult !== 1) await say(MULT_MSG(line.mult), 0.5);
+      if (line.back) { R.fx.twist.thorns(sa, sd); await R.fx.wait(0.2); pop(sa, '−' + line.back); hpTo(w, a.hp); await say(_t`Lá chắn gai phản lại ${line.back} sát thương!`, 0.45); }
+      if (m.twist === 'drain' && line.heal) { await R.fx.twist.drain(sa, sd); pop(sa, '+' + line.heal, 'heal'); hpTo(w, a.hp); await say(_t`${sa.name} hút lại ${line.heal} thể lực.`, 0.45); }
+      if (line.self) { R.fx.twist.recoil(sa); pop(sa, '−' + line.self); hpTo(w, a.hp); await say(_t`${sa.name} chịu phản lực ${line.self}.`, 0.4); }
+      if (m.twist === 'cleanse') { await R.fx.twist.cleanse(sa); if (line.heal) { pop(sa, '+' + line.heal, 'heal'); hpTo(w, a.hp); } await say(_t`${sa.name} giũ sạch trạng thái xấu.`, 0.4); }
+      if (line.status) { sd.muteSt = false; R.fx.statusBurst(sd, line.status); await R.fx.wait(0.3); await say(_t`${sd.name} bị ${STATUS_INFO[line.status].name}: ${STATUS_INFO[line.status].desc}.`, 0.6); }
+    } finally { sa.mute = false; sd.muteSt = false; }
   }
   async function down(w) {
     const s = w ? B.theirs : B.mine, f = w ? B.foe : B.me; R.fx.clearStatus(s); hpTo(w, 0);
@@ -415,7 +427,33 @@ export function initArena({ ctx, closeAll, getS }) {
     if (R.msg?.res) { const r = R.msg.res; R.msg = null; r(); }
   }
   if (/[?&]dev\b/.test(location.search)) window.__battle = { state: () => (B ? { t: +R.t.toFixed(2), hold: !!R.hold, awaiting: B.awaiting, over: B.over, turn: B.turn, hp: [B.me.hp, B.foe.hp], els: [B.me.element, B.foe.element], field: B.field, moves: B.me.moves.length, found: R.journal.size } : { none: true }), choose, open: openArena, close, start, lobbyReady: () => !!L && !R.q('.bt-lobby').hidden && !!R.q('[data-mode]'), upgrades: () => A?.upgrades, /** dừng hình sau `s` giây đồng hồ trận (để chụp hiệu ứng) */ holdIn: s => { R.hold = false; R.holdAt = R.t + s; }, held: () => !!R.hold, resume: () => { R.hold = false; R.holdAt = null; },
-    /** thử riêng hiệu ứng một hệ / một tầng chiêu (0 cơ bản, 2 tuyệt chiêu, 3 tối thượng) */ demo: (el, tier, who = 0) => { const a = who ? B.theirs : B.mine, d = who ? B.mine : B.theirs, lift = y => { d.off.y = y; };
-      (tier === 3 ? R.fx.deliverUlt(el, a, d, lift) : tier === 2 ? R.fx.deliverSig(el, a, d, lift) : R.fx.deliverBasic(el, a, d)).then(() => { R.fx.impact(a, d, el, { power: tier === 3 ? 2 : tier === 2 ? 1.4 : 1, mult: 1.2 }); if (tier === 3) { R.q('.bt-dark').style.opacity = '0'; B.stage.setGlow(0); } }); } };
+    /**
+     * Trình xem hiệu ứng (?dev): diễn chiêu thứ `idx` (0..3) của loài `speciesId` trong trận đang mở, đúng luồng của trận thật.
+     * o: { who: 0 | 1 bên ra đòn, crit: ép chí mạng, guard: đối thủ đang thủ (xem xuyên thủ), low: người đánh dưới nửa thể lực, look: đổi dáng người đánh thành loài đó }.
+     * Trả về { t: số giây đồng hồ trận của phần hiệu ứng, budget: trần theo sổ tay, total: cả lời dẫn }.
+     */
+    demoMove: async (speciesId, idx, o = {}) => {
+      const w = o.who ? 1 : 0, m = movesOf(speciesId)[idx], F = [B.me, B.foe], a = F[w], d = F[1 - w], sa = w ? B.theirs : B.mine; if (!m) return null;
+      if (o.look !== false && sa.sp !== speciesId) { sa.sp = speciesId; sa.body.clear(); buildMonster(sa, { species: speciesId, stage: 'adult', genes: {}, lod: !!w }); sa.wrap.updateMatrixWorld(true); }
+      B.awaiting = false; R.q('.bt-cmds').hidden = true;
+      for (const f of F) { f.hp = f.maxHp; f.status = {}; f.cd = {}; f.guard = 0; f.wall = f.thorns = false; f.boost = f.haste = f.regen = 0; f.focus = false; f.heals = 0; }
+      if (o.crit) a.focus = true; if (o.guard) d.guard = 2; if (o.low) a.hp = Math.round(a.maxHp * 0.3);
+      hpTo(0, B.me.hp); hpTo(1, B.foe.hp);
+      let t = 0; const wrap = k => { const f = R.fx[k]; R.fx[k] = async (...x) => { const t0 = R.t; try { return await f(...x); } finally { t += R.t - t0; R.fx[k] = f; } }; };
+      wrap(m.kind === 'attack' ? 'cast' : 'support'); if (m.kind !== 'attack' && recipeOf(m).strike) wrap('cast');
+      const t0 = R.t; await act(w, m); const Rc = recipeOf(m);
+      return { t: +t.toFixed(3), total: +(R.t - t0).toFixed(3), budget: Rc.beats.budget, plan: +moveDuration(Rc, 1).toFixed(3), form: Rc.form, motif: Rc.motif, name: m.name };
+    },
+    /** Thử hiệu ứng gây trạng thái / nhịp cuối lượt / ra sân / gục trên quái thú bên `who`. */
+    demoStatus: (st, who = 1) => R.fx.statusBurst(who ? B.theirs : B.mine, st),
+    demoTick: (kind, who = 1) => R.fx.tick(who ? B.theirs : B.mine, kind),
+    demoEnter: (who = 1) => R.fx.enter(who ? B.theirs : B.mine, (who ? B.foe : B.me).element),
+    demoFaint: async (who = 1) => { const s = who ? B.theirs : B.mine; await R.fx.faint(s, (who ? B.foe : B.me).element); s.k = 1; s.tilt = 0; s.off.set(0, 0, 0); },
+    /** đổi sân đang đấu (xem hiệu ứng trên đủ 5 sân) */ setArena: i => { R.scene.remove(B.stage.group); B.stage = useStage(i); B.field = i; },
+    /** thời lượng dự kiến (giây, ×1) của chiêu theo công thức */ plan: (speciesId, idx) => moveDuration(recipeOf(movesOf(speciesId)[idx]), 1),
+    fxStats: () => R.fx.stats(),
+    setSpeed: k => { R.fx.timeScale = k; },
+    setReduce: v => { R.fx.reduce = !!v; },
+  };
   return { openArena, close };
 }

@@ -1009,3 +1009,18 @@ body.pad :focus-visible,body.pad :focus{outline:3px solid var(--accent)!importan
   -webkit-mask-image: radial-gradient(circle at 50% 50%, transparent 0 32%, #000 70%); mask-image: radial-gradient(circle at 50% 50%, transparent 0 32%, #000 70%); mix-blend-mode: screen; }
 .bt.impact .bt-cv { filter: invert(1) grayscale(1) contrast(2.2); }
 @media (prefers-reduced-motion: reduce) { .bt-lines { display: none; } .bt.impact .bt-cv { filter: none; } }
+
+/* VFX-BLOCK */
+/* Đấu trường: cắt cảnh chiêu tối thượng (thanh điện ảnh + tên chiêu lướt ngang). Bảng thông tin nằm sau trong DOM nên luôn nổi trên thanh. */
+.bt-bars { position: absolute; inset: 0; pointer-events: none; }
+.bt-bars i { position: absolute; left: 0; right: 0; height: 9vh; background: #07040c; transition: transform .28s cubic-bezier(.2, .8, .2, 1); }
+.bt-bars i:first-child { top: 0; transform: translateY(-100%); }
+.bt-bars i:last-child { bottom: 0; transform: translateY(100%); }
+.bt.bars .bt-bars i { transform: none; }
+.bt-cutin { position: absolute; left: 0; right: 0; top: 24%; display: flex; justify-content: center; pointer-events: none; opacity: 0; }
+.bt-cutin b { font-weight: 900; font-size: clamp(24px, 4.4vw, 50px); letter-spacing: .04em; color: #fff; padding: .14em 1.4em; white-space: nowrap;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--cc, #fff) 70%, #12081c) 16%, color-mix(in srgb, var(--cc, #fff) 70%, #12081c) 84%, transparent);
+  -webkit-text-stroke: 1.5px #1a1024; text-shadow: 0 3px 0 #1a1024; transform: skewX(-12deg); }
+.bt.cutin .bt-cutin { animation: bt-cutin var(--cd, .9s) cubic-bezier(.2, .8, .2, 1) forwards; }
+@keyframes bt-cutin { 0% { opacity: 0; transform: translateX(-28%); } 16% { opacity: 1; transform: translateX(0); } 80% { opacity: 1; transform: translateX(3%); } 100% { opacity: 0; transform: translateX(14%); } }
+@media (prefers-reduced-motion: reduce) { .bt-bars i { transition: none; } .bt.cutin .bt-cutin { animation: none; opacity: 1; } }

@@ -18,7 +18,7 @@
 // nhịp, cao độ và độ sáng khác nhau. Nhạc tự sinh từ thang ngũ cung nên không lặp đúng một đoạn.
 // Muốn thay bằng file thật sau này: giữ nguyên sfx()/music(), chỉ đổi phần "giọng" bên dưới.
 
-/** @typedef {'burnTick'|'superEff'|'weak'|'turn'|'enter'|'hitLeaf'|'hitWater'|'hitWind'|'hitShadow'|'hitFire'|'charge'|'boom'|'shatter'|'stRoot'|'stSoak'|'stDaze'|'stBlind'|'stBurn'|'launch'|'pet'|'feed'|'talk'|'bath'|'play'|'sleep'|'wake'|'evolve'|'coin'|'buy'|'place'|'ui'|'boing'|'creak'|'whee'|'thud'|'quack'|'kick'|'splash'|'sit'|'cheer'|'flap'|'sip'|'purr'|'kettle'|'badge'|'catch'|'miss'|'rain'|'hit'|'hitBig'|'crit'|'whoosh'|'fire'|'water'|'leaf'|'wind'|'shadow'|'zap'|'shield'|'heal'|'power'|'faint'|'win'|'lose'} SfxName */
+/** @typedef {'burnTick'|'superEff'|'weak'|'turn'|'enter'|'hitLeaf'|'hitWater'|'hitWind'|'hitShadow'|'hitFire'|'charge'|'boom'|'shatter'|'stRoot'|'stSoak'|'stDaze'|'stBlind'|'stBurn'|'launch'|'antic'|'anticBig'|'cutin'|'release'|'tick'|'swish'|'chomp'|'beamUp'|'beam'|'rumble'|'thump'|'geyser'|'gust'|'fall'|'leap'|'roar'|'snap'|'summon'|'eclipse'|'burstOut'|'pluck'|'chime'|'buzz'|'drum'|'ice'|'bubble'|'firstDash'|'heartbeat'|'crack'|'pierce'|'drain'|'recoil'|'cleanse'|'shieldUp'|'veil'|'buffHit'|'healUp'|'regenTick'|'pet'|'feed'|'talk'|'bath'|'play'|'sleep'|'wake'|'evolve'|'coin'|'buy'|'place'|'ui'|'boing'|'creak'|'whee'|'thud'|'quack'|'kick'|'splash'|'sit'|'cheer'|'flap'|'sip'|'purr'|'kettle'|'badge'|'catch'|'miss'|'rain'|'hit'|'hitBig'|'crit'|'whoosh'|'fire'|'water'|'leaf'|'wind'|'shadow'|'zap'|'shield'|'heal'|'power'|'faint'|'win'|'lose'} SfxName */
 
 const KEY = 'hatchday-audio';
 const prefs = { sfx: true, music: true, vol: 70 };
@@ -175,16 +175,56 @@ const VOICES = {
   weak: t => { tone(160, t, 0.22, { type: 'triangle', vol: 0.12, to: 110, cutoff: 600 }); noise(t, 0.12, { freq: 300, q: 2, vol: 0.08 }); },
   turn: t => { tone(hz(81), t, 0.08, { type: 'triangle', vol: 0.05 }); tone(hz(88), t + 0.07, 0.16, { type: 'triangle', vol: 0.05 }); },
   enter: t => { tone(55, t, 0.7, { type: 'sawtooth', vol: 0.08, to: 110, cutoff: 900, env: 'swell' }); noise(t, 0.6, { freq: 200, to: 1600, q: 1, vol: 0.06, env: 'swell' }); tone(90, t + 0.6, 0.45, { vol: 0.4, to: 38 }); noise(t + 0.6, 0.4, { freq: 800, to: 150, q: 0.6, vol: 0.18 }); },
+  /* Đấu trường, theo nhịp hiệu ứng (docs/VFX-STYLE-GUIDE.md §6): lấy đà → phóng → đường bay → trúng.
+     Mỗi dạng chiêu có tiếng phóng riêng; hoạ tiết có tiếng riêng (pluck, chime, buzz…); tầng càng cao gọi với pitch càng trầm. */
+  antic: t => { noise(t, 0.16, { freq: 500, to: 2200, q: 1.4, vol: 0.06, env: 'swell' }); tone(220, t, 0.16, { type: 'triangle', vol: 0.04, to: 330, env: 'swell' }); },
+  anticBig: t => { noise(t, 0.3, { freq: 300, to: 3000, q: 1.2, vol: 0.08, env: 'swell' }); tone(110, t, 0.3, { type: 'sawtooth', vol: 0.05, to: 330, cutoff: 1400, env: 'swell' }); },
+  cutin: t => { noise(t, 0.22, { freq: 1200, to: 6000, q: 0.8, vol: 0.09 }); tone(hz(64), t + 0.02, 0.5, { type: 'sawtooth', vol: 0.05, cutoff: 2400 }); tone(hz(71), t + 0.02, 0.5, { type: 'sawtooth', vol: 0.04, cutoff: 2400 }); },
+  release: t => { tone(160, t, 0.35, { vol: 0.3, to: 50 }); noise(t, 0.3, { freq: 2600, to: 400, q: 0.7, vol: 0.14 }); },
+  tick: t => { const f = jitter(1400, 60); tone(f, t, 0.05, { type: 'triangle', vol: 0.05, to: f * 0.7 }); noise(t, 0.03, { freq: 3000, vol: 0.04 }); },
+  swish: t => { noise(t, 0.16, { freq: 1200, to: 5200, q: 1.6, vol: 0.1 }); },
+  chomp: t => { tone(240, t, 0.08, { type: 'square', vol: 0.06, to: 90, cutoff: 1200 }); noise(t + 0.02, 0.06, { freq: 900, vol: 0.12 }); },
+  beamUp: t => { tone(200, t, 0.3, { type: 'sawtooth', vol: 0.05, to: 900, cutoff: 2600, env: 'swell' }); noise(t, 0.3, { freq: 600, to: 4000, q: 2, vol: 0.05, env: 'swell' }); },
+  beam: t => { tone(320, t, 0.45, { type: 'sawtooth', vol: 0.06, to: 260, cutoff: 2000 }); tone(640, t, 0.45, { type: 'square', vol: 0.025, to: 520, cutoff: 3000 }); noise(t, 0.4, { freq: 3000, q: 0.7, vol: 0.05 }); },
+  rumble: t => { tone(48, t, 0.5, { type: 'sawtooth', vol: 0.12, to: 60, cutoff: 220, env: 'swell' }); noise(t, 0.5, { freq: 180, q: 0.8, vol: 0.12, env: 'swell' }); },
+  thump: t => { tone(95, t, 0.25, { vol: 0.35, to: 40 }); noise(t, 0.12, { freq: 700, to: 200, vol: 0.12 }); },
+  geyser: t => { VOICES.thump(t); noise(t, 0.6, { freq: 600, to: 2600, q: 0.6, vol: 0.14 }); },
+  gust: t => { noise(t, 0.6, { freq: 300, to: 1800, q: 3, vol: 0.1, env: 'swell' }); noise(t + 0.2, 0.5, { freq: 1800, to: 500, q: 2, vol: 0.07 }); },
+  fall: t => { tone(1400, t, 0.4, { type: 'triangle', vol: 0.05, to: 260 }); noise(t, 0.4, { freq: 3000, to: 700, q: 1, vol: 0.07 }); },
+  leap: t => { tone(180, t, 0.2, { type: 'triangle', vol: 0.1, to: 520 }); noise(t, 0.18, { freq: 800, to: 3000, q: 1, vol: 0.07 }); },
+  roar: t => { tone(90, t, 0.45, { type: 'sawtooth', vol: 0.12, to: 70, cutoff: 900 }); tone(135, t, 0.45, { type: 'sawtooth', vol: 0.07, to: 100, cutoff: 1200 }); noise(t, 0.4, { freq: 500, q: 1, vol: 0.1 }); },
+  snap: t => { noise(t, 0.05, { freq: 5000, type: 'highpass', vol: 0.2 }); tone(2200, t, 0.06, { type: 'square', vol: 0.05, to: 600, cutoff: 5000 }); tone(120, t + 0.01, 0.15, { vol: 0.25, to: 50 }); },
+  summon: t => { [67, 71, 74, 79].forEach((m, i) => bell(m, t + i * 0.07, 0.6, 0.07)); tone(55, t, 0.6, { type: 'sawtooth', vol: 0.06, to: 82, cutoff: 600, env: 'swell' }); },
+  eclipse: t => { tone(330, t, 0.9, { type: 'sawtooth', vol: 0.05, to: 82, cutoff: 900 }); tone(41, t, 0.9, { vol: 0.2, to: 33, env: 'swell' }); noise(t, 0.8, { freq: 260, to: 90, q: 3, vol: 0.1 }); },
+  burstOut: t => { tone(130, t, 0.3, { vol: 0.3, to: 45 }); noise(t, 0.35, { freq: 1600, to: 300, q: 0.6, vol: 0.16 }); },
+  pluck: t => { const f = jitter(hz(76 + pick(PENTA)), 20); tone(f, t, 0.14, { type: 'triangle', vol: 0.1, to: f * 0.98 }); noise(t, 0.03, { freq: 2600, vol: 0.05 }); },
+  chime: t => { const m = 84 + pick(PENTA); bell(m, t, 0.5, 0.07); bell(m + 7, t + 0.05, 0.4, 0.05); },
+  buzz: t => { tone(170, t, 0.5, { type: 'sawtooth', vol: 0.05, to: 190, cutoff: 1400 }); tone(176, t, 0.5, { type: 'sawtooth', vol: 0.04, to: 200, cutoff: 1400 }); },
+  drum: t => { tone(110, t, 0.3, { vol: 0.35, to: 60 }); tone(hz(57), t, 0.5, { type: 'triangle', vol: 0.06 }); noise(t, 0.05, { freq: 1600, vol: 0.08 }); },
+  ice: t => { for (let i = 0; i < 4; i++) { const f = jitter(2800 + i * 400); tone(f, t + i * 0.03, 0.12, { type: 'triangle', vol: 0.04, to: f * 1.1 }); } noise(t, 0.12, { freq: 6000, type: 'highpass', vol: 0.06 }); },
+  bubble: t => { for (let i = 0; i < 3; i++) { const f = jitter(400 + i * 180, 80); tone(f, t + i * 0.05, 0.08, { vol: 0.07, to: f * 2.4 }); } },
+  firstDash: t => { noise(t, 0.14, { freq: 2000, to: 7000, q: 1, vol: 0.12 }); tone(hz(88), t + 0.04, 0.12, { type: 'triangle', vol: 0.05 }); },
+  heartbeat: t => { tone(55, t, 0.14, { vol: 0.3, to: 40 }); tone(55, t + 0.2, 0.16, { vol: 0.25, to: 38 }); },
+  crack: t => { for (let i = 0; i < 5; i++) noise(t + i * 0.02, 0.04, { freq: 4500 - i * 500, type: 'highpass', vol: 0.12 }); tone(900, t, 0.1, { type: 'square', vol: 0.04, to: 200, cutoff: 3000 }); },
+  pierce: t => { tone(2400, t, 0.18, { type: 'sawtooth', vol: 0.04, to: 500, cutoff: 6000 }); noise(t, 0.12, { freq: 5000, type: 'highpass', vol: 0.1 }); },
+  drain: t => { tone(330, t, 0.5, { type: 'triangle', vol: 0.06, to: 880 }); [79, 83, 86].forEach((m, i) => bell(m, t + 0.25 + i * 0.06, 0.4, 0.05)); },
+  recoil: t => { tone(140, t, 0.2, { type: 'square', vol: 0.06, to: 60, cutoff: 900 }); noise(t, 0.15, { freq: 900, vol: 0.12 }); },
+  cleanse: t => { noise(t, 0.45, { freq: 2000, to: 8000, type: 'highpass', vol: 0.05 }); [84, 88, 91, 96].forEach((m, i) => bell(m, t + i * 0.05, 0.4, 0.05)); },
+  shieldUp: t => { tone(330, t, 0.38, { type: 'triangle', vol: 0.06, to: 660, env: 'swell' }); noise(t, 0.38, { freq: 800, to: 3000, q: 2, vol: 0.04, env: 'swell' }); },
+  veil: t => { noise(t, 0.45, { freq: 1500, to: 600, q: 3, vol: 0.06 }); tone(hz(76), t, 0.4, { type: 'triangle', vol: 0.04, to: hz(74) }); },
+  buffHit: t => { tone(hz(69), t, 0.25, { type: 'sawtooth', vol: 0.06, cutoff: 2600 }); tone(hz(76), t + 0.05, 0.3, { type: 'sawtooth', vol: 0.06, cutoff: 3000 }); tone(100, t, 0.18, { vol: 0.2, to: 50 }); },
+  healUp: t => { tone(hz(72), t, 0.4, { type: 'triangle', vol: 0.05, env: 'swell' }); tone(hz(79), t, 0.4, { type: 'triangle', vol: 0.04, env: 'swell' }); },
+  regenTick: t => { [84, 88].forEach((m, i) => bell(m, t + i * 0.05, 0.3, 0.05)); },
 };
 // Một số tiếng bị gọi liên tục (vuốt ve, kỳ cọ): giãn khoảng cách tối thiểu cho đỡ rối.
-const GAP = { pet: 0.11, bath: 0.12, talk: 0.08, ui: 0.04, creak: 0.4, boing: 0.25, splash: 0.2, quack: 0.3, flap: 0.3, catch: 0.06, rain: 0.8, purr: 0.5 };
+const GAP = { tick: 0.03, heartbeat: 0.5, pet: 0.11, bath: 0.12, talk: 0.08, ui: 0.04, creak: 0.4, boing: 0.25, splash: 0.2, quack: 0.3, flap: 0.3, catch: 0.06, rain: 0.8, purr: 0.5 };
 const lastAt = {};
 
 // Tiếng phụ bị bỏ trước khi quá nhiều giọng (máy cảm ứng yếu hơn nên trần thấp hơn).
-const LOW = new Set(['ui', 'whoosh', 'launch', 'hitLeaf', 'hitWater', 'hitWind', 'hitShadow', 'hitFire', 'turn', 'catch', 'flap', 'rain']);
+const LOW = new Set(['ui', 'whoosh', 'launch', 'tick', 'swish', 'pluck', 'chime', 'hitLeaf', 'hitWater', 'hitWind', 'hitShadow', 'hitFire', 'turn', 'catch', 'flap', 'rain']);
 const CAP = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches ? 32 : 48;
 // Mức hạ nhạc khi có tiếng lớn (1 = không hạ).
-const DUCK = { hitBig: 0.5, crit: 0.4, boom: 0.35, charge: 0.6, win: 0.3, lose: 0.3, evolve: 0.5, faint: 0.5, enter: 0.6 };
+const DUCK = { hitBig: 0.5, crit: 0.4, boom: 0.35, charge: 0.6, win: 0.3, lose: 0.3, evolve: 0.5, faint: 0.5, enter: 0.6, cutin: 0.7, release: 0.5, eclipse: 0.6 };
 
 /** Phát một hiệu ứng âm thanh ngắn. pitch nhân cao độ (đòn liên hoàn lên dần), gain nhân âm lượng.
  * @param {SfxName} name @param {{ pitch?: number, gain?: number }} [o] */
