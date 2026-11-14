@@ -260,9 +260,19 @@ export function makeFx(THREE, scene, H) {
     const dt = realDt * fx.timeScale; clock += dt;
     run.length = 0; for (const k of tasks) run.push(k); carry = 0; let over = 0;
     for (let i = 0; i < run.length; i++) { const k = run[i]; k.t += dt; const u = Math.min(1, k.t / k.dur); try { k.fn?.(u, dt); } catch (e) { console.error(e); } if (u >= 1) { over = Math.max(over, Math.min(dt, k.t - k.dur)); tasks.delete(k); try { k.end?.(); } catch (e) { console.error(e); } k.res(); } }
-    carry = over;
+    carry = over; if (over > 0) setTimeout(settle, 0, 0);
     stepParticles(dt); forms.stepSprites(dt);
     return dt;
+  }
+  /** Sau một khung hình: tác vụ nối tiếp vừa tạo mà phần thời gian dư (carry) đã đủ dài thì cho xong ngay, không đợi khung sau
+   * (tua nhanh ×10 trên máy yếu: cả chuỗi pha ngắn chạy hết trong một khung thay vì mỗi pha một khung). */
+  function settle(depth) {
+    if (fx.freeze > 0) return;
+    run.length = 0; for (const k of tasks) if (k.t >= k.dur) run.push(k);
+    if (!run.length) return;
+    let over = 0;
+    for (let i = 0; i < run.length; i++) { const k = run[i]; over = Math.max(over, k.t - k.dur); try { k.fn?.(1, 0); } catch (e) { console.error(e); } tasks.delete(k); try { k.end?.(); } catch (e) { console.error(e); } k.res(); }
+    carry = over; if (depth < 24) setTimeout(settle, 0, depth + 1);
   }
   function confetti(at) { const cols = ['#ff6a8a', '#ffd23e', '#5fd068', '#3fb2ff', '#9a5cff']; cols.forEach(c => emit({ at: at.clone().add(V(0, 3.5, 0)), box: 2.2, n: 18, dir: [0, 1, 0], spread: 0.6, speed: [1, 3], gravity: 3, drag: 1.2, life: [1.4, 2.0], color: c, size: [0.16, 0.14], shape: 2, spin: 12, blend: 'alpha' })); }
   /** Số đối tượng hiệu ứng đang sống (để kiểm tra rò rỉ). */

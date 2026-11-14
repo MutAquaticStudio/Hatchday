@@ -90,7 +90,7 @@ const T: Record<string, [string, string, string, string]> = {
   'tom-tit': ['melee fist k=punch c=#ff7a5a', 'rest shell c=#ff9a7a k=moult', 'roar ring k=snap n=3 c2=#ffffff', 'ram crest c=#ff5a4a c2=#ffd0c0 k=surf'],
   'rua-dam': ['melee fang k=bite', 'ward shell c=#5ab08a c2=#d0ffe8', 'ward scale c=#2a6a8a | erupt drop k=pillar', 'summon shell c=#3a8a7a c2=#c8fff0 then=wave'],
   'sua-bien': ['lash bolt n=1 c=#b8f0ff', 'veil crest c=#c8b8ff', 'lash moon n=4 c=#c8b8ff c2=#ffffff', 'summon moon c=#c8d8ff then=wave k=tidal'],
-  'rai-ca': ['shot ball arc=1.3 c=#9aa8b0 c2=#e8f0f4', 'bloom heart', 'vortex crest', 'wave fang k=pack s=1.2'],
+  'rai-ca': ['shot ball arc=1.3 c=#9aa8b0 c2=#e8f0f4', 'bloom heart', 'vortex drop n=10', 'wave fang k=pack s=1.2'],
   'ca-heo-hong': ['ram drop c=#ff9ac8 c2=#ffe6f2', 'chant ring c=#ff9ac8', 'roar ring c=#ff9ac8 c2=#ffe6f2 n=5', 'dive crest c=#ff9ac8 c2=#ffe6f2'],
   'ngoc-trai': ['beam pearl', 'ward shell c=#f0e8ff c2=#ffffff', 'bloom pearl | beam pearl', 'orbit pearl n=16'],
   'long-thuy': ['melee scale k=whip', 'aura cloud c=#8ab8e8', 'rain scale n=14 k=slant', 'lash scale k=dragon n=1 s=2.2'],
