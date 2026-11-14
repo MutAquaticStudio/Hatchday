@@ -127,7 +127,7 @@ describe('xu, nhiệm vụ, sổ sưu tập', () => {
     await db.exec(`update day_logs set fed = 0, bath = 0, ball = 0, pet = 0, talk = 0, sleep = 0, foods = '{}', fgroups = '{}'`);
     await expect(q('select claim_quest(0)')).rejects.toThrow(/quest_not_done/);
     // đủ mọi loại nhiệm vụ (kể cả "ăn 3 món khác nhau"), để bộ nhiệm vụ của ngày nào cũng xong
-    await db.exec(`update day_logs set fed = 9, bath = 9, ball = 9, pet = 99, talk = 9, sleep = 9, foods = '{${FOODS.slice(0, 4).map(f => f.id).join(',')}}'`);
+    await db.exec(`update day_logs set fed = 9, bath = 9, ball = 9, pet = 99, talk = 9, sleep = 9, foods = '{${FOODS.slice(0, 4).map(f => f.id).join(',')}}', fgroups = '{a,b,c,d}'`);
     const before = await coins(), first = QUEST_POOL[questsForDay(await today())[0]];
     expect((await one('select claim_quest(0)')).coins).toBe(before + first.reward);
     await expect(q('select claim_quest(0)')).rejects.toThrow(/already_claimed/);
