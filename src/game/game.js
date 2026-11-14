@@ -29,6 +29,7 @@ import { initCompanion } from './companion.js';
 import { initFarewell } from './farewell.js';
 import { groundTextures, initGarden3d } from './garden3d.js';
 import { makeDecor } from './decor3d.js';
+import { grade, gradeInk, gradeCtx } from './grade.js';
 import { FOOD_BY_ID } from './catalog';
 import { tastesLine } from './nutrition';
 import { sfx, music, initAudio } from './audio.js';
@@ -58,8 +59,8 @@ let quality = 'vua';
 try { const q = localStorage.getItem('hatchday-quality'); if (q && QUALITY[q]) quality = q; } catch (e) { /* bỏ qua */ }
 const scene = new THREE.Scene();
 /** Sương mù chân trời: ngoài trời làm đồi và cây xa nhạt dần về màu trời cho có chiều sâu; trong nhà đẩy ra rất xa (vẫn tồn tại để không phải biên dịch lại shader khi đổi khu). */
-scene.fog = new THREE.Fog('#cfe9ff', 1000, 2000);
-const fogT = { near: 1000, far: 2000, col: new THREE.Color('#cfe9ff') };
+scene.fog = new THREE.Fog('#1d2550', 1000, 2000);
+const fogT = { near: 1000, far: 2000, col: new THREE.Color('#1d2550') };
 const camera = new THREE.PerspectiveCamera(32, 1, 0.1, 100);
 const look = new THREE.Vector3(0, 1.15, 0);
 
@@ -67,7 +68,7 @@ const look = new THREE.Vector3(0, 1.15, 0);
 const grad = new THREE.DataTexture(new Uint8Array([120, 186, 255]), 3, 1, THREE.RedFormat);
 grad.minFilter = grad.magFilter = THREE.NearestFilter; grad.needsUpdate = true;
 /** Bóng toon có màu: phần tối ngả tím lạnh và giữ độ bão hoà thay vì xám đục (kiểu tranh anime). Một bản vá dùng chung cho mọi vật liệu toon. */
-const shadowTint = { value: new THREE.Color('#b8a8ff') }, shadowTintK = { value: 0.42 };
+const shadowTint = { value: new THREE.Color('#6f86ee') }, shadowTintK = { value: 0.5 };
 const TINT_GLSL = `
   { vec3 base = max(diffuseColor.rgb, vec3(0.001));
     float shade = clamp(dot(outgoingLight, vec3(0.299, 0.587, 0.114)) / max(dot(base, vec3(0.299, 0.587, 0.114)), 0.001), 0.0, 1.5);
@@ -80,11 +81,13 @@ function tintShader(sh) {
   sh.uniforms.shadowTint = shadowTint; sh.uniforms.shadowTintK = shadowTintK;
   sh.fragmentShader = 'uniform vec3 shadowTint;\nuniform float shadowTintK;\n' + sh.fragmentShader.replace('#include <opaque_fragment>', TINT_GLSL + '#include <opaque_fragment>');
 }
-const toon = (color, map) => { const m = new THREE.MeshToonMaterial({ color, gradientMap: grad, map: map || null }); m.onBeforeCompile = tintShader; m.customProgramCacheKey = () => 'toon-tint'; return m; };
+const toonRaw = (color, map) => { const m = new THREE.MeshToonMaterial({ color, gradientMap: grad, map: map || null }); m.onBeforeCompile = tintShader; m.customProgramCacheKey = () => 'toon-tint'; return m; };
+/** Vật liệu thế giới (nhà, địa điểm): qua grade() để ra tông tối lạnh. Thú dùng toonRaw/petToon nên giữ màu gốc. */
+const toon = (color, map) => toonRaw(grade(color), map);
 /* Viền sáng anime (rim light) cho thú: chèn vào shader toon, sau opaque_fragment */
-const rimColor = { value: new THREE.Color('#fff4e8') }, rimStrength = { value: 0.5 }, evoGlow = { value: 0 };
+const rimColor = { value: new THREE.Color('#a9d8ff') }, rimStrength = { value: 0.5 }, evoGlow = { value: 0 };
 function petToon(color) {
-  const m = toon(color);
+  const m = toonRaw(color);
   m.onBeforeCompile = sh => {
     tintShader(sh);
     sh.uniforms.rimColor = rimColor; sh.uniforms.rimStrength = rimStrength; sh.uniforms.evoGlow = evoGlow;
@@ -105,18 +108,21 @@ function outline(mesh, color, t = 0.03) {
   mesh.add(o);
   return mesh;
 }
-function add(parent, geo, mat, x = 0, y = 0, z = 0, oc = '#7a4a63', ot = 0.03) {
+function addRaw(parent, geo, mat, x = 0, y = 0, z = 0, oc = '#7a4a63', ot = 0.03) {
   const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); parent.add(m);
   if (oc) outline(m, oc, ot);
   return m;
 }
-function canvasTex(w, h, draw, repeat) {
-  const c = document.createElement('canvas'); c.width = w; c.height = h; const g = c.getContext('2d'); draw(g, w, h);
+/** Như addRaw nhưng nét viền là mực xanh đêm (gradeInk). */
+const add = (parent, geo, mat, x, y, z, oc = '#7a4a63', ot) => addRaw(parent, geo, mat, x, y, z, oc && gradeInk(oc), ot);
+function canvasTex(w, h, draw, repeat, raw) {
+  const c = document.createElement('canvas'); c.width = w; c.height = h; const g = c.getContext('2d'); draw(raw ? g : gradeCtx(g), w, h);
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
   if (repeat) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(repeat[0], repeat[1]); }
   return t;
 }
 
+const canvasTexRaw = (w, h, d, r) => canvasTex(w, h, d, r, true);
 /* ---------------- phòng ---------------- */
 const room = new THREE.Group(); scene.add(room);
 const woodTex = canvasTex(256, 256, (g, w, h) => {
@@ -148,10 +154,10 @@ const frameM = toon('#fff7ef');
 add(room, new THREE.BoxGeometry(2.9, 0.12, 0.42), toon('#ffd9a8'), 1.7, 1.86, -3.3, '#a8778e');
 
 /* dây đèn */
-const bulbs = [];
+const bulbs = [], BULB_COL = ['#ffcc4d', '#38e0c8', '#ffa23d', '#9b6bff'];
 for (let i = 0; i < 9; i++) {
   const x = -3.6 + i * 0.62, y = 4.25 - Math.sin(i / 8 * Math.PI) * 0.35;
-  const b = new THREE.Mesh(new THREE.SphereGeometry(0.07, 10, 8), new THREE.MeshBasicMaterial({ color: ['#ffd36e', '#ff9ec4', '#9fe0ff'][i % 3] }));
+  const b = new THREE.Mesh(new THREE.SphereGeometry(0.07, 10, 8), new THREE.MeshBasicMaterial({ color: BULB_COL[i % 4] }));
   b.position.set(x, y, -3.42); room.add(b); bulbs.push(b);
 }
 
@@ -376,7 +382,7 @@ const placeOpen = {
 function loadPlace(name) {
   if (placeInst[name]) return Promise.resolve(placeInst[name]);
   return placeLoading[name] || (placeLoading[name] = PLACE_LOADERS[name]().then(init => {
-    const inst = init({ THREE, add, toon, canvasTex, shell, windowOn, scene, camera, canvas, ray, ndcFrom, walkPetTo, say, startAction, toast, sfx, spawn, hideHint, playToy: toyPlay, script: runScript, spawnAt, reduce, sfxPlay: sfx, activity: kind => { recordActivity(kind); }, applyShadows, quality: () => quality, isNight: () => period === 'dem', getArea: () => area, state: S, open: placeOpen, goTo, setTemp, play: spinPlay, grad, events, petBuilder, bondLevel: () => bondLevel(S.bondXp), getPetXZ: () => [petBase.x + petOff.x, petBase.z + petOff.z] });
+    const inst = init({ THREE, add, toon, canvasTex, toonRaw, addRaw, canvasTexRaw, shell, windowOn, scene, camera, canvas, ray, ndcFrom, walkPetTo, say, startAction, toast, sfx, spawn, hideHint, playToy: toyPlay, script: runScript, spawnAt, reduce, sfxPlay: sfx, activity: kind => { recordActivity(kind); }, applyShadows, quality: () => quality, isNight: () => period === 'dem', getArea: () => area, state: S, open: placeOpen, goTo, setTemp, play: spinPlay, grad, events, petBuilder, bondLevel: () => bondLevel(S.bondXp), getPetXZ: () => [petBase.x + petOff.x, petBase.z + petOff.z] });
     inst.group.visible = false; areas[name] = inst.group; applyShadows(inst.group); placeInst[name] = inst; return inst;
   }));
 }
@@ -403,12 +409,13 @@ function updateLights(dt) {
 function applyAreaLights() {
   const night = period === 'dem';
   beams.visible = !night;
-  rimColor.value.set(area === 'bedroom' || night ? '#b9c4ff' : period === 'chieu' ? '#ffd9b8' : '#fff4e8'); rimStrength.value = area === 'bedroom' ? 0.35 : night ? 0.4 : 0.5;
-  if (area === 'bedroom') { lightT.hemi = 0.75; lightT.sun = 0.35; lightT.sunCol.set('#b7b8ff'); lightT.lampPos.set(2.4, 2.2, -0.6); lightT.lamp = 20; if (!lookBooted) snapLights(); return; }
+  rimColor.value.set(area === 'bedroom' || night ? '#8fa8ff' : period === 'chieu' ? '#ffb877' : '#a9d8ff'); rimStrength.value = area === 'bedroom' ? 0.35 : night ? 0.45 : 0.5;
+  if (area === 'bedroom') { lightT.hemi = 0.8; lightT.sun = 0.4; lightT.sunCol.set('#7d92ff'); hemi.color.set('#7482b8'); hemi.groundColor.set('#141830'); lightT.lampPos.set(2.4, 2.2, -0.6); lightT.lamp = 24; if (!lookBooted) snapLights(); return; }
   const outdoor = area === 'garden' || !!(PLACE_BY_ID[area] && PLACE_BY_ID[area].outdoor), moon = night && outdoor;
-  lightT.hemi = moon ? 1.3 : night ? 0.95 : 1.6; lightT.sun = moon ? 1.0 : night ? 0.7 : 2.0; lightT.sunCol.set(night ? '#c3c4ff' : (period === 'chieu' ? '#ffd2b0' : '#fff1dc'));
-  if (outdoor) { const [kh, ks] = SKY_LIGHT[wx.sky]; lightT.hemi *= kh; lightT.sun *= ks; if (wx.sky !== 'clear') lightT.sunCol.lerp(new THREE.Color('#c9d3e6'), wx.sky === 'rain' ? 0.55 : 0.3); }
-  lightT.lampPos.set(-1.5, 3, 2); lightT.lamp = night && !outdoor ? 18 : 0;
+  lightT.hemi = moon ? 1.0 : night ? 0.75 : 0.95; lightT.sun = moon ? 0.9 : night ? 0.6 : 1.4; lightT.sunCol.set(night ? '#93a6f0' : (period === 'chieu' ? '#ffa56a' : '#ffe0b0'));
+  hemi.color.set(night ? '#7482b8' : period === 'chieu' ? '#9a9cc8' : '#9fb8e0'); hemi.groundColor.set(night ? '#141830' : '#2a3050');
+  if (outdoor) { const [kh, ks] = SKY_LIGHT[wx.sky]; lightT.hemi *= kh; lightT.sun *= ks; if (wx.sky !== 'clear') lightT.sunCol.lerp(new THREE.Color('#8ea2c4'), wx.sky === 'rain' ? 0.55 : 0.3); }
+  lightT.lampPos.set(-1.5, 3, 2); lightT.lamp = outdoor ? 0 : night ? 22 : 9;
   const wide = !!(PLACE_BY_ID[area] && PLACE_BY_ID[area].follow); fogT.near = wide ? 24 : outdoor ? 34 : 1000; fogT.far = wide ? 62 : outdoor ? 90 : 2000;
   if (!lookBooted) snapLights();
 }
@@ -590,7 +597,7 @@ function updateArea(dt, t) {
 /* Thú dựng theo loài + giai đoạn + dáng (pet3d.js). `grow` co giãn theo tuổi, `pivot` để nhún nhảy, `petLook` chứa thân thú (dựng lại khi lớn). */
 /* khuôn mặt: xem face.js */
 const { face, EXPR, drawFace } = makeFace({ THREE, renderer });
-const petBuilder = makePetBuilder({ THREE, add, toon, petToon, grad });
+const petBuilder = makePetBuilder({ THREE, add: addRaw, toon: toonRaw, petToon, grad });
 const petRoot = new THREE.Group(); petRoot.position.set(0, 0, 0.35); scene.add(petRoot);
 const grow = new THREE.Group(); petRoot.add(grow);
 const pivot = new THREE.Group(); grow.add(pivot);
@@ -618,19 +625,19 @@ shadow.rotation.x = -Math.PI / 2; shadow.position.set(0, 0.075, 0.4); scene.add(
 
 /* ---------------- ký hiệu cảm xúc (sprite) ---------------- */
 const FXT = {
-  heart: canvasTex(128, 128, g => { g.translate(64, 70); g.beginPath(); g.moveTo(0, 34); g.bezierCurveTo(-60, -6, -36, -58, 0, -26); g.bezierCurveTo(36, -58, 60, -6, 0, 34); g.fillStyle = '#ff5c9a'; g.strokeStyle = '#fff'; g.lineWidth = 8; g.stroke(); g.fill(); g.fillStyle = 'rgba(255,255,255,.7)'; g.beginPath(); g.ellipse(-18, -18, 8, 5, -0.6, 0, Math.PI * 2); g.fill(); }),
-  sparkle: canvasTex(128, 128, g => { g.translate(64, 64); g.beginPath(); for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4, r = i % 2 ? 14 : 54; g.lineTo(Math.cos(a) * r, Math.sin(a) * r); } g.closePath(); g.fillStyle = '#ffe066'; g.strokeStyle = '#fff'; g.lineWidth = 6; g.stroke(); g.fill(); }),
-  sweat: canvasTex(128, 128, g => { g.translate(64, 64); g.beginPath(); g.moveTo(0, -50); g.quadraticCurveTo(40, 10, 0, 46); g.quadraticCurveTo(-40, 10, 0, -50); g.fillStyle = '#7cc7ff'; g.strokeStyle = '#fff'; g.lineWidth = 7; g.stroke(); g.fill(); g.fillStyle = 'rgba(255,255,255,.8)'; g.beginPath(); g.ellipse(-10, 12, 6, 12, 0.3, 0, Math.PI * 2); g.fill(); }),
-  anger: canvasTex(128, 128, g => { g.translate(64, 64); g.strokeStyle = '#ff4d6d'; g.lineWidth = 13; g.lineCap = 'round'; for (let i = 0; i < 4; i++) { g.save(); g.rotate(i * Math.PI / 2); g.beginPath(); g.moveTo(10, -42); g.quadraticCurveTo(12, -12, 42, -10); g.stroke(); g.restore(); } }),
-  zzz: canvasTex(128, 128, g => { g.font = '800 96px "Baloo 2", system-ui'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineWidth = 10; g.strokeStyle = '#fff'; g.strokeText('Z', 64, 70); g.fillStyle = '#8f7cff'; g.fillText('Z', 64, 70); }),
-  note: canvasTex(128, 128, g => { g.fillStyle = '#5ac8fa'; g.strokeStyle = '#fff'; g.lineWidth = 6; g.beginPath(); g.ellipse(46, 92, 22, 16, -0.4, 0, Math.PI * 2); g.stroke(); g.fill(); g.fillRect(62, 22, 9, 70); g.beginPath(); g.moveTo(66, 22); g.quadraticCurveTo(96, 30, 98, 58); g.lineTo(90, 58); g.quadraticCurveTo(86, 40, 66, 40); g.fill(); }),
-  bubble: canvasTex(128, 128, g => { g.beginPath(); g.arc(64, 64, 50, 0, Math.PI * 2); g.fillStyle = 'rgba(220,245,255,.45)'; g.fill(); g.lineWidth = 6; g.strokeStyle = '#9fdcff'; g.stroke(); g.strokeStyle = '#fff'; g.lineWidth = 7; g.beginPath(); g.arc(64, 64, 34, Math.PI * 1.1, Math.PI * 1.5); g.stroke(); }),
+  heart: canvasTexRaw(128, 128, g => { g.translate(64, 70); g.beginPath(); g.moveTo(0, 34); g.bezierCurveTo(-60, -6, -36, -58, 0, -26); g.bezierCurveTo(36, -58, 60, -6, 0, 34); g.fillStyle = '#ff5c9a'; g.strokeStyle = '#fff'; g.lineWidth = 8; g.stroke(); g.fill(); g.fillStyle = 'rgba(255,255,255,.7)'; g.beginPath(); g.ellipse(-18, -18, 8, 5, -0.6, 0, Math.PI * 2); g.fill(); }),
+  sparkle: canvasTexRaw(128, 128, g => { g.translate(64, 64); g.beginPath(); for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4, r = i % 2 ? 14 : 54; g.lineTo(Math.cos(a) * r, Math.sin(a) * r); } g.closePath(); g.fillStyle = '#ffe066'; g.strokeStyle = '#fff'; g.lineWidth = 6; g.stroke(); g.fill(); }),
+  sweat: canvasTexRaw(128, 128, g => { g.translate(64, 64); g.beginPath(); g.moveTo(0, -50); g.quadraticCurveTo(40, 10, 0, 46); g.quadraticCurveTo(-40, 10, 0, -50); g.fillStyle = '#7cc7ff'; g.strokeStyle = '#fff'; g.lineWidth = 7; g.stroke(); g.fill(); g.fillStyle = 'rgba(255,255,255,.8)'; g.beginPath(); g.ellipse(-10, 12, 6, 12, 0.3, 0, Math.PI * 2); g.fill(); }),
+  anger: canvasTexRaw(128, 128, g => { g.translate(64, 64); g.strokeStyle = '#ff4d6d'; g.lineWidth = 13; g.lineCap = 'round'; for (let i = 0; i < 4; i++) { g.save(); g.rotate(i * Math.PI / 2); g.beginPath(); g.moveTo(10, -42); g.quadraticCurveTo(12, -12, 42, -10); g.stroke(); g.restore(); } }),
+  zzz: canvasTexRaw(128, 128, g => { g.font = '800 96px "Baloo 2", system-ui'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineWidth = 10; g.strokeStyle = '#141a33'; g.strokeText('Z', 64, 70); g.fillStyle = '#b79bff'; g.fillText('Z', 64, 70); }),
+  note: canvasTexRaw(128, 128, g => { g.fillStyle = '#5ac8fa'; g.strokeStyle = '#fff'; g.lineWidth = 6; g.beginPath(); g.ellipse(46, 92, 22, 16, -0.4, 0, Math.PI * 2); g.stroke(); g.fill(); g.fillRect(62, 22, 9, 70); g.beginPath(); g.moveTo(66, 22); g.quadraticCurveTo(96, 30, 98, 58); g.lineTo(90, 58); g.quadraticCurveTo(86, 40, 66, 40); g.fill(); }),
+  bubble: canvasTexRaw(128, 128, g => { g.beginPath(); g.arc(64, 64, 50, 0, Math.PI * 2); g.fillStyle = 'rgba(220,245,255,.45)'; g.fill(); g.lineWidth = 6; g.strokeStyle = '#9fdcff'; g.stroke(); g.strokeStyle = '#fff'; g.lineWidth = 7; g.beginPath(); g.arc(64, 64, 34, Math.PI * 1.1, Math.PI * 1.5); g.stroke(); }),
 };
-FXT.crumb = canvasTex(64, 64, g => { g.fillStyle = '#e8b47a'; g.strokeStyle = '#fff'; g.lineWidth = 5; g.beginPath(); g.arc(32, 32, 20, 0, 7); g.stroke(); g.fill(); });
-FXT.puff = canvasTex(128, 128, g => { g.fillStyle = 'rgba(255,255,255,.92)'; [[44, 72, 30], [80, 66, 34], [62, 44, 28]].forEach(([x, y, r]) => { g.beginPath(); g.arc(x, y, r, 0, 7); g.fill(); }); });
+FXT.crumb = canvasTexRaw(64, 64, g => { g.fillStyle = '#e8b47a'; g.strokeStyle = '#fff'; g.lineWidth = 5; g.beginPath(); g.arc(32, 32, 20, 0, 7); g.stroke(); g.fill(); });
+FXT.puff = canvasTexRaw(128, 128, g => { g.fillStyle = 'rgba(255,255,255,.92)'; [[44, 72, 30], [80, 66, 34], [62, 44, 28]].forEach(([x, y, r]) => { g.beginPath(); g.arc(x, y, r, 0, 7); g.fill(); }); });
 FXT.drop = FXT.sweat;
 const particles = [];
-const wxFx = makeWeatherFx({ THREE, scene, canvasTex, reduce });
+const wxFx = makeWeatherFx({ THREE, scene, canvasTex: canvasTexRaw, reduce });
 let rainSfxAt = 0, shelterAt = 0;
 /* Pool sprite: tái sử dụng thay vì tạo/huỷ mỗi hạt (skill performance-optimization) */
 const spritePool = [];
@@ -651,14 +658,14 @@ function spawn(type, n = 1, spread = 0.9) {
 }
 
 /* ---------------- ánh sáng & giờ thật ---------------- */
-const hemi = new THREE.HemisphereLight('#fff6fb', '#b9a3e3', 1.6); scene.add(hemi);
-const sun = new THREE.DirectionalLight('#fff1dc', 2.0); sun.position.set(3, 8, 6); scene.add(sun);
-const lamp = new THREE.PointLight('#ffb36b', 0, 9, 2); lamp.position.set(-1.5, 3, 2); scene.add(lamp);
+const hemi = new THREE.HemisphereLight('#9fb8e0', '#2a3050', 1.35); scene.add(hemi);
+const sun = new THREE.DirectionalLight('#ffe0b0', 1.9); sun.position.set(3, 8, 6); scene.add(sun);
+const lamp = new THREE.PointLight('#ffaa55', 0, 9, 2); lamp.position.set(-1.5, 3, 2); scene.add(lamp);
 const SKY = {
-  sang:  ['#9fe0ff', '#ffe9f4', 'sun'],
-  trua:  ['#63c4ff', '#cdf1ff', 'sun'],
-  chieu: ['#ff9fb6', '#ffd99a', 'sun'],
-  dem:   ['#1b1d4d', '#5a3d8a', 'moon'],
+  sang:  ['#1f3d57', '#c9a574', 'sun'],
+  trua:  ['#24476a', '#7d9fb8', 'sun'],
+  chieu: ['#232c52', '#d98a4a', 'sun'],
+  dem:   ['#05081a', '#1b2358', 'moon'],
 };
 let period = '';
 function periodNow() { const h = new Date().getHours(); return h >= 5 && h < 10 ? 'sang' : h >= 10 && h < 16 ? 'trua' : h >= 16 && h < 19 ? 'chieu' : 'dem'; }
@@ -670,17 +677,17 @@ const isOutdoor = () => area === 'garden' || !!(PLACE_BY_ID[area] && PLACE_BY_ID
 function applyPeriod() {
   const p = periodNow(), w = weatherNow(); if (p === period && w.sky === wx.sky) return;
   const changed = p !== period; wx = w; period = p; if (changed) updateMusic();
-  const [a, b, body] = SKY[p]; fogT.col.set(b); if (wx.sky !== 'clear') fogT.col.lerp(new THREE.Color('#8e9bb3'), wx.sky === 'rain' ? 0.5 : 0.28);
+  const [a, b, body] = SKY[p]; fogT.col.set(b); if (wx.sky !== 'clear') fogT.col.lerp(new THREE.Color('#46536b'), wx.sky === 'rain' ? 0.5 : 0.28);
   const gray = wx.sky === 'rain' ? 0.5 : wx.sky === 'cloudy' ? 0.28 : 0;
-  $('sky').style.background = (gray ? `linear-gradient(rgba(96,108,128,${gray}), rgba(96,108,128,${gray})), ` : '') + `linear-gradient(${a}, ${b})`;
+  $('sky').style.background = (gray ? `linear-gradient(rgba(30,40,58,${gray}), rgba(30,40,58,${gray})), ` : '') + `linear-gradient(${a}, ${b})`;
   const g = winCanvas.getContext('2d'), gr = g.createLinearGradient(0, 0, 0, 192);
   gr.addColorStop(0, a); gr.addColorStop(1, b); g.fillStyle = gr; g.fillRect(0, 0, 256, 192);
-  if (body === 'sun') { g.fillStyle = '#fff6c2'; g.beginPath(); g.arc(196, 52, 24, 0, Math.PI * 2); g.fill();
-    g.fillStyle = 'rgba(255,255,255,.95)'; [[60, 70], [110, 120]].forEach(([x, y]) => { g.beginPath(); g.arc(x, y, 18, 0, Math.PI * 2); g.arc(x + 22, y - 8, 22, 0, Math.PI * 2); g.arc(x + 46, y, 17, 0, Math.PI * 2); g.fill(); }); }
-  else { g.fillStyle = '#fff3c4'; g.beginPath(); g.arc(190, 54, 22, 0, Math.PI * 2); g.fill(); g.fillStyle = b; g.beginPath(); g.arc(200, 46, 20, 0, Math.PI * 2); g.fill();
+  if (body === 'sun') { g.fillStyle = 'rgba(255,214,140,.25)'; g.beginPath(); g.arc(196, 52, 40, 0, Math.PI * 2); g.fill(); g.fillStyle = '#ffd98a'; g.beginPath(); g.arc(196, 52, 22, 0, Math.PI * 2); g.fill();
+    g.fillStyle = 'rgba(150,172,200,.42)'; [[60, 70], [110, 120]].forEach(([x, y]) => { g.beginPath(); g.arc(x, y, 18, 0, Math.PI * 2); g.arc(x + 22, y - 8, 22, 0, Math.PI * 2); g.arc(x + 46, y, 17, 0, Math.PI * 2); g.fill(); }); }
+  else { g.fillStyle = 'rgba(155,190,255,.2)'; g.beginPath(); g.arc(190, 54, 38, 0, Math.PI * 2); g.fill(); g.fillStyle = '#e4ecff'; g.beginPath(); g.arc(190, 54, 22, 0, Math.PI * 2); g.fill(); g.fillStyle = b; g.beginPath(); g.arc(200, 46, 20, 0, Math.PI * 2); g.fill();
     g.fillStyle = '#fff'; [[30, 30], [70, 80], [120, 40], [150, 120], [40, 140], [220, 140], [100, 160]].forEach(([x, y]) => g.fillRect(x, y, 3, 3)); }
-  if (gray) { g.fillStyle = `rgba(96,108,128,${gray})`; g.fillRect(0, 0, 256, 192); }
-  if (wx.sky === 'rain') { g.strokeStyle = 'rgba(220,236,255,.55)'; g.lineWidth = 1.5; for (let i = 0; i < 46; i++) { const x = (i * 53) % 256, y = (i * 97) % 192; g.beginPath(); g.moveTo(x, y); g.lineTo(x - 4, y + 12); g.stroke(); } }
+  if (gray) { g.fillStyle = `rgba(30,40,58,${gray})`; g.fillRect(0, 0, 256, 192); }
+  if (wx.sky === 'rain') { g.strokeStyle = 'rgba(160,200,255,.45)'; g.lineWidth = 1.5; for (let i = 0; i < 46; i++) { const x = (i * 53) % 256, y = (i * 97) % 192; g.beginPath(); g.moveTo(x, y); g.lineTo(x - 4, y + 12); g.stroke(); } }
   winTex.needsUpdate = true;
   applyAreaLights();
 }
@@ -842,7 +849,7 @@ initDiary();
 const food = initFood({ sweetsBlocked: () => blockedNow(S).includes('sweets'), sweetsLimit: HEALTH.sweetsLimit, toast: m => toast(m), petRoot, camera, canvas, reduce, hitPet, hideHint, say, setTemp, popText, impulse, spawn, renderStats, shake: () => { shake = 1; }, openShop: () => home && home.openShop('food') });
 initChat({ reduce, hideHint, say, setTemp, spawn });
 /* Vườn rau 3D: luống đất, cây lớn dần, hoạt ảnh gieo, tưới, hái (garden3d.js) */
-const farmDecor = makeDecor({ THREE, toon, add, canvasTex, grad }); // mô hình đồ trang trí nông trại (dùng chung kiểu dựng với đồ trong phòng)
+const farmDecor = makeDecor({ THREE, toon, add, canvasTex, toonRaw, addRaw, canvasTexRaw, grad }); // mô hình đồ trang trí nông trại (dùng chung kiểu dựng với đồ trong phòng)
 const gardenFx = initGarden3d({
   THREE, garden, toon, add, canvasTex, ground: groundTex, grad, camera, canvas, ray, ndcFrom, spawnAt, popText, say, startAction, toast, sfx, buzz, reduce, getArea: () => area,
   petPos: () => petRoot.getWorldPosition(new THREE.Vector3()), walkPet: walkPetTo,
@@ -1160,7 +1167,7 @@ $('btn-photo')?.addEventListener('click', () => photo.enter());
 const mini = initMinigames({ ctx: { catchGame: o => (placeInst[area] && placeInst[area].catchGame ? placeInst[area].catchGame(o) : null), catchState: () => (placeInst[area] && placeInst[area].catchState ? placeInst[area].catchState() : null), toast, popText, spawn, buzz, closeAllSheets: () => home.closeAll?.() }, app: $('app'), $, reduce, sfx });
 initNotify({ S, $ });
 home = initHome({
-  events, THREE, scene, camera, canvas, renderer, room, toon, add, canvasTex, grad, $, reduce,
+  events, THREE, scene, camera, canvas, renderer, room, toon, add, canvasTex, toonRaw, addRaw, canvasTexRaw, grad, $, reduce,
   homeFloor, homeWalls: [homeWall, homeWall2], pivot, petBase, petBuilder, getPetParts: () => petParts,
   store: { S, refreshWorld, claimExplore, claimBadge, refreshEconomy, refreshOwned, sellFood, refreshSell, healthNow, buyMedicine, useMedicine, visitClinic, refreshHealth, buy, saveLayout, equip, savePreset, claimQuest, claimQuestBonus, claimWeeklyQuest, claimCollection, buyFood, claimRation, nutritionNow, refreshFamily, familyMemories, refreshGarden, plantCrop, harvestCrop, cook, upgradeFridge, serverNow, refreshQuests, activeLayout, previewComfort, onSync, today: () => localDay() },
   say, setTemp, spawn, popText, impulse, startAction, addTrauma, buzz, toast, hideHint, applyShadows, ndcFrom, playToy: toyPlay, closeAllSheets: () => home.closeAll?.(),
@@ -1243,7 +1250,7 @@ function tick(now, dt) {
   arms.forEach((a, i) => { const sg = i ? 1 : -1; a.position.y = 0.78 + (key === 'excited' || key === 'love' ? Math.abs(Math.sin(t * 8 + i)) * 0.18 : 0) + ex.arm * 0.5 + (i === 1 ? ex.wave : 0) + (walking ? Math.sin(walkPh + i * Math.PI) * 0.06 : 0); a.position.x = sg * (0.98 + ex.arm * 0.08 + (i === 1 ? ex.wave * 0.2 : 0)); });
   sprout.rotation.z = reduce ? 0 : Math.sin(t * 2.1) * 0.12 + roll;
   shadow.scale.setScalar(1 - hop * 0.35); shadow.material.opacity = (1 - hop * 0.5) * blobBase;
-  bulbs.forEach((b, i) => b.material.color.setHSL(((i * 0.11 + t * (reduce ? 0 : 0.05)) % 1), 0.85, 0.75));
+  bulbs.forEach((b, i) => b.material.color.set(BULB_COL[i % 4]).multiplyScalar(0.82 + 0.18 * Math.sin(t * 1.6 + i * 1.3)));
   /* hạt */
   for (let i = particles.length - 1; i >= 0; i--) {
     const p = particles[i]; p.life += dt;
@@ -1273,6 +1280,7 @@ initTour({ isBusy: () => growth.isEvolving() });
 initCompanion({ say, startAction, spawn, sfx, goTo, openClinic: () => home && home.openClinic(), isBusy: () => growth.isEvolving() || editing || !!anim, dev: DEV });
 initFarewell();
 /* Chỉ ở ?dev: cho script kiểm tra biết thú đang ở đâu trên màn hình (thú đi lang thang nên không nằm cố định giữa màn hình) */
+if (DEV) window.__goTo = (n, i) => goTo(n, i);
 if (DEV) window.__plotXY = i => gardenFx.screenOf(i);
 if (DEV) window.__petPos = () => [petRoot.position.x, petRoot.position.y, petRoot.position.z, !!script];
 if (DEV) window.__walk = (x, z) => walkPetTo(x, z);
