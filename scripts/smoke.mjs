@@ -216,10 +216,10 @@ await reload();
 await setDemo("d.coins=1000;d.pet.bond_xp=300;d.bond=[];");
 await reload();
 await p.click('#btn-stats');await p.waitForTimeout(500);
-ok('Chỉ số: gắn bó cấp 5 "Tin cậy", 4 phần quà chưa nhận',(await p.textContent('#bond')).includes('Cấp 5 · Tin cậy')&&(await p.$$('#bond [data-bond]')).length===4,(await p.textContent('#bond')).slice(0,60));
-await p.click('#bond [data-bond="3"]');await p.waitForTimeout(500);
+ok('Chỉ số: gắn bó cấp 5 "Tin cậy", 4 phần quà gộp một nút Nhận tất cả',(await p.textContent('#bond')).includes('Cấp 5 · Tin cậy')&&(await p.$$('#bond [data-bond="all"]')).length===1&&/4 phần quà/.test(await p.textContent('#bond')),(await p.textContent('#bond')).slice(0,80));
+await p.click('#bond [data-bond="all"]');await p.waitForTimeout(800);
 dm=await demo();
-ok('nhận quà cấp 3: +80 xu, còn 3 phần quà',dm.coins===1080&&dm.bond.includes(3)&&(await p.$$('#bond [data-bond]')).length===3,JSON.stringify({c:dm.coins,b:dm.bond}));
+ok('nhận tất cả: cấp 2–5 = 50+80+120+160 = +410 xu, hết nút nhận quà',dm.coins===1410&&[2,3,4,5].every(l=>dm.bond.includes(l))&&(await p.$$('#bond [data-bond]')).length===0,JSON.stringify({c:dm.coins,b:dm.bond}));
 await p.click('#btn-stats');await p.waitForTimeout(300);
 // chào mừng quay lại và đồng hành giờ làm việc
 await p.evaluate(()=>localStorage.setItem('hatchday-tour','1'));
