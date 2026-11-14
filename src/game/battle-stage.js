@@ -96,7 +96,7 @@ export function makeStageKit(THREE0) {
   function tree(par, x, z, s, A) {
     const t = new THREE.Group(); t.position.set(x, 0, z); t.scale.setScalar(s); t.rotation.y = h1(x * 3 + z) * 6; par.add(t);
     put(t, new THREE.CylinderGeometry(0.28, 0.5, 4, 9, pick(1, 4, 6)), cel('#6b4a34'), { y: 2, ink: 0.04 });
-    [[0, 4.6, 0, 1.9], [-1.0, 3.9, 0.4, 1.3], [1.0, 4.0, -0.3, 1.4], [0.2, 5.6, 0.1, 1.3]].forEach(([a, b, c, r], i) => { const m = put(t, blobGeo(THREE, (i * 5 + Math.round(Math.abs(x) * 3)) % 12, { lumps: 12, amp: 0.34 }), cel(['#4f9a4a', '#5fb05a', '#468a44', '#6cc066'][i]), { x: a, y: b, z: c, ink: 0.05 }); m.scale.setScalar(r); });
+    [[0, 4.6, 0, 1.9], [-1.0, 3.9, 0.4, 1.3], [1.0, 4.0, -0.3, 1.4], [0.2, 5.6, 0.1, 1.3]].forEach(([a, b, c, r], i) => { const m = put(t, blobGeo(THREE, (i * 5 + Math.round(Math.abs(x) * 3)) % 12, { lumps: 12, amp: 0.34, det: pick(2, 3, 5) }), cel(['#4f9a4a', '#5fb05a', '#468a44', '#6cc066'][i]), { x: a, y: b, z: c, ink: 0.05 }); m.scale.setScalar(r); });
   }
   function column(par, x, z, h, broken, col) {
     const g = new THREE.Group(); g.position.set(x, 0, z); par.add(g);
@@ -183,7 +183,12 @@ export function makeStageKit(THREE0) {
     }
 
     // gộp đồ tĩnh cùng vật liệu (cây, đá, bậc, trụ, viền mực…) thành ít lưới: giảm lệnh vẽ để có chỗ cho khối mịn hơn
-    bakeStatic(THREE, G); G.traverse(o => { if (o.userData.baked && !o.userData.outline) { o.castShadow = true; o.receiveShadow = true; } });
+    // gộp riêng cảnh gần (trong vùng bản đồ bóng ±8) và cảnh xa: cảnh xa không vẽ vào bản đồ bóng (trước đây cũng bị cắt khỏi khung bóng),
+    // nhờ vậy lưới gộp không kéo cả rừng cây vào lượt đổ bóng
+    const far = new THREE.Group(); far.userData.keep = true; G.add(far); [...G.children].forEach(o => { if (o !== far && (o.isMesh || o.isGroup) && Math.hypot(o.position.x, o.position.z) > 8.5) far.attach(o); });
+    bakeStatic(THREE, G); bakeStatic(THREE, far);
+    G.traverse(o => { if (o.userData.baked && !o.userData.outline) { o.receiveShadow = true; let f = false; for (let q = o; q; q = q.parent) if (q === far) f = true; o.castShadow = !f; } });
+    far.traverse(o => { if (o.isMesh) o.castShadow = false; });
     const sk = sky(A, el === 3); G.add(sk);
     const hemi = new THREE.HemisphereLight(A.hemi[0], A.hemi[1], el === 3 ? 0.95 : 1.1); G.add(hemi);
     const key = new THREE.DirectionalLight(A.sun, A.key * 0.8); key.position.set(el === 3 ? -6 : 6, 10, 6); key.castShadow = true; key.shadow.mapSize.set(2048, 2048); Object.assign(key.shadow.camera, { left: -8, right: 8, top: 8, bottom: -8, near: 1, far: 30 }); key.shadow.bias = -0.0006; key.shadow.normalBias = 0.03; G.add(key); G.add(key.target);
