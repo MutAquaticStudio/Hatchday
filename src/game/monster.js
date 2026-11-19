@@ -388,9 +388,9 @@ export function makeMonsterBuilder(K) {
   function build(into, look, H) {
     const sp = SPECIES_BY_ID[look.species] || SPECIES[0]; if (!hasMonster(sp)) return null;
     const stage = look.stage && STAGES[look.stage] ? look.stage : 'baby', grown = stage === 'adult' || stage === 'elder', form = grown ? look.form : null;
-    // cỡ ô lưới dựng khối: thú của mình 0.052 (vừa) / 0.046 (cao), ảnh thu nhỏ 0.065, máy yếu 0.08, thú người khác và đối thủ ở Đấu trường 0.1 (LOD)
+    // cỡ ô lưới dựng khối: thú của mình 0.048 (vừa) / 0.042 (cao), ảnh thu nhỏ 0.065, máy yếu 0.08, thú người khác và đối thủ ở Đấu trường 0.1 (LOD)
     const q = K.quality ? K.quality() : 'vua', low = q === 'thap';
-    const cell = look.lod ? 0.1 : low ? 0.08 : look.thumb ? 0.065 : q === 'vua' ? 0.052 : 0.046, td = look.lod || low ? TD_LO : look.thumb ? TD_MID : q === 'vua' ? TD_HI : TD_MAX;
+    const cell = look.lod ? 0.1 : low ? 0.08 : look.thumb ? 0.065 : q === 'vua' ? 0.048 : 0.042, td = look.lod || low ? TD_LO : look.thumb ? TD_MID : q === 'vua' ? TD_HI : TD_MAX;
     const R = beast(sp, stage, form, cell, td), root = new THREE.Group(), el = K.ELEMENT[sp.region] || K.ELEMENT[0], bones = [root];
     const torso = hid(root, R.col.torso); if (R.col.fixed) hid(root, R.col.fixed);
     const faceTex = look.face ? H.simpleFace(el.iris, K.FIERCE[stage] || 0) : K.faceTex();

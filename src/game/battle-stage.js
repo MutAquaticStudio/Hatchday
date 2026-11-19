@@ -96,7 +96,7 @@ export function makeStageKit(THREE0) {
   function tree(par, x, z, s, A) {
     const t = new THREE.Group(); t.position.set(x, 0, z); t.scale.setScalar(s); t.rotation.y = h1(x * 3 + z) * 6; par.add(t);
     put(t, new THREE.CylinderGeometry(0.28, 0.5, 4, 9, pick(1, 4, 6)), cel('#6b4a34'), { y: 2, ink: 0.04 });
-    [[0, 4.6, 0, 1.9], [-1.0, 3.9, 0.4, 1.3], [1.0, 4.0, -0.3, 1.4], [0.2, 5.6, 0.1, 1.3]].forEach(([a, b, c, r], i) => { const m = put(t, blobGeo(THREE, (i * 5 + Math.round(Math.abs(x) * 3)) % 12, { lumps: 12, amp: 0.34, det: pick(2, 3, 5) }), cel(['#4f9a4a', '#5fb05a', '#468a44', '#6cc066'][i]), { x: a, y: b, z: c, ink: 0.05 }); m.scale.setScalar(r); });
+    [[0, 4.6, 0, 1.9], [-1.0, 3.9, 0.4, 1.3], [1.0, 4.0, -0.3, 1.4], [0.2, 5.6, 0.1, 1.3]].forEach(([a, b, c, r], i) => { const m = put(t, blobGeo(THREE, (i * 5 + Math.round(Math.abs(x) * 3)) % 12, { lumps: 12, amp: 0.34, det: pick(2, 6, 9) }), cel(['#4f9a4a', '#5fb05a', '#468a44', '#6cc066'][i]), { x: a, y: b, z: c, ink: 0.05 }); m.scale.setScalar(r); });
   }
   function column(par, x, z, h, broken, col) {
     const g = new THREE.Group(); g.position.set(x, 0, z); par.add(g);
