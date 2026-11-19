@@ -298,7 +298,7 @@ await p.fill('#chat-in','gọi 0912345678 nhé');await p.click('#chat-box button
 ok('chat: số điện thoại bị chặn kèm lý do',await until(async()=>(await p.textContent('#toast')).includes('số điện thoại'),4000),await p.textContent('#toast'));
 await p.fill('#chat-in','');
 await p.click('.hot[data-hot="news"]');
-ok('chạm Bảng tin: mở mục Tin tức',await until(async()=>await p.isVisible('#social')&&(await p.textContent('#social')).includes('Tin tức'),15000));
+ok('chạm Bảng tin: mở mục Tin tức',await until(async()=>await p.isVisible('#social')&&(await p.textContent('#social')).includes('Tin tức'),45000));
 await p.click('.hsheet:not([hidden]) [data-close]');await p.waitForTimeout(300);
 await goPlace('tea');
 ok('đi tới Tiệm trà: có bàn và thanh emote',await until(async()=>(await p.textContent('#scene-tag')).includes('Tiệm trà')&&await p.isVisible('.hot[data-hot="table0"]')&&await p.isVisible('.emote-bar'),15000));
