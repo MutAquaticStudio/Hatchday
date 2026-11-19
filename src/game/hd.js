@@ -13,7 +13,7 @@ try { const q = localStorage.getItem('hatchday-quality'); if (q === 'thap' || q 
 export const tier = () => TIER;
 export const setTier = t => { if (t) TIER = t; };
 /** Hệ số độ mịn: 0 = giữ nguyên số múi gốc (máy yếu), 1 = vừa, 1.4 = cao / điện ảnh. */
-export const fine = () => (TIER === 'thap' ? 0 : TIER === 'vua' ? 1 : 1.4);
+export const fine = () => (TIER === 'thap' ? 0 : TIER === 'vua' ? 1.25 : 1.7);
 /** Chọn giá trị theo tầng: pick(thấp, vừa, cao). */
 export const pick = (lo, mid, hi) => (TIER === 'thap' ? lo : TIER === 'vua' ? mid : hi);
 /** Số múi quanh trục cho khối tròn bán kính r mà mã gốc xin n múi (n < min giữ nguyên: đa giác có chủ ý). */
@@ -147,7 +147,7 @@ function ball(THREE, det, f, key) {
 export function blobGeo(THREE, seed = 0, { lumps = 14, amp = 0.3, det } = {}) {
   const C = []; for (let i = 0; i < lumps; i++) { const y = 1 - 2 * (i + 0.5) / lumps, r = Math.sqrt(1 - y * y), a = i * 2.39996 + h3(seed, i, 1) * 0.9; C.push([Math.cos(a) * r, y + (h3(seed, i, 2) - 0.5) * 0.25, Math.sin(a) * r, 0.75 + 0.5 * h3(seed, i, 3)]); }
   const w = 2.2 / Math.sqrt(lumps);
-  return ball(THREE, det ?? pick(3, 4, 6), v => {
+  return ball(THREE, det ?? pick(3, 7, 10), v => {
     let m = 0; for (const c of C) { const l = Math.hypot(c[0], c[1], c[2]), d = (v.x * c[0] + v.y * c[1] + v.z * c[2]) / l, ang = Math.acos(Math.min(1, d)) / (w * c[3]); if (ang < 1) m = Math.max(m, Math.sqrt(1 - ang * ang) * c[3]); }
     v.multiplyScalar(1 - amp * 0.55 + amp * m + 0.03 * vnoise(v.x * 5 + seed, v.y * 5, v.z * 5));
   }, 'blob' + seed + '|' + lumps + '|' + amp);
@@ -156,7 +156,7 @@ export function blobGeo(THREE, seed = 0, { lumps = 14, amp = 0.3, det } = {}) {
 export function rockGeo(THREE, seed = 0, { cuts = 9, amp = 0.22, det } = {}) {
   const P = []; for (let i = 0; i < cuts; i++) { const y = 1 - 2 * (i + 0.5) / cuts, r = Math.sqrt(1 - y * y), a = i * 2.39996 + h3(seed, i, 5) * 2; P.push([Math.cos(a) * r, y, Math.sin(a) * r, 0.62 + 0.3 * h3(seed, i, 6)]); }
   const kk = 0.12;
-  return ball(THREE, det ?? pick(2, 3, 5), v => {
+  return ball(THREE, det ?? pick(2, 6, 8), v => {
     const n = 0.86 + amp * (vnoise(v.x * 1.7 + seed * 3.1, v.y * 1.7 + 7, v.z * 1.7) - 0.5) * 2 + 0.05 * vnoise(v.x * 6, v.y * 6 + seed, v.z * 6);
     let rad = n; for (const c of P) { const d = v.x * c[0] + v.y * c[1] + v.z * c[2]; if (d > 0.05) { const lim = c[3] / d, h = Math.max(kk - Math.abs(rad - lim), 0) / kk; rad = Math.min(rad, lim) - h * h * kk * 0.25; } }
     v.multiplyScalar(rad);
@@ -165,7 +165,7 @@ export function rockGeo(THREE, seed = 0, { cuts = 9, amp = 0.22, det } = {}) {
 /** Mỏm đá nhọn (núi lửa, vách): nón nhiều múi dời theo nhiễu, cao 1, đáy bán kính 1, gốc ở y = 0. */
 export function spireGeo(THREE, seed = 0) {
   const T = THREE.RAW || THREE, ck = 'spire' + seed; let g = geoCache.get(ck); if (g) return g;
-  const rs = pick(9, 22, 32), hs = pick(4, 10, 16), pos = [], idx = [];
+  const rs = pick(9, 32, 48), hs = pick(4, 16, 24), pos = [], idx = [];
   for (let j = 0; j <= hs; j++) { const u = j / hs, r0 = Math.pow(1 - u, 0.8) * (1 - 0.12 * Math.sin(u * 9 + seed)) + 0.015;
     for (let i = 0; i < rs; i++) { const a = i / rs * Math.PI * 2, cx = Math.cos(a), cz = Math.sin(a), k = 0.72 + 0.5 * vnoise(cx * 1.6 + seed * 1.7, u * 3.2, cz * 1.6) + 0.1 * vnoise(cx * 5, u * 9 + seed, cz * 5), lean = 0.12 * u * u; pos.push(cx * r0 * k + lean * Math.cos(seed), u, cz * r0 * k + lean * Math.sin(seed)); } }
   pos.push(0.12 * Math.cos(seed), 1.02, 0.12 * Math.sin(seed)); const tip = pos.length / 3 - 1;
